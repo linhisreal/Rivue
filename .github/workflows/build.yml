@@ -1,4 +1,4 @@
-name: Vue Framework Build
+name: Rivue Framework Build
 
 on:
   push:
@@ -24,6 +24,9 @@ jobs:
     - name: Install dependencies
       run: aftman install
       
+    - name: Generate Rojo sourcemap
+      run: rojo sourcemap default.project.json --output sourcemap.json
+      
     - name: Check code formatting with StyLua
       run: stylua --check src/ tests/
       continue-on-error: false
@@ -38,12 +41,19 @@ jobs:
       shell: powershell
       continue-on-error: true
       
+    - name: Download Roblox Type Definitions
+      run: |
+        Write-Host "Downloading Roblox type definitions..."
+        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/refs/heads/main/scripts/globalTypes.d.luau" -OutFile "globalTypes.d.luau"
+        Write-Host "Type definitions downloaded successfully"
+      shell: powershell
+      
     - name: Run Luau Type Checker
       run: |
-        Write-Host "Running Luau type analysis..."
-        & "$HOME/.aftman/bin/luau-lsp" analyze --sourcemap=sourcemap.json src/
+        Write-Host "Running Luau type analysis with Roblox definitions..."
+        & "$HOME/.aftman/bin/luau-lsp" analyze --sourcemap=sourcemap.json --definitions=globalTypes.d.luau src/
       shell: powershell
-      continue-on-error: true
+      continue-on-error: false
 
   build:
     name: Build Distributable
@@ -64,6 +74,20 @@ jobs:
       
     - name: Generate Rojo sourcemap
       run: rojo sourcemap default.project.json --output sourcemap.json
+      
+    - name: Download Roblox Type Definitions
+      run: |
+        Write-Host "Downloading Roblox type definitions..."
+        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/refs/heads/main/scripts/globalTypes.d.luau" -OutFile "globalTypes.d.luau"
+        Write-Host "Type definitions downloaded successfully"
+      shell: powershell
+      
+    - name: Run Type Check (Optional Validation)
+      run: |
+        Write-Host "Running Luau type validation..."
+        & "$HOME/.aftman/bin/luau-lsp" analyze --sourcemap=sourcemap.json --definitions=globalTypes.d.luau src/
+      shell: powershell
+      continue-on-error: true
       
     - name: Create build directory
       run: New-Item -ItemType Directory -Force -Path build
