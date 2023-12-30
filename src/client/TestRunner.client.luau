@@ -52,6 +52,7 @@ local function runAllTests(): TestRunResult
 		{ name = "Pool", moduleName = "Pool" },
 		{ name = "H", moduleName = "H" },
 		{ name = "Directives", moduleName = "Directives" },
+		{ name = "Composables", moduleName = "Composables" },
 		{ name = "Debug", moduleName = "Debug" },
 		{ name = "Component", moduleName = "Component" },
 		{ name = "Roblox", moduleName = "Roblox" },
