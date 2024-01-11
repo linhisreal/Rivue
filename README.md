@@ -9,10 +9,10 @@
 [![Roblox](https://img.shields.io/badge/Platform-Roblox-E03A3E.svg?style=for-the-badge&logo=roblox)](https://www.roblox.com/)
 [![Version](https://img.shields.io/badge/Version-2.1.0-brightgreen.svg?style=for-the-badge)](https://github.com/linhisreal/Rivue/releases)
 
-[![Tests](https://img.shields.io/badge/Tests-85%2F85%20Passing-success.svg?style=flat-square)](tests/)
+[![Tests](https://img.shields.io/badge/Tests-16%20Suites%20%7C%2045%2B%20Tests-success.svg?style=flat-square)](tests/)
 [![Code Quality](https://img.shields.io/badge/Code%20Quality-A+-brightgreen.svg?style=flat-square)](https://github.com/linhisreal/Rivue)
-[![Coverage](https://img.shields.io/badge/Coverage-95%25-success.svg?style=flat-square)](tests/)
-[![Maintained](https://img.shields.io/badge/Maintained-Yes-green.svg?style=flat-square)](https://github.com/yourusername/rivue/commits/main)
+[![Coverage](https://img.shields.io/badge/API%20Coverage-45%20APIs%20Validated-success.svg?style=flat-square)](tests/ApiValidation.test.luau)
+[![Maintained](https://img.shields.io/badge/Maintained-Yes-green.svg?style=flat-square)](https://github.com/linhisreal/Rivue/commits/main)
 
 [Features](#features) • [Demo](#demo) • [Installation](#installation) • [Quick Start](#quick-start) • [Documentation](#documentation) • [Examples](#examples) • [FAQ](#faq) • [Contributing](#contributing)
 
@@ -44,66 +44,256 @@ Rivue brings the power and elegance of Vue.js's reactivity system to Roblox game
 
 ### Why Rivue?
 
+<table>
+<tr>
+<td width="50%">
+
+#### 🎯 **Developer Experience**
 - **Familiar API**: If you know Vue.js, you already know Rivue
-- **High Performance**: Virtual DOM with efficient diffing and object pooling
-- **Type-Safe**: Built with strict Luau typing for better developer experience
-- **Reactive**: Automatic dependency tracking and updates
-- **Component-Based**: Reusable, composable UI components
+- **Type-Safe**: Built with strict Luau typing for better IDE support
 - **Developer-Friendly**: Comprehensive lifecycle hooks and debugging tools
+- **Well Documented**: Complete API docs with examples
+
+</td>
+<td width="50%">
+
+#### ⚡ **Performance**
+- **High Performance**: Virtual DOM with efficient diffing
+- **Object Pooling**: Reduced garbage collection overhead
+- **Reactive**: Automatic dependency tracking and updates
+- **Optimized Updates**: Batched rendering with job scheduler
+
+</td>
+</tr>
+<tr>
+<td width="50%">
+
+#### 🧩 **Architecture**
+- **Component-Based**: Reusable, composable UI components
+- **Composition API**: Modern composables (useAttrs, useSlots, etc.)
+- **Modular**: Import only what you need
+- **Extensible**: Custom directives and plugins
+
+</td>
+<td width="50%">
+
+#### 🚀 **Production Ready**
+- **Battle-Tested**: 16 comprehensive test suites
+- **Stable API**: Semantic versioning
+- **Active Development**: Regular updates and improvements
+- **Community Support**: Open source with MIT license
+
+</td>
+</tr>
+</table>
 
 ---
 
 ## Features
 
-### Core Features
+<details open>
+<summary><h3>🎨 Core Reactivity & Rendering</h3></summary>
 
-- ✅ **Reactivity System**: `ref`, `reactive`, `computed`, `watch`, `watchEffect`
-- ✅ **Virtual DOM**: Efficient rendering with automatic diffing
-- ✅ **Component Lifecycle**: Complete lifecycle hooks (mount, update, unmount)
-- ✅ **Built-in Directives**: `v-show`, `v-focus`, `v-drag`, `v-memo`, `v-once`, and more
-- ✅ **Two-Way Binding**: `v-model` helpers for seamless data binding
-- ✅ **Custom Directives**: Extend functionality with your own directives
+<table>
+<tr><td>
 
-### Advanced Features
+**Reactivity System**
+- `ref()` - Reactive primitives
+- `reactive()` - Deep reactive objects  
+- `computed()` - Derived state
+- `watch()` / `watchEffect()` - Side effects
+- `readonly()` - Immutable proxies
 
-- ✅ **Suspense**: Handle async components with loading states
-- ✅ **KeepAlive**: Cache component state with LRU eviction
-- ✅ **Async Components**: Lazy-load components with `defineAsyncComponent`
-- ✅ **Composition API**: `useAttrs`, `useSlots`, `defineModel`, `useTheme`, `useStyles`
-- ✅ **Effect Scopes**: Fine-grained control over reactive effects
-- ✅ **Provide/Inject**: Dependency injection for component trees
-- ✅ **Job Scheduler**: Prioritized update batching (micro, render, heartbeat)
-- ✅ **Object Pooling**: Minimize garbage collection overhead
-- ✅ **Remote Communication**: Built-in network utilities
+</td><td>
+
+**Virtual DOM**
+- Efficient diffing algorithm
+- Automatic patching
+- Component mounting/unmounting
+- Lifecycle hooks
+- Error boundaries
+
+</td><td>
+
+**Component API**
+- `defineComponent()` - Component definition
+- `h()` - Virtual node creation
+- Props & emits
+- Slots & attrs
+- Provide/inject
+
+</td></tr>
+</table>
+
+</details>
+
+<details open>
+<summary><h3>⚡ Advanced Features</h3></summary>
+
+<table>
+<tr><td width="33%">
+
+**Async & Suspense**
+- `defineAsyncComponent()` - Code splitting
+- `Suspense` - Loading states
+- `KeepAlive` - Component caching
+- Error handling
+- Timeout support
+
+</td><td width="33%">
+
+**Composition API**
+- `useAttrs()` - Non-prop attributes
+- `useSlots()` - Component slots
+- `defineModel()` - Two-way binding
+- `useTheme()` - Theme context
+- `useStyles()` - Reactive styles
+
+</td><td width="33%">
+
+**Built-in Directives**
+- `v-show` - Conditional visibility
+- `v-focus` - Auto-focus
+- `v-drag` - Draggable elements
+- `v-memo` - Memoization
+- `v-once` - Static content
+- Custom directives API
+
+</td></tr>
+</table>
+
+</details>
+
+<details>
+<summary><h3>🔧 Developer Tools & Optimization</h3></summary>
+
+<table>
+<tr><td>
+
+**Performance**
+- Job scheduler (micro/render/heartbeat)
+- Object pooling
+- Batched updates
+- Lazy loading
+- Tree shaking
+
+</td><td>
+
+**Roblox Integration**
+- `attributeRef()` - Instance attributes
+- `useTag()` - CollectionService
+- `onRenderStepped()` - Frame hooks
+- `onHeartbeat()` - Physics step
+- `onStepped()` - Simulation step
+
+</td><td>
+
+**Utilities**
+- `debounce()` / `throttle()`
+- `nextTick()` / `nextFrame()`
+- `iterArray()` - Reactive iteration
+- Remote communication
+- Debug helpers
+
+</td></tr>
+</table>
+
+</details>
 
 ---
 
 ## Installation
 
-### Method 1: Using Wally (Recommended)
+<table>
+<tr>
+<th width="50%">📦 Using Wally (Recommended)</th>
+<th width="50%">💾 Manual Installation</th>
+</tr>
+<tr>
+<td>
 
-Add to your `wally.toml`:
-
+**1. Add to `wally.toml`:**
 ```toml
 [dependencies]
 Rivue = "username/rivue@2.1.0"
 ```
 
-Then run:
-
+**2. Install dependencies:**
 ```bash
 wally install
 ```
 
-### Method 2: Manual Installation
-
-1. Download the latest release from [GitHub Releases](https://github.com/linhisreal/Rivue/releases)
-2. Place the `Rivue` folder in `ReplicatedStorage`
-3. Require it in your code:
-
+**3. Require in your code:**
 ```lua
 local Rivue = require(game.ReplicatedStorage.Rivue)
 ```
+
+✅ Automatic updates<br>
+✅ Dependency management<br>
+✅ Version control
+
+</td>
+<td>
+
+**1. Download from [GitHub Releases](https://github.com/linhisreal/Rivue/releases)**
+
+**2. Place in `ReplicatedStorage`:**
+```
+ReplicatedStorage
+└── Rivue/
+    ├── runtime/
+    └── ...
+```
+
+**3. Require in your code:**
+```lua
+local Rivue = require(game.ReplicatedStorage.Rivue)
+```
+
+✅ No external tools<br>
+✅ Direct integration<br>
+✅ Full control
+
+</td>
+</tr>
+</table>
+
+---
+
+<div align="center">
+
+### 🚀 Quick Navigation
+
+<table>
+<tr>
+<td align="center" width="25%">
+<a href="#quick-start">
+<img src="https://img.shields.io/badge/Quick_Start-4CAF50?style=for-the-badge&logo=rocket&logoColor=white" />
+</a>
+<br><sub>Get Started Fast</sub>
+</td>
+<td align="center" width="25%">
+<a href="#documentation">
+<img src="https://img.shields.io/badge/Docs-2196F3?style=for-the-badge&logo=book&logoColor=white" />
+</a>
+<br><sub>Full Documentation</sub>
+</td>
+<td align="center" width="25%">
+<a href="#examples">
+<img src="https://img.shields.io/badge/Examples-FF9800?style=for-the-badge&logo=code&logoColor=white" />
+</a>
+<br><sub>Code Examples</sub>
+</td>
+<td align="center" width="25%">
+<a href="#faq">
+<img src="https://img.shields.io/badge/FAQ-9C27B0?style=for-the-badge&logo=question&logoColor=white" />
+</a>
+<br><sub>Common Questions</sub>
+</td>
+</tr>
+</table>
+
+</div>
 
 ---
 
@@ -388,74 +578,189 @@ TestRunner.run("Reactivity")
 
 ### Current Test Coverage
 
-- ✅ Reactivity System (15/15 tests passing)
-- ✅ Component Lifecycle (12/12 tests passing)
-- ✅ Virtual DOM & Rendering (18/18 tests passing)
-- ✅ Directives (10/10 tests passing)
-- ✅ Scheduler (8/8 tests passing)
-- ✅ Object Pooling (15/15 tests passing)
-- ✅ Utilities (7/7 tests passing)
+- ✅ **API Validation** (45 comprehensive API tests)
+- ✅ **Reactivity System** (ref, reactive, computed, watch, etc.)
+- ✅ **Component Lifecycle** (mount, update, unmount hooks)
+- ✅ **Virtual DOM & Rendering** (h(), diffing, patching)
+- ✅ **Directives** (focus, show, drag, memo, once, etc.)
+- ✅ **Scheduler** (job queuing, prioritization)
+- ✅ **Object Pooling** (instance reuse, memory optimization)
+- ✅ **Composables** (useAttrs, useSlots, defineModel, etc.)
+- ✅ **Roblox Integration** (attributeRef, useTag, RunService hooks)
+- ✅ **Utilities** (debounce, throttle, nextTick, iterArray)
+- ✅ **Remote Communication** (network utilities)
+- ✅ **Debug Tools** (development mode, error handling)
 
-**Total: 85/85 tests passing** ✅
+**Total: 16 test suites with comprehensive coverage** ✅
 
 ---
 
 ## FAQ
 
-<details>
-<summary><b>Is Rivue production-ready?</b></summary>
+<table>
+<tr><td>
 
-Yes! Rivue is stable with 85/85 tests passing and has been battle-tested in multiple Roblox projects. All core features are fully implemented and documented.
+<details>
+<summary>🚀 <b>Is Rivue production-ready?</b></summary>
+<br>
+
+Yes! Rivue is production-ready and stable:
+- ✅ **16 comprehensive test suites** covering all features
+- ✅ **45+ API validation tests** ensuring correctness
+- ✅ **Battle-tested** in multiple Roblox projects
+- ✅ **Semantic versioning** for predictable updates
+- ✅ **Full documentation** with examples
 
 </details>
+
+</td></tr>
+<tr><td>
 
 <details>
 <summary><b>How does Rivue compare to traditional Roblox UI development?</b></summary>
+<br>
 
-Rivue provides automatic reactivity and component-based architecture, eliminating manual UI updates. Instead of manually updating TextLabels when data changes, Rivue's reactive system handles it automatically.
+**Traditional Approach:**
+```lua
+-- Manual updates everywhere
+label.Text = "Count: " .. count
+count = count + 1
+label.Text = "Count: " .. count  -- Must update manually
+```
+
+**Rivue Approach:**
+```lua
+-- Automatic reactivity
+local count = Rivue.ref(0)
+count.value = count.value + 1  -- UI updates automatically!
+```
+
+**Benefits:**
+- 🎯 No manual UI updates
+- 🔄 Automatic dependency tracking
+- 🧩 Reusable components
+- 🚀 Better performance with batched updates
 
 </details>
+
+</td></tr>
+<tr><td>
 
 <details>
 <summary><b>Do I need to know Vue.js to use Rivue?</b></summary>
+<br>
 
-No! While Rivue is inspired by Vue.js, you don't need prior Vue experience. The API is intuitive and the documentation includes plenty of examples. However, Vue knowledge will help you get started faster.
+**No!** While Rivue is inspired by Vue.js, you don't need prior Vue experience:
+
+- 📖 **Intuitive API** - Easy to learn from scratch
+- 🎓 **Complete documentation** - Everything explained with examples
+- 💡 **Familiar patterns** - Standard reactive programming concepts
+- ✨ **Quick start guide** - Get running in minutes
+
+However, Vue.js knowledge will help you get started even faster!
 
 </details>
+
+</td></tr>
+<tr><td>
 
 <details>
 <summary><b>What's the performance impact?</b></summary>
+<br>
 
-Rivue is highly optimized with:
-- Virtual DOM diffing to minimize DOM operations
-- Object pooling to reduce garbage collection
-- Job scheduler for batched updates
-- Lazy loading and code splitting support
+Rivue is **highly optimized** and often **faster** than manual code:
 
-In most cases, Rivue apps are *faster* than manually-coded UIs due to optimized update strategies.
+**Optimizations:**
+- 🎯 **Virtual DOM diffing** - Minimal actual DOM operations
+- ♻️ **Object pooling** - Reduced garbage collection
+- 📦 **Batched updates** - Multiple changes applied at once
+- 🚀 **Job scheduler** - Prioritized rendering (micro/render/heartbeat)
+- 🔄 **Lazy loading** - Load components only when needed
+- 🌲 **Tree shaking** - Remove unused code
+
+**Benchmarks:**
+- Updates are batched and optimized
+- Memory usage is minimized with pooling
+- Frame rate stays smooth even with complex UIs
 
 </details>
+
+</td></tr>
+<tr><td>
 
 <details>
 <summary><b>Can I use Rivue with existing Roblox projects?</b></summary>
+<br>
 
-Absolutely! Rivue can be integrated incrementally. You can start by converting one UI component and gradually migrate more as needed.
+**Absolutely!** Rivue supports **incremental adoption**:
+
+**Migration Strategy:**
+1. 🎯 **Start small** - Convert one UI component
+2. 🔄 **Gradual migration** - Move features one at a time
+3. 🤝 **Interoperability** - Works alongside existing code
+4. 📦 **No rewrites** - Keep your current codebase
+
+**Example:**
+```lua
+-- Existing code continues to work
+local existingUI = script.Parent.OldUI
+
+-- Add Rivue for new features
+local newFeature = Rivue.createApp(MyComponent)
+newFeature:mount(container)
+```
 
 </details>
+
+</td></tr>
+<tr><td>
 
 <details>
 <summary><b>Is TypeScript support planned?</b></summary>
+<br>
 
-Yes! TypeScript definition file generation is planned for version 2.2. Meanwhile, Rivue uses strict Luau typing for excellent IDE support.
+**Yes!** TypeScript definitions are on the roadmap:
+
+**Current State:**
+- ✅ **Strict Luau typing** - Full type safety in Luau
+- ✅ **IDE support** - IntelliSense and autocomplete
+- ✅ **Type checking** - Catch errors at development time
+
+**Planned for v2.2:**
+- 📋 TypeScript `.d.ts` generation
+- 📦 NPM package for roblox-ts users
+- 🔧 Full roblox-ts integration
 
 </details>
+
+</td></tr>
+<tr><td>
 
 <details>
 <summary><b>How do I report bugs or request features?</b></summary>
+<br>
 
-Open an issue on our [GitHub repository](https://github.com/linhisreal/Rivue/issues). We welcome all feedback and contributions!
+**We love feedback!** Here's how to contribute:
+
+**Bug Reports:**
+- 🐛 [Open a bug report](https://github.com/linhisreal/Rivue/issues/new?template=bug_report.md)
+- Include code samples and error messages
+- Describe expected vs actual behavior
+
+**Feature Requests:**
+- 💡 [Submit a feature request](https://github.com/linhisreal/Rivue/issues/new?template=feature_request.md)
+- Explain your use case
+- Describe the proposed API
+
+**Community:**
+- 💬 [Join discussions](https://github.com/linhisreal/Rivue/discussions)
+- ⭐ Star the repo to show support
+- 🤝 Contribute code via pull requests
 
 </details>
+
+</td></tr>
+</table>
 
 ---
 
@@ -536,6 +841,44 @@ Under the conditions that you:
 - [Luau](https://luau-lang.org/) - The programming language
 - [Rojo](https://rojo.space/) - Project management and sync
 - [Aftman](https://github.com/LPGhatguy/aftman) - Toolchain manager
+
+---
+
+## Tech Stack
+
+<div align="center">
+
+<table>
+<tr>
+<td align="center" width="20%">
+<img src="https://img.shields.io/badge/Luau-00A2FF?style=for-the-badge&logo=lua&logoColor=white" />
+<br><b>Luau</b>
+<br><sub>Language</sub>
+</td>
+<td align="center" width="20%">
+<img src="https://img.shields.io/badge/Roblox-E03A3E?style=for-the-badge&logo=roblox&logoColor=white" />
+<br><b>Roblox</b>
+<br><sub>Platform</sub>
+</td>
+<td align="center" width="20%">
+<img src="https://img.shields.io/badge/Rojo-E8274B?style=for-the-badge&logo=git&logoColor=white" />
+<br><b>Rojo</b>
+<br><sub>Build Tool</sub>
+</td>
+<td align="center" width="20%">
+<img src="https://img.shields.io/badge/Aftman-1F1F1F?style=for-the-badge&logo=package&logoColor=white" />
+<br><b>Aftman</b>
+<br><sub>Toolchain</sub>
+</td>
+<td align="center" width="20%">
+<img src="https://img.shields.io/badge/Vue.js-4FC08D?style=for-the-badge&logo=vue.js&logoColor=white" />
+<br><b>Vue.js</b>
+<br><sub>Inspiration</sub>
+</td>
+</tr>
+</table>
+
+</div>
 
 ---
 
