@@ -58,6 +58,7 @@ local debugModule = require(script.Parent:WaitForChild("debug"))
 
 local scheduler: { queueJob: (fn: () -> (), opts: QueueOptions?) -> JobHandle } = {} :: any
 local microQueue: { Job } = {}
+local microQueueSet: { [any]: boolean } = {}
 local microScheduled: boolean = false
 local isFlushingMicro: boolean = false
 local reentrancyDepth: number = 0
@@ -79,6 +80,7 @@ local function flushMicro(): ()
 	isFlushingMicro = true
 	local q = microQueue
 	microQueue = {}
+	microQueueSet = {}
 	microScheduled = false
 
 	debugModule.log("Scheduler", "Flushing micro queue", { jobCount = #q, reentrancyDepth = reentrancyDepth })
@@ -117,8 +119,9 @@ function scheduler.queueJob(fn: () -> (), opts: QueueOptions?): JobHandle
 	debugModule.log("Scheduler", "Queueing job", { mode = mode })
 
 	if mode == "render" then
+		local event = if RS:IsClient() then RS.RenderStepped else RS.Heartbeat
 		local conn: RBXScriptConnection? = nil
-		conn = RS.RenderStepped:Connect(function()
+		conn = event:Connect(function()
 			if conn then
 				conn:Disconnect()
 			end
@@ -163,17 +166,13 @@ function scheduler.queueJob(fn: () -> (), opts: QueueOptions?): JobHandle
 			end,
 		}
 	else
-		-- Quick scan to avoid scheduling the same function twice in the
-		-- pending microQueue. This keeps behavior similar to the previous
-		-- dedupe but allows callers to re-queue after a flush/cancel.
-		for _, existing in ipairs(microQueue) do
-			if existing.fn == fn and not existing.cancelled then
-				-- already queued this function for this micro tick; noop
-				debugModule.log("Scheduler", "Deduplicated micro job (already queued)")
-				return { cancel = function() end }
-			end
+		-- O(1) deduplication via set lookup
+		if microQueueSet[fn] then
+			debugModule.log("Scheduler", "Deduplicated micro job (already queued)")
+			return { cancel = function() end }
 		end
 
+		microQueueSet[fn] = true
 		table.insert(microQueue, job)
 		debugModule.log("Scheduler", "Added to micro queue", { queueSize = #microQueue })
 
@@ -186,6 +185,7 @@ function scheduler.queueJob(fn: () -> (), opts: QueueOptions?): JobHandle
 		return {
 			cancel = function()
 				job.cancelled = true
+				microQueueSet[fn] = nil
 				debugModule.log("Scheduler", "Cancelled micro job")
 			end,
 		}
