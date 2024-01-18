@@ -182,6 +182,8 @@ type ComponentInstance = {
 	runUpdated: (self: ComponentInstance) -> (),
 	runBeforeUnmount: (self: ComponentInstance) -> (),
 	runUnmounted: (self: ComponentInstance) -> (),
+	handleError: (self: ComponentInstance, err: string, info: string) -> (),
+	errorCapturedCbs: { (err: string, instance: any, info: string) -> boolean? },
 }
 
 type ComponentContext = {
@@ -441,7 +443,10 @@ local function createComponentInstance(vnode: VNode, parent: ComponentInstance?)
 
 	-- Separate declared props from attrs
 	local allProps = vnode.props or {}
-	local props, attrs = separatePropsAndAttrs(vnode.type.props, allProps)
+	local declaredProps, attrs = separatePropsAndAttrs(vnode.type.props, allProps)
+	-- Props are shallow-reactive so the render effect re-runs when a parent passes new values.
+	-- Cloned so updates never write into the parent's vnode.props table.
+	local props = _reactivity.shallowReactive(table.clone(declaredProps))
 
 	local instance: ComponentInstance = {
 		vnode = vnode,
@@ -534,9 +539,25 @@ local function createComponentInstance(vnode: VNode, parent: ComponentInstance?)
 			end
 		end
 
+		-- Effects/computeds/watchers created in setup belong to this scope and stop on unmount
+		local scope = _reactivity.effectScope(true);
+		(self :: any)._scope = scope
+
 		local setupResult
 		if type(self.type.setup) == "function" then
-			setupResult = (self.type.setup :: any)(self.props, ctx)
+			local setupErr: any = nil
+			setupResult = scope:run(function()
+				local ok, result = pcall(self.type.setup :: any, self.props, ctx)
+				if not ok then
+					setupErr = result
+					return nil
+				end
+				return result
+			end)
+			if setupErr ~= nil then
+				setCurrentInstance(nil)
+				error(setupErr, 0)
+			end
 		elseif type(self.type) == "function" then
 			setupResult = self.type
 		end
@@ -622,7 +643,8 @@ local function createComponentInstance(vnode: VNode, parent: ComponentInstance?)
 		end
 	end
 
-	function instance:runUnmounted()		local totalCallbacks = #self.unmountedCbs + #self.cleanupCbs
+	function instance:runUnmounted()
+		local totalCallbacks = #self.unmountedCbs + #self.cleanupCbs
 		local effectCount = (self :: any)._effects and #(self :: any)._effects or 0
 		local jobCount = (self :: any)._schedulerJobs and #(self :: any)._schedulerJobs or 0
 		if totalCallbacks > 0 or effectCount > 0 or jobCount > 0 then
@@ -670,6 +692,11 @@ local function createComponentInstance(vnode: VNode, parent: ComponentInstance?)
 			end
 			(self :: any)._effects = {}
 		end
+
+		if (self :: any)._scope then
+			(self :: any)._scope:stop();
+			(self :: any)._scope = nil
+		end
 	end
 
 	function instance:handleError(err: string, info: string)
@@ -690,6 +717,41 @@ local function createComponentInstance(vnode: VNode, parent: ComponentInstance?)
 	end
 
 	return instance, ctx
+end
+
+--- Applies new incoming props to a mounted component instance
+--- Only changed keys are written, so only render effects that read them re-run
+--- @param instance ComponentInstance -- Mounted component instance
+--- @param rawProps { [string]: any }? -- New props from the parent's vnode
+local function updateComponentProps(instance: ComponentInstance, rawProps: { [string]: any }?): ()
+	local schema = instance.type.props
+	local nextProps, nextAttrs = separatePropsAndAttrs(schema, rawProps or {})
+	local props = instance.props
+	local current = _reactivity.toRaw(props)
+
+	for key in current do
+		if nextProps[key] == nil then
+			local spec = if type(schema) == "table" then schema[key] else nil
+			if spec and spec.default ~= nil then
+				-- Fall back to the default; keep factory defaults as-is to avoid needless re-renders
+				if type(spec.default) ~= "function" then
+					props[key] = spec.default
+				end
+			else
+				props[key] = nil
+			end
+		end
+	end
+
+	for key, value in nextProps do
+		props[key] = value
+	end
+
+	-- attrs is shared with ctx.attrs, so update it in place
+	table.clear(instance.attrs)
+	for key, value in nextAttrs do
+		instance.attrs[key] = value
+	end
 end
 
 --- Registers a transition hook to run before/after element transitions
@@ -723,6 +785,7 @@ local Teleport = {
 
 return {
 	createComponentInstance = createComponentInstance,
+	updateComponentProps = updateComponentProps,
 	onBeforeMount = onBeforeMount,
 	onMounted = onMounted,
 	onBeforeUpdate = onBeforeUpdate,
