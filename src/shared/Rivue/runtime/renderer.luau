@@ -187,20 +187,8 @@ local eventAlias: { [string]: { string } } = {
 	onTouched = { "Touched" },
 }
 
--- Event signal cache to reduce reflection overhead
-local eventSignalCache: { [string]: { [string]: string? } } = {}
-
-local _isString = function(x)
-	return type(x) == "string"
-end
-
-local _isFunction = function(x)
-	return type(x) == "function"
-end
-
-local _isTable = function(x)
-	return type(x) == "table"
-end
+-- Event signal cache to reduce reflection overhead (false = known to have no matching signal)
+local eventSignalCache: { [string]: { [string]: string | false } } = {}
 
 local classPropCache = {}
 --- Checks if an Instance class has a specific property (cached)
@@ -213,19 +201,25 @@ local function classHasProp(inst, prop)
 	end
 
 	local cn = inst.ClassName
-	classPropCache[cn] = classPropCache[cn] or {}
 	local cache = classPropCache[cn]
-
-	if cache[prop] ~= nil then
-		return cache[prop]
+	if not cache then
+		cache = {}
+		classPropCache[cn] = cache
 	end
 
-	local ok, has = pcall(function()
-		return inst[prop] ~= nil
+	local cached = cache[prop]
+	if cached ~= nil then
+		return cached
+	end
+
+	-- A successful read means the member exists, even when its current value is nil
+	-- (e.g. NextSelectionUp, ObjectValue.Value). Checking `~= nil` cached those as missing per class.
+	local has = pcall(function()
+		return inst[prop]
 	end)
 
-	cache[prop] = ok and has
-	return cache[prop]
+	cache[prop] = has
+	return has
 end
 
 --- Attempts to get an RBXScriptSignal from an Instance
@@ -268,18 +262,14 @@ local function connectEvent(inst: Instance, propName: string, handler: (...any) 
 	local classCache = eventSignalCache[className]
 
 	-- If we've cached the signal name for this prop on this class, use it directly
-	if classCache[propName] then
-		local cachedSignalName = classCache[propName]
-		if cachedSignalName then
-			local signal = tryGetSignal(inst, cachedSignalName)
-			if signal then
-				return signal:Connect(function(...)
-					pcall(handler, ...)
-				end)
-			end
-		end
-		-- If cache says nil, we already tried and failed
+	local cachedSignalName = classCache[propName]
+	if cachedSignalName == false then
+		-- Already tried and failed for this class
 		return nil
+	elseif type(cachedSignalName) == "string" then
+		local signal = tryGetSignal(inst, cachedSignalName)
+		-- Connect directly: handler errors surface in the output with a traceback instead of being swallowed
+		return if signal then signal:Connect(handler) else nil
 	end
 
 	local aliases = eventAlias[propName]
@@ -302,14 +292,12 @@ local function connectEvent(inst: Instance, propName: string, handler: (...any) 
 		if signal then
 			-- Cache the successful signal name
 			classCache[propName] = evName
-			return signal:Connect(function(...)
-				pcall(handler, ...)
-			end)
+			return signal:Connect(handler)
 		end
 	end
 
 	-- Cache that we couldn't find a signal
-	classCache[propName] = nil
+	classCache[propName] = false
 	return nil
 end
 
@@ -348,7 +336,7 @@ local function setProp(inst, key, value, vnode)
 		if key == "onTextChanged" then
 			local ok, conn = pcall(function()
 				return inst:GetPropertyChangedSignal("Text"):Connect(function()
-					pcall(value, inst.Text)
+					value(inst.Text)
 				end)
 			end)
 
@@ -546,29 +534,27 @@ end
 --- @return any -- Mounted Instance
 local function mountElement(vnode, container, poolOpt)
 	local tag = vnode.type
-	local propCount = 0
-	if vnode.props then
-		for _ in pairs(vnode.props) do
-			propCount = propCount + 1
-		end
+	if debugModule.enabled then
+		debugModule.log("Renderer", "Mounting element", {
+			type = tostring(tag),
+			usePool = poolOpt ~= nil and poolOpt.usePool == true,
+			childCount = vnode.children and #vnode.children or 0,
+			hasKey = vnode.key ~= nil,
+		})
 	end
-	debugModule.log("Renderer", "Mounting element", {
-		type = tostring(tag),
-		usePool = poolOpt ~= nil and poolOpt.usePool == true,
-		propCount = propCount,
-		childCount = vnode.children and #vnode.children or 0,
-		hasKey = vnode.key ~= nil,
-	})
 	local inst
 
 	if poolOpt and poolOpt.usePool and type(tag) == "string" then
 		inst = Pool.acquire(tag)
 	else
-		local ok, created = pcall(function()
-			return Instance.new(tag)
-		end)
-
-		inst = (ok and created) or Instance.new("Frame")
+		local ok, created = pcall(Instance.new, tag)
+		if ok then
+			inst = created
+		else
+			-- Keep rendering, but don't hide typos like h("Fram") behind a silent Frame
+			warn(`[Rivue] Unknown element type '{tostring(tag)}', falling back to Frame`)
+			inst = Instance.new("Frame")
+		end
 	end
 
 	if vnode.key and inst.SetAttribute then
@@ -589,7 +575,6 @@ local function mountElement(vnode, container, poolOpt)
 		end)
 	end
 
-	inst.Parent = container
 	vnode.el = inst
 
 	-- Handle template ref: if ref prop is provided, assign instance to ref.value
@@ -597,19 +582,15 @@ local function mountElement(vnode, container, poolOpt)
 		vnode.props.ref.value = inst
 	end
 
-	-- Handle directives before other props
-	if vnode.props then
-		local vnodeDirectives = (vnode.props :: any).__directives
-		if vnodeDirectives and type(vnodeDirectives) == "table" then
-			setProp(inst, "__directives", vnodeDirectives, vnode)
-		end
-	end
-
 	for k, v in pairs(vnode.props or {}) do
 		if k ~= "__directives" and k ~= "key" and k ~= "ref" and k ~= "transition" then
 			setProp(inst, k, v, vnode)
 		end
 	end
+
+	-- Parent after props: each property write on a parented Instance pays for layout/replication work.
+	-- Still before children, so child components' onMounted hooks see a live ancestry.
+	inst.Parent = container
 
 	if vnode.children then
 		for _, child in ipairs(vnode.children) do
@@ -628,6 +609,15 @@ local function mountElement(vnode, container, poolOpt)
 				local c = child()
 				patch(nil, c, inst, poolOpt)
 			end
+		end
+	end
+
+	-- Directives run once the element is fully built and parented (matches Vue's `mounted`),
+	-- so hooks see final props, children, and ancestry
+	if vnode.props then
+		local vnodeDirectives = (vnode.props :: any).__directives
+		if vnodeDirectives and type(vnodeDirectives) == "table" then
+			setProp(inst, "__directives", vnodeDirectives, vnode)
 		end
 	end
 
@@ -653,12 +643,13 @@ local function unmountVNode(vnode, poolOpt)
 		return
 	end
 
-	local childCount = vnode.children and #vnode.children or 0
-	debugModule.log("Renderer", "Unmounting VNode", {
-		type = type(vnode.type) == "string" and vnode.type or "component",
-		childCount = childCount,
-		isComponent = type(vnode.type) == "table" and vnode.type.__is_component == true,
-	})
+	if debugModule.enabled then
+		debugModule.log("Renderer", "Unmounting VNode", {
+			type = if type(vnode.type) == "string" then vnode.type else "component",
+			childCount = vnode.children and #vnode.children or 0,
+			isComponent = type(vnode.type) == "table" and vnode.type.__is_component == true,
+		})
+	end
 
 	clearVNodeConns(vnode)
 
@@ -721,21 +712,18 @@ local function unmountVNode(vnode, poolOpt)
 	end
 end
 
---- Finds a child Instance by its key attribute
---- @param parent Instance -- Parent Instance to search in
---- @param key any -- Key value to find
---- @return Instance? -- Found Instance or nil
-local function findChildByKey(parent: Instance, key: any): Instance?
-	for _, c in ipairs(parent:GetChildren()) do
-		local ok, v = pcall(function()
-			return c:GetAttribute("__vkey")
-		end)
-
-		if ok and v == key then
-			return c :: Instance
+--- Builds a key -> Instance map of a parent's keyed children (one pass instead of a scan per key)
+--- @param parent Instance -- Parent Instance to index
+--- @return { [any]: Instance } -- Children by their __vkey attribute
+local function indexChildrenByKey(parent: Instance): { [any]: Instance }
+	local byKey = {}
+	for _, c in parent:GetChildren() do
+		local key = c:GetAttribute("__vkey")
+		if key ~= nil then
+			byKey[key] = c
 		end
 	end
-	return nil
+	return byKey
 end
 
 --- Checks if parent has a UILayout component (affects manual positioning)
@@ -754,52 +742,19 @@ local function parentHasUILayout(parent: Instance?): boolean
 	return false
 end
 
---- Renders large lists in parallel using Parallel Luau (task.desynchronize/synchronize)
---- Useful for CPU-intensive rendering operations (1000+ elements)
+--- Renders a large list of items into a parent
+--- Kept for API compatibility: the previous task.desynchronize()/synchronize() chunking errored
+--- outside an Actor and, inside one, waited a full frame per chunk without running anything in parallel.
+--- Instance creation must happen in serial anyway, so this renders synchronously.
 --- @param items any -- Array of items to render
 --- @param renderFn function -- Render function (item, index) -> VNode
 --- @param parent Instance -- Parent container
 --- @param poolOpt any -- Pool options
---- @param threshold number? -- Minimum items to enable parallel (default: 500)
-local function patchChildrenParallel(items: any, renderFn: any, parent: Instance, poolOpt: any, threshold: number?)
-	local itemCount = #items
-	local minThreshold = threshold or 500
-
-	-- Only use parallel rendering for large lists
-	if itemCount < minThreshold then
-		-- Use regular synchronous rendering for small lists
-		for i, item in ipairs(items) do
-			local vnode = renderFn(item, i)
-			if vnode then
-				patch(nil, vnode, parent, poolOpt)
-			end
-		end
-		return
-	end
-
-	-- Parallel rendering for large lists
-	-- Split work into chunks to avoid blocking
-	local chunkSize = math.ceil(itemCount / 4) -- 4 parallel workers
-
-	for chunkStart = 1, itemCount, chunkSize do
-		task.desynchronize() -- Enter parallel mode
-
-		local chunkEnd = math.min(chunkStart + chunkSize - 1, itemCount)
-		local vnodes = {}
-
-		-- Build VNodes in parallel (CPU-intensive work)
-		for i = chunkStart, chunkEnd do
-			local item = items[i]
-			local vnode = renderFn(item, i)
-			if vnode then
-				table.insert(vnodes, vnode)
-			end
-		end
-
-		task.synchronize() -- Return to main thread
-
-		-- Mount VNodes on main thread (must be synchronous for Roblox API)
-		for _, vnode in ipairs(vnodes) do
+--- @param _threshold number? -- Unused, kept for API compatibility
+local function patchChildrenParallel(items: any, renderFn: any, parent: Instance, poolOpt: any, _threshold: number?)
+	for i = 1, #items do
+		local vnode = renderFn(items[i], i)
+		if vnode then
 			patch(nil, vnode, parent, poolOpt)
 		end
 	end
@@ -827,6 +782,9 @@ local function patchKeyedChildren(oldChildren: any, newChildren: any, parent: In
 
 	local useLayout = parentHasUILayout(parent)
 
+	-- Built lazily: only needed when a new key has no old vnode
+	local existingByKey: { [any]: Instance }? = nil
+
 	for i, nc in ipairs(newChildren) do
 		local k = (type(nc) == "table" and nc.key) or nil
 
@@ -837,7 +795,10 @@ local function patchKeyedChildren(oldChildren: any, newChildren: any, parent: In
 				patch(oc, nc, parent, poolOpt)
 				oldMap[k] = nil
 			else
-				local found = findChildByKey(parent, k)
+				if not existingByKey then
+					existingByKey = indexChildrenByKey(parent)
+				end
+				local found = (existingByKey :: { [any]: Instance })[k]
 
 				if found then
 					local placeholder = { type = found.ClassName, el = found, props = {}, children = {}, key = k }
@@ -861,6 +822,14 @@ local function patchKeyedChildren(oldChildren: any, newChildren: any, parent: In
 	for _, v in pairs(oldMap) do
 		if v then
 			unmountVNode(v, poolOpt)
+		end
+	end
+
+	-- Unkeyed old children past the new list's end were never patched against anything
+	for i = #newChildren + 1, #oldChildren do
+		local oc = oldChildren[i]
+		if type(oc) == "table" and oc.key == nil then
+			unmountVNode(oc, poolOpt)
 		end
 	end
 end
@@ -1116,7 +1085,8 @@ function patch(oldVNode: any, newVNode: any, container: Instance, poolOpt: any)
 		local inst = ov._instance
 		nv._instance = inst
 		inst.vnode = nv
-		inst.props = nv.props or {}
+		-- Writes only changed keys into the reactive props; the child's render effect re-runs if it read them
+		componentAPI.updateComponentProps(inst, nv.props)
 		return
 	elseif type(newVNode.type) == "function" then
 		local res = newVNode.type(newVNode.props or {})
@@ -1264,15 +1234,18 @@ local function createApp(rootVNode: any, opts: any?): any
 	end
 
 	function api:rerender(newRoot)
+		-- Capture before unmount(), which clears mounted.container
+		local container = mounted.container or error("no previous container")
 		self:unmount()
 		rootVNode = newRoot or rootVNode
-		return self:mount(mounted.container or error("no previous container"))
+		return self:mount(container)
 	end
 
 	function api:swapRoot(newRoot)
+		local container = mounted.container or error("no previous container")
 		self:unmount()
 		rootVNode = newRoot
-		return self:mount(mounted.container or error("no previous container"))
+		return self:mount(container)
 	end
 
 	function api:mountToPlayerGui(player)
