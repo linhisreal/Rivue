@@ -265,6 +265,86 @@ local function runTests()
 		container:Destroy()
 	end
 
+	-- Test 13: Child component re-renders when parent passes new props
+	print("Test 13: Child component reacts to new props")
+	do
+		local Child = Rivue.defineComponent({
+			name = "PropChild",
+			props = { label = { type = "string" } },
+			setup = function(props)
+				return function()
+					return Rivue.h("TextLabel", { Name = "ChildLabel", Text = props.label })
+				end
+			end,
+		})
+		local label = Rivue.ref("first")
+		local Parent = Rivue.defineComponent({
+			name = "PropParent",
+			setup = function()
+				return function()
+					return Rivue.h("Frame", { Name = "ParentFrame" }, { Rivue.h(Child, { label = label.value }) })
+				end
+			end,
+		})
+		local container = Instance.new("Folder")
+		local app = renderer.createApp(Rivue.h(Parent))
+		app:mount(container)
+		task.wait(0.05)
+		local text = container:FindFirstChild("ParentFrame"):FindFirstChild("ChildLabel")
+		assertEquals(text and (text :: any).Text, "first", "Child should render initial prop")
+		label.value = "second"
+		task.wait(0.1)
+		text = container:FindFirstChild("ParentFrame"):FindFirstChild("ChildLabel")
+		assertEquals(text and (text :: any).Text, "second", "Child should re-render with new prop")
+		app:unmount()
+		container:Destroy()
+	end
+
+	-- Test 14: Shrinking an unkeyed child list removes the extra Instances
+	print("Test 14: Unkeyed children removed when list shrinks")
+	do
+		local count = Rivue.ref(3)
+		local List = Rivue.defineComponent({
+			name = "ShrinkList",
+			setup = function()
+				return function()
+					local children = {}
+					for i = 1, count.value do
+						table.insert(children, Rivue.h("Frame", { Name = "Item" .. i }))
+					end
+					return Rivue.h("Frame", { Name = "ListRoot" }, children)
+				end
+			end,
+		})
+		local container = Instance.new("Folder")
+		local app = renderer.createApp(Rivue.h(List))
+		app:mount(container)
+		task.wait(0.05)
+		local root = container:FindFirstChild("ListRoot")
+		assertEquals(root and #root:GetChildren(), 3, "Should mount three items")
+		count.value = 1
+		task.wait(0.1)
+		assertEquals(root and #root:GetChildren(), 1, "Should unmount items past the new length")
+		app:unmount()
+		container:Destroy()
+	end
+
+	-- Test 15: rerender() reuses the previous container
+	print("Test 15: rerender() remounts into the same container")
+	do
+		local container = Instance.new("Folder")
+		local app = renderer.createApp(Rivue.h("Frame", { Name = "First" }))
+		app:mount(container)
+		local ok = pcall(function()
+			app:rerender(Rivue.h("Frame", { Name = "Second" }))
+		end)
+		assertTrue(ok, "rerender should not error")
+		assertTrue(container:FindFirstChild("Second") ~= nil, "Should mount the new root")
+		assertTrue(container:FindFirstChild("First") == nil, "Should remove the old root")
+		app:unmount()
+		container:Destroy()
+	end
+
 	print("\n========== RENDERER TESTS COMPLETE ==========\n")
 end
 
