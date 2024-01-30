@@ -62,7 +62,7 @@
 			
 			acquire: (className: string) -> Instance,
 			acquireMultiple: (className: string, count: number) -> { Instance },
-			release: (inst: Instance) -> (),
+			release: (inst: Instance, touched: { [string]: boolean }?) -> (),
 			releaseMultiple: (instances: { Instance }) -> (),
 			clear: (className: string?) -> (),
 			
@@ -205,7 +205,7 @@ type PoolType = {
 
 	acquire: (className: string) -> Instance,
 	acquireMultiple: (className: string, count: number) -> { Instance },
-	release: (inst: Instance) -> (),
+	release: (inst: Instance, touched: { [string]: boolean }?) -> (),
 	releaseMultiple: (instances: { Instance }) -> (),
 	clear: (className: string?) -> (),
 
@@ -281,10 +281,11 @@ end
 --- @param inst Instance -- Instance to check
 --- @return boolean -- True if valid
 local function isInstanceValid(inst: Instance): boolean
-	local valid = pcall(function()
-		return inst.Parent ~= nil or inst.ClassName ~= nil
+	-- Destroyed Instances stay readable (ClassName etc.) but their Parent is locked,
+	-- so writing it is the cheap, reliable check. Pooled instances are unparented anyway.
+	return pcall(function()
+		inst.Parent = nil
 	end)
-	return valid
 end
 
 --- Evicts old instances based on TTL
@@ -339,11 +340,45 @@ local function evictStaleInstances(className: string): ()
 	end
 end
 
+-- One pristine Instance per class, used as the source of default property values
+local defaultTemplates: { [string]: Instance | false } = {}
+
+--- Restores properties the renderer wrote back to their class defaults
+--- @param inst Instance -- Instance being pooled
+--- @param touched { [string]: boolean } -- Property names that were set while it was mounted
+local function restoreTouchedProps(inst: Instance, touched: { [string]: boolean }): ()
+	local className = inst.ClassName
+	local template = defaultTemplates[className]
+	if template == nil then
+		local ok, created = pcall(Instance.new, className)
+		local resolved: Instance | false = false
+		if ok then
+			resolved = created :: any
+		end
+		template = resolved
+		defaultTemplates[className] = resolved
+	end
+	if not template then
+		return
+	end
+	for prop in touched do
+		pcall(function()
+			(inst :: any)[prop] = (template :: any)[prop]
+		end)
+	end
+end
+
 --- Resets an Instance to its default state
 --- @param inst Instance -- Instance to reset
-local function resetInstance(inst: Instance): ()
+--- @param touched { [string]: boolean }? -- Properties set while mounted (restored to class defaults)
+local function resetInstance(inst: Instance, touched: { [string]: boolean }?): ()
 	if not inst then
 		return
+	end
+
+	-- Without this, a reused Instance keeps stale colors/fonts/etc. from its previous owner
+	if touched then
+		restoreTouchedProps(inst, touched)
 	end
 
 	-- Use custom handler if available
@@ -402,18 +437,9 @@ local function resetInstance(inst: Instance): ()
 					end)
 				end
 			end)
-		end -- Disconnect all connections stored on the instance
-		local connections = (inst :: any)._connections
-		if connections and type(connections) == "table" then
-			for _, conn in ipairs(connections) do
-				if typeof(conn) == "RBXScriptConnection" then
-					pcall(function()
-						conn:Disconnect()
-					end)
-				end
-			end
 		end
-		(inst :: any)._connections = nil
+		-- Event connections live on the vnode (vnode._conns) and are cleared by the renderer;
+		-- Instances can't hold Lua fields, so there is nothing else to disconnect here.
 	end)
 end
 
@@ -520,7 +546,7 @@ end
 
 --- Releases an Instance back to the pool
 --- @param inst Instance -- Instance to release
-function Pool.release(inst: Instance): ()
+function Pool.release(inst: Instance, touched: { [string]: boolean }?): ()
 	if not inst or not inst.ClassName then
 		warn("[Pool] Attempted to release invalid instance")
 		return
@@ -579,7 +605,7 @@ function Pool.release(inst: Instance): ()
 		Pool.instanceMetadata[inst].releasedAt = os.clock()
 
 		-- Reset and pool
-		resetInstance(inst)
+		resetInstance(inst, touched)
 		table.insert(list, inst)
 
 		if Pool._debugMode then

@@ -81,21 +81,18 @@ function utils.debounce(fn: (...any) -> (), ms: number): (...any) -> DebouncedHa
 	debugModule.log("Utils", "Creating debounced function", { delayMs = ms })
 	local timer: thread? = nil
 	return function(...: any): DebouncedHandle
-		local args = { ... }
+		-- table.pack keeps trailing/embedded nils that `{ ... }` + unpack() would drop
+		local args = table.pack(...)
 		if timer then
-			pcall(function()
-				task.cancel(timer :: thread)
-			end)
+			pcall(task.cancel, timer :: thread)
 		end
 		timer = task.delay(ms / 1000, function()
-			pcall(fn :: any, unpack(args))
+			pcall(fn :: any, table.unpack(args, 1, args.n))
 		end)
 		return {
 			cancel = function()
 				if timer then
-					pcall(function()
-						task.cancel(timer :: thread)
-					end)
+					pcall(task.cancel, timer :: thread)
 				end
 			end,
 		}
@@ -112,20 +109,26 @@ function utils.throttle(fn: (...any) -> (), ms: number): (...any) -> ()
 		ms = ms * 1000
 	end
 	debugModule.log("Utils", "Creating throttled function", { intervalMs = ms })
-	local last = 0
+	local last = -math.huge
 	local scheduled = false
+	local pendingArgs: any = nil
 	return function(...: any): ()
-		local now = tick() * 1000
-		local args = { ... }
+		-- os.clock() is monotonic and high resolution; tick() is deprecated
+		local now = os.clock() * 1000
+		local args = table.pack(...)
 		if now - last >= ms then
 			last = now
-			pcall(fn :: any, unpack(args))
-		elseif not scheduled then
+			pcall(fn :: any, table.unpack(args, 1, args.n))
+			return
+		end
+		-- Trailing call uses the most recent arguments, not the first throttled ones
+		pendingArgs = args
+		if not scheduled then
 			scheduled = true
-			task.delay(ms / 1000, function()
+			task.delay((ms - (now - last)) / 1000, function()
 				scheduled = false
-				last = tick() * 1000
-				pcall(fn :: any, unpack(args))
+				last = os.clock() * 1000
+				pcall(fn :: any, table.unpack(pendingArgs, 1, pendingArgs.n))
 			end)
 		end
 	end
