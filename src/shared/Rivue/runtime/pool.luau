@@ -1,6 +1,5 @@
 --!strict
 --!optimize 2
---!native
 
 --[[
 	Pool.luau
@@ -159,14 +158,9 @@
 		print("Hit rate:", stats.hitRate)
 ]]
 
-export type PoolConfig = {
-	maxPoolSize: number?,
-	maxTotalSize: number?,
-	enableMetrics: boolean?,
-	enableDebug: boolean?,
-	defaultTTL: number?,
-	enableAutoWarmup: boolean?,
-}
+local Types = require(script.Parent:WaitForChild("types"))
+
+export type PoolConfig = Types.PoolConfig
 
 export type PoolMetrics = {
 	acquires: number,
@@ -206,6 +200,7 @@ type PoolType = {
 	acquire: (className: string) -> Instance,
 	acquireMultiple: (className: string, count: number) -> { Instance },
 	release: (inst: Instance, touched: { [string]: boolean }?) -> (),
+	restoreDefaults: (inst: Instance, props: { [string]: boolean }) -> (),
 	releaseMultiple: (instances: { Instance }) -> (),
 	clear: (className: string?) -> (),
 
@@ -237,6 +232,19 @@ local DEFAULT_CONFIG: PoolConfig = {
 
 local Pool: PoolType = {} :: any
 Pool.store = {} :: PoolStore
+
+-- Running count of pooled Instances across all classes. Kept in sync by every push/pop below
+-- (and recounted after bulk operations), so release() no longer walks every class list via
+-- getStatistics() just to enforce maxTotalSize.
+local pooledCount = 0
+
+--- Recomputes pooledCount from the store (after bulk operations)
+local function recountPooled(): ()
+	pooledCount = 0
+	for _, list in Pool.store do
+		pooledCount += #list
+	end
+end
 Pool.config = table.clone(DEFAULT_CONFIG)
 Pool.metrics = {
 	acquires = 0,
@@ -310,6 +318,7 @@ local function evictStaleInstances(className: string): ()
 			if age > Pool.config.defaultTTL then
 				-- Evict stale instance
 				table.remove(list, i)
+				pooledCount -= 1
 				Pool.instanceMetadata[inst] = nil
 				pcall(function()
 					inst:Destroy()
@@ -405,17 +414,18 @@ local function resetInstance(inst: Instance, touched: { [string]: boolean }?): (
 
 		-- Clear text properties (using cached type check)
 		if typeInfo.isText then
-			(inst :: any).Text = ""
+			-- TextLabel stands in for TextLabel | TextButton | TextBox (all have Text)
+			(inst :: TextLabel).Text = ""
 		end
 
 		-- Clear image properties (using cached type check)
 		if typeInfo.isImage then
-			(inst :: any).Image = ""
+			(inst :: ImageLabel).Image = ""
 		end
 
 		-- Reset GuiObject properties in a single pcall
 		if typeInfo.isGuiObject then
-			local guiObj = inst :: any
+			local guiObj = inst :: GuiObject
 			guiObj.LayoutOrder = 0
 			guiObj.Visible = true
 			guiObj.Size = UDim2.new(0, 0, 0, 0)
@@ -441,6 +451,13 @@ local function resetInstance(inst: Instance, touched: { [string]: boolean }?): (
 		-- Event connections live on the vnode (vnode._conns) and are cleared by the renderer;
 		-- Instances can't hold Lua fields, so there is nothing else to disconnect here.
 	end)
+end
+
+--- Restores the given properties to their class defaults (used by the renderer when a prop is removed)
+--- @param inst Instance -- Instance to update
+--- @param props { [string]: boolean } -- Property names to restore
+function Pool.restoreDefaults(inst: Instance, props: { [string]: boolean }): ()
+	restoreTouchedProps(inst, props)
 end
 
 --- Acquires an Instance from the pool
@@ -472,6 +489,7 @@ function Pool.acquire(className: string): Instance
 		local attempts = 0
 		while #list > 0 and attempts < 3 do
 			inst = table.remove(list) :: Instance
+			pooledCount -= 1
 			if isInstanceValid(inst) then
 				fromPool = true
 				if Pool.config.enableMetrics then
@@ -525,7 +543,7 @@ function Pool.acquire(className: string): Instance
 			className = className,
 			fromPool = fromPool,
 			poolSize = #list,
-			totalInstances = Pool.getStatistics().totalInstances,
+			totalInstances = pooledCount,
 		})
 	end
 
@@ -586,12 +604,9 @@ function Pool.release(inst: Instance, touched: { [string]: boolean }?): ()
 	if Pool.config.maxPoolSize and #list >= Pool.config.maxPoolSize then
 		shouldPool = false
 		evictionReason = "MAX_POOL_SIZE"
-	elseif Pool.config.maxTotalSize then
-		local totalSize = Pool.getStatistics().totalInstances
-		if totalSize >= Pool.config.maxTotalSize then
-			shouldPool = false
-			evictionReason = "MAX_TOTAL_SIZE"
-		end
+	elseif Pool.config.maxTotalSize and pooledCount >= Pool.config.maxTotalSize then
+		shouldPool = false
+		evictionReason = "MAX_TOTAL_SIZE"
 	end
 
 	if shouldPool then
@@ -607,6 +622,7 @@ function Pool.release(inst: Instance, touched: { [string]: boolean }?): ()
 		-- Reset and pool
 		resetInstance(inst, touched)
 		table.insert(list, inst)
+		pooledCount += 1
 
 		if Pool._debugMode then
 			debugModule.log("Pool", "Released instance to pool", {
@@ -688,6 +704,7 @@ function Pool.clear(className: string?): ()
 			Pool.store[cls] = {}
 		end
 	end
+	recountPooled()
 
 	if Pool.config.enableMetrics then
 		Pool.metrics.destroyed += totalCleared
@@ -739,6 +756,7 @@ function Pool.warmup(className: string, count: number): ()
 		if ok and inst then
 			resetInstance(inst :: Instance)
 			table.insert(list, inst :: Instance)
+			pooledCount += 1
 			created += 1
 		end
 	end
@@ -794,6 +812,7 @@ function Pool.validateHealth(): boolean
 			local inst = list[i]
 			if not isInstanceValid(inst) then
 				table.remove(list, i)
+				pooledCount -= 1
 				Pool.instanceMetadata[inst] = nil
 				removedCount += 1
 
@@ -859,6 +878,7 @@ function Pool.restoreSnapshot(snapshot: { [string]: { Instance } }): ()
 	for className, list in pairs(snapshot) do
 		Pool.store[className] = table.clone(list)
 	end
+	recountPooled()
 
 	if Pool._debugMode then
 		local totalInstances = 0
