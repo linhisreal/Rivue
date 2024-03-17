@@ -298,6 +298,14 @@ local function runTests()
 		assertTrue(Rivue.assertInvariant == debugModule.assertInvariant, "assertInvariant alias should match")
 	end
 
+	-- Test 23: inspect() unwraps reactive proxies instead of printing an empty table
+	print("Test 23: inspect() shows a reactive object's contents")
+	do
+		local state = Rivue.reactive({ score = 42 })
+		local inspected = debugModule.inspect(state)
+		assertTrue(string.find(inspected, "score = 42", 1, true) ~= nil, "Should include the raw field")
+	end
+
 	print("\n========== ALL DEBUG MODULE TESTS PASSED ==========\n")
 end
 
