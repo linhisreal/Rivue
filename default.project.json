@@ -50,6 +50,9 @@
           },
           "composables": {
             "$path": "src/shared/Rivue/runtime/composables.luau"
+          },
+          "types": {
+            "$path": "src/shared/Rivue/runtime/types.luau"
           }
         }
       },
