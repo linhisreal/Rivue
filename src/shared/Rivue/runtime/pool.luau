@@ -233,12 +233,10 @@ local DEFAULT_CONFIG: PoolConfig = {
 local Pool: PoolType = {} :: any
 Pool.store = {} :: PoolStore
 
--- Running count of pooled Instances across all classes. Kept in sync by every push/pop below
--- (and recounted after bulk operations), so release() no longer walks every class list via
--- getStatistics() just to enforce maxTotalSize.
+-- Total pooled instances, kept in sync with Pool.store
 local pooledCount = 0
 
---- Recomputes pooledCount from the store (after bulk operations)
+--- Recounts pooled instances after bulk changes
 local function recountPooled(): ()
 	pooledCount = 0
 	for _, list in Pool.store do
@@ -289,8 +287,7 @@ end
 --- @param inst Instance -- Instance to check
 --- @return boolean -- True if valid
 local function isInstanceValid(inst: Instance): boolean
-	-- Destroyed Instances stay readable (ClassName etc.) but their Parent is locked,
-	-- so writing it is the cheap, reliable check. Pooled instances are unparented anyway.
+	-- Destroyed instances have a locked Parent
 	return pcall(function()
 		inst.Parent = nil
 	end)
@@ -349,10 +346,10 @@ local function evictStaleInstances(className: string): ()
 	end
 end
 
--- One pristine Instance per class, used as the source of default property values
+-- One untouched instance per class, used for default property values
 local defaultTemplates: { [string]: Instance | false } = {}
 
---- Restores properties the renderer wrote back to their class defaults
+--- Restores touched properties to their class defaults
 --- @param inst Instance -- Instance being pooled
 --- @param touched { [string]: boolean } -- Property names that were set while it was mounted
 local function restoreTouchedProps(inst: Instance, touched: { [string]: boolean }): ()
@@ -385,7 +382,6 @@ local function resetInstance(inst: Instance, touched: { [string]: boolean }?): (
 		return
 	end
 
-	-- Without this, a reused Instance keeps stale colors/fonts/etc. from its previous owner
 	if touched then
 		restoreTouchedProps(inst, touched)
 	end
@@ -414,7 +410,6 @@ local function resetInstance(inst: Instance, touched: { [string]: boolean }?): (
 
 		-- Clear text properties (using cached type check)
 		if typeInfo.isText then
-			-- TextLabel stands in for TextLabel | TextButton | TextBox (all have Text)
 			(inst :: TextLabel).Text = ""
 		end
 
@@ -448,12 +443,10 @@ local function resetInstance(inst: Instance, touched: { [string]: boolean }?): (
 				end
 			end)
 		end
-		-- Event connections live on the vnode (vnode._conns) and are cleared by the renderer;
-		-- Instances can't hold Lua fields, so there is nothing else to disconnect here.
 	end)
 end
 
---- Restores the given properties to their class defaults (used by the renderer when a prop is removed)
+--- Restores the given properties to their class defaults
 --- @param inst Instance -- Instance to update
 --- @param props { [string]: boolean } -- Property names to restore
 function Pool.restoreDefaults(inst: Instance, props: { [string]: boolean }): ()

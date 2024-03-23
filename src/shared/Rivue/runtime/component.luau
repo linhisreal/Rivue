@@ -131,6 +131,7 @@ local Types = require(script.Parent:WaitForChild("types"))
 local _reactivity = require(script.Parent:WaitForChild("reactivity"))
 local RunService = game:GetService("RunService")
 local debugModule = require(script.Parent:WaitForChild("debug"))
+local utils = require(script.Parent:WaitForChild("utils"))
 
 type VNode = Types.VNode
 type Props = Types.Props
@@ -146,11 +147,9 @@ type WatchStopHandle = Types.WatchStopHandle
 
 export type ErrorCapturedHook = (err: string, instance: ComponentInstance, info: string) -> boolean?
 
---- Names of the lifecycle callback lists on an instance (singleton union, so typos fail type checking)
 type HookList = "beforeMountCbs" | "mountedCbs" | "beforeUpdateCbs" | "updatedCbs" | "beforeUnmountCbs" | "unmountedCbs"
 
--- Component instances are a class: methods live once on this metatable instead of being
--- recreated as closures for every mounted component.
+-- Shared methods for component instances
 local ComponentInstance = {}
 ComponentInstance.__index = ComponentInstance
 
@@ -177,7 +176,7 @@ type InstanceData = {
 	setupState: { render: RenderFunction, [string]: unknown }?,
 	exposed: { [string]: unknown }?,
 	ctx: SetupContext,
-	-- Cleanup bookkeeping (filled by main's watch/effect/queueJob wrappers and the renderer)
+	-- Cleanup tracking (filled by main.luau wrappers and the renderer)
 	_effects: { WatchStopHandle | Effect },
 	_schedulerJobs: { JobHandle },
 	_scope: EffectScope?,
@@ -203,7 +202,7 @@ local function getCurrentInstance(): ComponentInstance?
 	return currentInstance
 end
 
---- Builds a lifecycle hook registration function (onMounted, onUpdated, ...)
+--- Creates a lifecycle hook registrar (onMounted, onUpdated, ...)
 --- @param hookName string -- Public name, used in error messages
 --- @param list HookList -- Instance callback list the hook appends to
 --- @return (fn: () -> ()) -> () -- Registration function
@@ -250,7 +249,6 @@ local function applyPropDefaults(schema: PropSchema, props: Props): ()
 	for name, spec in schema do
 		local defaultVal = spec.default
 		if props[name] == nil and defaultVal ~= nil then
-			-- Factory defaults give each instance its own table
 			props[name] = if type(defaultVal) == "function" then (defaultVal :: () -> unknown)() else defaultVal
 		end
 	end
@@ -299,7 +297,6 @@ local function validateProps(schema: PropSchema?, props: Props): (boolean, strin
 			table.insert(errs, `prop '{name}' required`)
 		end
 
-		-- PropTypeName values match type() results, so a direct comparison is enough
 		local expected = spec.type
 		if val ~= nil and expected and type(val) ~= expected then
 			table.insert(errs, `prop '{name}' expected {expected} got {type(val)}`)
@@ -323,7 +320,7 @@ local function validateProps(schema: PropSchema?, props: Props): (boolean, strin
 	return true, nil
 end
 
---- Runs a list of lifecycle callbacks, isolating errors per callback
+--- Runs lifecycle callbacks, reporting errors through handleError
 --- @param self ComponentInstance -- Owning instance (for error reporting)
 --- @param callbacks { () -> () } -- Callbacks to run
 --- @param info string -- Lifecycle phase name
@@ -336,7 +333,7 @@ local function runCallbacks(self: ComponentInstance, callbacks: { () -> () }, in
 	end
 end
 
---- Runs setup() (or resolves render) and stores the component's render function
+--- Runs setup() and resolves the render function
 function ComponentInstance.setupComponent(self: ComponentInstance)
 	setCurrentInstance(self)
 
@@ -356,7 +353,7 @@ function ComponentInstance.setupComponent(self: ComponentInstance)
 		end
 	end
 
-	-- Effects/computeds/watchers created in setup belong to this scope and stop on unmount
+	-- Effects created in setup are stopped on unmount
 	local scope = _reactivity.effectScope(true)
 	self._scope = scope
 
@@ -416,7 +413,7 @@ function ComponentInstance.runBeforeUnmount(self: ComponentInstance)
 	runCallbacks(self, self.beforeUnmountCbs, "beforeUnmount hook")
 end
 
---- Runs unmounted callbacks, then tears down everything the component created
+--- Runs unmounted callbacks and cleans up effects/jobs
 function ComponentInstance.runUnmounted(self: ComponentInstance)
 	if debugModule.enabled then
 		debugModule.log("Component", "Running unmounted callbacks and cleanup", {
@@ -440,7 +437,7 @@ function ComponentInstance.runUnmounted(self: ComponentInstance)
 	-- Auto-cleanup: Stop all tracked effects/watchers
 	for _, tracked in self._effects do
 		if type(tracked) == "function" then
-			-- Stop handle from watch()/watchEffect()
+			-- Stop handle from watch()
 			pcall(tracked)
 		else
 			-- Effect object from effect()
@@ -456,7 +453,7 @@ function ComponentInstance.runUnmounted(self: ComponentInstance)
 	end
 end
 
---- Propagates an error up the parent chain until an onErrorCaptured handler returns true
+--- Passes an error up the parent chain until a handler returns true
 --- @param err string -- Error message
 --- @param info string -- Where the error happened
 function ComponentInstance.handleError(self: ComponentInstance, err: string, info: string)
@@ -474,7 +471,7 @@ function ComponentInstance.handleError(self: ComponentInstance, err: string, inf
 	debugModule.log("Component", `Unhandled component error: {err}`, { info = info })
 end
 
---- Creates the setup() context bound to an instance
+--- Creates the setup() context for an instance
 --- @param instance ComponentInstance -- Owning instance
 --- @return SetupContext -- Context passed as setup's second argument
 local function createSetupContext(instance: ComponentInstance): SetupContext
@@ -532,13 +529,12 @@ local function createComponentInstance(vnode: VNode, parent: ComponentInstance?)
 		})
 	end
 
-	-- Copy parent provides so siblings never share (and mutate) one provides table
+	-- Copy so siblings don't share one provides table
 	local provides: { [string]: unknown } = if parent then table.clone(parent.provides) else {}
 
 	-- Separate declared props from attrs
 	local declaredProps, attrs = separatePropsAndAttrs(def.props, vnode.props or {})
-	-- Props are shallow-reactive so the render effect re-runs when a parent passes new values.
-	-- Cloned so updates never write into the parent's vnode.props table.
+	-- Shallow reactive so the component re-renders on new props
 	local props = _reactivity.shallowReactive(table.clone(declaredProps))
 
 	local data: InstanceData = {
@@ -563,7 +559,7 @@ local function createComponentInstance(vnode: VNode, parent: ComponentInstance?)
 		render = nil,
 		setupState = nil,
 		exposed = nil,
-		ctx = nil :: any, -- assigned right below (needs the instance)
+		ctx = nil :: any, -- set below
 		_effects = {},
 		_schedulerJobs = {},
 		_scope = nil,
@@ -577,10 +573,10 @@ local function createComponentInstance(vnode: VNode, parent: ComponentInstance?)
 end
 
 --- Applies new incoming props to a mounted component instance
---- Only changed keys are written, so only render effects that read them re-run
 --- @param instance ComponentInstance -- Mounted component instance
 --- @param rawProps Props? -- New props from the parent's vnode
-local function updateComponentProps(instance: ComponentInstance, rawProps: Props?): ()
+--- @return boolean -- True if attrs changed (props trigger their own re-render)
+local function updateComponentProps(instance: ComponentInstance, rawProps: Props?): boolean
 	local schema = instance.type.props
 	local nextProps, nextAttrs = separatePropsAndAttrs(schema, rawProps or {})
 	local props = instance.props
@@ -591,7 +587,7 @@ local function updateComponentProps(instance: ComponentInstance, rawProps: Props
 			local spec = if schema then schema[key] else nil
 			local default = if spec then spec.default else nil
 			if default ~= nil then
-				-- Fall back to the default; keep factory defaults as-is to avoid needless re-renders
+				-- Fall back to the default (factory defaults keep their current value)
 				if type(default) ~= "function" then
 					props[key] = default
 				end
@@ -605,11 +601,30 @@ local function updateComponentProps(instance: ComponentInstance, rawProps: Props
 		props[key] = value
 	end
 
-	-- attrs is shared with ctx.attrs, so update it in place
+	if utils.shallowEqual(instance.attrs, nextAttrs) then
+		return false
+	end
+
+	-- Update in place, ctx.attrs points at this table
 	table.clear(instance.attrs)
 	for key, value in nextAttrs do
 		instance.attrs[key] = value
 	end
+	return true
+end
+
+--- Replaces a component's slots in place (ctx.slots points at the same table)
+--- @param instance ComponentInstance -- Mounted component instance
+--- @param children { Child } -- New children from the parent's vnode
+--- @return boolean -- True if the component had or now has slot content
+local function updateComponentSlots(instance: ComponentInstance, children: { Child }): boolean
+	local slots = instance.slots
+	if #slots == 0 and #children == 0 then
+		return false
+	end
+	table.clear(slots)
+	table.move(children, 1, #children, 1, slots)
+	return true
 end
 
 --- Registers a transition hook to run before/after element transitions
@@ -641,6 +656,7 @@ local Teleport: ComponentDef = table.freeze({
 return {
 	createComponentInstance = createComponentInstance,
 	updateComponentProps = updateComponentProps,
+	updateComponentSlots = updateComponentSlots,
 	onBeforeMount = onBeforeMount,
 	onMounted = onMounted,
 	onBeforeUpdate = onBeforeUpdate,

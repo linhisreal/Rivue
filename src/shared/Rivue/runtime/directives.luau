@@ -87,7 +87,6 @@ end
 
 directives.register("focus", {
 	mounted = function(el, val)
-		-- Only TextBoxes can take focus
 		if val and el:IsA("TextBox") then
 			debugModule.log("Directives", "Applying focus directive", { elementName = el.Name })
 			el:CaptureFocus()
@@ -109,27 +108,25 @@ directives.register("click-outside", {
 		end
 
 		debugModule.log("Directives", "Setting up click-outside listener", { elementName = el.Name })
-		local conn = UserInputService.InputBegan:Connect(function(_input, gameProcessed)
-			if gameProcessed then
+		-- Ignores gameProcessed on purpose: clicking another button is still "outside"
+		local conn = UserInputService.InputBegan:Connect(function(input)
+			-- Only clicks/taps, not key presses
+			local inputType = input.UserInputType
+			if inputType ~= Enum.UserInputType.MouseButton1 and inputType ~= Enum.UserInputType.Touch then
 				return
 			end
 
-			local mouse = game:GetService("Players").LocalPlayer:GetMouse()
-			local isDesc = false
-			local cur = mouse.Target
-
-			while cur do
-				if cur == el then
-					isDesc = true
-					break
+			-- mouse.Target only hits 3D parts, so check the GUI bounds instead
+			if el:IsA("GuiObject") then
+				local pos, size = el.AbsolutePosition, el.AbsoluteSize
+				local x, y = input.Position.X, input.Position.Y
+				local inside = x >= pos.X and x <= pos.X + size.X and y >= pos.Y and y <= pos.Y + size.Y
+				if inside then
+					return
 				end
-
-				cur = cur.Parent
 			end
 
-			if not isDesc then
-				pcall(fn)
-			end
+			pcall(fn)
 		end)
 
 		return conn
@@ -285,7 +282,7 @@ directives.register("fade-in", {
 
 				-- Handle text transparency for text elements
 				if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
-					-- The old solver can't index a class union; TextLabel stands in (all share TextTransparency)
+					-- Cast for the type checker, all three have TextTransparency
 					local textObj = obj :: TextLabel
 					textTransparencyMap[obj] = textObj.TextTransparency
 					textObj.TextTransparency = 1
