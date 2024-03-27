@@ -68,7 +68,7 @@ local debugModule = require(script.Parent:WaitForChild("debug"))
 
 local utils = {}
 
---- Normalizes a delay to milliseconds (values in (0, 1) are treated as seconds for backwards compatibility)
+--- Values below 1 are treated as seconds
 --- @param ms number -- Delay in milliseconds, or seconds when below 1
 --- @return number -- Delay in milliseconds
 local function toMilliseconds(ms: number): number
@@ -76,7 +76,6 @@ local function toMilliseconds(ms: number): number
 end
 
 --- Creates a debounced function that delays execution until after ms milliseconds
---- Generic over the argument pack, so the returned function keeps fn's parameter types.
 --- @param fn (A...) -> () -- Function to debounce
 --- @param ms number -- Delay in milliseconds (values < 1 auto-converted from seconds)
 --- @return (A...) -> DebouncedHandle -- Debounced function
@@ -90,23 +89,21 @@ function utils.debounce<A...>(fn: (A...) -> (), ms: number): (A...) -> Debounced
 			timer = nil
 		end
 	end
-	-- One shared handle instead of a new table + closure per call
 	local handle: DebouncedHandle = table.freeze({ cancel = cancel })
 
 	return function(...: A...): DebouncedHandle
-		-- table.pack keeps trailing/embedded nils that `{ ... }` + unpack() would drop
+		-- table.pack keeps nil arguments
 		local args = table.pack(...)
 		cancel()
 		timer = task.delay(delayMs / 1000, function()
 			timer = nil
-			-- A packed table erases the pack type, so re-widen fn at this one boundary
 			pcall(fn :: (...any) -> (), table.unpack(args, 1, args.n))
 		end)
 		return handle
 	end
 end
 
---- Creates a throttled function that executes at most once per interval (leading + trailing call)
+--- Creates a throttled function that executes at most once per interval
 --- @param fn (A...) -> () -- Function to throttle
 --- @param ms number -- Interval in milliseconds (values < 1 auto-converted from seconds)
 --- @return (A...) -> () -- Throttled function
@@ -116,14 +113,13 @@ function utils.throttle<A...>(fn: (A...) -> (), ms: number): (A...) -> ()
 	local scheduled = false
 	local pendingArgs: { n: number, [number]: any }? = nil
 	return function(...: A...)
-		-- os.clock() is monotonic and high resolution; tick() is deprecated
 		local now = os.clock() * 1000
 		if now - last >= intervalMs then
 			last = now
 			pcall(fn, ...)
 			return
 		end
-		-- Trailing call uses the most recent arguments, not the first throttled ones
+		-- Trailing call uses the latest arguments
 		pendingArgs = table.pack(...)
 		if not scheduled then
 			scheduled = true
@@ -209,7 +205,6 @@ utils.profiler = profiler
 
 --- Iterator for reactive arrays that provides ipairs-like syntax with reactivity tracking
 --- Works around Luau's ipairs() limitation with reactive proxies
---- (`for i = 1, #array do` or `for k, v in proxy do` also work now that proxies implement __len/__iter.)
 --- @param array { T } -- Array to iterate (reactive or non-reactive)
 --- @return () -> (number?, T?) -- Iterator function
 function utils.iterArray<T>(array: { T }): () -> (number?, T?)
