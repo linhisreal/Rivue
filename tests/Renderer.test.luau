@@ -430,6 +430,77 @@ local function runTests()
 		container:Destroy()
 	end
 
+	-- Test 19: Undeclared props fall through to the root element (inheritAttrs)
+	print("Test 19: inheritAttrs applies undeclared props to the root element")
+	do
+		local Button = Rivue.defineComponent({
+			name = "FallthroughButton",
+			props = { label = { type = "string" } },
+			setup = function(props)
+				return function()
+					return Rivue.h("TextButton", { Name = "Fallthrough", Text = props.label })
+				end
+			end,
+		})
+		local NoInherit = Rivue.defineComponent({
+			name = "NoInherit",
+			props = { label = { type = "string" } },
+			inheritAttrs = false,
+			setup = function()
+				return function()
+					return Rivue.h("Frame", { Name = "NoInherit" })
+				end
+			end,
+		})
+		local container = Instance.new("Folder")
+		local app = renderer.createApp(Rivue.h("Frame", { Name = "Host" }, {
+			Rivue.h(Button, { label = "Hi", LayoutOrder = 5 }),
+			Rivue.h(NoInherit, { label = "x", LayoutOrder = 7 }),
+		}))
+		app:mount(container)
+		local host = container:FindFirstChild("Host")
+		local button = host:FindFirstChild("Fallthrough") :: TextButton
+		assertEquals(button.LayoutOrder, 5, "Undeclared prop should reach the root element")
+		assertEquals(button.Text, "Hi", "Declared prop should still work")
+		local frame = host:FindFirstChild("NoInherit") :: Frame
+		assertEquals(frame.LayoutOrder, 0, "inheritAttrs = false should not apply attrs")
+		app:unmount()
+		container:Destroy()
+	end
+
+	-- Test 20: Slot content updates when the parent re-renders
+	print("Test 20: Slots update on parent re-render")
+	do
+		local Card = Rivue.defineComponent({
+			name = "SlotCard",
+			setup = function(_props, ctx)
+				return function()
+					return Rivue.h("Frame", { Name = "Card" }, ctx.slots)
+				end
+			end,
+		})
+		local text = Rivue.ref("one")
+		local App = Rivue.defineComponent({
+			name = "SlotApp",
+			setup = function()
+				return function()
+					return Rivue.h(Card, {}, { Rivue.h("TextLabel", { Name = "SlotLabel", Text = text.value }) })
+				end
+			end,
+		})
+		local container = Instance.new("Folder")
+		local app = renderer.createApp(Rivue.h(App))
+		app:mount(container)
+		local label = container:FindFirstChild("Card"):FindFirstChild("SlotLabel") :: TextLabel
+		assertEquals(label.Text, "one", "Initial slot content")
+		text.value = "two"
+		task.wait(0.1)
+		label = container:FindFirstChild("Card"):FindFirstChild("SlotLabel") :: TextLabel
+		assertEquals(label.Text, "two", "Slot content should update")
+		app:unmount()
+		container:Destroy()
+	end
+
 	print("\n========== RENDERER TESTS COMPLETE ==========\n")
 end
 
