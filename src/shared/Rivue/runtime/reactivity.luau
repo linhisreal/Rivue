@@ -20,6 +20,7 @@ local Types = require(script.Parent:WaitForChild("types"))
 
 type Ref<T> = Types.Ref<T>
 type ComputedRef<T> = Types.ComputedRef<T>
+type WritableComputedOptions<T> = Types.WritableComputedOptions<T>
 type MaybeRef<T> = Types.MaybeRef<T>
 type Effect = Types.Effect
 type EffectOptions = Types.EffectOptions
@@ -174,6 +175,7 @@ end
 local rawMarker: { [unknown]: true } = weakKeyed()
 local reactiveMarker: { [unknown]: RawTable } = weakKeyed()
 local readonlyMarker: { [unknown]: true } = weakKeyed()
+local shallowMarker: { [unknown]: true } = weakKeyed()
 
 --- Marks an object as raw (non-reactive)
 --- Prevents the object from being converted to a reactive proxy
@@ -373,6 +375,7 @@ end
 local proxyCache: { [RawTable]: RawTable } = weakKeyed()
 local shallowProxyCache: { [RawTable]: RawTable } = weakKeyed()
 local readonlyCache: { [RawTable]: RawTable } = weakKeyed()
+local shallowReadonlyCache: { [RawTable]: RawTable } = weakKeyed()
 
 --- Creates a deeply reactive proxy of an object.
 ---  All nested objects are automatically made reactive
@@ -456,6 +459,7 @@ local function shallowReactive<T>(target: T): T
 
 	-- Mark as reactive for isReactive() check
 	reactiveMarker[proxy] = tbl
+	shallowMarker[proxy] = true
 
 	local mt = {}
 	function mt.__index(_: RawTable, k: unknown): unknown
@@ -548,10 +552,21 @@ local function unref<T>(r: MaybeRef<T>): T
 end
 
 --- Creates a computed value that caches the result and only re-computes when dependencies change
---- @param getter () -> T -- Function that computes the value
+--- Pass { get, set } for a writable computed.
+--- @param getterOrOptions (() -> T) | WritableComputedOptions<T> -- Getter, or get/set pair
 --- @return ComputedRef<T> -- Computed reference with cached .value property
-local function computed<T>(getter: () -> T): ComputedRef<T>
-	assert(type(getter) == "function", "computed expects a function")
+local function computed<T>(getterOrOptions: (() -> T) | WritableComputedOptions<T>): ComputedRef<T>
+	local getter: () -> T
+	local setter: ((T) -> ())? = nil
+	if type(getterOrOptions) == "function" then
+		getter = getterOrOptions
+	elseif type(getterOrOptions) == "table" and type(getterOrOptions.get) == "function" then
+		getter = getterOrOptions.get
+		setter = getterOrOptions.set
+	else
+		error("computed expects a getter or { get, set }")
+	end
+
 	local dirty = true
 	local value: T
 	local runner: Effect
@@ -578,13 +593,22 @@ local function computed<T>(getter: () -> T): ComputedRef<T>
 		return value
 	end
 
-	local obj = { get = get }
+	local obj = { _is_ref = true, get = get }
 	setmetatable(obj, {
 		__index = function(_: unknown, k: unknown): unknown
 			if k == REF_VALUE_KEY then
 				return get()
 			end
 			return nil
+		end,
+		__newindex = function(_: unknown, k: unknown, v: unknown)
+			if k ~= REF_VALUE_KEY then
+				rawset(obj :: any, k, v)
+			elseif setter then
+				setter(v :: T)
+			elseif IS_STUDIO then
+				debugModule.log("Reactivity", "Write to a readonly computed was ignored")
+			end
 		end,
 	})
 	return obj :: any
@@ -652,6 +676,56 @@ local function _traverse<T>(value: T, seen: { [unknown]: true }?): T
 	return value
 end
 
+--- Reads a single watch source (ref, getter, or reactive object)
+--- @param item unknown -- Source
+--- @return unknown -- Current value
+local function readSource(item: unknown): unknown
+	if isRef(item) then
+		return (item :: Ref<unknown>).value
+	elseif type(item) == "function" then
+		return (item :: () -> unknown)()
+	elseif isReactive(item) then
+		_traverse(item, nil)
+	end
+	return item
+end
+
+--- Checks if a table is a list of watch sources (refs, getters, reactive objects)
+--- @param list { [unknown]: unknown } -- Candidate
+--- @return boolean -- True for a non-empty array of sources
+local function isMultiSourceList(list: { [unknown]: unknown }): boolean
+	local count = #list
+	if count == 0 then
+		return false
+	end
+	for i = 1, count do
+		local item = list[i]
+		if not (isRef(item) or type(item) == "function" or isReactive(item)) then
+			return false
+		end
+	end
+	return true
+end
+
+--- Compares two arrays element by element
+--- @param a { unknown }? -- First array
+--- @param b { unknown }? -- Second array
+--- @return boolean -- True if same length and elements
+local function arrayShallowEqual(a: { unknown }?, b: { unknown }?): boolean
+	if a == nil or b == nil then
+		return a == b
+	end
+	if #a ~= #b then
+		return false
+	end
+	for i, v in a do
+		if b[i] ~= v then
+			return false
+		end
+	end
+	return true
+end
+
 --- Watches a reactive source and executes callback when it changes
 --- @param source WatchSource<T> -- Reactive source to watch (getter function, Ref, or reactive object)
 --- @param cb WatchCallback<T> -- Callback (newValue, oldValue, onCleanup) => void
@@ -659,6 +733,8 @@ end
 --- @return WatchStopHandle -- Function to stop watching
 local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: WatchOptions?): WatchStopHandle
 	local options: WatchOptions = opts or {}
+	local deep = options.deep == true
+	local isMultiSource = false
 	local getter: () -> T
 	if type(source) == "function" then
 		getter = source :: () -> T
@@ -666,6 +742,22 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 		local sourceRef = source :: Ref<T>
 		getter = function(): T
 			return sourceRef.value
+		end
+	elseif isReactive(source) then
+		-- Same as Vue: watching a reactive object is deep, otherwise it never looks changed
+		deep = options.deep ~= false
+		getter = function(): T
+			return source :: T
+		end
+	elseif type(source) == "table" and isMultiSourceList(source) then
+		isMultiSource = true
+		local sources = source :: { unknown }
+		getter = function(): T
+			local values = table.create(#sources)
+			for i, item in sources do
+				values[i] = readSource(item)
+			end
+			return values :: any
 		end
 	else
 		getter = function(): T
@@ -681,7 +773,6 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 	local oldValue: T? = nil
 	local initialized = false
 	local immediate = options.immediate == true
-	local deep = options.deep == true
 	local flushMode = options.flush or "pre" -- Default to "pre" (before component updates)
 
 	local function runCleanups()
@@ -694,18 +785,34 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 	-- Set by the effect so the getter only runs once per change
 	local currentValue: T
 
+	local stop: WatchStopHandle
+
+	local function hasChanged(new: T): boolean
+		-- Deep watchers fire even if the table is the same
+		if deep then
+			return true
+		elseif isMultiSource then
+			return not arrayShallowEqual(new :: any, oldValue :: any)
+		end
+		return new ~= oldValue
+	end
+
 	local function job()
 		local new = currentValue
-		-- Deep watchers fire even if the table is the same
-		if initialized and not deep and new == oldValue then
+		if initialized and not hasChanged(new) then
 			return
 		end
-		if initialized or immediate then
-			runCleanups()
-			cb(new, oldValue, onCleanup)
-		end
+		local shouldCall = initialized or immediate
 		initialized = true
+		local old = oldValue
 		oldValue = new
+		if shouldCall then
+			runCleanups()
+			cb(new, old, onCleanup)
+			if options.once then
+				stop()
+			end
+		end
 	end
 
 	local eff = createEffect(function()
@@ -731,14 +838,16 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 			end
 		end,
 	})
+	stop = function()
+		eff:stop()
+		runCleanups()
+	end
+
 	-- Collect dependencies and store the initial value
 	eff.run()
 	job()
 
-	return function()
-		eff:stop()
-		runCleanups()
-	end
+	return stop
 end
 
 --- Creates and runs a reactive effect
@@ -774,17 +883,32 @@ local function watchEffect(fn: () -> (), opts: WatchOptions?): WatchStopHandle
 	end
 end
 
---- Creates a readonly reactive proxy that throws warnings on mutation attempts
---- Useful for enforcing one-way data flow (props, injected state, public APIs)
---- @param target T -- Object to make readonly
---- @return T -- Readonly reactive proxy
-local function readonly<T>(target: T): T
+--- watchEffect() that re-runs on Heartbeat (after renders)
+--- @param fn () -> () -- Effect function
+--- @return WatchStopHandle -- Stop handle
+local function watchPostEffect(fn: () -> ()): WatchStopHandle
+	return watchEffect(fn, { flush = "post" })
+end
+
+--- watchEffect() that re-runs immediately on every change
+--- @param fn () -> () -- Effect function
+--- @return WatchStopHandle -- Stop handle
+local function watchSyncEffect(fn: () -> ()): WatchStopHandle
+	return watchEffect(fn, { flush = "sync" })
+end
+
+--- Creates a readonly proxy (nested tables are readonly too unless shallow)
+--- @param target T -- Object to wrap
+--- @param shallow boolean -- Only the top level is readonly
+--- @return T -- Readonly proxy
+local function createReadonly<T>(target: T, shallow: boolean): T
 	if type(target) ~= "table" or rawMarker[target] then
 		return target
 	end
 
 	local tbl: RawTable = target :: any
-	local cached = readonlyCache[tbl]
+	local cache = if shallow then shallowReadonlyCache else readonlyCache
+	local cached = cache[tbl]
 	if cached then
 		return cached :: any
 	end
@@ -794,15 +918,19 @@ local function readonly<T>(target: T): T
 	-- Mark as readonly, store original for toRaw()
 	readonlyMarker[proxy] = true
 	reactiveMarker[proxy] = tbl
-	readonlyCache[tbl] = proxy
+	if shallow then
+		shallowMarker[proxy] = true
+	end
+	cache[tbl] = proxy
+
+	local function wrap(v: unknown): unknown
+		return if not shallow and shouldWrap(v) then createReadonly(v, false) else v
+	end
 
 	setmetatable(proxy :: any, {
 		__index = function(_: RawTable, k: unknown): unknown
-			-- Track reads for reactivity
 			track(tbl, k)
-			local v = tbl[k]
-			-- Recursively make nested objects readonly
-			return if shouldWrap(v) then readonly(v) else v
+			return wrap(tbl[k])
 		end,
 		__newindex = function(_: RawTable, k: unknown, _v: unknown)
 			-- Prevent mutations in dev mode
@@ -818,10 +946,7 @@ local function readonly<T>(target: T): T
 			track(tbl, ITERATE_KEY)
 			return function(_: RawTable, k: unknown): (unknown, unknown)
 				local nk, nv = next(tbl, k)
-				if shouldWrap(nv) then
-					nv = readonly(nv)
-				end
-				return nk, nv
+				return nk, wrap(nv)
 			end,
 				proxy,
 				nil
@@ -829,6 +954,41 @@ local function readonly<T>(target: T): T
 	})
 
 	return proxy :: any
+end
+
+--- Creates a readonly reactive proxy that warns on mutation attempts
+--- Useful for enforcing one-way data flow (props, injected state, public APIs)
+--- @param target T -- Object to make readonly
+--- @return T -- Readonly reactive proxy
+local function readonly<T>(target: T): T
+	return createReadonly(target, false)
+end
+
+--- Like readonly(), but nested tables stay as they are
+--- @param target T -- Object to make readonly
+--- @return T -- Shallow readonly proxy
+local function shallowReadonly<T>(target: T): T
+	return createReadonly(target, true)
+end
+
+--- Checks if a value is a shallow ref or shallow proxy
+--- @param value unknown -- Value to check
+--- @return boolean -- True for shallowRef/shallowReactive/shallowReadonly
+local function isShallow(value: unknown): boolean
+	if type(value) ~= "table" then
+		return false
+	end
+	return shallowMarker[value] == true or (isRef(value) and rawget(value :: any, "_shallow") == true)
+end
+
+--- Normalizes a ref, getter, or plain value to a value
+--- @param source MaybeRef<T> | () -> T -- Ref, getter, or value
+--- @return T -- Value
+local function toValue<T>(source: MaybeRef<T> | () -> T): T
+	if type(source) == "function" then
+		return (source :: () -> T)()
+	end
+	return unref(source :: MaybeRef<T>)
 end
 
 --- Manually triggers effects that depend on a shallowRef
@@ -886,6 +1046,7 @@ return {
 	ref = ref,
 	shallowRef = shallowRef,
 	readonly = readonly,
+	shallowReadonly = shallowReadonly,
 
 	-- Computed values
 	computed = computed,
@@ -893,6 +1054,8 @@ return {
 	-- Watchers and effects
 	watch = watch,
 	watchEffect = watchEffect,
+	watchPostEffect = watchPostEffect,
+	watchSyncEffect = watchSyncEffect,
 	effect = effect,
 
 	-- Type checking utilities
@@ -900,9 +1063,11 @@ return {
 	isReactive = isReactive,
 	isReadonly = isReadonly,
 	isProxy = isProxy,
+	isShallow = isShallow,
 
 	-- Conversion utilities
 	unref = unref,
+	toValue = toValue,
 	toRef = toRef,
 	toRefs = toRefs,
 	toRaw = toRaw,

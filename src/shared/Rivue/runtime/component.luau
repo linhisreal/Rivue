@@ -131,7 +131,6 @@ local Types = require(script.Parent:WaitForChild("types"))
 local _reactivity = require(script.Parent:WaitForChild("reactivity"))
 local RunService = game:GetService("RunService")
 local debugModule = require(script.Parent:WaitForChild("debug"))
-local utils = require(script.Parent:WaitForChild("utils"))
 
 type VNode = Types.VNode
 type Props = Types.Props
@@ -144,6 +143,7 @@ type Effect = Types.Effect
 type EffectScope = Types.EffectScope
 type JobHandle = Types.JobHandle
 type WatchStopHandle = Types.WatchStopHandle
+type AppContext = Types.AppContext
 
 export type ErrorCapturedHook = (err: string, instance: ComponentInstance, info: string) -> boolean?
 
@@ -159,7 +159,9 @@ type InstanceData = {
 	props: Props,
 	attrs: Props,
 	parent: ComponentInstance?,
-	provides: { [string]: unknown },
+	-- Inherits parent provides through __index
+	provides: { [unknown]: unknown },
+	appContext: AppContext,
 	isMounted: boolean,
 	subTree: VNode?,
 	el: Instance?,
@@ -189,6 +191,9 @@ export type ComponentInstance = typeof(setmetatable({} :: InstanceData, Componen
 const IS_STUDIO = RunService:IsStudio()
 
 local currentInstance: ComponentInstance? = nil
+
+-- Used when a component is mounted outside createApp (e.g. renderer.patch directly)
+const EMPTY_APP_CONTEXT: AppContext = { provides = {}, config = {} }
 
 --- Sets the current active component instance for lifecycle hook registration
 --- @param i ComponentInstance? -- Instance to set as current (or nil)
@@ -230,6 +235,30 @@ local onBeforeUpdate = createHook("onBeforeUpdate", "beforeUpdateCbs")
 local onUpdated = createHook("onUpdated", "updatedCbs")
 local onBeforeUnmount = createHook("onBeforeUnmount", "beforeUnmountCbs")
 local onUnmounted = createHook("onUnmounted", "unmountedCbs")
+
+--- Provides a value to all descendants (call in setup)
+--- @param key unknown -- Injection key
+--- @param value unknown -- Provided value
+local function provide(key: unknown, value: unknown): ()
+	local inst = currentInstance
+	if not inst then
+		error("provide() must be called in setup", 2)
+	end
+	inst.provides[key] = value
+end
+
+--- Gets a value provided by an ancestor or the app (call in setup)
+--- @param key unknown -- Injection key
+--- @param default T? -- Returned when nothing was provided
+--- @return T? -- Provided value or default
+local function inject<T>(key: unknown, default: T?): T?
+	local inst = currentInstance
+	if not inst then
+		error("inject() must be called in setup", 2)
+	end
+	local provided = inst.provides[key]
+	return if provided ~= nil then provided :: T else default
+end
 
 --- Registers an error handler to catch errors in child components
 --- @param fn ErrorCapturedHook -- Error handler (return true to stop propagation)
@@ -467,6 +496,14 @@ function ComponentInstance.handleError(self: ComponentInstance, err: string, inf
 		end
 		cur = cur.parent
 	end
+	local errorHandler = self.appContext.config.errorHandler
+	if errorHandler then
+		local ok, handlerErr = pcall(errorHandler :: (string, unknown, string) -> ...unknown, err, self, info)
+		if ok then
+			return
+		end
+		warn(`[Rivue] app.config.errorHandler failed: {handlerErr}`)
+	end
 	-- If no handler consumed it, log it
 	debugModule.log("Component", `Unhandled component error: {err}`, { info = info })
 end
@@ -491,17 +528,8 @@ local function createSetupContext(instance: ComponentInstance): SetupContext
 			instance.provides[key] = val
 		end,
 		inject = function(key: string, default: unknown?): unknown?
-			local cur: ComponentInstance? = instance
-
-			while cur do
-				local provided = cur.provides[key]
-				if provided ~= nil then
-					return provided
-				end
-				cur = cur.parent
-			end
-
-			return default
+			local provided = instance.provides[key]
+			return if provided ~= nil then provided else default
 		end,
 		slots = instance.slots,
 		attrs = instance.attrs,
@@ -517,9 +545,14 @@ end
 --- Creates a new component instance with lifecycle management
 --- @param vnode VNode -- Virtual node representing the component
 --- @param parent ComponentInstance? -- Parent component instance (for provide/inject and error propagation)
+--- @param appContext AppContext? -- App context for root components (children inherit the parent's)
 --- @return ComponentInstance -- New component instance
 --- @return SetupContext -- Component context for setup
-local function createComponentInstance(vnode: VNode, parent: ComponentInstance?): (ComponentInstance, SetupContext)
+local function createComponentInstance(
+	vnode: VNode,
+	parent: ComponentInstance?,
+	appContext: AppContext?
+): (ComponentInstance, SetupContext)
 	local def = vnode.type :: ComponentDef
 	if debugModule.enabled then
 		debugModule.log("Component", "Creating component instance", {
@@ -529,21 +562,28 @@ local function createComponentInstance(vnode: VNode, parent: ComponentInstance?)
 		})
 	end
 
-	-- Copy so siblings don't share one provides table
-	local provides: { [string]: unknown } = if parent then table.clone(parent.provides) else {}
+	local context: AppContext = if parent then parent.appContext else appContext or EMPTY_APP_CONTEXT
+	-- Own table so siblings don't share provides, parent values come through __index
+	local provides: { [unknown]: unknown } = setmetatable(
+		{},
+		{ __index = if parent then parent.provides else context.provides }
+	) :: any
 
 	-- Separate declared props from attrs
 	local declaredProps, attrs = separatePropsAndAttrs(def.props, vnode.props or {})
 	-- Shallow reactive so the component re-renders on new props
 	local props = _reactivity.shallowReactive(table.clone(declaredProps))
+	-- Reactive too, so fallthrough attrs re-render the component when they change
+	local reactiveAttrs = _reactivity.shallowReactive(attrs)
 
 	local data: InstanceData = {
 		vnode = vnode,
 		type = def,
 		props = props,
-		attrs = attrs,
+		attrs = reactiveAttrs,
 		parent = parent,
 		provides = provides,
+		appContext = context,
 		isMounted = false,
 		subTree = nil,
 		el = nil,
@@ -575,8 +615,7 @@ end
 --- Applies new incoming props to a mounted component instance
 --- @param instance ComponentInstance -- Mounted component instance
 --- @param rawProps Props? -- New props from the parent's vnode
---- @return boolean -- True if attrs changed (props trigger their own re-render)
-local function updateComponentProps(instance: ComponentInstance, rawProps: Props?): boolean
+local function updateComponentProps(instance: ComponentInstance, rawProps: Props?): ()
 	local schema = instance.type.props
 	local nextProps, nextAttrs = separatePropsAndAttrs(schema, rawProps or {})
 	local props = instance.props
@@ -601,16 +640,16 @@ local function updateComponentProps(instance: ComponentInstance, rawProps: Props
 		props[key] = value
 	end
 
-	if utils.shallowEqual(instance.attrs, nextAttrs) then
-		return false
+	-- Write through the proxy so only effects that read a changed attr re-run
+	local attrs = instance.attrs
+	for key in _reactivity.toRaw(attrs) do
+		if nextAttrs[key] == nil then
+			attrs[key] = nil
+		end
 	end
-
-	-- Update in place, ctx.attrs points at this table
-	table.clear(instance.attrs)
 	for key, value in nextAttrs do
-		instance.attrs[key] = value
+		attrs[key] = value
 	end
-	return true
 end
 
 --- Replaces a component's slots in place (ctx.slots points at the same table)
@@ -664,6 +703,8 @@ return {
 	onBeforeUnmount = onBeforeUnmount,
 	onUnmounted = onUnmounted,
 	onErrorCaptured = onErrorCaptured,
+	provide = provide,
+	inject = inject,
 	onTransition = onTransition,
 	setCurrentInstance = setCurrentInstance,
 	getCurrentInstance = getCurrentInstance,

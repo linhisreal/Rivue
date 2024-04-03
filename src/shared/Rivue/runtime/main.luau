@@ -279,6 +279,8 @@ export type SetupContext = Types.SetupContext
 export type Directive = Types.Directive
 export type AppOptions = Types.AppOptions
 export type App = renderer.App
+export type Plugin = renderer.Plugin
+export type WritableComputedOptions<T> = Types.WritableComputedOptions<T>
 export type ComponentInstance = componentAPI.ComponentInstance
 
 local Rivue = {}
@@ -307,17 +309,20 @@ Rivue.reactive = reactivity.reactive
 Rivue.shallowReactive = reactivity.shallowReactive
 Rivue.computed = reactivity.computed
 Rivue.readonly = reactivity.readonly
+Rivue.shallowReadonly = reactivity.shallowReadonly
 
 -- Type checking utilities
 Rivue.isRef = reactivity.isRef
 Rivue.isReactive = reactivity.isReactive
 Rivue.isReadonly = reactivity.isReadonly
 Rivue.isProxy = reactivity.isProxy
+Rivue.isShallow = reactivity.isShallow
 
 -- Conversion utilities
 Rivue.toRef = reactivity.toRef
 Rivue.toRefs = reactivity.toRefs
 Rivue.unref = reactivity.unref
+Rivue.toValue = reactivity.toValue
 Rivue.toRaw = reactivity.toRaw
 Rivue.markRaw = reactivity.markRaw
 
@@ -370,8 +375,25 @@ function Rivue.effect(fn: () -> (), opts: Types.EffectOptions?): Effect
 	return eff
 end
 
+--- watchEffect() that re-runs on Heartbeat, after renders (auto-cleanup in components)
+--- @param fn () -> () -- Effect function
+--- @return WatchStopHandle -- Stop handle
+function Rivue.watchPostEffect(fn: () -> ()): WatchStopHandle
+	return Rivue.watchEffect(fn, { flush = "post" })
+end
+
+--- watchEffect() that re-runs immediately on every change (auto-cleanup in components)
+--- @param fn () -> () -- Effect function
+--- @return WatchStopHandle -- Stop handle
+function Rivue.watchSyncEffect(fn: () -> ()): WatchStopHandle
+	return Rivue.watchEffect(fn, { flush = "sync" })
+end
+
+Rivue.nextTick = schedulerModule.nextTick
+
 -- h and helpers
 Rivue.h = hModule.h
+Rivue.Fragment = hModule.Fragment
 Rivue.hIf = hModule.hIf
 Rivue.hFor = hModule.hFor
 Rivue.hForParallel = hModule.hForParallel
@@ -400,6 +422,10 @@ Rivue.onBeforeUnmount = componentAPI.onBeforeUnmount
 Rivue.onUnmounted = componentAPI.onUnmounted
 Rivue.onErrorCaptured = componentAPI.onErrorCaptured
 Rivue.onTransition = componentAPI.onTransition
+
+-- provide/inject
+Rivue.provide = componentAPI.provide
+Rivue.inject = componentAPI.inject
 
 -- Built-in components
 Rivue.Teleport = componentAPI.Teleport

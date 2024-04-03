@@ -67,6 +67,9 @@ end
 
 local vnodeIdCounter = 0
 
+-- Groups children without creating a wrapper Instance: h(Fragment, nil, { ... })
+local Fragment: Types.FragmentType = table.freeze({ __fragment = true :: true, __name = "Fragment" :: "Fragment" })
+
 --- Creates a virtual DOM node
 --- @param type_ VNodeType -- ClassName ("Frame"), component definition, or functional component
 --- @param props Props? -- Element properties and attributes
@@ -171,6 +174,7 @@ end
 
 return {
 	h = h,
+	Fragment = Fragment,
 	hIf = hIf,
 	hFor = hFor,
 	hForParallel = hForParallel,
