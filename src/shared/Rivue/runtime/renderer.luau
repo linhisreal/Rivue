@@ -170,6 +170,7 @@
 
 local Types = require(script.Parent:WaitForChild("types"))
 local componentAPI = require(script.Parent:WaitForChild("component"))
+local hModule = require(script.Parent:WaitForChild("h"))
 local _reactivity = require(script.Parent:WaitForChild("reactivity"))
 local Pool = require(script.Parent:WaitForChild("pool"))
 local _utils = require(script.Parent:WaitForChild("utils"))
@@ -191,6 +192,9 @@ type PoolOptions = Types.PoolOptions
 type AppOptions = Types.AppOptions
 type Effect = Types.Effect
 type ComponentInstance = componentAPI.ComponentInstance
+type AppContext = Types.AppContext
+
+local Fragment = hModule.Fragment
 
 type RenderVNode = VNode
 
@@ -204,7 +208,13 @@ export type TransitionConfig = {
 	leave: boolean?,
 }
 
+export type Plugin = ((app: App, ...any) -> ()) | { install: (app: App, ...any) -> () }
+
 export type App = {
+	config: Types.AppConfig,
+	provide: (self: App, key: unknown, value: unknown) -> App,
+	use: (self: App, plugin: Plugin, ...any) -> App,
+	directive: (self: App, name: string, hooks: Types.Directive) -> App,
 	mount: (self: App, container: Instance) -> MountedState,
 	unmount: (self: App) -> (),
 	rerender: (self: App, newRoot: VNode?) -> MountedState,
@@ -225,6 +235,8 @@ local patch: (oldVNode: RenderVNode?, newVNode: RenderVNode?, container: Instanc
 
 -- Component currently rendering, used as parent for nested components
 local currentRenderingInstance: ComponentInstance? = nil
+-- App being mounted, handed to root components
+local currentAppContext: AppContext? = nil
 
 local eventAlias: { [string]: { string } } = {
 	onClick = { "Activated", "MouseButton1Click" },
@@ -694,6 +706,16 @@ local function unmountVNode(vnode: RenderVNode?, poolOpt: PoolOptions?)
 		return
 	end
 
+	if vnode.type == Fragment then
+		for _, child in vnode.children do
+			if type(child) == "table" then
+				unmountVNode(child, poolOpt)
+			end
+		end
+		vnode.el = nil
+		return
+	end
+
 	-- Functional component, unmount its rendered tree
 	if type(vnode.type) == "function" then
 		unmountVNode(vnode._fnTree, poolOpt)
@@ -999,16 +1021,17 @@ end
 --- @param attrs Props -- Component attrs
 --- @return Props? -- Merged props (root's own props win)
 local function applyFallthroughAttrs(props: Props?, attrs: Props): Props?
-	if next(attrs) == nil then
-		return props
-	end
-	local merged: Props = if props then table.clone(props) else {}
+	local merged: Props? = nil
+	-- Iterates the reactive attrs inside the render effect, so changes are tracked
 	for key, value in attrs do
-		if merged[key] == nil and not RESERVED_PROPS[key] then
-			merged[key] = value
+		if not RESERVED_PROPS[key] and (props == nil or props[key] == nil) then
+			if not merged then
+				merged = if props then table.clone(props) else {}
+			end
+			(merged :: Props)[key] = value
 		end
 	end
-	return merged
+	return merged or props
 end
 
 --- Mounts a component and wraps its render in an effect
@@ -1016,7 +1039,7 @@ end
 --- @param container Instance -- Parent Instance
 --- @param poolOpt PoolOptions? -- Pool options
 local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: PoolOptions?)
-	local inst = componentAPI.createComponentInstance(vnode, currentRenderingInstance)
+	local inst = componentAPI.createComponentInstance(vnode, currentRenderingInstance, currentAppContext)
 	vnode._instance = inst
 	inst:setupComponent()
 	inst:runBeforeMount()
@@ -1095,6 +1118,10 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 		end
 
 		local nextTree = sub :: VNode?
+		-- Multiple root nodes: render returned an array
+		if type(sub) == "table" and (sub :: any).type == nil and #(sub :: { unknown }) > 0 then
+			nextTree = hModule.h(Fragment, nil, sub :: { Child })
+		end
 		if inst.isMounted then
 			-- Re-render
 			local prevTree = inst.subTree
@@ -1190,6 +1217,37 @@ local function patchElement(oldVNode: RenderVNode, newVNode: RenderVNode, poolOp
 	end
 end
 
+--- Returns the Instance of the first mounted child
+--- @param children { Child } -- Fragment children
+--- @return Instance? -- First child's Instance
+local function firstChildEl(children: { Child }): Instance?
+	for _, child in children do
+		if type(child) == "table" and child.el then
+			return child.el
+		end
+	end
+	return nil
+end
+
+--- Mounts fragment children straight into the container
+--- @param vnode RenderVNode -- Fragment vnode
+--- @param container Instance -- Parent Instance
+--- @param poolOpt PoolOptions? -- Pool options
+local function mountFragment(vnode: RenderVNode, container: Instance, poolOpt: PoolOptions?)
+	for i, child in vnode.children do
+		if type(child) == "function" then
+			-- Store the result so later diffs compare against it
+			local rendered = child()
+			vnode.children[i] = rendered :: any
+			child = rendered :: any
+		end
+		if type(child) == "table" then
+			patch(nil, child, container, poolOpt)
+		end
+	end
+	vnode.el = firstChildEl(vnode.children)
+end
+
 --- Main patch function that diffs and updates the DOM tree
 --- @param oldVNode RenderVNode? -- Previous VNode tree (nil = mount)
 --- @param newVNode RenderVNode? -- New VNode tree (nil = unmount)
@@ -1205,7 +1263,9 @@ function patch(oldVNode: RenderVNode?, newVNode: RenderVNode?, container: Instan
 	local def = asComponent(newType)
 
 	if oldVNode == nil then
-		if def and def.__name == "Teleport" then
+		if newType == Fragment then
+			mountFragment(newVNode, container, poolOpt)
+		elseif def and def.__name == "Teleport" then
 			mountTeleport(newVNode, poolOpt)
 		elseif def then
 			mountComponent(newVNode, container, poolOpt)
@@ -1228,17 +1288,23 @@ function patch(oldVNode: RenderVNode?, newVNode: RenderVNode?, container: Instan
 		return
 	end
 
-	if def then
+	if newType == Fragment then
+		patchKeyedChildren(oldVNode.children, newVNode.children, container, poolOpt)
+		newVNode.el = firstChildEl(newVNode.children)
+	elseif def then
 		-- The child's render effect handles re-rendering
 		local inst = oldVNode._instance :: ComponentInstance?
 		newVNode._instance = inst
 		if inst then
 			inst.vnode = newVNode
-			local attrsChanged = componentAPI.updateComponentProps(inst, newVNode.props)
-			local slotsChanged = componentAPI.updateComponentSlots(inst, newVNode.children)
-			-- Slots and attrs aren't reactive, so queue the child's re-render ourselves
+			componentAPI.updateComponentProps(inst, newVNode.props)
+			-- Slots aren't reactive, so queue the child's re-render ourselves
 			local renderEffect = inst._renderEffect
-			if (attrsChanged or slotsChanged) and renderEffect and renderEffect.scheduler then
+			if
+				componentAPI.updateComponentSlots(inst, newVNode.children)
+				and renderEffect
+				and renderEffect.scheduler
+			then
 				renderEffect.scheduler(renderEffect.run)
 			end
 		end
@@ -1296,8 +1362,33 @@ local function createApp(rootVNode: VNode, opts: AppOptions?): App
 	end
 
 	local mounted: MountedState = { vnode = nil, container = nil, poolOpt = poolOpt }
+	local appContext: AppContext = { provides = {}, config = {} }
 
-	local api = {} :: App
+	local api = { config = appContext.config } :: App
+
+	--- Provides a value to every component in the app
+	function api.provide(self: App, key: unknown, value: unknown): App
+		appContext.provides[key] = value
+		return self
+	end
+
+	--- Installs a plugin: a function(app, ...) or a table with install(app, ...)
+	function api.use(self: App, plugin: Plugin, ...: any): App
+		if type(plugin) == "function" then
+			plugin(self, ...)
+		elseif type(plugin) == "table" and type(plugin.install) == "function" then
+			plugin.install(self, ...)
+		else
+			error("app:use() expects a function or a table with install()", 2)
+		end
+		return self
+	end
+
+	--- Registers a directive (directives are global, this is for plugin convenience)
+	function api.directive(self: App, name: string, hooks: Types.Directive): App
+		directives.register(name, hooks)
+		return self
+	end
 
 	function api.mount(self: App, container: Instance): MountedState
 		if typeof(container) ~= "Instance" then
@@ -1309,7 +1400,13 @@ local function createApp(rootVNode: VNode, opts: AppOptions?): App
 		end
 
 		mounted.container = container
-		patch(nil, rootVNode, container, poolOpt)
+		local prevContext = currentAppContext
+		currentAppContext = appContext
+		local ok, err = pcall(patch :: (...any) -> ...unknown, nil, rootVNode, container, poolOpt)
+		currentAppContext = prevContext
+		if not ok then
+			error(err, 0)
+		end
 		mounted.vnode = rootVNode
 
 		return mounted
