@@ -44,8 +44,8 @@
 		setupServer()
 			'Creates the remotes (server only)'
 
-		handle(actionName: string, handler: (player, payload) -> any)
-			'Registers a server handler for request()/fire() (server only)'
+		handle(actionName: string, handler: (player, payload) -> any, opts?: { maxPerSecond: number? })
+			'Registers a server handler for request()/fire(), rate limited per player (server only)'
 	
 	Server Implementation:
     ----------------------
@@ -78,6 +78,7 @@ export type RemoteResponse = {
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
 local debugModule = require(script.Parent:WaitForChild("debug"))
 
 local Remote = {}
@@ -283,7 +284,44 @@ end
 
 export type RequestHandler = (player: Player, payload: unknown) -> unknown
 
+export type HandleOptions = {
+	-- Requests per second per player (default 30, 0 disables)
+	maxPerSecond: number?,
+}
+
+const DEFAULT_MAX_PER_SECOND = 30
+
+type Bucket = { tokens: number, last: number }
+
 local handlers: { [string]: RequestHandler } = {}
+local limits: { [string]: number } = {}
+local buckets: { [Player]: { [string]: Bucket } } = {}
+
+--- Token bucket check, refills at `rate` tokens per second up to `rate`
+--- @param player Player -- Sender
+--- @param action string -- Action name
+--- @param rate number -- Requests per second
+--- @return boolean -- True if the request is allowed
+local function takeToken(player: Player, action: string, rate: number): boolean
+	local playerBuckets = buckets[player]
+	if not playerBuckets then
+		playerBuckets = {}
+		buckets[player] = playerBuckets
+	end
+	local now = os.clock()
+	local bucket = playerBuckets[action]
+	if not bucket then
+		bucket = { tokens = rate, last = now }
+		playerBuckets[action] = bucket
+	end
+	bucket.tokens = math.min(rate, bucket.tokens + (now - bucket.last) * rate)
+	bucket.last = now
+	if bucket.tokens < 1 then
+		return false
+	end
+	bucket.tokens -= 1
+	return true
+end
 local serverConn: RBXScriptConnection? = nil
 
 --- Creates the RemoteEvents folder and events. Call once on the server at startup
@@ -298,12 +336,18 @@ end
 --- The handler's return value is sent back as the response data.
 --- @param actionName string -- Action identifier
 --- @param handler RequestHandler -- (player, payload) -> data
-function Remote.handle(actionName: string, handler: RequestHandler): ()
+--- @param opts HandleOptions? -- Rate limit options
+function Remote.handle(actionName: string, handler: RequestHandler, opts: HandleOptions?): ()
 	assert(RunService:IsServer(), "Remote.handle() must be called on the server")
 	handlers[actionName] = handler
+	limits[actionName] = if opts and opts.maxPerSecond then opts.maxPerSecond else DEFAULT_MAX_PER_SECOND
 	if serverConn then
 		return
 	end
+
+	Players.PlayerRemoving:Connect(function(player)
+		buckets[player] = nil
+	end)
 
 	local resEv = getResponseEvent()
 	serverConn = getRequestEvent().OnServerEvent:Connect(function(player: Player, req: unknown)
@@ -328,6 +372,12 @@ function Remote.handle(actionName: string, handler: RequestHandler): ()
 		local actionHandler = handlers[action]
 		if not actionHandler then
 			respond(false, nil, "unknown_action")
+			return
+		end
+
+		local rate = limits[action]
+		if rate > 0 and not takeToken(player, action, rate) then
+			respond(false, nil, "rate_limited")
 			return
 		end
 
