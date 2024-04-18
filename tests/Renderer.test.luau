@@ -501,6 +501,70 @@ local function runTests()
 		container:Destroy()
 	end
 
+	-- Test 21: Unmounting right after a state change doesn't re-render the component
+	print("Test 21: No render after unmount")
+	do
+		local text = Rivue.ref("a")
+		local renders = 0
+		local Comp = Rivue.defineComponent({
+			name = "Zombie",
+			setup = function()
+				return function()
+					renders += 1
+					return Rivue.h("TextLabel", { Name = "Zombie", Text = text.value })
+				end
+			end,
+		})
+		local container = Instance.new("Folder")
+		local app = renderer.createApp(Rivue.h(Comp))
+		app:mount(container)
+		text.value = "b"
+		app:unmount()
+		task.wait(0.1)
+		assertEquals(renders, 1, "Should not render after unmount")
+		assertEquals(#container:GetChildren(), 0, "Should not recreate Instances")
+		container:Destroy()
+	end
+
+	-- Test 22: Parent and child changing together render the child once, after the parent
+	print("Test 22: Child renders once when parent and child update together")
+	do
+		local parentValue = Rivue.ref(1)
+		local childValue = Rivue.ref(1)
+		local childRenders = 0
+		local seenProp: any = nil
+		local Child = Rivue.defineComponent({
+			name = "OrderChild",
+			props = { value = { type = "number" } },
+			setup = function(props)
+				return function()
+					childRenders += 1
+					seenProp = props.value
+					return Rivue.h("Frame", { Name = "Child" .. tostring(childValue.value) })
+				end
+			end,
+		})
+		local Parent = Rivue.defineComponent({
+			name = "OrderParent",
+			setup = function()
+				return function()
+					return Rivue.h("Frame", { Name = "OrderRoot" }, { Rivue.h(Child, { value = parentValue.value }) })
+				end
+			end,
+		})
+		local container = Instance.new("Folder")
+		local app = renderer.createApp(Rivue.h(Parent))
+		app:mount(container)
+		childRenders = 0
+		childValue.value = 2 -- child queued first
+		parentValue.value = 2 -- then parent
+		task.wait(0.1)
+		assertEquals(childRenders, 1, "Child should render once")
+		assertEquals(seenProp, 2, "Child should see the parent's new prop")
+		app:unmount()
+		container:Destroy()
+	end
+
 	print("\n========== RENDERER TESTS COMPLETE ==========\n")
 end
 

@@ -417,6 +417,21 @@ local function runTests()
 		assertEquals(calls, 1, "Watch should fire once after a change")
 	end
 
+	-- Test 28: A stopped effect that was already queued doesn't run
+	print("Test 28: Stopping an effect cancels its queued run")
+	do
+		local count = Rivue.ref(0)
+		local runs = 0
+		local stop = Rivue.watchEffect(function()
+			local _ = count.value
+			runs += 1
+		end)
+		count.value = 1
+		stop()
+		task.wait(0.05)
+		assertEquals(runs, 1, "Queued run should be skipped after stop()")
+	end
+
 	print("\n========== REACTIVITY TESTS COMPLETE ==========\n")
 end
 
