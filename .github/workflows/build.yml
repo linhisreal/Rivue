@@ -55,10 +55,27 @@ jobs:
       shell: powershell
       continue-on-error: false
 
+  test:
+    name: Offline Tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Install Luau CLI
+      run: |
+        curl -sSL -o luau.zip https://github.com/luau-lang/luau/releases/download/0.744/luau-ubuntu.zip
+        unzip -q luau.zip -d luau-cli
+        echo "$PWD/luau-cli" >> "$GITHUB_PATH"
+
+    - name: Run test suites
+      run: scripts/test-offline.sh
+
   build:
     name: Build Distributable
     runs-on: windows-latest
-    needs: lint
+    needs: [lint, test]
     
     steps:
     - name: Checkout code
