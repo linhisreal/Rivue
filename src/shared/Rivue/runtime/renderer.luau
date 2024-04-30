@@ -1305,7 +1305,7 @@ function patch(oldVNode: RenderVNode?, newVNode: RenderVNode?, container: Instan
 			-- Slots aren't reactive, so queue the child's re-render ourselves
 			local renderEffect = inst._renderEffect
 			if
-				componentAPI.updateComponentSlots(inst, newVNode.children)
+				componentAPI.updateComponentSlots(inst, newVNode.children, newVNode.slots)
 				and renderEffect
 				and renderEffect.scheduler
 			then

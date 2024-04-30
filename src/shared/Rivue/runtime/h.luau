@@ -57,12 +57,40 @@ local function normalizeChildren(children: unknown): { Child }
 	end
 	local t = type(children)
 	if t == "table" then
+		-- A single vnode, not a list
+		if (children :: { [unknown]: unknown }).type ~= nil then
+			return { children :: VNode }
+		end
 		-- Copy so a reused array (like ctx.slots) can't change an already-rendered vnode
 		return table.clone(children :: { Child })
 	elseif t == "function" then
 		return { children :: () -> VNode? }
 	end
 	return { tostring(children) }
+end
+
+--- Splits a component's children table into default children and named slot functions
+--- @param children { [unknown]: unknown } -- Children table passed to h()
+--- @return { Child } -- Array part (default slot)
+--- @return Types.Slots? -- Named slot functions, if any
+local function splitSlots(children: { [unknown]: unknown }): ({ Child }, Types.Slots?)
+	local slots: Types.Slots? = nil
+	local list: { Child } = {}
+	for key, value in children do
+		if type(key) == "string" then
+			if type(value) ~= "function" then
+				error(`slot '{key}' must be a function`, 3)
+			end
+			local named = slots or {}
+			slots = named
+			named[key] = value :: Types.SlotFunction
+		end
+	end
+	if not slots then
+		return table.clone(children :: { Child }), nil
+	end
+	table.move(children :: { Child }, 1, #children, 1, list)
+	return list, slots
 end
 
 local vnodeIdCounter = 0
@@ -77,7 +105,14 @@ local Fragment: Types.FragmentType = table.freeze({ __fragment = true :: true, _
 --- @return VNode -- Virtual DOM node
 local function h(type_: VNodeType, propsIn: Props?, children: Types.Children?): VNode
 	local props: Props = propsIn or {}
-	local ch = normalizeChildren(children)
+	local ch: { Child }
+	local slots: Types.Slots? = nil
+	if type(type_) ~= "string" and type(children) == "table" and (children :: { [unknown]: unknown }).type == nil then
+		-- Components can take named slots: { header = function(scope) ... end }
+		ch, slots = splitSlots(children :: { [unknown]: unknown })
+	else
+		ch = normalizeChildren(children)
+	end
 	vnodeIdCounter += 1
 
 	-- Hot path, only build the log payload when debugging
@@ -94,6 +129,7 @@ local function h(type_: VNodeType, propsIn: Props?, children: Types.Children?): 
 		type = type_,
 		props = props,
 		children = ch,
+		slots = slots,
 		key = props.key,
 		_uid = vnodeIdCounter,
 	}

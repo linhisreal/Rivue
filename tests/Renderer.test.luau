@@ -565,6 +565,87 @@ local function runTests()
 		container:Destroy()
 	end
 
+	-- Test 23: Named and scoped slots
+	print("Test 23: Named slots, scoped slots, and fallback content")
+	do
+		local Card = Rivue.defineComponent({
+			name = "NamedSlotCard",
+			setup = function(_props, ctx)
+				return function()
+					local children = {}
+					for _, child in ctx.renderSlot("header", { title = "Hello" }) do
+						table.insert(children, child)
+					end
+					for _, child in ctx.renderSlot("default") do
+						table.insert(children, child)
+					end
+					for _, child in ctx.renderSlot("footer", nil, { Rivue.h("Frame", { Name = "DefaultFooter" }) }) do
+						table.insert(children, child)
+					end
+					return Rivue.h("Frame", { Name = "NamedCard" }, children)
+				end
+			end,
+		})
+		local count = Rivue.ref(1)
+		local hasFooter: any = nil
+		local Probe = Rivue.defineComponent({
+			name = "SlotProbe",
+			setup = function(_props, ctx)
+				hasFooter = ctx.hasSlot("footer")
+				return function()
+					return Rivue.h("Frame")
+				end
+			end,
+		})
+		local App = Rivue.defineComponent({
+			name = "NamedSlotApp",
+			setup = function()
+				return function()
+					return Rivue.h("Frame", { Name = "SlotHost" }, {
+						Rivue.h(Card, {}, {
+							header = function(scope)
+								return Rivue.h("TextLabel", { Name = "Header", Text = scope.title })
+							end,
+							default = function()
+								return Rivue.h("TextLabel", { Name = "Body", Text = tostring(count.value) })
+							end,
+						}),
+						Rivue.h(Probe),
+					})
+				end
+			end,
+		})
+		local container = Instance.new("Folder")
+		local app = renderer.createApp(Rivue.h(App))
+		app:mount(container)
+		local card = container:FindFirstChild("SlotHost"):FindFirstChild("NamedCard")
+		local header = card:FindFirstChild("Header") :: TextLabel
+		assertEquals(header and header.Text, "Hello", "Scoped slot receives its scope")
+		assertTrue(card:FindFirstChild("DefaultFooter") ~= nil, "Missing slot renders fallback")
+		assertEquals(hasFooter, false, "hasSlot() is false for missing slots")
+		count.value = 2
+		task.wait(0.1)
+		local body = card:FindFirstChild("Body") :: TextLabel
+		assertEquals(body and body.Text, "2", "Slot content updates on parent re-render")
+		app:unmount()
+		container:Destroy()
+	end
+
+	-- Test 24: A single vnode can be passed as children
+	print("Test 24: Single vnode as children")
+	do
+		local container = Instance.new("Folder")
+		local app = renderer.createApp(
+			Rivue.h("Frame", { Name = "SingleParent" }, Rivue.h("TextLabel", { Name = "OnlyChild" }))
+		)
+		app:mount(container)
+		local parent = container:FindFirstChild("SingleParent")
+		assertEquals(parent and #parent:GetChildren(), 1, "Should mount exactly one child")
+		assertTrue(parent:FindFirstChild("OnlyChild") ~= nil, "Child should be the passed vnode")
+		app:unmount()
+		container:Destroy()
+	end
+
 	print("\n========== RENDERER TESTS COMPLETE ==========\n")
 end
 
