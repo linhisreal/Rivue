@@ -108,6 +108,9 @@
         },
         "VueFeatures": {
           "$path": "tests/VueFeatures.test.luau"
+        },
+        "UIFeatures": {
+          "$path": "tests/UIFeatures.test.luau"
         }
       },
       "App": {
