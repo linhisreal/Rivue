@@ -86,7 +86,7 @@ local function flushFrame(mode: FrameMode): ()
 		if not job.cancelled then
 			local ok, err = pcall(job.fn :: () -> ...unknown)
 			if not ok then
-				debugModule.log("Scheduler", "Frame queue job error", { mode = mode, error = err })
+				warn(`[Rivue] Error in {mode} job: {err}`)
 			end
 		end
 	end
@@ -132,7 +132,8 @@ local function flushMicro(): ()
 		if not job.cancelled then
 			local ok, err = pcall(job.fn :: () -> ...unknown)
 			if not ok then
-				debugModule.log("Scheduler", "Micro queue job error", { error = err })
+				-- Watch callbacks and queued jobs land here, always report
+				warn(`[Rivue] Error in queued job: {err}`)
 			end
 		end
 	end
@@ -253,7 +254,7 @@ local function flushUpdates(): ()
 			updateQueued[job] = nil
 			local ok, err = pcall(job.run :: () -> ...unknown)
 			if not ok then
-				debugModule.log("Scheduler", "Component update error", { error = err })
+				warn(`[Rivue] Error in component update: {err}`)
 			end
 		end
 	end
