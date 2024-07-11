@@ -28,13 +28,13 @@ jobs:
       run: rojo sourcemap default.project.json --output sourcemap.json
       
     - name: Check code formatting with StyLua
-      run: stylua --check src/ tests/
+      run: stylua --check src/ tests/ examples/
       continue-on-error: false
       
     - name: Run Selene (Linter)
       run: |
         if (Test-Path "$HOME/.aftman/bin/selene.exe") {
-          & "$HOME/.aftman/bin/selene" src/ tests/
+          & "$HOME/.aftman/bin/selene" src/ tests/ examples/
         } else {
           Write-Host "Selene not installed, skipping..."
         }
@@ -51,7 +51,7 @@ jobs:
     - name: Run Luau Type Checker
       run: |
         Write-Host "Running Luau type analysis with Roblox definitions..."
-        & "$HOME/.aftman/bin/luau-lsp" analyze --sourcemap=sourcemap.json --definitions=globalTypes.d.luau src/
+        & "$HOME/.aftman/bin/luau-lsp" analyze --sourcemap=sourcemap.json --definitions=globalTypes.d.luau src/ examples/
       shell: powershell
       continue-on-error: false
 
