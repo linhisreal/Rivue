@@ -73,7 +73,11 @@ type PrettyPrintOptions = {
 debug._toRaw = nil :: ((unknown) -> unknown)?
 
 -- Automatically enable debug mode in Studio, disable in published games
-debug.enabled = RunService:IsStudio()
+-- Verbose runtime logging. Off by default: it prints for every vnode, mount and job.
+-- Studio warnings (unknown props, bad keys, ...) don't depend on it.
+debug.enabled = false
+
+const IS_STUDIO = RunService:IsStudio()
 
 -- =============================================================================
 -- LOGGING & PERFORMANCE
@@ -224,12 +228,11 @@ function debug.inspect(value: unknown, depth: number?): string
 	return inspectValue(value, 0, "")
 end
 
---- Asserts an invariant in dev mode. Throws if condition is false.
---- Only active when debug.enabled is true.
+--- Asserts an invariant in Studio. Throws if condition is false.
 --- @param condition boolean -- Condition that must be true
 --- @param message string -- Error message if condition fails
 function debug.assertInvariant(condition: boolean, message: string)
-	if debug.enabled and not condition then
+	if (IS_STUDIO or debug.enabled) and not condition then
 		error("[Rivue:Invariant] " .. message, 2)
 	end
 end

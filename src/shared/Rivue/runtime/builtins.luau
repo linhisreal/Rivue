@@ -65,83 +65,87 @@ local function createSuspense(): ComponentDef
 			timeout = { type = "number" :: "number", default = 5000 },
 		},
 		setup = function(props: Props, context: SetupContext)
-			local isLoading = ref(true)
+			-- Children render (hidden) from the start, async components inside register
+			-- themselves while they mount and flip this on
+			local isLoading = ref(false)
 			local error = ref(nil :: string?)
-			local hasTimedOut = ref(false)
-			local pendingCount = ref(0)
+			local pendingCount = 0
+			local timeoutThread: thread? = nil
 
-			-- Provide suspense context to children
+			local function clearTimeout()
+				if timeoutThread then
+					task.cancel(timeoutThread)
+					timeoutThread = nil
+				end
+			end
+
 			context.provide("suspense", {
 				register = function()
-					pendingCount.value = pendingCount.value + 1
+					pendingCount += 1
 					isLoading.value = true
+					local timeout = props.timeout
+					if not timeoutThread and type(timeout) == "number" and timeout > 0 then
+						timeoutThread = task.delay(timeout / 1000, function()
+							timeoutThread = nil
+							if isLoading.value then
+								error.value = "Timeout: Component took too long to load"
+							end
+						end)
+					end
 				end,
 				resolve = function()
-					pendingCount.value = math.max(0, pendingCount.value - 1)
-					if pendingCount.value == 0 then
+					pendingCount = math.max(0, pendingCount - 1)
+					if pendingCount == 0 then
 						isLoading.value = false
+						clearTimeout()
 					end
 				end,
 				reject = function(err: string)
 					error.value = err
 					isLoading.value = false
+					clearTimeout()
 				end,
 			})
 
-			-- Setup timeout
-			if props.timeout and props.timeout > 0 then
-				task.delay(props.timeout / 1000, function()
-					if isLoading.value then
-						hasTimedOut.value = true
-						error.value = "Timeout: Component took too long to load"
-					end
-				end)
-			end
-
-			-- Cleanup on unmount
-			componentModule.onUnmounted(function()
-				pendingCount.value = 0
-				isLoading.value = false
-			end)
+			componentModule.onUnmounted(clearTimeout)
 
 			return function()
-				-- Error state
-				if error.value then
-					return h("Frame", {
+				local failed = error.value
+				local loading = isLoading.value
+				local overlay: VNode? = nil
+				if failed then
+					overlay = h("TextLabel", {
+						Name = "SuspenseError",
 						Size = UDim2.fromScale(1, 1),
+						Text = "Error: " .. tostring(failed),
+						TextColor3 = Color3.fromRGB(255, 100, 100),
 						BackgroundTransparency = 1,
-					}, {
-						h("TextLabel", {
-							Size = UDim2.fromScale(1, 1),
-							Text = "Error: " .. tostring(error.value),
-							TextColor3 = Color3.fromRGB(255, 100, 100),
-							BackgroundTransparency = 1,
-							TextWrapped = true,
-						}),
+						TextWrapped = true,
 					})
-				end
-
-				-- Loading state
-				if isLoading.value then
-					return props.fallback
-						or h("Frame", {
+				elseif loading then
+					overlay = props.fallback
+						or h("TextLabel", {
+							Name = "SuspenseFallback",
 							Size = UDim2.fromScale(1, 1),
+							Text = "Loading...",
+							TextColor3 = Color3.fromRGB(200, 200, 200),
 							BackgroundTransparency = 1,
-						}, {
-							h("TextLabel", {
-								Size = UDim2.fromScale(1, 1),
-								Text = "Loading...",
-								TextColor3 = Color3.fromRGB(200, 200, 200),
-								BackgroundTransparency = 1,
-							}),
 						})
 				end
 
-				-- Loaded state - render children
-				return h("Frame", {
-					Size = UDim2.fromScale(1, 1),
-					BackgroundTransparency = 1,
-				}, context.slots)
+				local children: { VNode } = {
+					-- Kept mounted while hidden, so loading continues and state survives
+					h("Frame", {
+						Name = "SuspenseContent",
+						Size = UDim2.fromScale(1, 1),
+						BackgroundTransparency = 1,
+						Visible = not loading and not failed,
+					}, context.slots),
+				}
+				if overlay then
+					table.insert(children, overlay)
+				end
+				return h("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 }, children)
 			end
 		end,
 	}
