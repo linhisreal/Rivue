@@ -170,21 +170,13 @@ local function attributeRef<T>(
 		end
 	end)
 
-	-- Auto-cleanup on component unmount
-	local currentInstance = componentAPI.getCurrentInstance()
-	if currentInstance then
-		componentAPI.onUnmounted(function()
-			conn:Disconnect()
-			stopWatch()
-		end)
-	else
-		-- If not in component context, at least provide manual cleanup
-		-- Store cleanup functions on the ref for manual cleanup if needed
-		r._cleanup = function()
-			conn:Disconnect()
-			stopWatch()
-		end
+	local function cleanup()
+		conn:Disconnect()
+		stopWatch()
 	end
+	-- Manual cleanup always works, and it runs with the component or effect scope
+	r._cleanup = cleanup
+	reactivity.onScopeDispose(cleanup, true)
 
 	return r
 end
@@ -228,18 +220,15 @@ local function useTag(tagName: string, onAdded: (instance: Instance) -> (() -> (
 		end
 	end
 
-	-- Auto-cleanup on component unmount
-	local currentInstance = componentAPI.getCurrentInstance()
-	if currentInstance then
-		componentAPI.onUnmounted(function()
-			addedConn:Disconnect()
-			removedConn:Disconnect()
-			for _, cleanup in pairs(cleanupMap) do
-				pcall(cleanup)
-			end
-			table.clear(cleanupMap)
-		end)
-	end
+	-- Cleans up with the component or effect scope
+	reactivity.onScopeDispose(function()
+		addedConn:Disconnect()
+		removedConn:Disconnect()
+		for _, cleanup in pairs(cleanupMap) do
+			pcall(cleanup)
+		end
+		table.clear(cleanupMap)
+	end, true)
 end
 
 --- Registers a callback for RunService.RenderStepped

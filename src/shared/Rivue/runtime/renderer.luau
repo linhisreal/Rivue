@@ -374,12 +374,9 @@ local classPropCache: { [string]: { [string]: boolean } } = {}
 --- @param inst any -- Instance to check
 --- @param prop any -- Property name
 --- @return boolean -- True if property exists
-local function classHasProp(inst: Instance, prop: string): boolean
-	if not inst or not inst.ClassName then
-		return false
-	end
-
-	local cn = inst.ClassName
+local function classHasProp(inst: Instance, prop: string, className: string?): boolean
+	-- The vnode type is the ClassName, reading inst.ClassName is an engine call
+	local cn = className or inst.ClassName
 	local cache = classPropCache[cn]
 	if not cache then
 		cache = {}
@@ -449,12 +446,17 @@ end
 --- @param propName string -- Event prop name (e.g., 'onClick')
 --- @param handler (...any) -> () -- Event handler function
 --- @return RBXScriptConnection? -- Connection if successful, nil otherwise
-local function connectEvent(inst: Instance, propName: string, handler: (...any) -> ()): RBXScriptConnection?
+local function connectEvent(
+	inst: Instance,
+	propName: string,
+	handler: (...any) -> (),
+	knownClassName: string?
+): RBXScriptConnection?
 	if type(propName) ~= "string" or type(handler) ~= "function" then
 		return nil
 	end
 
-	local className = inst.ClassName
+	local className = knownClassName or inst.ClassName
 
 	-- Check cache first
 	if not eventSignalCache[className] then
@@ -524,12 +526,11 @@ end
 --- @param value any -- Property value (heterogeneous by nature: Instance props, handlers, directives)
 --- @param vnode RenderVNode -- VNode holding connection/directive state
 local function setProp(inst: Instance, key: string, value: any, vnode: RenderVNode)
-	local conns = vnode._conns or {}
-	local dirs = vnode._dirs or {}
-	local touched = vnode._touched or {}
-	vnode._conns, vnode._dirs, vnode._touched = conns, dirs, touched
+	local className: string? = if type(vnode.type) == "string" then vnode.type else nil
 
 	if key == "__directives" and type(value) == "table" then
+		local dirs = vnode._dirs or {}
+		vnode._dirs = dirs
 		for _, d in value do
 			local hook = directives.get(d.name)
 			if hook and hook.mounted then
@@ -542,21 +543,32 @@ local function setProp(inst: Instance, key: string, value: any, vnode: RenderVNo
 	end
 
 	if key:sub(1, 2) == "on" and type(value) == "function" then
-		local existing = conns[key]
-		if existing then
-			existing:Disconnect()
-			conns[key] = nil
+		-- Bookkeeping tables are created on first use, most elements need few of them
+		local conns = vnode._conns or {}
+		local handlers = vnode._handlers or {}
+		vnode._conns, vnode._handlers = conns, handlers
+		handlers[key] = value
+		-- Already connected, re-renders only swap the handler
+		if conns[key] then
+			return
+		end
+
+		local function invoke(...: any)
+			local handler = handlers[key]
+			if handler then
+				handler(...)
+			end
 		end
 
 		if key == "onTextChanged" and (inst:IsA("TextBox") or inst:IsA("TextLabel") or inst:IsA("TextButton")) then
 			local textInst = inst :: TextBox
 			conns[key] = textInst:GetPropertyChangedSignal("Text"):Connect(function()
-				value(textInst.Text)
+				invoke(textInst.Text)
 			end)
 			return
 		end
 
-		local conn = connectEvent(inst, key, value)
+		local conn = connectEvent(inst, key, invoke, className)
 		if conn then
 			conns[key] = conn
 		end
@@ -568,10 +580,12 @@ local function setProp(inst: Instance, key: string, value: any, vnode: RenderVNo
 		return
 	end
 
-	if classHasProp(inst, key) then
+	if classHasProp(inst, key, className) then
 		local ok, err = writeProp(inst, key, value)
 		if ok then
 			-- Tracked so the pool can reset it
+			local touched = vnode._touched or {}
+			vnode._touched = touched
 			touched[key] = true
 		else
 			debugModule.log("Renderer", `Failed to set prop {key}: {err}`)
@@ -581,9 +595,11 @@ local function setProp(inst: Instance, key: string, value: any, vnode: RenderVNo
 
 	-- Allow camelCase props (size -> Size)
 	local pascalKey = key:sub(1, 1):upper() .. key:sub(2)
-	if classHasProp(inst, pascalKey) then
+	if classHasProp(inst, pascalKey, className) then
 		local ok, err = writeProp(inst, pascalKey, value)
 		if ok then
+			local touched = vnode._touched or {}
+			vnode._touched = touched
 			touched[pascalKey] = true
 		else
 			debugModule.log("Renderer", `Failed to set prop {pascalKey}: {err}`)
@@ -608,6 +624,7 @@ local function clearVNodeConns(vnode: RenderVNode?)
 			conn:Disconnect()
 		end
 		vnode._conns = nil
+		vnode._handlers = nil
 	end
 
 	local dirs = vnode._dirs
@@ -826,34 +843,69 @@ local function hasLayoutChild(children: { Child }): boolean
 	return false
 end
 
---- Gives children LayoutOrder = their position, so a layout shows them in list order.
---- Fragments (nested lists) are counted through. A child that sets LayoutOrder keeps it.
+-- LayoutOrder Rivue last wrote per Instance, so unchanged positions skip the engine calls
+local appliedLayoutOrder: { [Instance]: number } = setmetatable({}, { __mode = "k" }) :: any
+-- ClassName -> IsA("GuiObject")
+local guiObjectClasses: { [string]: boolean } = {}
+
+--- IsA("GuiObject"), cached per class
+--- @param el Instance -- Instance
+--- @param className string? -- Its ClassName when known (vnode type)
+--- @return boolean -- Is a GuiObject
+local function isGuiObject(el: Instance, className: string?): boolean
+	local cn = className or el.ClassName
+	local cached = guiObjectClasses[cn]
+	if cached == nil then
+		cached = el:IsA("GuiObject")
+		guiObjectClasses[cn] = cached
+	end
+	return cached
+end
+
+--- Gives children increasing LayoutOrder in list order, so a layout shows them as rendered.
+--- Values that are already in order are kept (removing a row renumbers nothing), only
+--- out-of-order ones are rewritten. Fragments are counted through, and a child that sets
+--- LayoutOrder itself keeps it.
 --- @param children { Child } -- Mounted children
---- @param start number? -- Position before the first child
---- @return number -- Position of the last child
-local function syncLayoutOrder(children: { Child }, start: number?): number
-	local order = start or 0
+--- @param after number? -- LayoutOrder of the previous child
+--- @return number -- LayoutOrder of the last child
+local function syncLayoutOrder(children: { Child }, after: number?): number
+	local prev = after or 0
 	for i = 1, table.maxn(children) do
 		local child = children[i]
 		if type(child) ~= "table" then
 			continue
 		end
 		if child.type == Fragment then
-			order = syncLayoutOrder(child.children, order)
+			prev = syncLayoutOrder(child.children, prev)
 			continue
 		end
-		order += 1
 		local props = child.props
 		if props and props.LayoutOrder ~= nil then
 			continue
 		end
 		local inst = child._instance :: ComponentInstance?
 		local el = child.el or (if inst then inst.el else nil)
-		if el and el:IsA("GuiObject") and el.LayoutOrder ~= order then
-			el.LayoutOrder = order
+		if not el then
+			continue
+		end
+		local current = appliedLayoutOrder[el]
+		if current and current > prev then
+			prev = current
+		else
+			prev += 1
+			appliedLayoutOrder[el] = prev
+			local subTree = if inst then inst.subTree else nil
+			local className = if type(child.type) == "string"
+				then child.type :: string
+				elseif subTree and type(subTree.type) == "string" then subTree.type :: string
+				else nil
+			if isGuiObject(el, className) then
+				(el :: GuiObject).LayoutOrder = prev
+			end
 		end
 	end
-	return order
+	return prev
 end
 
 --- Mounts a VNode as a new Instance in the DOM
@@ -884,15 +936,6 @@ local function mountElement(vnode: RenderVNode, container: Instance, poolOpt: Po
 			warn(`[Rivue] Unknown element type '{tag}', falling back to Frame`)
 			inst = Instance.new("Frame")
 		end
-	end
-
-	local key = vnode.key
-	if key ~= nil then
-		pcall(inst.SetAttribute, inst, "__vkey", key)
-	end
-
-	if inst:IsA("TextBox") then
-		inst:SetAttribute("__v_is_textbox", true)
 	end
 
 	vnode.el = inst
@@ -1125,6 +1168,9 @@ local function unmountVNode(vnode: RenderVNode?, poolOpt: PoolOptions?, doRemove
 
 	local el = vnode.el
 	vnode.el = nil
+	if el then
+		appliedLayoutOrder[el] = nil
+	end
 	local pooled = poolOpt ~= nil and poolOpt.usePool == true and el ~= nil and not el:IsA("ScreenGui")
 	local transition = getTransition(vnode)
 	local leaving = el ~= nil and doRemove ~= false and transition ~= nil and transition.leave == true
@@ -1155,20 +1201,6 @@ local function unmountVNode(vnode: RenderVNode?, poolOpt: PoolOptions?, doRemove
 	else
 		el:Destroy()
 	end
-end
-
---- Maps __vkey -> child Instance for a parent
---- @param parent Instance -- Parent Instance to index
---- @return { [any]: Instance } -- Children by their __vkey attribute
-local function indexChildrenByKey(parent: Instance): { [unknown]: Instance }
-	local byKey = {}
-	for _, c in parent:GetChildren() do
-		local key = c:GetAttribute("__vkey")
-		if key ~= nil then
-			byKey[key] = c
-		end
-	end
-	return byKey
 end
 
 --- Renders a large list of items into a parent
@@ -1214,8 +1246,6 @@ local function patchKeyedChildren(
 		end
 	end
 
-	-- Built only when needed
-	local existingByKey: { [unknown]: Instance }? = nil
 	local seenKeys: { [unknown]: true }? = if IS_STUDIO then {} else nil
 	local reusedUnkeyed: { [number]: true } = {}
 
@@ -1238,17 +1268,9 @@ local function patchKeyedChildren(
 				patch(oc, nc, parent, poolOpt)
 				oldMap[k] = nil
 			else
-				local byKey = existingByKey or indexChildrenByKey(parent)
-				existingByKey = byKey
-				local found = byKey[k]
-
-				if found then
-					local placeholder: VNode =
-						{ type = found.ClassName, el = found, props = {}, children = {}, key = k, _uid = 0 }
-					patch(placeholder, nc, parent, poolOpt)
-				else
-					patch(nil, nc, parent, poolOpt)
-				end
+				-- New key. The old vnodes are the only source of truth: looking Instances up by
+				-- key in the parent could take a row owned by another list in the same parent.
+				patch(nil, nc, parent, poolOpt)
 			end
 		else
 			-- Unkeyed children match by position, never a keyed old child (the key map owns those)
@@ -1352,9 +1374,13 @@ local function patchProps(el: Instance, oldPropsIn: Props?, newPropsIn: Props?, 
 				conn:Disconnect()
 				conns[k] = nil
 			end
+			local handlers = vnode._handlers
+			if handlers then
+				handlers[k] = nil
+			end
 		elseif SUGAR_PROPS[k] and vnode._sugar then
 			setSugarProp(el, k, nil, vnode)
-		elseif classHasProp(el, k) then
+		elseif classHasProp(el, k, if type(vnode.type) == "string" then vnode.type else nil) then
 			-- Most properties can't be nil, reset to default instead
 			local removed = removedProps or {}
 			removedProps = removed
@@ -1651,6 +1677,8 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 			-- Batched with other components, parents first
 			scheduler.queueUpdate(updateJob)
 		end,
+		-- Children can change state this component reads while it patches (Suspense, refs)
+		allowRecurse = true,
 		-- Only hooked up when the component asked for them
 		onTrack = if #inst.renderTrackedCbs > 0
 			then function(event: Types.DebuggerEvent)
@@ -1704,16 +1732,73 @@ end
 --- @param el Instance -- Element
 --- @param children { Child } -- New children
 --- @return boolean -- True if handled as text
-local function trySetOnlyText(el: Instance, children: { Child }): boolean
+--- Returns the text when the children are a single string or number
+--- @param children { Child } -- Children
+--- @return string? -- Text, nil otherwise
+local function onlyText(children: { Child }): string?
 	local only = children[1]
-	if #children ~= 1 or type(only) ~= "string" then
+	if #children == 1 and (type(only) == "string" or type(only) == "number") then
+		return tostring(only)
+	end
+	return nil
+end
+
+--- Sets Text when the only child is a string or number
+--- @param el Instance -- Element
+--- @param children { Child } -- New children
+--- @param oldChildren { Child } -- Previous children
+--- @return boolean -- True if handled as text
+local function trySetOnlyText(el: Instance, children: { Child }, oldChildren: { Child }): boolean
+	if not (el:IsA("TextLabel") or el:IsA("TextButton") or el:IsA("TextBox")) then
 		return false
 	end
-	if el:IsA("TextLabel") or el:IsA("TextButton") or el:IsA("TextBox") then
-		(el :: TextLabel).Text = only
+	local text = onlyText(children)
+	if text then
+		(el :: TextLabel).Text = text
 		return true
 	end
+	-- The text child went away, don't leave its text behind
+	if onlyText(oldChildren) then
+		(el :: TextLabel).Text = ""
+	end
 	return false
+end
+
+--- Compares props, treating a new event handler as equal: it's swapped into the live
+--- connection instead, so rows re-rendered with fresh closures skip the prop diff
+--- @param oldProps Props? -- Mounted props
+--- @param newProps Props? -- Next props
+--- @param vnode RenderVNode -- Next vnode (holds the handlers)
+--- @return boolean -- True if nothing but handlers changed
+local function propsEqualSwappingHandlers(oldProps: Props?, newProps: Props?, vnode: RenderVNode): boolean
+	if oldProps == newProps then
+		return true
+	elseif oldProps == nil or newProps == nil then
+		return false
+	end
+	local handlers = vnode._handlers
+	local count = 0
+	for key, value in newProps do
+		count += 1
+		local old = oldProps[key]
+		if old ~= value then
+			if
+				handlers
+				and handlers[key] ~= nil
+				and type(value) == "function"
+				and type(old) == "function"
+				and string.sub(key, 1, 2) == "on"
+			then
+				handlers[key] = value
+			else
+				return false
+			end
+		end
+	end
+	for _ in oldProps do
+		count -= 1
+	end
+	return count == 0
 end
 
 --- Patches an element in place
@@ -1729,6 +1814,7 @@ local function patchElement(oldVNode: RenderVNode, newVNode: RenderVNode, poolOp
 
 	-- Transfer state so old handlers can still be disconnected
 	newVNode._conns = oldVNode._conns or {}
+	newVNode._handlers = oldVNode._handlers
 	newVNode._dirs = oldVNode._dirs or {}
 	newVNode._touched = oldVNode._touched
 	newVNode._sugar = oldVNode._sugar
@@ -1750,8 +1836,10 @@ local function patchElement(oldVNode: RenderVNode, newVNode: RenderVNode, poolOp
 		setTemplateRef(newProps, newVNode._owner, el)
 	end
 
-	local propsChanged = not _utils.shallowEqual(oldVNode.props, newVNode.props)
-	local childrenChanged = oldVNode.children ~= newVNode.children
+	local propsChanged = not propsEqualSwappingHandlers(oldProps, newProps, newVNode)
+	local oldChildren, newChildren = oldVNode.children, newVNode.children
+	-- h() makes a new table every render, two empty lists are still the same
+	local childrenChanged = oldChildren ~= newChildren and (next(oldChildren) ~= nil or next(newChildren) ~= nil)
 	if not propsChanged and not childrenChanged then
 		-- A controlled TextBox still follows its Text prop if the player typed over it
 		if newProps and newProps.onTextChanged ~= nil and newProps.Text ~= nil and el:IsA("TextBox") then
@@ -1767,7 +1855,7 @@ local function patchElement(oldVNode: RenderVNode, newVNode: RenderVNode, poolOp
 		if propsChanged then
 			patchProps(el, oldVNode.props, newVNode.props, newVNode)
 		end
-		if childrenChanged and not trySetOnlyText(el, newVNode.children) then
+		if childrenChanged and not trySetOnlyText(el, newVNode.children, oldVNode.children) then
 			patchKeyedChildren(oldVNode.children, newVNode.children, el, poolOpt)
 			if hasLayoutChild(newVNode.children) then
 				syncLayoutOrder(newVNode.children)

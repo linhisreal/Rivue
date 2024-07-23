@@ -54,6 +54,8 @@ export type EffectOptions = {
 	-- Debug hooks: a dependency was tracked / triggered this effect
 	onTrack: ((event: DebuggerEvent) -> ())?,
 	onTrigger: ((event: DebuggerEvent) -> ())?,
+	-- Let the effect re-trigger itself while running (component renders: state set during patch)
+	allowRecurse: boolean?,
 }
 
 export type Dep = { [Effect]: true }
@@ -69,6 +71,7 @@ export type Effect = {
 	stop: (self: Effect) -> (),
 	onTrack: ((event: DebuggerEvent) -> ())?,
 	onTrigger: ((event: DebuggerEvent) -> ())?,
+	allowRecurse: boolean?,
 }
 
 export type EffectScope = {
@@ -168,6 +171,8 @@ export type VNode = {
 	el: Instance?,
 	_instance: unknown?,
 	_conns: { [string]: RBXScriptConnection }?,
+	-- Current handler per event, the connection calls whatever is here
+	_handlers: { [string]: (...any) -> () }?,
 	_dirs: { [string]: unknown }?,
 	_touched: { [string]: boolean }?,
 	_fnTree: VNode?,
