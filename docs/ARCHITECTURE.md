@@ -42,6 +42,8 @@ the renderer sets on component instances (`_keepAliveRenderer`).
   `trigger(target, key)` runs or schedules every effect in that set. Adding or removing a key
   also triggers `ITERATE_KEY`, and array length changes trigger `LENGTH_KEY`.
 - **Effects.** An effect re-collects its dependencies on every run (old deps are cleared first).
+  An effect that writes state it reads doesn't re-trigger itself, except component render
+  effects (`allowRecurse`), whose children may change parent state while they mount.
   With a scheduler, `trigger` calls `scheduler(run)` instead of running. Without one, the effect
   is deduplicated on the micro queue. `effect.job` is the queued entry point and skips stopped
   effects.
@@ -127,18 +129,29 @@ children before parents:
   - modifier props on GuiObjects,
   - Instance properties: exact name, then PascalCase, cached per ClassName,
   - unknown props, which trigger a Studio warning.
+- Each event is connected once. The connection calls the handler stored in
+  `vnode._handlers`, so a re-render with a new closure only swaps that function.
 - `patchElement`:
   - skips everything when `memo` deps match,
   - re-points template refs if `ref` changed,
-  - diffs props shallowly (removed props are reset with `Pool.restoreDefaults`),
-  - patches children unless the children table is the same.
-  - On TextBoxes the patch keeps what the player typed unless the new props change `Text`.
+  - diffs props shallowly, treating a new handler as unchanged (it's swapped in place). Removed
+    props are reset with `Pool.restoreDefaults`,
+  - patches children unless both lists are the same table or both are empty,
+  - on TextBoxes, keeps what the player typed unless the new props change `Text`.
 - `patchKeyedChildren`:
-  - matches keyed children by key, falling back to a `__vkey` attribute lookup,
-  - patches unkeyed children by index,
-  - unmounts what's left over,
-  - keeps `LayoutOrder` in step with the list order when the parent has a UIListLayout or
-    UIGridLayout.
+  - matches keyed children by key, using only the old vnodes (never Instances in the parent,
+    which may belong to another list),
+  - patches unkeyed children by index, never reusing a keyed old child,
+  - unmounts every old child nothing reused.
+- `syncLayoutOrder` runs after an element with a UI*Layout child patches its children:
+  - It keeps each child's `LayoutOrder` while the sequence still increases, and only rewrites
+    out-of-order ones, so removing a row writes nothing.
+  - Values it wrote are cached per Instance, so unchanged positions make no engine calls.
+
+Engine calls (Instance reads, writes and `IsA`) are the expensive part. The renderer passes the
+vnode's ClassName instead of reading `inst.ClassName` and caches class checks.
+`tests/offline/Performance.test.luau` counts engine calls for common updates and fails if they
+grow.
 
 ### Unmounting
 

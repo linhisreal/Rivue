@@ -154,6 +154,7 @@ rojo serve                     # sync the test place into Studio
 rojo serve examples.project.json  # or the examples place
 stylua src tests examples      # format
 scripts/test-offline.sh        # run every test suite with the Luau CLI, no Studio needed
+python3 scripts/check-docs.py  # check doc links and run every API example
 ```
 
 `scripts/test-offline.sh` needs the [Luau CLI](https://github.com/luau-lang/luau/releases) on
