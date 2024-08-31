@@ -191,6 +191,8 @@ export type VNode = {
 	_teleportTarget: Instance?,
 	-- Teleport with defer, waiting for the post-mount flush
 	_deferred: boolean?,
+	-- class prop already merged into props
+	_classApplied: boolean?,
 }
 
 -- Tween-based enter/leave animation, as the `transition` prop or from <Transition>
@@ -247,17 +249,26 @@ export type SetupContext = {
 
 export type RenderFunction = () -> VNode?
 
-export type SetupResult = RenderFunction | { render: RenderFunction, [string]: unknown }
+-- A render function, or state for the render option
+export type SetupResult = RenderFunction | { [string]: unknown }
 
 -- Event names, or event name -> payload validator
 export type EmitsOptions = { string } | { [string]: (...any) -> boolean }
+
+-- What render(ctx) receives: setup's state (refs unwrapped), props, then emit/slots/attrs/...
+export type RenderContext = { [string]: any }
 
 export type ComponentOptions = {
 	name: string?,
 	props: PropSchema?,
 	emits: EmitsOptions?,
+	-- Local components, used as h("Name") inside this component
+	components: { [string]: ComponentDef }?,
+	-- Named prop tables for the class prop, checked before the app's styles
+	styles: { [string]: Props }?,
 	setup: ((props: Props, ctx: SetupContext) -> SetupResult)?,
-	render: ((props: Props) -> VNode?)?,
+	-- With setup returning state, render gets that state (see RenderContext)
+	render: ((ctx: RenderContext) -> VNode?)?,
 	inheritAttrs: boolean?,
 }
 
@@ -266,10 +277,13 @@ export type ComponentDef = {
 	__name: string?,
 	props: PropSchema?,
 	emits: EmitsOptions?,
+	components: { [string]: ComponentDef }?,
+	styles: { [string]: Props }?,
 	-- Renderer keeps this component's children alive (KeepAlive)
 	__isKeepAlive: true?,
 	setup: ((props: Props, ctx: SetupContext) -> SetupResult)?,
-	render: ((props: Props) -> VNode?)?,
+	-- With setup returning state, render gets that state (see RenderContext)
+	render: ((ctx: RenderContext) -> VNode?)?,
 	inheritAttrs: boolean?,
 }
 
@@ -317,6 +331,8 @@ export type AppContext = {
 	config: AppConfig,
 	-- Registered with app:component(), used for string types in h()
 	components: { [string]: ComponentDef },
+	-- Registered with app:styles(), used by the class prop
+	styles: { [string]: Props },
 }
 
 export type PoolConfig = {
