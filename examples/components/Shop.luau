@@ -6,7 +6,7 @@
 --   Rivue.Remote.handle("shop:list", function(player) return ShopService.list(player) end)
 --   Rivue.Remote.handle("shop:buy", function(player, payload) return ShopService.buy(player, payload.id) end)
 --
--- `api` can be swapped (tests pass a fake), by default it calls the server through Remote.
+-- `api` can be swapped (tests pass a fake); by default it calls the server through Remote.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
@@ -35,6 +35,11 @@ return Rivue.defineComponent({
 	props = {
 		api = { type = "table" },
 	},
+	styles = {
+		panel = { Size = UDim2.fromOffset(320, 400), padding = 8 },
+		product = { Size = UDim2.new(1, 0, 0, 40) },
+	},
+
 	setup = function(props)
 		local api = (props.api or remoteApi) :: ShopApi
 		local products = Rivue.shallowRef(nil :: { Product }?)
@@ -70,32 +75,30 @@ return Rivue.defineComponent({
 
 		Rivue.onMounted(load)
 
-		return function()
-			local list = products.value
-			return h("Frame", { Size = UDim2.fromOffset(320, 400), padding = 8 }, {
-				h("UIListLayout", { Padding = UDim.new(0, 6) }),
-				Rivue.hIf(
-					errorText.value ~= nil,
-					h("TextButton", { Name = "Error", Text = `{errorText.value} - tap to retry`, onClick = load })
-				),
-				Rivue.hIf(
-					list == nil and errorText.value == nil,
-					h("TextLabel", { Name = "Loading", Text = "Loading..." })
-				),
-				Rivue.hFor(list or {}, function(product)
-					local pending = buying.value == product.id
-					return h("TextButton", {
-						key = product.id,
-						Name = product.id,
-						Size = UDim2.new(1, 0, 0, 40),
-						Text = if pending then "Buying..." else `{product.name} - {product.price}`,
-						AutoButtonColor = not pending,
-						onClick = function()
-							buy(product)
-						end,
-					})
-				end),
-			})
-		end
+		return { products = products, errorText = errorText, buying = buying, load = load, buy = buy }
+	end,
+
+	render = function(ctx)
+		local loading = ctx.products == nil and ctx.errorText == nil
+		return h("Frame", { class = "panel", layout = { gap = 6 } }, {
+			Rivue.hIf(
+				ctx.errorText ~= nil,
+				h("TextButton", { Name = "Error", Text = `{ctx.errorText} - tap to retry`, onClick = ctx.load })
+			),
+			Rivue.hIf(loading, h("TextLabel", { Name = "Loading", Text = "Loading..." })),
+			Rivue.hFor(ctx.products or {}, function(product)
+				local pending = ctx.buying == product.id
+				return h("TextButton", {
+					key = product.id,
+					Name = product.id,
+					class = "product",
+					Text = if pending then "Buying..." else `{product.name} - {product.price}`,
+					AutoButtonColor = not pending,
+					onClick = function()
+						ctx.buy(product)
+					end,
+				})
+			end),
+		})
 	end,
 })
