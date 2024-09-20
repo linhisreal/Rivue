@@ -24,6 +24,18 @@ def main(test_files):
         if name.endswith(".luau"):
             module = name[: -len(".luau")]
             out.append(f'__defineModule(examplesFolder, "{module}", function(script)\n{read(os.path.join(EXAMPLES, name))}\nend)')
+    # The demo app: ReplicatedStorage.Demo, with subfolders
+    def add_folder(path, var, parent_var, name):
+        out.append(f'local {var} = makeFolder("{name}", {parent_var})\n{parent_var}._children["{name}"] = {var}')
+        for entry in sorted(os.listdir(path)):
+            full = os.path.join(path, entry)
+            if os.path.isdir(full):
+                add_folder(full, f"{var}_{entry}", var, entry)
+            elif entry.endswith(".luau"):
+                module = entry[: -len(".luau")]
+                out.append(f'__defineModule({var}, "{module}", function(script)\n{read(full)}\nend)')
+
+    add_folder(os.path.join(ROOT, "src", "shared", "Demo"), "demoFolder", "ReplicatedStorage", "Demo")
     wrapper = read(os.path.join(ROOT, "src", "shared", "Rivue", "Rivue.luau"))
     out.append(f'__defineModule(nil, "Rivue", function(script)\n{wrapper}\nend)')
     for path in test_files:

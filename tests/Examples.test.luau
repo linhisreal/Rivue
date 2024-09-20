@@ -77,7 +77,10 @@ local function runTests()
 		assertEquals(find(container, "Remaining").Text, "2 left", "Two todos")
 		local first = find(container, "Toggle")
 		assertEquals(first.Text, "[ ] Milk", "First todo rendered")
-		assertEquals(first.Parent.LayoutOrder, 3, "Todo rows get their list position as LayoutOrder")
+		assertTrue(
+			first.Parent.LayoutOrder > find(container, "Input").LayoutOrder,
+			"Todo rows are ordered after the input"
+		)
 		first.Activated:Fire()
 		task.wait()
 		assertEquals(first.Text, "[x] Milk", "Toggle marks it done")
@@ -207,6 +210,71 @@ local function runTests()
 		assertEquals(find(container, "Value").Text, "50 / 100", "Label follows the attribute")
 		task.wait(1)
 		assertTrue(math.abs(fill.Size.X.Scale - 0.5) < 0.01, "Bar springs to the new value")
+		app:unmount()
+	end
+
+	print("Demo app (src/shared/Demo)")
+	do
+		local Demo = ReplicatedStorage:WaitForChild("Demo")
+		local App = require(Demo:WaitForChild("App"))
+		local styles = require(Demo:WaitForChild("styles"))
+		local container = Instance.new("Frame")
+		local app = Rivue.createApp(App):styles(styles)
+		app:mount(container)
+		local window = container:FindFirstChild("DemoApp") :: Frame
+		assertTrue(window:FindFirstChildOfClass("UICorner") ~= nil, "Styles from app:styles() are applied")
+
+		local counter = find(container, "Counter")
+		local buttons = {}
+		for _, d in counter:GetDescendants() do
+			if d:IsA("TextButton") then
+				buttons[d.Text] = d
+			end
+		end
+		buttons["+ Increment"].Activated:Fire()
+		task.wait()
+		local countLabel
+		for _, d in counter:GetDescendants() do
+			if d:IsA("TextLabel") and string.find(d.Text, "Count:", 1, true) then
+				countLabel = d
+			end
+		end
+		assertEquals(countLabel.Text, "Count: 1  |  Double: 2", "Counter increments")
+
+		local list = find(container, "ItemList")
+		local function rows(): number
+			local n = 0
+			for _, d in list:GetDescendants() do
+				if d.Name == "ListItem" then
+					n += 1
+				end
+			end
+			return n
+		end
+		assertEquals(rows(), 3, "Three starting items")
+		local input: TextBox
+		for _, d in list:GetDescendants() do
+			if d:IsA("TextBox") then
+				input = d
+			end
+		end
+		input.Text = "Durian"
+		for _, d in list:GetDescendants() do
+			if d:IsA("TextButton") and d.Text == "Add" then
+				d.Activated:Fire()
+			end
+		end
+		task.wait()
+		assertEquals(rows(), 4, "Add pushes an item")
+		assertEquals(input.Text, "", "Input clears")
+		for _, d in list:GetDescendants() do
+			if d:IsA("TextButton") and d.Text == "x" then
+				d.Activated:Fire()
+				break
+			end
+		end
+		task.wait()
+		assertEquals(rows(), 3, "x removes an item")
 		app:unmount()
 	end
 
