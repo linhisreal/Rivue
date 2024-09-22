@@ -11,6 +11,9 @@ local h = Rivue.h
 - [props](#props)
 - [emits](#emits)
 - [setup()](#setup)
+- [render()](#render)
+- [components](#components)
+- [styles](#styles)
 - [Setup context](#setup-context)
 - [Slots](#slots)
 - [provide()](#provide)
@@ -47,8 +50,10 @@ Defines a component.
   	props: PropSchema?,
   	emits: ({ string } | { [string]: (...any) -> boolean })?,
   	inheritAttrs: boolean?, -- default true
-  	setup: ((props: Props, ctx: SetupContext) -> RenderFunction)?,
-  	render: ((props: Props) -> VNode?)?,
+  	components: { [string]: Component }?,
+  	styles: { [string]: { [string]: any } }?,
+  	setup: ((props: Props, ctx: SetupContext) -> RenderFunction | { [string]: any })?,
+  	render: ((ctx: RenderContext) -> VNode?)?,
   }
 
   type RenderFunction = () -> VNode? -- may also return a list of vnodes
@@ -58,8 +63,10 @@ Defines a component.
 
   - **`name`** shows up in errors, warnings, `printTree()`, and as the Explorer name of the
     component's root Instance.
-  - **`setup`** runs once per instance and returns the render function. Use **`render`**
-    instead for components without state.
+  - **`setup`** runs once per instance. It returns either the render function, or a table of
+    state for **`render`**.
+  - **`render`** builds the component's UI from a [render context](#render). This is the
+    recommended form: state lives in `setup`, markup in `render`.
 
   The other options are covered below.
 
@@ -73,18 +80,19 @@ Defines a component.
   	},
   	setup = function(props)
   		local count = Rivue.ref(props.start)
-  		return function()
-  			return h("TextButton", {
-  				Text = tostring(count.value),
-  				onClick = function()
-  					count.value += 1
-  				end,
-  			})
-  		end
+  		return {
+  			count = count,
+  			increment = function()
+  				count.value += 1
+  			end,
+  		}
+  	end,
+  	render = function(ctx)
+  		return h("TextButton", { Text = tostring(ctx.count), onClick = ctx.increment })
   	end,
   })
 
-  -- The same, with just a setup function
+  -- The same, with setup returning the render function
   local Counter2 = Rivue.defineComponent(function(props)
   	local count = Rivue.ref(props.start or 0)
   	return function()
@@ -212,13 +220,14 @@ The component's entry point. Runs once per instance, before the first render.
 - **Type**
 
   ```lua
-  setup: (props: Props, ctx: SetupContext) -> RenderFunction | { render: RenderFunction }
+  setup: (props: Props, ctx: SetupContext) -> RenderFunction | { [string]: any }
   ```
 
 - **Details**
 
-  Create state and computeds here, register lifecycle hooks and watchers, then return the render
-  function. Everything created in `setup()` lives in the component's effect scope and stops when
+  Create state and computeds here, register lifecycle hooks and watchers, then return either the
+  render function or, with a [`render`](#render) option, a table of state and functions for it.
+  Everything created in `setup()` lives in the component's effect scope and stops when
   it unmounts. If `setup()` errors, mounting fails, and the error names the component.
 
 - **Example**
@@ -234,6 +243,160 @@ The component's entry point. Runs once per instance, before the first render.
   		return function()
   			return h("TextLabel", { Text = string.format("%.1f", seconds.value) })
   		end
+  	end,
+  })
+  ```
+
+- **Typed props**
+
+  Annotate the `props` parameter to get autocomplete and type errors on typos. The runtime
+  schema still validates values in Studio.
+
+  ```lua
+  type Props = { title: string, count: number }
+
+  local Header = Rivue.defineComponent({
+  	name = "Header",
+  	props = {
+  		title = { type = "string", required = true },
+  		count = { type = "number", default = 0 },
+  	},
+  	setup = function(props: Props)
+  		return function()
+  			return h("TextLabel", { Text = `{props.title} ({props.count})` })
+  		end
+  	end,
+  })
+  ```
+
+---
+
+## render()
+
+Builds the component's UI. Used with `setup()` returning a table, or alone for components
+without state.
+
+- **Type**
+
+  ```lua
+  render: (ctx: RenderContext) -> VNode?
+  ```
+
+- **Details**
+
+  `ctx` looks names up in this order:
+
+  1. What `setup()` returned. Refs are unwrapped, so read `ctx.count`, not `ctx.count.value`.
+  2. Props.
+  3. The [setup context](#setup-context): `ctx.emit`, `ctx.slots`, `ctx.attrs`, `ctx.renderSlot`,
+     `ctx.expose`.
+
+  Assigning a name `setup()` returned as a ref sets the ref (`ctx.open = true`). Other
+  assignments warn: props belong to the parent.
+
+  Reads are tracked like any render, so the component re-renders when they change. For two-way
+  binding, pass the ref's name: `model = "draft"` (see [Element props](render-function.md#element-props)).
+
+- **Example**
+
+  ```lua
+  local Toggle = Rivue.defineComponent({
+  	name = "Toggle",
+  	props = { label = { type = "string", default = "Sound" } },
+  	emits = { "change" },
+  	setup = function()
+  		return { on = Rivue.ref(false) }
+  	end,
+  	render = function(ctx)
+  		return h("TextButton", {
+  			Text = `{ctx.label}: {if ctx.on then "ON" else "OFF"}`,
+  			onClick = function()
+  				ctx.on = not ctx.on
+  				ctx.emit("change", ctx.on)
+  			end,
+  		})
+  	end,
+  })
+
+  -- Without state
+  local Divider = Rivue.defineComponent({
+  	name = "Divider",
+  	render = function()
+  		return h("Frame", { Size = UDim2.new(1, 0, 0, 1) })
+  	end,
+  })
+  ```
+
+---
+
+## components
+
+Registers components for use by name inside this component, like Vue's `components` option.
+
+- **Type**
+
+  ```lua
+  components: { [string]: Component }
+  ```
+
+- **Details**
+
+  `h("Name")` looks the name up in the rendering component's `components` first, then in the
+  app's (`app:component()`). Local registration keeps a file's dependencies at the top, next to
+  its `require`s.
+
+- **Example**
+
+  ```lua
+  local Badge = Rivue.defineComponent({
+  	name = "Badge",
+  	render = function(ctx)
+  		return h("TextLabel", { Text = ctx.text })
+  	end,
+  })
+
+  local Card = Rivue.defineComponent({
+  	name = "Card",
+  	components = { Badge = Badge },
+  	render = function()
+  		return h("Frame", { layout = "vertical" }, {
+  			h("Badge", { text = "NEW" }),
+  		})
+  	end,
+  })
+  ```
+
+---
+
+## styles
+
+Style classes used only inside this component, applied with the [`class`](render-function.md#element-props) prop.
+
+- **Type**
+
+  ```lua
+  styles: { [className: string]: { [prop: string]: any } }
+  ```
+
+- **Details**
+
+  A class is a table of props: Instance properties and modifier props such as `cornerRadius`,
+  `padding` and `layout`. A class name resolves from the component's `styles` first, then the
+  app's ([`app:styles()`](application.md#appstyles)). The element's own props always win.
+
+- **Example**
+
+  ```lua
+  local Alert = Rivue.defineComponent({
+  	name = "Alert",
+  	styles = {
+  		box = { BackgroundColor3 = Color3.fromRGB(120, 30, 30), cornerRadius = 6, padding = 8 },
+  		message = { TextColor3 = Color3.new(1, 1, 1), TextSize = 16 },
+  	},
+  	render = function(ctx)
+  		return h("Frame", { class = "box", Size = UDim2.fromOffset(300, 40) }, {
+  			h("TextLabel", { class = "message", Text = ctx.text }),
+  		})
   	end,
   })
   ```
