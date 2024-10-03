@@ -1,0 +1,8 @@
+# Toolchain, managed by Rokit (https://github.com/rojo-rbx/rokit). Run `rokit install`.
+
+[tools]
+rojo = "rojo-rbx/rojo@7.4.4"
+lune = "lune-org/lune@0.8.8"
+darklua = "seaofvoices/darklua@0.13.1"
+stylua = "JohnnyMorganz/StyLua@0.20.0"
+luau-lsp = "JohnnyMorganz/luau-lsp@1.33.0"
