@@ -2,53 +2,20 @@
 --!optimize 2
 --!native
 
---[[
-	Hyperscript.luau
-    ================
-	
-	Provides functions for creating virtual DOM nodes (VNodes).
-	
-	@module h
+-- h() and the vnode helpers: Fragment, hIf, hFor, mergeProps, cloneVNode. h() normalises
+-- children, resolves local component names and expands style/model/v* props.
 
-	@author Rivue
-    
-	@version 1.0.0
-	
-	Type Definitions:
-    -----------------
-
-		type VNode = {
-			type: string | table | (props: table) -> VNode,
-			props: { [string]: any }?,
-			children: { VNode | string | (() -> VNode) },
-			key: any?,
-			_uid: {}
-		}
-	
-	Public API:
-    -----------
-    
-		h(type, props?, children?) -> VNode
-			'Creates a virtual node representing a UI element'
-			
-		hIf(condition: boolean, vnode: VNode?) -> VNode?
-			'Conditional rendering helper'
-			
-		hFor<T>(list: { T }, mapper: (T, number) -> VNode?) -> { VNode }
-			'List rendering helper'
-]]
-
-local Types = require(script.Parent:WaitForChild("types"))
+local Types = require("./types")
 
 type VNode = Types.VNode
 type VNodeType = Types.VNodeType
 type Props = Types.Props
 type Child = Types.Child
 
-local debugModule = require(script.Parent:WaitForChild("debug"))
-local utils = require(script.Parent:WaitForChild("utils"))
-local componentModule = require(script.Parent:WaitForChild("component"))
-local directives = require(script.Parent:WaitForChild("directives"))
+local debugModule = require("./debug")
+local utils = require("./utils")
+local componentModule = require("./component")
+local directives = require("./directives")
 
 const IS_STUDIO = game:GetService("RunService"):IsStudio()
 
@@ -60,16 +27,12 @@ local vnodeIdCounter = 0
 local Fragment: Types.FragmentType = table.freeze({ __fragment = true :: true, __name = "Fragment" :: "Fragment" })
 
 --- True for a children list nested inside another list (a table that isn't a vnode)
---- @param child unknown -- Child entry
---- @return boolean -- Is a nested list
 local function isNestedList(child: unknown): boolean
 	return type(child) == "table" and (child :: { [unknown]: unknown }).type == nil
 end
 
 --- Copies a children list. A nested list ({ header, hFor(...), footer }) becomes a Fragment,
 --- so its keyed diff stays separate and its siblings keep their positions.
---- @param list { [number]: unknown } -- Children list (may have holes from hIf)
---- @return { Child } -- New list
 local function copyChildren(list: { [number]: unknown }): { Child }
 	-- Copy so a reused array (like ctx.slots) can't change an already-rendered vnode
 	local out = table.clone(list) :: { [number]: unknown }
@@ -90,8 +53,7 @@ local function copyChildren(list: { [number]: unknown }): { Child }
 end
 
 --- Normalizes children to an array format
---- @param children unknown -- Child nodes (string, number, array, function, or nil)
---- @return { Child } -- Normalized array of children
+--- `children`: child nodes (string, number, array, function, or nil)
 local function normalizeChildren(children: unknown): { Child }
 	if children == nil or children == false then
 		return {}
@@ -110,9 +72,6 @@ local function normalizeChildren(children: unknown): { Child }
 end
 
 --- Splits a component's children table into default children and named slot functions
---- @param children { [unknown]: unknown } -- Children table passed to h()
---- @return { Child } -- Array part (default slot)
---- @return Types.Slots? -- Named slot functions, if any
 local function splitSlots(children: { [unknown]: unknown }): ({ Child }, Types.Slots?)
 	local slots: Types.Slots? = nil
 	local list: { Child } = {}
@@ -138,8 +97,7 @@ local function splitSlots(children: { [unknown]: unknown }): ({ Child }, Types.S
 end
 
 --- Turns a directive prop name into the registered directive: vClickOutside -> "click-outside"
---- @param key string -- Prop name
---- @return string? -- Directive name, nil when the prop isn't a registered directive
+--- Returns the directive name, nil when the prop isn't a registered directive
 local function directiveName(key: string): string?
 	-- "v" followed by an uppercase letter
 	local second = string.byte(key, 2)
@@ -154,9 +112,7 @@ local function directiveName(key: string): string?
 end
 
 --- Applies the props sugar h() understands: style, model and v* directive props
---- @param isElement boolean -- type is a ClassName
---- @param props Props -- Props as passed (not modified)
---- @return Props -- Props to store (a copy if anything changed)
+--- Returns the props to store (a copy if anything changed)
 local function expandProps(isElement: boolean, props: Props): Props
 	local out: Props? = nil
 
@@ -249,10 +205,7 @@ local function expandProps(isElement: boolean, props: Props): Props
 end
 
 --- Creates a virtual DOM node
---- @param type_ VNodeType -- ClassName ("Frame"), component definition, or functional component
---- @param props Props? -- Element properties and attributes
---- @param children Children? -- Child nodes (array, single child, or text)
---- @return VNode -- Virtual DOM node
+--- `type_`: className ("Frame"), component definition, or functional component
 local function h(type_: VNodeType, propsIn: Props?, children: Types.Children?): VNode
 	if type(type_) == "string" then
 		-- Components registered on the rendering component (components = { ... })
@@ -301,8 +254,6 @@ end
 
 --- Merges props tables left to right. Event handlers are chained (both run), directives
 --- and styles are combined, everything else is overwritten.
---- @param ... Props? -- Props tables (nil is skipped)
---- @return Props -- New props table
 local function mergeProps(...: Props?): Props
 	local out: Props = {}
 	for i = 1, select("#", ...) do
@@ -339,16 +290,11 @@ local function mergeProps(...: Props?): Props
 end
 
 --- True for vnodes made by h()
---- @param value unknown -- Anything
---- @return boolean -- Is a vnode
 local function isVNode(value: unknown): boolean
 	return type(value) == "table" and (value :: VNode)._uid ~= nil and (value :: VNode).type ~= nil
 end
 
 --- Copies a vnode, optionally merging extra props in (see mergeProps)
---- @param vnode VNode -- Vnode to copy (mounted or not)
---- @param extraProps Props? -- Props to merge over its own
---- @return VNode -- New, unmounted vnode
 local function cloneVNode(vnode: VNode, extraProps: Props?): VNode
 	local props = if extraProps then mergeProps(vnode.props, extraProps) else table.clone(vnode.props or {})
 	local copy = h(vnode.type, props, nil)
@@ -360,9 +306,6 @@ local function cloneVNode(vnode: VNode, extraProps: Props?): VNode
 end
 
 --- Conditionally renders a VNode
---- @param cond boolean -- Condition to check
---- @param vnode VNode? -- VNode to render if condition is true
---- @return VNode? -- VNode if condition is true, nil otherwise
 local function hIf(cond: boolean, vnode: VNode?): VNode?
 	if cond then
 		return vnode
@@ -371,16 +314,12 @@ local function hIf(cond: boolean, vnode: VNode?): VNode?
 end
 
 --- Maps a list to VNodes
---- @param list { T } -- List to map over (plain or reactive array)
---- @param mapper (item: T, index: number) -> VNode? -- Mapping function; nil skips the item
---- @return { VNode } -- Array of VNodes
 local function hFor<T>(list: { T }, mapper: (item: T, index: number) -> VNode?): { VNode }
 	local count = #list
 	if debugModule.enabled then
 		debugModule.log("H", "Rendering list with hFor", { itemCount = count })
 	end
 
-	-- Profile list rendering for performance monitoring
 	local profileName = if utils.profiler.active then `hFor_{count}` else nil
 	if profileName then
 		utils.profiler:start(profileName)
@@ -411,10 +350,6 @@ local warnedParallel = false
 
 --- @deprecated Use hFor() and set `key` in the mapper. Kept so existing code keeps working.
 --- List rendering helper that also assigns keys
---- @param items { T } -- Array of items to render
---- @param mapper (item: T, index: number) -> VNode? -- Map function; nil skips the item
---- @param keyFn ((item: T) -> unknown)? -- Optional key function
---- @return { VNode } -- Array of VNodes
 local function hForParallel<T>(
 	items: { T },
 	mapper: (item: T, index: number) -> VNode?,
