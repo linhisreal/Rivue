@@ -1,79 +1,14 @@
 --!strict
 --!optimize 2
 
---[[
-	roblox.luau
-	===========
-	
-	Roblox-specific reactive utilities that integrate native Roblox APIs
-	with the Rivue's reactivity system.
-	
-	@module roblox
-	
-	@author Rivue
-	
-	@version 1.0.0
-	
-	Public API:
-	-----------
-	
-        attributeRef(instance: Instance, attributeName: string, defaultValue?: T) -> Ref<T>
-            Creates a reactive reference to an Instance attribute that syncs bidirectionally.
-            Changes to ref.value update the attribute, attribute changes update ref.value.
-            
-        useTag(tagName: string, onAdded: (instance: Instance) -> (() -> ())?) -> ()
-            Registers callbacks 'for' instances with a CollectionService tag.
-            Returns cleanup 'function' from onAdded callback 'for' automatic cleanup.
-            Must be called during component setup().
-            
-        onRenderStepped(callback: (deltaTime: number) -> ()) -> ()
-            Registers a callback 'for' RunService.RenderStepped event.
-            Auto-disconnects on component unmount. Must be called during setup().
-            
-        onHeartbeat(callback: (deltaTime: number) -> ()) -> ()
-            Registers a callback 'for' RunService.Heartbeat event.
-            Auto-disconnects on component unmount. Must be called during setup().
-            
-        onStepped(callback: (time: number, deltaTime: number) -> ()) -> ()
-            Registers a callback 'for' RunService.Stepped event.
-            Auto-disconnects on component unmount. Must be called during setup().
-	
-	Usage Examples:
-	---------------
-	
-        -- Attribute reactivity
-        local health = Rivue.attributeRef(character, "Health", 100)
-        watch(health, function(newHealth)
-            print("Health changed:", newHealth)
-        end)
-        
-        -- CollectionService integration
-        Rivue.useTag("Enemy", function(enemy)
-            print("Enemy spawned:", enemy.Name)
-            return function()
-                print("Enemy despawned:", enemy.Name)
-            end
-        end)
-        
-        -- RunService hooks
-        Rivue.onRenderStepped(function(dt)
-            -- Update camera or UI every frame
-        end)
-	
-	Implementation Notes:
-	---------------------
-	
-	- attributeRef creates a two-way binding with GetAttributeChangedSignal
-	- useTag automatically handles tag addition/removal during component lifecycle
-	- RunService hooks auto-disconnect on component unmount via onUnmounted
-	- All utilities require being called during component setup() for proper cleanup
-]]
+-- Roblox composables: viewport, input type, safe area, selection, tweens and springs,
+-- attribute refs, CollectionService tags and frame callbacks.
 
-local Types = require(script.Parent:WaitForChild("types"))
-local reactivity = require(script.Parent:WaitForChild("reactivity"))
-local componentAPI = require(script.Parent:WaitForChild("component"))
-local debugModule = require(script.Parent:WaitForChild("debug"))
-local utils = require(script.Parent:WaitForChild("utils"))
+local Types = require("./types")
+local reactivity = require("./reactivity")
+local componentAPI = require("./component")
+local debugModule = require("./debug")
+local utils = require("./utils")
 
 local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")
@@ -97,12 +32,8 @@ export type SpringOptions = {
 --- A ref synced with an Instance attribute. Outside a component, call `_cleanup()` to disconnect.
 export type AttributeRef<T> = Types.Ref<T> & { _cleanup: (() -> ())? }
 
---- Creates a reactive reference to an Instance attribute with bidirectional sync
---- @param instance Instance -- Instance to watch
---- @param attributeName string -- Name of the attribute
---- @param defaultValue T? -- Default value if attribute doesn't exist
---- @param opts { throttle: number? }? -- Options (throttle in ms for high-frequency updates)
---- @return AttributeRef<T?> -- Reactive reference synced with the attribute
+--- A ref that reads and writes an Instance attribute, both ways
+--- `opts.throttle`: minimum ms between updates for attributes that change often
 local function attributeRef<T>(
 	instance: Instance,
 	attributeName: string,
@@ -133,14 +64,12 @@ local function attributeRef<T>(
 	local isUpdatingFromAttribute = false
 	local isUpdatingFromRef = false
 
-	-- Sync attribute changes to ref (with optional throttling)
 	local updateFromAttribute = function()
 		if isUpdatingFromRef then
 			return -- Prevent circular update
 		end
 
 		local newValue = instance:GetAttribute(attributeName) :: T?
-		-- Only update if value actually changed
 		if r.value ~= newValue then
 			isUpdatingFromAttribute = true
 			r.value = newValue
@@ -148,21 +77,19 @@ local function attributeRef<T>(
 		end
 	end
 
-	-- Apply throttling if specified
 	if opts and opts.throttle and opts.throttle > 0 then
 		updateFromAttribute = utils.throttle(updateFromAttribute, opts.throttle)
 	end
 
 	local conn = instance:GetAttributeChangedSignal(attributeName):Connect(updateFromAttribute)
 
-	-- Sync ref changes to attribute
 	local stopWatch = reactivity.watch(r, function(newValue)
 		if isUpdatingFromAttribute then
 			return -- Prevent circular update
 		end
 
 		local currentAttr = instance:GetAttribute(attributeName)
-		-- Only set attribute if value actually changed to avoid redundant signals
+		-- Skip equal values, setting an attribute fires its changed signal
 		if currentAttr ~= newValue then
 			isUpdatingFromRef = true
 			instance:SetAttribute(attributeName, newValue)
@@ -182,8 +109,7 @@ local function attributeRef<T>(
 end
 
 --- Registers callbacks for instances with a CollectionService tag
---- @param tagName string -- Tag name to watch
---- @param onAdded (instance: Instance) -> (() -> ())? -- Callback when instance is tagged (returns optional cleanup)
+--- `onAdded`: callback when instance is tagged (returns optional cleanup)
 local function useTag(tagName: string, onAdded: (instance: Instance) -> (() -> ())?): ()
 	if not onAdded then
 		return
@@ -212,7 +138,6 @@ local function useTag(tagName: string, onAdded: (instance: Instance) -> (() -> (
 		end
 	end)
 
-	-- Process existing tagged instances
 	for _, instance in ipairs(CollectionService:GetTagged(tagName)) do
 		local cleanup = onAdded(instance)
 		if cleanup and type(cleanup) == "function" then
@@ -232,7 +157,6 @@ local function useTag(tagName: string, onAdded: (instance: Instance) -> (() -> (
 end
 
 --- Registers a callback for RunService.RenderStepped
---- @param callback (deltaTime: number) -> () -- Function to call each render step
 local function onRenderStepped(callback: (deltaTime: number) -> ()): ()
 	debugModule.log("Roblox", "Registering RenderStepped callback")
 	local currentInstance = componentAPI.getCurrentInstance()
@@ -248,7 +172,6 @@ local function onRenderStepped(callback: (deltaTime: number) -> ()): ()
 end
 
 --- Registers a callback for RunService.Heartbeat
---- @param callback (deltaTime: number) -> () -- Function to call each heartbeat
 local function onHeartbeat(callback: (deltaTime: number) -> ()): ()
 	debugModule.log("Roblox", "Registering Heartbeat callback")
 	local currentInstance = componentAPI.getCurrentInstance()
@@ -264,7 +187,6 @@ local function onHeartbeat(callback: (deltaTime: number) -> ()): ()
 end
 
 --- Registers a callback for RunService.Stepped
---- @param callback (time: number, deltaTime: number) -> () -- Function to call each physics step
 local function onStepped(callback: (time: number, deltaTime: number) -> ()): ()
 	debugModule.log("Roblox", "Registering Stepped callback")
 	local currentInstance = componentAPI.getCurrentInstance()
@@ -286,7 +208,6 @@ local safeArea: Ref<SafeArea>? = nil
 local selectedObject: Ref<GuiObject?>? = nil
 
 --- Watches the current camera's ViewportSize, rebinding when the camera changes
---- @param onChange (size: Vector2) -> () -- Called with the new size
 local function bindViewport(onChange: (size: Vector2) -> ())
 	local cameraConn: RBXScriptConnection? = nil
 	local function bindCamera()
@@ -307,7 +228,6 @@ local function bindViewport(onChange: (size: Vector2) -> ())
 end
 
 --- Screen size in pixels, updates on resize and rotation. Read only.
---- @return Ref<Vector2> -- Viewport size
 local function useViewportSize(): Ref<Vector2>
 	local size = viewportSize
 	if size then
@@ -322,8 +242,7 @@ local function useViewportSize(): Ref<Vector2>
 end
 
 --- Maps a UserInputType to the input family it belongs to
---- @param t Enum.UserInputType -- Last input type
---- @return InputType? -- nil for types that don't say anything (Focus, TextInput, ...)
+--- Returns nil for types that don't say anything (Focus, TextInput, ...)
 local function classifyInput(t: Enum.UserInputType): InputType?
 	if t == Enum.UserInputType.Touch then
 		return "touch"
@@ -340,7 +259,6 @@ local function classifyInput(t: Enum.UserInputType): InputType?
 end
 
 --- What the player is using right now: "keyboard" (and mouse), "gamepad" or "touch". Read only.
---- @return Ref<InputType> -- Current input family
 local function useInputType(): Ref<InputType>
 	local current = inputType
 	if current then
@@ -370,7 +288,6 @@ local function useInputType(): Ref<InputType>
 end
 
 --- Insets (pixels) taken by the top bar and device cutouts. Read only.
---- @return Ref<SafeArea> -- Insets from each edge
 local function useSafeArea(): Ref<SafeArea>
 	local current = safeArea
 	if current then
@@ -400,8 +317,6 @@ local function useSafeArea(): Ref<SafeArea>
 end
 
 --- Gamepad selection: the selected GuiObject and a setter
---- @return Ref<GuiObject?> -- GuiService.SelectedObject (read only)
---- @return (target: GuiObject?) -> () -- Selects a GuiObject (nil clears)
 local function useSelection(): (Ref<GuiObject?>, (target: GuiObject?) -> ())
 	local current = selectedObject
 	if not current then
@@ -421,8 +336,6 @@ end
 local frameSignal: RBXScriptSignal = if RunService:IsClient() then RunService.RenderStepped else RunService.Heartbeat
 
 --- Reads a ref or getter
---- @param source Ref<T> | () -> T -- Source
---- @return () -> T -- Getter
 local function toGetter<T>(source: Ref<T> | () -> T): () -> T
 	if type(source) == "function" then
 		return source
@@ -434,10 +347,6 @@ local function toGetter<T>(source: Ref<T> | () -> T): () -> T
 end
 
 --- Linear interpolation for numbers and anything with :Lerp (UDim2, Color3, Vector2, CFrame, ...)
---- @param a T -- From
---- @param b T -- To
---- @param t number -- Alpha
---- @return T -- Interpolated value
 local function lerp<T>(a: T, b: T, t: number): T
 	if type(a) == "number" then
 		return (a + ((b :: any) - a) * t) :: any
@@ -446,9 +355,8 @@ local function lerp<T>(a: T, b: T, t: number): T
 end
 
 --- A ref that tweens toward its source whenever the source changes
---- @param source Ref<T> | () -> T -- Target value (number, UDim2, Color3, Vector2, CFrame, ...)
---- @param info TweenInfo -- Time, EasingStyle and EasingDirection are used
---- @return Ref<T> -- Animated value, bind it to a prop
+--- `source`: target value (number, UDim2, Color3, Vector2, CFrame, ...)
+--- `info`: time, EasingStyle and EasingDirection are used
 local function useTween<T>(source: Ref<T> | () -> T, info: TweenInfo): Ref<T>
 	local getter = toGetter(source)
 	local out = reactivity.ref(getter())
@@ -493,16 +401,11 @@ local function useTween<T>(source: Ref<T> | () -> T, info: TweenInfo): Ref<T>
 end
 
 --- Distance left for a spring value
---- @param v unknown -- number, Vector2 or Vector3 difference
---- @return number -- Magnitude
 local function magnitude(v: unknown): number
 	return if type(v) == "number" then math.abs(v) else (v :: Vector3).Magnitude
 end
 
 --- A ref that springs toward its source (number, Vector2 or Vector3)
---- @param source Ref<T> | () -> T -- Target value
---- @param opts SpringOptions? -- speed and damping
---- @return Ref<T> -- Animated value
 local function useSpring<T>(source: Ref<T> | () -> T, opts: SpringOptions?): Ref<T>
 	local options: SpringOptions = opts or {}
 	local speed = options.speed or 12
