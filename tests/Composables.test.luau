@@ -1,10 +1,5 @@
 --!strict
---[[
-	Composables Unit Tests
-	======================
-	
-	Tests for composables.luau - Composition API utilities
-]]
+-- Tests for composables.luau - Composition API utilities
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))

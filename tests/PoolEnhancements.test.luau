@@ -1,12 +1,6 @@
 --!strict
---!optimize 2
 
---[[
-	PoolEnhancements.test.luau
-	==========================
-	
-	Tests for Pool instance reset improvements.
-]]
+-- Pool: Instances are reset properly when released
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Pool = require(ReplicatedStorage.Rivue.runtime.pool)

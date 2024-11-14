@@ -1,10 +1,5 @@
 --!strict
---[[
-	Utils Unit Tests
-	================
-	
-	Tests for throttle, debounce, nextTick, nextFrame, and iterArray
-]]
+-- Tests for throttle, debounce, nextTick, nextFrame, and iterArray
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))

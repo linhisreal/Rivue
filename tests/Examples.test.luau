@@ -1,11 +1,6 @@
 --!strict
---[[
-	Examples Tests
-	==============
-
-	Mounts every component in examples/components and uses it like a player would,
-	so the examples in the docs keep working.
-]]
+-- Mounts every component in examples/components and uses it like a player would, so the examples in
+-- the docs keep working.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))

@@ -1,11 +1,6 @@
 --!strict
---[[
-	Debug Unit Tests
-	================
-	
-	Tests for unified debug module - logging, performance, pretty-printing, 
-	inspection, and assertions.
-]]
+-- Tests for unified debug module - logging, performance, pretty-printing, inspection, and
+-- assertions.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
@@ -54,9 +49,7 @@ end
 local function runTests()
 	print("\n========== DEBUG MODULE TEST SUITE ==========\n")
 
-	-- =========================================================================
-	-- LOGGING & PERFORMANCE TESTS
-	-- =========================================================================
+	-- Logging & performance tests
 
 	-- Test 1: debug.enabled property exists
 	print("Test 1: debug.enabled property exists")
@@ -119,9 +112,7 @@ local function runTests()
 		debugModule.enabled = original
 	end
 
-	-- =========================================================================
-	-- PRETTY PRINTING & INSPECTION TESTS
-	-- =========================================================================
+	-- Pretty printing & inspection tests
 
 	-- Test 8: prettyPrint unwraps reactive proxies
 	print("Test 8: prettyPrint unwraps reactive proxies")
@@ -219,9 +210,7 @@ local function runTests()
 		assertEquals(type(result), "string", "Should return string with depth limit")
 	end
 
-	-- =========================================================================
-	-- ASSERTION & ERROR FORMATTING TESTS
-	-- =========================================================================
+	-- Assertion & error formatting tests
 
 	-- Test 16: assertInvariant doesn't throw when true
 	print("Test 16: assertInvariant doesn't throw when true")
@@ -260,9 +249,7 @@ local function runTests()
 		assertTrue(string.find(formatted, "Context") ~= nil, "Should include context section")
 	end
 
-	-- =========================================================================
-	-- INTEGRATION TESTS
-	-- =========================================================================
+	-- Integration tests
 
 	-- Test 20: Integration with reactive state
 	print("Test 20: Integration with reactive state")

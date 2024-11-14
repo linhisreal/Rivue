@@ -1,10 +1,5 @@
 --!strict
---[[
-	Scheduler Unit Tests
-	====================
-	
-	Tests for scheduler.queueJob with micro, render, and heartbeat modes
-]]
+-- Tests for scheduler.queueJob with micro, render, and heartbeat modes
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = ReplicatedStorage:WaitForChild("Rivue")
