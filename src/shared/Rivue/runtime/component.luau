@@ -1,9 +1,6 @@
 --!strict
 --!optimize 2
 
--- Component instances: props and attrs, emits, slots, provide/inject, lifecycle hooks, the
--- render context for render(ctx), and error/warning traces.
-
 local Types = require("./types")
 local _reactivity = require("./reactivity")
 local RunService = game:GetService("RunService")
@@ -36,7 +33,6 @@ type HookList =
 	| "renderTrackedCbs"
 	| "renderTriggeredCbs"
 
--- Shared methods for component instances
 local ComponentInstance = {}
 ComponentInstance.__index = ComponentInstance
 
@@ -48,18 +44,14 @@ type InstanceData = {
 	props: Props,
 	attrs: Props,
 	parent: ComponentInstance?,
-	-- Inherits parent provides through __index
 	provides: { [unknown]: unknown },
 	appContext: AppContext,
 	isMounted: boolean,
 	isUnmounted: boolean,
-	-- Cached by KeepAlive and detached
 	isDeactivated: boolean,
 	subTree: VNode?,
 	el: Instance?,
-	-- Instance the subtree is patched into
 	container: Instance?,
-	-- String template refs (ref = "name") and their useTemplateRef() refs
 	refs: { [string]: unknown },
 	templateRefs: { [string]: Types.Ref<unknown> },
 	cleanupCbs: { () -> () },
@@ -71,7 +63,6 @@ type InstanceData = {
 	unmountedCbs: { () -> () },
 	activatedCbs: { () -> () },
 	deactivatedCbs: { () -> () },
-	-- Debug hooks, called with what a render read / what made it re-render
 	renderTrackedCbs: { (event: Types.DebuggerEvent) -> () },
 	renderTriggeredCbs: { (event: Types.DebuggerEvent) -> () },
 	errorCapturedCbs: { ErrorCapturedHook },
@@ -81,17 +72,13 @@ type InstanceData = {
 	setupState: { render: RenderFunction, [string]: unknown }?,
 	exposed: { [string]: unknown }?,
 	ctx: SetupContext,
-	-- Cleanup tracking (filled by main.luau wrappers and the renderer)
 	_effects: { WatchStopHandle | Types.WatchHandle | Effect },
 	_schedulerJobs: { JobHandle },
 	_scope: EffectScope?,
 	_renderEffect: Effect?,
 	_transitionHooks: { [string]: { (el: Instance) -> () } }?,
-	-- A render was skipped while deactivated
 	_pendingUpdate: boolean,
-	-- useId() counter
 	_idCount: number,
-	-- Set by the renderer on KeepAlive instances
 	_keepAliveRenderer: { unmount: (vnode: VNode) -> () }?,
 }
 
@@ -100,9 +87,7 @@ export type ComponentInstance = typeof(setmetatable({} :: InstanceData, Componen
 const IS_STUDIO = RunService:IsStudio()
 
 local currentInstance: ComponentInstance? = nil
--- Defined below, used by setupComponent
 local createRenderContext: (self: ComponentInstance) -> { [string]: any }
--- Component whose render() is running, owner of the vnodes it creates
 local currentRenderingInstance: ComponentInstance? = nil
 local uidCounter = 0
 
@@ -110,30 +95,24 @@ local uidCounter = 0
 const EMPTY_APP_CONTEXT: AppContext =
 	{ provides = {}, config = { globalProperties = {} }, components = {}, styles = {} }
 
---- Sets the current active component instance for lifecycle hook registration
 local function setCurrentInstance(i: ComponentInstance?): ()
 	currentInstance = i
 end
 
---- Gets the currently active component instance
 local function getCurrentInstance(): ComponentInstance?
 	return currentInstance
 end
 
---- Sets the component whose render() is running
 local function setRenderingInstance(i: ComponentInstance?): ComponentInstance?
 	local prev = currentRenderingInstance
 	currentRenderingInstance = i
 	return prev
 end
 
---- Gets the component whose render() is running
 local function getRenderingInstance(): ComponentInstance?
 	return currentRenderingInstance
 end
 
---- Creates a lifecycle hook registrar (onMounted, onUpdated, ...)
---- `list`: instance callback list the hook appends to
 local function createHook(hookName: string, list: HookList): (fn: () -> ()) -> ()
 	return function(fn: () -> ())
 		if type(fn) ~= "function" then
@@ -164,19 +143,15 @@ local onBeforeUpdate = createHook("onBeforeUpdate", "beforeUpdateCbs")
 local onUpdated = createHook("onUpdated", "updatedCbs")
 local onBeforeUnmount = createHook("onBeforeUnmount", "beforeUnmountCbs")
 local onUnmounted = createHook("onUnmounted", "unmountedCbs")
--- KeepAlive: runs on mount and every time the component comes back from the cache
 local onActivated = createHook("onActivated", "activatedCbs")
 local onDeactivated = createHook("onDeactivated", "deactivatedCbs")
--- Debugging: what the render read, and what made it re-render
 local onRenderTracked =
 	createHook("onRenderTracked", "renderTrackedCbs") :: (fn: (event: Types.DebuggerEvent) -> ()) -> ()
 local onRenderTriggered =
 	createHook("onRenderTriggered", "renderTriggeredCbs") :: (fn: (event: Types.DebuggerEvent) -> ()) -> ()
 
--- App context set by app:runWithContext(), so inject() works outside components
 local injectionContext: AppContext? = nil
 
---- Runs fn with an app's provides available to inject()
 local function runWithInjectionContext<T>(context: AppContext, fn: () -> T): T
 	local prev = injectionContext
 	injectionContext = context
@@ -188,12 +163,10 @@ local function runWithInjectionContext<T>(context: AppContext, fn: () -> T): T
 	return result
 end
 
---- True when inject() can be called here (in setup, or inside app:runWithContext())
 local function hasInjectionContext(): boolean
 	return currentInstance ~= nil or injectionContext ~= nil
 end
 
---- Formats the component chain for error messages: <Button> in <Toolbar> in <App>
 local function formatComponentTrace(inst: ComponentInstance?): string
 	local parts: { string } = {}
 	local cur = inst
@@ -206,7 +179,6 @@ end
 
 local idCounter = 0
 
---- Returns an id that's unique for this app session, handy for Instance names
 local function useId(): string
 	local inst = currentInstance
 	if inst then
@@ -217,8 +189,6 @@ local function useId(): string
 	return `r0-{idCounter}`
 end
 
---- Gets a ref filled with the element rendered with `ref = name` (call in setup)
---- The ref holds the Instance (or the component's exposed API) while mounted
 local function useTemplateRef<T>(name: string): Types.Ref<T?>
 	local inst = currentInstance
 	if not inst then
@@ -229,7 +199,6 @@ local function useTemplateRef<T>(name: string): Types.Ref<T?>
 	return r
 end
 
---- Provides a value to all descendants (call in setup)
 local function provide(key: unknown, value: unknown): ()
 	local inst = currentInstance
 	if not inst then
@@ -238,7 +207,6 @@ local function provide(key: unknown, value: unknown): ()
 	inst.provides[key] = value
 end
 
---- Gets a value provided by an ancestor or the app (call in setup)
 local function inject<T>(key: unknown, default: T?): T?
 	local inst = currentInstance
 	local provided: unknown
@@ -252,8 +220,7 @@ local function inject<T>(key: unknown, default: T?): T?
 	return if provided ~= nil then provided :: T else default
 end
 
---- Registers an error handler to catch errors in child components
---- `fn`: error handler (return true to stop propagation)
+--- Return true from fn to stop the error going further up
 local function onErrorCaptured(fn: ErrorCapturedHook): ()
 	local inst = currentInstance
 	if not inst then
@@ -263,7 +230,6 @@ local function onErrorCaptured(fn: ErrorCapturedHook): ()
 	table.insert(inst.errorCapturedCbs, fn)
 end
 
---- Applies default values to props based on schema
 local function applyPropDefaults(schema: PropSchema, props: Props): ()
 	for name, spec in schema do
 		local defaultVal = spec.default
@@ -273,16 +239,12 @@ local function applyPropDefaults(schema: PropSchema, props: Props): ()
 	end
 end
 
---- Turns an event name into its handler prop ("select" -> "onSelect")
 local function toHandlerKey(eventName: string): string
 	return `on{eventName:sub(1, 1):upper()}{eventName:sub(2)}`
 end
 
--- def -> handler prop names of its declared emits
 local emitKeysCache: { [ComponentDef]: { [string]: string } } = setmetatable({}, { __mode = "k" }) :: any
 
---- Gets the handler props ("onSelect") of a component's declared emits
---- Maps handler prop -> event name, nil when emits isn't declared
 local function getEmitKeys(def: ComponentDef): { [string]: string }?
 	local emits = def.emits
 	if emits == nil then
@@ -303,7 +265,6 @@ local function getEmitKeys(def: ComponentDef): { [string]: string }?
 	return keys
 end
 
---- Separates declared props from non-declared attrs (declared emit listeners go to neither)
 local function separatePropsAndAttrs(def: ComponentDef, allProps: Props): (Props, Props)
 	local schema = def.props
 	local emitKeys = getEmitKeys(def)
@@ -332,7 +293,6 @@ local function separatePropsAndAttrs(def: ComponentDef, allProps: Props): (Props
 	return props, attrs
 end
 
---- Validates props against schema (only in Studio mode)
 local function validateProps(schema: PropSchema?, props: Props): (boolean, string?)
 	if not schema then
 		return true, nil
@@ -366,7 +326,6 @@ local function validateProps(schema: PropSchema?, props: Props): (boolean, strin
 			end
 		end
 
-		-- Run custom validator if provided
 		local validator = spec.validator
 		if val ~= nil and validator then
 			local ok, result = pcall(validator, val)
@@ -384,7 +343,6 @@ local function validateProps(schema: PropSchema?, props: Props): (boolean, strin
 	return true, nil
 end
 
---- Runs lifecycle callbacks, reporting errors through handleError
 local function runCallbacks(self: ComponentInstance, callbacks: { () -> () }, info: string)
 	for _, fn in callbacks do
 		local ok, err = pcall(fn :: () -> ...unknown)
@@ -394,8 +352,6 @@ local function runCallbacks(self: ComponentInstance, callbacks: { () -> () }, in
 	end
 end
 
---- Builds what render(ctx) receives: setup's state with refs unwrapped, then props, then the
---- setup context (emit, slots, attrs, renderSlot, hasSlot, globals)
 function createRenderContext(self: ComponentInstance): { [string]: any }
 	local state = self.setupState
 	local stateView: { [string]: any }? = if state then _reactivity.proxyRefs(state) else nil
@@ -417,7 +373,6 @@ function createRenderContext(self: ComponentInstance): { [string]: any }
 		end,
 		__newindex = function(_: unknown, key: string, value: any)
 			if stateView and (state :: any)[key] ~= nil then
-				-- Writing a ref key sets the ref, like Vue's template refs unwrapping
 				stateView[key] = value
 			elseif IS_STUDIO then
 				warn(
@@ -428,7 +383,6 @@ function createRenderContext(self: ComponentInstance): { [string]: any }
 	}) :: any
 end
 
---- Runs setup() and resolves the render function
 function ComponentInstance.setupComponent(self: ComponentInstance)
 	-- Restored after, setup can mount other components
 	local prevInstance = currentInstance
@@ -437,11 +391,9 @@ function ComponentInstance.setupComponent(self: ComponentInstance)
 	local def = self.type
 	local schema = def.props
 
-	-- Apply default prop values
 	if schema then
 		applyPropDefaults(schema, self.props)
 
-		-- Validate props in Studio mode
 		if IS_STUDIO then
 			local ok, err = validateProps(schema, self.props)
 			if not ok then
@@ -450,7 +402,6 @@ function ComponentInstance.setupComponent(self: ComponentInstance)
 		end
 	end
 
-	-- Effects created in setup are stopped on unmount
 	local scope = _reactivity.effectScope(true)
 	self._scope = scope
 
@@ -480,7 +431,6 @@ function ComponentInstance.setupComponent(self: ComponentInstance)
 		self.render = state.render
 		self.setupState = state
 	elseif def.render then
-		-- render(ctx): setup's state (refs unwrapped), then props, then the setup context
 		local render = def.render
 		if type(setupResult) == "table" then
 			self.setupState = setupResult :: any
@@ -524,7 +474,6 @@ function ComponentInstance.runDeactivated(self: ComponentInstance)
 	runCallbacks(self, self.deactivatedCbs, "deactivated hook")
 end
 
---- True when a parent (or this component) is cached by KeepAlive
 function ComponentInstance.isInKeepAlive(self: ComponentInstance): boolean
 	local cur: ComponentInstance? = self
 	while cur do
@@ -540,7 +489,6 @@ function ComponentInstance.runBeforeUnmount(self: ComponentInstance)
 	runCallbacks(self, self.beforeUnmountCbs, "beforeUnmount hook")
 end
 
---- Runs unmounted callbacks and cleans up effects/jobs
 function ComponentInstance.runUnmounted(self: ComponentInstance)
 	if debugModule.enabled then
 		debugModule.log("Component", "Running unmounted callbacks and cleanup", {
@@ -555,7 +503,6 @@ function ComponentInstance.runUnmounted(self: ComponentInstance)
 	runCallbacks(self, self.unmountedCbs, "unmounted hook")
 	runCallbacks(self, self.cleanupCbs, "cleanup")
 
-	-- Jobs and watchers created in setup()
 	for _, jobHandle in self._schedulerJobs do
 		pcall(jobHandle.cancel)
 	end
@@ -577,7 +524,6 @@ function ComponentInstance.runUnmounted(self: ComponentInstance)
 	end
 end
 
---- Passes an error up the parent chain until a handler returns true
 function ComponentInstance.handleError(self: ComponentInstance, err: string, info: string)
 	local cur = self.parent
 	while cur do
@@ -601,7 +547,6 @@ function ComponentInstance.handleError(self: ComponentInstance, err: string, inf
 	warn(`[Rivue] Error in {info} of {formatComponentTrace(self)}: {err}`)
 end
 
---- Normalizes what a slot function returned to a list of children
 local function toChildList(result: unknown): { Child }
 	if result == nil then
 		return {}
@@ -611,7 +556,6 @@ local function toChildList(result: unknown): { Child }
 	return { result :: Child }
 end
 
---- Creates the setup() context for an instance
 local function createSetupContext(instance: ComponentInstance): SetupContext
 	return {
 		emit = function(eventName: string, ...: any): ()
@@ -672,8 +616,6 @@ local function createSetupContext(instance: ComponentInstance): SetupContext
 	}
 end
 
---- Creates a new component instance with lifecycle management
---- `appContext`: app context for root components (children inherit the parent's)
 local function createComponentInstance(
 	vnode: VNode,
 	parent: ComponentInstance?,
@@ -695,7 +637,6 @@ local function createComponentInstance(
 		{ __index = if parent then parent.provides else context.provides }
 	) :: any
 
-	-- Separate declared props from attrs
 	local declaredProps, attrs = separatePropsAndAttrs(def, vnode.props or {})
 	-- Shallow reactive so the component re-renders on new props
 	local props = _reactivity.shallowReactive(table.clone(declaredProps))
@@ -737,7 +678,7 @@ local function createComponentInstance(
 		render = nil,
 		setupState = nil,
 		exposed = nil,
-		ctx = nil :: any, -- set below
+		ctx = nil :: any,
 		_effects = {},
 		_schedulerJobs = {},
 		_scope = nil,
@@ -753,7 +694,6 @@ local function createComponentInstance(
 	return instance, instance.ctx
 end
 
---- Applies new incoming props to a mounted component instance
 local function updateComponentProps(instance: ComponentInstance, rawProps: Props?): ()
 	local schema = instance.type.props
 	local nextProps, nextAttrs = separatePropsAndAttrs(instance.type, rawProps or {})
@@ -792,7 +732,6 @@ local function updateComponentProps(instance: ComponentInstance, rawProps: Props
 end
 
 --- Replaces a component's slots in place (ctx.slots points at the same table)
---- Returns true if the component had or now has slot content
 local function updateComponentSlots(instance: ComponentInstance, children: { Child }, slots: Types.Slots?): boolean
 	local defaultSlots = instance.slots
 	local namedSlots = instance.namedSlots
@@ -810,8 +749,7 @@ local function updateComponentSlots(instance: ComponentInstance, children: { Chi
 	return true
 end
 
---- Registers a transition hook to run before/after element transitions
---- `name`: "before-enter", "enter", "after-enter", "before-leave", "leave", "after-leave"
+--- name: "before-enter", "enter", "after-enter", "before-leave", "leave" or "after-leave"
 local function onTransition(name: string, fn: (el: Instance) -> ()): ()
 	local inst = currentInstance
 	if not inst then

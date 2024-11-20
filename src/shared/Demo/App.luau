@@ -1,5 +1,4 @@
 --!nonstrict
--- The demo screen: lays out the components, holds no logic of its own
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))

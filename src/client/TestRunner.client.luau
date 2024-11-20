@@ -1,7 +1,4 @@
 --!nonstrict
--- Runs every suite in ReplicatedStorage.Tests when the test place is played, prints a summary,
--- and stores the results as JSON in ReplicatedStorage.TestResults for external tools.
--- A suite is a ModuleScript returning a function, or a table with runAllTests.
 
 local HttpService = game:GetService("HttpService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

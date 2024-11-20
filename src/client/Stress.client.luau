@@ -1,5 +1,4 @@
 --!nonstrict
--- Mounts and unmounts the demo app 300 times, then reports UI Instances that weren't cleaned up.
 -- Opt in: set the attribute RivueStressTest = true on Workspace before playing.
 
 if not workspace:GetAttribute("RivueStressTest") then
@@ -14,7 +13,6 @@ local App = require(Demo:WaitForChild("App"))
 local styles = require(Demo:WaitForChild("styles"))
 
 const RUNS = 300
--- Classes Rivue creates; anything else that changes is the engine's
 const UI_CLASSES = {
 	Frame = true,
 	TextLabel = true,
