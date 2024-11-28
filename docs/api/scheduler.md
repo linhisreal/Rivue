@@ -1,4 +1,8 @@
+[Docs](../README.md) › [API](../API.md) › **Scheduler**
+
 # Scheduler
+
+**Learn it:** [Guide 7: Effects and animation](../guide/07-effects-and-animation.md)
 
 When updates happen, and how to run code after them. All examples assume
 `local Rivue = require(game.ReplicatedStorage.Rivue)`.
@@ -11,7 +15,8 @@ When updates happen, and how to run code after them. All examples assume
 
 ## nextTick()
 
-Waits until pending component updates and `"pre"` watchers have run.
+Waits until Rivue has applied pending updates to the screen. Use it when you change state and then
+need to read the updated Instances.
 
 - **Type**
 
@@ -51,7 +56,8 @@ Waits until pending component updates and `"pre"` watchers have run.
 
 ## queueJob()
 
-Queues a function to run once on the next flush.
+Runs a function on the next update. Queuing the same function again before then does nothing,
+so it's a cheap way to batch expensive work.
 
 - **Type**
 
@@ -120,3 +126,7 @@ The order in which work runs after you change state.
   print("after write")
   -- sync, after write, pre, (next Heartbeat) post
   ```
+
+---
+
+[← Application](application.md) · [API reference](../API.md) · [Roblox Composables →](roblox.md)

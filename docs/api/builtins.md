@@ -1,4 +1,8 @@
+[Docs](../README.md) › [API](../API.md) › **Built-in Components**
+
 # Built-in Components
+
+**Learn it:** [Guide 7: Effects and animation](../guide/07-effects-and-animation.md) · [Guide 9: Performance and debugging](../guide/09-performance-and-debugging.md)
 
 Components that ship with Rivue. Use them like any component: `h(Rivue.Transition, props, children)`.
 All examples assume:
@@ -19,7 +23,8 @@ local h = Rivue.h
 
 ## Transition
 
-Animates a single child with TweenService when it appears and before it's removed.
+Animates one element in when it appears and out before it's removed, using TweenService. Wrap the
+element you toggle, and describe its hidden state with `from`.
 
 - **Props**
 
@@ -111,7 +116,8 @@ Animates a single child with TweenService when it appears and before it's remove
 
 ## TransitionGroup
 
-Animates items as they're added to or removed from a list.
+Transition for lists: each keyed item animates in when it's added and out when it's removed. Good
+for notifications, chat messages and inventories.
 
 - **Props**
 
@@ -153,7 +159,8 @@ Animates items as they're added to or removed from a list.
 
 ## KeepAlive
 
-Caches the component it wraps instead of destroying it when it's switched out.
+Keeps a component alive when it's switched out, instead of destroying it. Tabs and menus come back
+exactly as the player left them: scroll position, typed text and state included.
 
 - **Props**
 
@@ -196,7 +203,8 @@ Caches the component it wraps instead of destroying it when it's switched out.
 
 ## Teleport
 
-Renders its children into another Instance, outside the component's own tree.
+Renders part of a component somewhere else in the game, usually a ScreenGui with a higher
+DisplayOrder. Use it for modals, tooltips and dropdowns that must appear above everything.
 
 - **Props**
 
@@ -247,7 +255,8 @@ Renders its children into another Instance, outside the component's own tree.
 
 ## Suspense
 
-Shows a fallback while async components inside it are loading.
+Shows something else (a spinner, "Loading...") while the async components inside it are still
+loading, then swaps in the real content.
 
 - **Props**
 
@@ -290,7 +299,8 @@ Shows a fallback while async components inside it are loading.
 
 ## VirtualList
 
-A ScrollingFrame that only renders the rows in view.
+A scrolling list that only creates the rows you can see, so a list of 5,000 items costs about as
+much as one of 20. Rows must all have the same height.
 
 - **Props**
 
@@ -333,3 +343,7 @@ A ScrollingFrame that only renders the rows in view.
   	end,
   })
   ```
+
+---
+
+[← Lifecycle Hooks](lifecycle.md) · [API reference](../API.md) · [Directives →](directives.md)
