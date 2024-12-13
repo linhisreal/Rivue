@@ -252,6 +252,142 @@ local function runTests()
 		assertEquals(Rivue.debug.enabled, false, "debug.enabled defaults to false")
 	end
 
+	print("array.indexOf updates when an item is replaced in place")
+	do
+		local party = Rivue.reactive({ "Ada", "Grace" })
+		local index = Rivue.computed(function()
+			return Rivue.array.indexOf(party, "Bob")
+		end)
+		assertEquals(index.value, nil, "not there yet")
+		party[2] = "Bob"
+		assertEquals(index.value, 2, "found after replacing")
+	end
+
+	print("array.removeWhere leaves the list intact when the predicate errors")
+	do
+		local list = Rivue.reactive({ 1, 2, 3, 4 })
+		local ok = pcall(Rivue.array.removeWhere, list, function(n)
+			if n == 3 then
+				error("boom")
+			end
+			return n == 1
+		end)
+		assertTrue(not ok, "the error propagates")
+		assertEquals(table.concat(Rivue.toRaw(list), ","), "1,2,3,4", "nothing was removed or overwritten")
+	end
+
+	print("array.splice past the end appends instead of dropping values")
+	do
+		local list = Rivue.reactive({ 1, 2 })
+		Rivue.array.splice(list, 5, 0, 9)
+		assertEquals(table.concat(Rivue.toRaw(list), ","), "1,2,9", "appended")
+	end
+
+	print("render(ctx): a setup ref holding nil isn't shadowed by a prop of the same name")
+	do
+		local seen: any = "unset"
+		local Shadow = Rivue.defineComponent({
+			name = "Shadow",
+			props = { selected = { type = "string" } },
+			setup = function()
+				return { selected = Rivue.ref(nil) }
+			end,
+			render = function(ctx)
+				seen = ctx.selected
+				return h("Frame")
+			end,
+		})
+		Rivue.createApp(h(Shadow, { selected = "fromProp" })):mount(Instance.new("Frame"))
+		assertEquals(seen, nil, "setup state wins even while nil")
+	end
+
+	print("Deep watchers fire when items are added to a list")
+	do
+		local list = Rivue.reactive({ { n = 1 } })
+		local fired = 0
+		Rivue.watch(list, function()
+			fired += 1
+		end, { deep = true, flush = "sync" })
+		Rivue.array.push(list, { n = 2 })
+		assertEquals(fired, 1, "array.push")
+		list[#list + 1] = { n = 3 }
+		assertEquals(fired, 2, "plain assignment of a new index")
+	end
+
+	print("One array operation runs a sync effect once")
+	do
+		local list = Rivue.reactive({ 3, 1, 2 })
+		local runs = 0
+		Rivue.watchEffect(function()
+			for i = 1, #list do
+				local _ = list[i]
+			end
+			runs += 1
+		end, { flush = "sync" })
+		runs = 0
+		Rivue.array.sort(list)
+		assertEquals(runs, 1, "sort")
+		Rivue.array.removeWhere(list, function(n)
+			return n > 1
+		end)
+		assertEquals(runs, 2, "removeWhere")
+	end
+
+	print("LayoutOrder follows the list through random inserts, removes, moves and sorts")
+	do
+		local items = Rivue.reactive({})
+		local nextId = 0
+		local function newItem()
+			nextId += 1
+			return { id = nextId }
+		end
+		for _ = 1, 20 do
+			Rivue.array.push(items, newItem())
+		end
+		local List = Rivue.defineComponent({
+			name = "OrderList",
+			render = function()
+				return h("Frame", { layout = "vertical" }, {
+					Rivue.hFor(items, function(item)
+						return h("Frame", { key = item.id, Name = `i{item.id}` })
+					end),
+				})
+			end,
+		})
+		local container = Instance.new("Frame")
+		Rivue.createApp(List):mount(container)
+		local root = container:FindFirstChild("OrderList") :: Frame
+		local seed = 7
+		local function roll(a: number, b: number): number
+			seed = (seed * 1103515245 + 12345) % 2147483648
+			return a + seed % (b - a + 1)
+		end
+		for step = 1, 150 do
+			local n = #items
+			local op = roll(1, 5)
+			if op == 1 or n < 3 then
+				Rivue.array.insert(items, roll(1, n + 1), newItem())
+			elseif op == 2 then
+				Rivue.array.remove(items, roll(1, n))
+			elseif op == 3 then
+				Rivue.array.move(items, roll(1, n), roll(1, n))
+			elseif op == 4 then
+				Rivue.array.sort(items, function(a, b)
+					return (a.id * 31) % 17 < (b.id * 31) % 17
+				end)
+			else
+				Rivue.array.insert(items, 1, newItem())
+			end
+			Rivue.nextTick()
+			local previous = -math.huge
+			for i = 1, #items do
+				local el = root:FindFirstChild(`i{items[i].id}`) :: Frame
+				assertTrue(el.LayoutOrder > previous, `step {step}: row {i} is in order`)
+				previous = el.LayoutOrder
+			end
+		end
+	end
+
 	print("\n========== REGRESSION TESTS COMPLETE ==========\n")
 end
 
