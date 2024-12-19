@@ -38,43 +38,6 @@ local h = Rivue.h
 Creates a component: a reusable piece of UI with its own state, props and events. Every component in
 your game starts here.
 
-- **Type**
-
-  ```lua
-  -- Options form
-  function defineComponent(options: ComponentOptions): ComponentDef
-
-  -- Setup function form
-  function defineComponent(
-  	setup: (props: Props, ctx: SetupContext) -> RenderFunction,
-  	options: ComponentOptions?
-  ): ComponentDef
-
-  type ComponentOptions = {
-  	name: string?,
-  	props: PropSchema?,
-  	emits: ({ string } | { [string]: (...any) -> boolean })?,
-  	inheritAttrs: boolean?, -- default true
-  	components: { [string]: Component }?,
-  	styles: { [string]: { [string]: any } }?,
-  	setup: ((props: Props, ctx: SetupContext) -> RenderFunction | { [string]: any })?,
-  	render: ((ctx: RenderContext) -> VNode?)?,
-  }
-
-  type RenderFunction = () -> VNode? -- may also return a list of vnodes
-  ```
-
-- **Details**
-
-  - **`name`** shows up in errors, warnings, `printTree()`, and as the Explorer name of the
-    component's root Instance.
-  - **`setup`** runs once per instance. It returns either the render function, or a table of
-    state for **`render`**.
-  - **`render`** builds the component's UI from a [render context](#render). This is the
-    recommended form: state lives in `setup`, markup in `render`.
-
-  The other options are covered below.
-
 - **Example**
 
   ```lua
@@ -106,12 +69,95 @@ your game starts here.
   end, { name = "Counter2" })
   ```
 
+- **Details**
+
+  - **`name`** shows up in errors, warnings, `printTree()`, and as the Explorer name of the
+    component's root Instance.
+  - **`setup`** runs once per instance. It returns either the render function, or a table of
+    state for **`render`**.
+  - **`render`** builds the component's UI from a [render context](#render). This is the
+    recommended form: state lives in `setup`, markup in `render`.
+
+  The other options are covered below.
+
+- **Type**
+
+  ```lua
+  -- Options form
+  function defineComponent(options: ComponentOptions): ComponentDef
+
+  -- Setup function form
+  function defineComponent(
+  	setup: (props: Props, ctx: SetupContext) -> RenderFunction,
+  	options: ComponentOptions?
+  ): ComponentDef
+
+  type ComponentOptions = {
+  	name: string?,
+  	props: PropSchema?,
+  	emits: ({ string } | { [string]: (...any) -> boolean })?,
+  	inheritAttrs: boolean?, -- default true
+  	components: { [string]: Component }?,
+  	styles: { [string]: { [string]: any } }?,
+  	setup: ((props: Props, ctx: SetupContext) -> RenderFunction | { [string]: any })?,
+  	render: ((ctx: RenderContext) -> VNode?)?,
+  }
+
+  type RenderFunction = () -> VNode? -- may also return a list of vnodes
+  ```
+
 ---
 
 ## props
 
 The inputs a component accepts from its parent, like function parameters. Declaring them lets Rivue
 check types and required props in Studio, and fill in defaults.
+
+- **Example**
+
+  A health bar that validates what it's given:
+
+  ```lua
+  local HealthBar = Rivue.defineComponent({
+  	name = "HealthBar",
+  	props = {
+  		current = { type = "number", required = true },
+  		max = { type = "number", default = 100 },
+  		color = { type = "Color3", default = Color3.fromRGB(80, 200, 90) },
+  		size = { type = { "UDim2", "number" } }, -- either type is fine
+  		mode = {
+  			type = "string",
+  			default = "bar",
+  			validator = function(value)
+  				return value == "bar" or value == "text"
+  			end,
+  		},
+  	},
+  	render = function(ctx)
+  		if ctx.mode == "text" then
+  			return h("TextLabel", { Text = `{ctx.current} / {ctx.max}` })
+  		end
+  		return h("Frame", {
+  			Size = UDim2.fromScale(ctx.current / ctx.max, 1),
+  			BackgroundColor3 = ctx.color,
+  		})
+  	end,
+  })
+
+  -- Position isn't declared, so it's passed through to the root Frame
+  h(HealthBar, { current = 40, Position = UDim2.fromOffset(10, 10) })
+  ```
+
+- **Details**
+
+  - **Reading props.** `props` is shallow reactive: read `props.x` in the render function (or a
+    computed or watcher) to track it. Copying a prop into a local in `setup()` loses reactivity;
+    use [`toRef()`](reactivity-utilities.md#toref) instead.
+  - **Validation** runs in Studio and warns with the component's name: missing required props,
+    wrong types, and validators returning `false`.
+  - **Attrs.** Props that aren't declared become **attrs**. With a single root element they're
+    applied to it, unless `inheritAttrs = false`. Without a `props` schema, every prop is a prop
+    and there are no attrs.
 
 - **Type**
 
@@ -126,49 +172,6 @@ check types and required props in Studio, and fill in defaults.
   }
   ```
 
-- **Details**
-
-  - **Reading props.** `props` is shallow reactive: read `props.x` in the render function (or a
-    computed or watcher) to track it. Copying a prop into a local in `setup()` loses reactivity;
-    use [`toRef()`](reactivity-utilities.md#toref) instead.
-  - **Validation** runs in Studio and warns with the component's name: missing required props,
-    wrong types, and validators returning `false`.
-  - **Attrs.** Props that aren't declared become **attrs**. With a single root element they're
-    applied to it, unless `inheritAttrs = false`. Without a `props` schema, every prop is a prop
-    and there are no attrs.
-
-- **Example**
-
-  ```lua
-  local HealthBar = Rivue.defineComponent({
-  	name = "HealthBar",
-  	props = {
-  		current = { type = "number", required = true },
-  		max = { type = "number", default = 100 },
-  		color = { type = "Color3", default = Color3.fromRGB(80, 200, 90) },
-  		tags = { type = "table", default = function() return {} end },
-  		size = { type = { "UDim2", "number" } },
-  		mode = {
-  			type = "string",
-  			validator = function(value)
-  				return value == "bar" or value == "text"
-  			end,
-  		},
-  	},
-  	setup = function(props)
-  		return function()
-  			return h("Frame", {
-  				Size = UDim2.fromScale(props.current / props.max, 1),
-  				BackgroundColor3 = props.color,
-  			})
-  		end
-  	end,
-  })
-
-  -- Position isn't declared, so it's an attr and lands on the root Frame
-  h(HealthBar, { current = 40, Position = UDim2.fromOffset(10, 10) })
-  ```
-
 ---
 
 ## emits
@@ -176,10 +179,37 @@ check types and required props in Studio, and fill in defaults.
 The events a component can send to its parent, like `"select"` or `"close"`. The parent listens with
 `onSelect`, `onClose` and so on.
 
-- **Type**
+- **Example**
+
+  An inventory row that tells its parent when it's picked:
 
   ```lua
-  emits: { string } | { [string]: (...any) -> boolean }
+  local ItemRow = Rivue.defineComponent({
+  	name = "ItemRow",
+  	props = { item = { type = "table", required = true } },
+  	emits = {
+  		-- A validator: Studio warns if the payload is wrong
+  		select = function(id)
+  			return type(id) == "number"
+  		end,
+  	},
+  	render = function(ctx)
+  		return h("TextButton", {
+  			Text = ctx.item.name,
+  			onClick = function()
+  				ctx.emit("select", ctx.item.id)
+  			end,
+  		})
+  	end,
+  })
+
+  -- The parent listens with on + the event name
+  h(ItemRow, {
+  	item = { id = 3, name = "Sword" },
+  	onSelect = function(id)
+  		print("equip", id)
+  	end,
+  })
   ```
 
 - **Details**
@@ -188,34 +218,10 @@ The events a component can send to its parent, like `"select"` or `"close"`. The
   Declared listeners don't become attrs, so they aren't passed on to the root element. In Studio,
   emitting an undeclared event, or a payload the validator rejects, warns.
 
-- **Example**
+- **Type**
 
   ```lua
-  local ItemRow = Rivue.defineComponent({
-  	name = "ItemRow",
-  	props = { id = { type = "number", required = true } },
-  	emits = {
-  		select = function(id)
-  			return type(id) == "number"
-  		end,
-  	},
-  	setup = function(props, ctx)
-  		return function()
-  			return h("TextButton", {
-  				onClick = function()
-  					ctx.emit("select", props.id)
-  				end,
-  			})
-  		end
-  	end,
-  })
-
-  h(ItemRow, {
-  	id = 3,
-  	onSelect = function(id)
-  		print("selected", id)
-  	end,
-  })
+  emits: { string } | { [string]: (...any) -> boolean }
   ```
 
 ---
@@ -225,10 +231,33 @@ The events a component can send to its parent, like `"select"` or `"close"`. The
 Where a component's state and logic live. It runs once, when the component appears, and returns what
 the render function needs.
 
-- **Type**
+- **Example**
+
+  A round timer: state, a frame callback and a function, handed to render:
 
   ```lua
-  setup: (props: Props, ctx: SetupContext) -> RenderFunction | { [string]: any }
+  local RoundTimer = Rivue.defineComponent({
+  	name = "RoundTimer",
+  	props = { seconds = { type = "number", default = 90 } },
+  	setup = function(props)
+  		local left = Rivue.ref(props.seconds)
+  		Rivue.onHeartbeat(function(dt) -- disconnected automatically on unmount
+  			left.value = math.max(0, left.value - dt)
+  		end)
+  		return {
+  			left = left,
+  			restart = function()
+  				left.value = props.seconds
+  			end,
+  		}
+  	end,
+  	render = function(ctx)
+  		return h("TextButton", {
+  			Text = string.format("%d:%02d", ctx.left // 60, ctx.left % 60),
+  			onClick = ctx.restart,
+  		})
+  	end,
+  })
   ```
 
 - **Details**
@@ -238,21 +267,10 @@ the render function needs.
   Everything created in `setup()` lives in the component's effect scope and stops when
   it unmounts. If `setup()` errors, mounting fails, and the error names the component.
 
-- **Example**
+- **Type**
 
   ```lua
-  local Timer = Rivue.defineComponent({
-  	name = "Timer",
-  	setup = function()
-  		local seconds = Rivue.ref(0)
-  		Rivue.onHeartbeat(function(dt)
-  			seconds.value += dt
-  		end)
-  		return function()
-  			return h("TextLabel", { Text = string.format("%.1f", seconds.value) })
-  		end
-  	end,
-  })
+  setup: (props: Props, ctx: SetupContext) -> RenderFunction | { [string]: any }
   ```
 
 - **Typed props**
@@ -284,27 +302,6 @@ the render function needs.
 Describes what the component looks like, using what `setup()` returned and the props. It runs again
 whenever the state it read changes, so keep it to building UI.
 
-- **Type**
-
-  ```lua
-  render: (ctx: RenderContext) -> VNode?
-  ```
-
-- **Details**
-
-  `ctx` looks names up in this order:
-
-  1. What `setup()` returned. Refs are unwrapped, so read `ctx.count`, not `ctx.count.value`.
-  2. Props.
-  3. The [setup context](#setup-context): `ctx.emit`, `ctx.slots`, `ctx.attrs`, `ctx.renderSlot`,
-     `ctx.expose`.
-
-  Assigning a name `setup()` returned as a ref sets the ref (`ctx.open = true`). Other
-  assignments warn: props belong to the parent.
-
-  Reads are tracked like any render, so the component re-renders when they change. For two-way
-  binding, pass the ref's name: `model = "draft"` (see [Element props](render-function.md#element-props)).
-
 - **Example**
 
   ```lua
@@ -335,24 +332,33 @@ whenever the state it read changes, so keep it to building UI.
   })
   ```
 
+- **Details**
+
+  `ctx` looks names up in this order:
+
+  1. What `setup()` returned. Refs are unwrapped, so read `ctx.count`, not `ctx.count.value`.
+  2. Props.
+  3. The [setup context](#setup-context): `ctx.emit`, `ctx.slots`, `ctx.attrs`, `ctx.renderSlot`,
+     `ctx.expose`.
+
+  Assigning a name `setup()` returned as a ref sets the ref (`ctx.open = true`). Other
+  assignments warn: props belong to the parent.
+
+  Reads are tracked like any render, so the component re-renders when they change. For two-way
+  binding, pass the ref's name: `model = "draft"` (see [Element props](render-function.md#element-props)).
+
+- **Type**
+
+  ```lua
+  render: (ctx: RenderContext) -> VNode?
+  ```
+
 ---
 
 ## components
 
 Lists the components this one uses, so its render function can refer to them by name: `h("ItemRow",
 ...)`.
-
-- **Type**
-
-  ```lua
-  components: { [string]: Component }
-  ```
-
-- **Details**
-
-  `h("Name")` looks the name up in the rendering component's `components` first, then in the
-  app's (`app:component()`). Local registration keeps a file's dependencies at the top, next to
-  its `require`s.
 
 - **Example**
 
@@ -375,24 +381,24 @@ Lists the components this one uses, so its render function can refer to them by 
   })
   ```
 
+- **Details**
+
+  `h("Name")` looks the name up in the rendering component's `components` first, then in the
+  app's (`app:component()`). Local registration keeps a file's dependencies at the top, next to
+  its `require`s.
+
+- **Type**
+
+  ```lua
+  components: { [string]: Component }
+  ```
+
 ---
 
 ## styles
 
 Style classes that only this component uses, applied with the
 [`class`](render-function.md#element-props) prop. They take priority over app-wide styles.
-
-- **Type**
-
-  ```lua
-  styles: { [className: string]: { [prop: string]: any } }
-  ```
-
-- **Details**
-
-  A class is a table of props: Instance properties and modifier props such as `cornerRadius`,
-  `padding` and `layout`. A class name resolves from the component's `styles` first, then the
-  app's ([`app:styles()`](application.md#appstyles)). The element's own props always win.
 
 - **Example**
 
@@ -411,12 +417,68 @@ Style classes that only this component uses, applied with the
   })
   ```
 
+- **Details**
+
+  A class is a table of props: Instance properties and modifier props such as `cornerRadius`,
+  `padding` and `layout`. A class name resolves from the component's `styles` first, then the
+  app's ([`app:styles()`](application.md#appstyles)). The element's own props always win.
+
+- **Type**
+
+  ```lua
+  styles: { [className: string]: { [prop: string]: any } }
+  ```
+
 ---
 
 ## Setup context
 
 The second argument of `setup()`: your component's toolbox for emitting events, rendering slots and
 reading attrs.
+
+- **Example**
+
+  A confirm dialog that emits, exposes a method, renders its slot and reads a global:
+
+  ```lua
+  local ConfirmDialog = Rivue.defineComponent({
+  	name = "ConfirmDialog",
+  	emits = { "confirm", "cancel" },
+  	setup = function(_props, ctx)
+  		local function cancel()
+  			ctx.emit("cancel")
+  		end
+  		-- A parent holding a template ref to this dialog can call dialog.cancel()
+  		ctx.expose({ cancel = cancel })
+  		return { cancel = cancel }
+  	end,
+  	render = function(ctx)
+  		return h("Frame", { class = "dialog", layout = { gap = 8 } }, {
+  			ctx.renderSlot("default"),
+  			h("TextButton", {
+  				Text = if ctx.globals.locale == "fr" then "Confirmer" else "Confirm",
+  				onClick = function()
+  					ctx.emit("confirm")
+  				end,
+  			}),
+  			h("TextButton", { Text = "Cancel", onClick = ctx.cancel }),
+  		})
+  	end,
+  })
+  ```
+
+- **Details**
+
+  | Field | Description |
+  |-------|-------------|
+  | `emit` | Calls the parent's `on<Event>` handler, see [emits](#emits) |
+  | `attrs` | Undeclared props (reactive) |
+  | `slots` | The default slot: array children passed to the component |
+  | `renderSlot` / `hasSlot` | Named and scoped slots, see [Slots](#slots) |
+  | `expose` | What a [template ref](#usetemplateref) to this component receives |
+  | `provide` / `inject` | Same as the standalone [`provide()`](#provide) and [`inject()`](#inject) |
+  | `globals` | `app.config.globalProperties` |
+  | `onUnmounted` | Same as [`onUnmounted()`](lifecycle.md#onunmounted) |
 
 - **Type**
 
@@ -435,49 +497,49 @@ reading attrs.
   }
   ```
 
-- **Details**
-
-  | Field | Description |
-  |-------|-------------|
-  | `emit` | Calls the parent's `on<Event>` handler, see [emits](#emits) |
-  | `attrs` | Undeclared props (reactive) |
-  | `slots` | The default slot: array children passed to the component |
-  | `renderSlot` / `hasSlot` | Named and scoped slots, see [Slots](#slots) |
-  | `expose` | What a [template ref](#usetemplateref) to this component receives |
-  | `provide` / `inject` | Same as the standalone [`provide()`](#provide) and [`inject()`](#inject) |
-  | `globals` | `app.config.globalProperties` |
-  | `onUnmounted` | Same as [`onUnmounted()`](lifecycle.md#onunmounted) |
-
-- **Example**
-
-  ```lua
-  local Dialog = Rivue.defineComponent({
-  	name = "Dialog",
-  	emits = { "close" },
-  	setup = function(_props, ctx)
-  		local function close()
-  			ctx.emit("close")
-  		end
-  		-- A parent holding a ref to this component can call dialog.close()
-  		ctx.expose({ close = close })
-
-  		return function()
-  			return h("Frame", { Size = UDim2.fromOffset(300, 200) }, {
-  				h("UIListLayout"),
-  				ctx.renderSlot("default"),
-  				h("TextButton", { Text = `Close ({ctx.globals.locale})`, onClick = close }),
-  			})
-  		end
-  	end,
-  })
-  ```
-
 ---
 
 ## Slots
 
 How a parent passes UI into a component, for wrappers like panels, cards and modals. Children in a
 list are the default slot; named functions fill named areas, and can receive data from the child.
+
+- **Example**
+
+  A card with a scoped header slot, a default slot and a footer with a fallback:
+
+  ```lua
+  local Card = Rivue.defineComponent({
+  	name = "Card",
+  	props = { title = { type = "string" } },
+  	render = function(ctx)
+  		return h("Frame", { class = "card", layout = { gap = 6 } }, {
+  			ctx.renderSlot("header", { title = ctx.title }), -- the slot receives { title }
+  			ctx.renderSlot("default"),
+  			ctx.renderSlot("footer", nil, { h("TextLabel", { Text = "No footer" }) }),
+  		})
+  	end,
+  })
+
+  h(Card, { title = "Shop" }, {
+  	header = function(scope)
+  		return h("TextLabel", { Text = scope.title, TextSize = 20 })
+  	end,
+  	default = function()
+  		return { h("TextLabel", { Text = "Daily deals refresh in 3h" }) }
+  	end,
+  })
+  ```
+
+- **Details**
+
+  `renderSlot` returns a new list every time:
+  - It's the fallback when the parent didn't pass that slot.
+  - `"default"` falls back to the array children.
+  - Lists can go straight into children.
+
+  Slot functions run during the child's render, so reactive reads inside them re-render the
+  child.
 
 - **Type**
 
@@ -491,44 +553,6 @@ list are the default slot; named functions fill named areas, and can receive dat
   ctx.hasSlot(name: string): boolean
   ```
 
-- **Details**
-
-  `renderSlot` returns a new list every time:
-  - It's the fallback when the parent didn't pass that slot.
-  - `"default"` falls back to the array children.
-  - Lists can go straight into children.
-
-  Slot functions run during the child's render, so reactive reads inside them re-render the
-  child.
-
-- **Example**
-
-  ```lua
-  local Card = Rivue.defineComponent({
-  	name = "Card",
-  	props = { title = { type = "string" } },
-  	setup = function(props, ctx)
-  		return function()
-  			return h("Frame", { Size = UDim2.fromOffset(300, 200) }, {
-  				h("UIListLayout"),
-  				ctx.renderSlot("header", { title = props.title }),
-  				ctx.renderSlot("default"),
-  				ctx.renderSlot("footer", nil, { h("TextLabel", { Text = "No footer" }) }),
-  			})
-  		end
-  	end,
-  })
-
-  h(Card, { title = "Shop" }, {
-  	header = function(scope)
-  		return h("TextLabel", { Text = scope.title })
-  	end,
-  	default = function()
-  		return { h("TextLabel", { Text = "Body" }) }
-  	end,
-  })
-  ```
-
 ---
 
 ## provide()
@@ -536,10 +560,28 @@ list are the default slot; named functions fill named areas, and can receive dat
 Makes a value available to every component below this one, without passing it as a prop through each
 level. Descendants read it with [`inject()`](#inject).
 
-- **Type**
+- **Example**
+
+  Share one sound player with the whole screen, without passing it down as a prop:
 
   ```lua
-  function provide(key: unknown, value: unknown)
+  local GameScreen = Rivue.defineComponent({
+  	name = "GameScreen",
+  	setup = function()
+  		Rivue.provide("sounds", {
+  			play = function(name: string)
+  				local sound = game:GetService("SoundService"):FindFirstChild(name) :: Sound?
+  				if sound then
+  					sound:Play()
+  				end
+  			end,
+  		})
+  		return {}
+  	end,
+  	render = function()
+  		return h("Frame", nil, { h(ShopPanel), h(InventoryPanel) })
+  	end,
+  })
   ```
 
 - **Details**
@@ -547,16 +589,10 @@ level. Descendants read it with [`inject()`](#inject).
   Call it in `setup()`. Provide a ref or reactive table to make the value reactive for
   injectors. For app-wide values, use [`app:provide()`](application.md#appprovide).
 
-- **Example**
+- **Type**
 
   ```lua
-  local App = Rivue.defineComponent(function()
-  	local theme = Rivue.reactive({ accent = Color3.fromRGB(60, 120, 220) })
-  	Rivue.provide("theme", theme)
-  	return function()
-  		return h("Frame")
-  	end
-  end, { name = "App" })
+  function provide(key: unknown, value: unknown)
   ```
 
 ---
@@ -565,10 +601,25 @@ level. Descendants read it with [`inject()`](#inject).
 
 Reads a value that an ancestor component (or the app) provided.
 
-- **Type**
+- **Example**
+
+  Any component under GameScreen can use it. The second argument is the fallback:
 
   ```lua
-  function inject<T>(key: unknown, default: T?): T?
+  local BuyButton = Rivue.defineComponent({
+  	name = "BuyButton",
+  	setup = function()
+  		local sounds = Rivue.inject("sounds", { play = function() end })
+  		return {
+  			buy = function()
+  				sounds.play("Purchase")
+  			end,
+  		}
+  	end,
+  	render = function(ctx)
+  		return h("TextButton", { Text = "Buy", onClick = ctx.buy })
+  	end,
+  })
   ```
 
 - **Details**
@@ -577,15 +628,10 @@ Reads a value that an ancestor component (or the app) provided.
   nothing was provided. Call it in `setup()` or inside
   [`app:runWithContext()`](application.md#apprunwithcontext).
 
-- **Example**
+- **Type**
 
   ```lua
-  local Button = Rivue.defineComponent(function()
-  	local theme = Rivue.inject("theme", { accent = Color3.new(1, 1, 1) })
-  	return function()
-  		return h("TextButton", { BackgroundColor3 = theme.accent })
-  	end
-  end, { name = "Button" })
+  function inject<T>(key: unknown, default: T?): T?
   ```
 
 ---
@@ -594,12 +640,6 @@ Reads a value that an ancestor component (or the app) provided.
 
 Tells you whether [`inject()`](#inject) would work right now, which is inside `setup()` or
 `app:runWithContext()`. Useful in composables that can also be called from plain code.
-
-- **Type**
-
-  ```lua
-  function hasInjectionContext(): boolean
-  ```
 
 - **Example**
 
@@ -612,6 +652,12 @@ Tells you whether [`inject()`](#inject) would work right now, which is inside `s
   end
   ```
 
+- **Type**
+
+  ```lua
+  function hasInjectionContext(): boolean
+  ```
+
 ---
 
 ## useTemplateRef()
@@ -619,10 +665,26 @@ Tells you whether [`inject()`](#inject) would work right now, which is inside `s
 Gives setup access to a real Instance (or child component) from render. Mark the element with `ref =
 "name"`, and the ref holds it while it's mounted. Use it for focus, sizes and tweens.
 
-- **Type**
+- **Example**
+
+  Focus a TextBox when the search panel opens:
 
   ```lua
-  function useTemplateRef<T>(name: string): Ref<T?>
+  local SearchPanel = Rivue.defineComponent({
+  	name = "SearchPanel",
+  	setup = function()
+  		local input = Rivue.useTemplateRef("input")
+  		Rivue.onMounted(function()
+  			(input.value :: TextBox):CaptureFocus()
+  		end)
+  		return {}
+  	end,
+  	render = function()
+  		return h("Frame", { layout = "vertical" }, {
+  			h("TextBox", { ref = "input", PlaceholderText = "Search" }),
+  		})
+  	end,
+  })
   ```
 
 - **Details**
@@ -633,20 +695,10 @@ Gives setup access to a real Instance (or child component) from render. Mark the
   - **Other forms of `ref`.** The `ref` prop also accepts a ref object (`ref = myRef`) or a
     function (called with the Instance, then with `nil`).
 
-- **Example**
+- **Type**
 
   ```lua
-  local Search = Rivue.defineComponent(function()
-  	local input = Rivue.useTemplateRef("input")
-
-  	Rivue.onMounted(function()
-  		(input.value :: TextBox):CaptureFocus()
-  	end)
-
-  	return function()
-  		return h("TextBox", { ref = "input", PlaceholderText = "Search" })
-  	end
-  end, { name = "Search" })
+  function useTemplateRef<T>(name: string): Ref<T?>
   ```
 
 ---
@@ -655,27 +707,34 @@ Gives setup access to a real Instance (or child component) from render. Mark the
 
 The props passed to this component that it didn't declare, same as `ctx.attrs`.
 
+- **Example**
+
+  A labelled button whose extra props go to the button, not the outer frame:
+
+  ```lua
+  local LabeledButton = Rivue.defineComponent({
+  	name = "LabeledButton",
+  	props = { label = { type = "string", required = true } },
+  	inheritAttrs = false, -- don't put attrs on the root
+  	setup = function()
+  		return { attrs = Rivue.useAttrs() }
+  	end,
+  	render = function(ctx)
+  		return h("Frame", { layout = { direction = "horizontal", gap = 6 } }, {
+  			h("TextLabel", { Text = ctx.label }),
+  			h("TextButton", Rivue.mergeProps(ctx.attrs, { Text = "Go" })),
+  		})
+  	end,
+  })
+
+  -- onClick and BackgroundColor3 land on the inner TextButton
+  h(LabeledButton, { label = "Teleport", onClick = function() end, BackgroundColor3 = Color3.new(0, 1, 0) })
+  ```
+
 - **Type**
 
   ```lua
   function useAttrs(): Props
-  ```
-
-- **Example**
-
-  ```lua
-  local Wrapper = Rivue.defineComponent({
-  	name = "Wrapper",
-  	props = {},
-  	inheritAttrs = false,
-  	setup = function()
-  		local attrs = Rivue.useAttrs()
-  		return function()
-  			-- Put the attrs on the inner element instead of the root
-  			return h("Frame", nil, { h("TextButton", Rivue.mergeProps(attrs, { Text = "Inner" })) })
-  		end
-  	end,
-  })
   ```
 
 ---
@@ -684,21 +743,28 @@ The props passed to this component that it didn't declare, same as `ctx.attrs`.
 
 The children passed to this component, same as `ctx.slots`.
 
+- **Example**
+
+  A list wrapper that lays out whatever children it's given:
+
+  ```lua
+  local Stack = Rivue.defineComponent({
+  	name = "Stack",
+  	setup = function()
+  		return { children = Rivue.useSlots() }
+  	end,
+  	render = function(ctx)
+  		return h("Frame", { layout = { gap = 8 } }, table.clone(ctx.children))
+  	end,
+  })
+
+  h(Stack, nil, { h("TextLabel", { Text = "One" }), h("TextLabel", { Text = "Two" }) })
+  ```
+
 - **Type**
 
   ```lua
   function useSlots(): { Child }
-  ```
-
-- **Example**
-
-  ```lua
-  local List = Rivue.defineComponent(function()
-  	local slots = Rivue.useSlots()
-  	return function()
-  		return h("Frame", nil, { h("UIListLayout"), table.clone(slots) })
-  	end
-  end, { name = "List" })
   ```
 
 ---
@@ -708,10 +774,31 @@ The children passed to this component, same as `ctx.slots`.
 Lets your own component support `model`, like a TextBox does. It gives you a ref: reading it gets
 the parent's value, writing it updates the parent.
 
-- **Type**
+- **Example**
+
+  A settings toggle that works with `model`, like a TextBox does:
 
   ```lua
-  function defineModel<T>(options: { name: string?, event: string? }?): (props: Props, ctx: SetupContext) -> Ref<T>
+  local useModel = Rivue.defineModel()
+
+  local SettingToggle = Rivue.defineComponent({
+  	name = "SettingToggle",
+  	props = { label = { type = "string", required = true } },
+  	setup = function(props, ctx)
+  		return { on = useModel(props, ctx) }
+  	end,
+  	render = function(ctx)
+  		return h("TextButton", {
+  			Text = `{ctx.label}: {if ctx.on then "ON" else "OFF"}`,
+  			onClick = function()
+  				ctx.on = not ctx.on -- updates the parent's ref
+  			end,
+  		})
+  	end,
+  })
+
+  local musicEnabled = Rivue.ref(true)
+  h(SettingToggle, { label = "Music", model = musicEnabled })
   ```
 
 - **Details**
@@ -725,25 +812,10 @@ the parent's value, writing it updates the parent.
   The parent binds it with `model = someRef`, which passes `modelValue` and the update handler
   for you.
 
-- **Example**
+- **Type**
 
   ```lua
-  local useModel = Rivue.defineModel()
-
-  local Toggle = Rivue.defineComponent(function(props, ctx)
-  	local on = useModel(props, ctx)
-  	return function()
-  		return h("TextButton", {
-  			Text = if on.value then "ON" else "OFF",
-  			onClick = function()
-  				on.value = not on.value
-  			end,
-  		})
-  	end
-  end, { name = "Toggle" })
-
-  local music = Rivue.ref(true)
-  h(Toggle, { model = music })
+  function defineModel<T>(options: { name: string?, event: string? }?): (props: Props, ctx: SetupContext) -> Ref<T>
   ```
 
 ---
@@ -753,10 +825,21 @@ the parent's value, writing it updates the parent.
 A short id that's unique for this session, such as `"r12-1"`. Handy for naming Instances or linking
 a label to its input.
 
-- **Type**
+- **Example**
+
+  Give each tooltip Instance a unique name:
 
   ```lua
-  function useId(): string
+  local Tooltip = Rivue.defineComponent({
+  	name = "Tooltip",
+  	props = { text = { type = "string", required = true } },
+  	setup = function()
+  		return { id = Rivue.useId() }
+  	end,
+  	render = function(ctx)
+  		return h("TextLabel", { Name = `Tooltip-{ctx.id}`, Text = ctx.text })
+  	end,
+  })
   ```
 
 - **Details**
@@ -764,15 +847,10 @@ a label to its input.
   In `setup()`, ids are based on the component's uid, so each instance gets its own. It's handy
   for unique Instance names, or keys for `CollectionService` or attributes.
 
-- **Example**
+- **Type**
 
   ```lua
-  local Tooltip = Rivue.defineComponent(function()
-  	local id = Rivue.useId()
-  	return function()
-  		return h("TextLabel", { Name = `Tooltip-{id}` })
-  	end
-  end, { name = "Tooltip" })
+  function useId(): string
   ```
 
 ---
@@ -781,17 +859,6 @@ a label to its input.
 
 The component whose `setup()` is running right now, or `nil`. Mostly for library code; your own
 components rarely need it.
-
-- **Type**
-
-  ```lua
-  function getCurrentInstance(): ComponentInstance?
-  ```
-
-- **Details**
-
-  For library code that needs instance internals. App code rarely needs it: prefer the setup
-  context and composables.
 
 - **Example**
 
@@ -802,31 +869,23 @@ components rarely need it.
   end
   ```
 
+- **Details**
+
+  For library code that needs instance internals. App code rarely needs it: prefer the setup
+  context and composables.
+
+- **Type**
+
+  ```lua
+  function getCurrentInstance(): ComponentInstance?
+  ```
+
 ---
 
 ## defineAsyncComponent()
 
 A component whose code is loaded only when it's first shown, with optional loading and error states.
 Use it for big screens most players never open.
-
-- **Type**
-
-  ```lua
-  function defineAsyncComponent(
-  	loader: () -> ComponentDef, -- may yield
-  	options: {
-  		loadingComponent: VNode?,
-  		errorComponent: VNode?,
-  		delay: number?, -- ms before showing loadingComponent
-  		timeout: number?, -- ms before giving up
-  	}?
-  ): ComponentDef
-  ```
-
-- **Details**
-
-  The loader runs when the component first mounts. Inside a [`Suspense`](builtins.md#suspense)
-  it also counts as pending, so Suspense shows its fallback until it loads.
 
 - **Example**
 
@@ -843,6 +902,25 @@ Use it for big screens most players never open.
   })
 
   h(ShopPage)
+  ```
+
+- **Details**
+
+  The loader runs when the component first mounts. Inside a [`Suspense`](builtins.md#suspense)
+  it also counts as pending, so Suspense shows its fallback until it loads.
+
+- **Type**
+
+  ```lua
+  function defineAsyncComponent(
+  	loader: () -> ComponentDef, -- may yield
+  	options: {
+  		loadingComponent: VNode?,
+  		errorComponent: VNode?,
+  		delay: number?, -- ms before showing loadingComponent
+  		timeout: number?, -- ms before giving up
+  	}?
+  ): ComponentDef
   ```
 
 ---
