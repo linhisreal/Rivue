@@ -18,10 +18,28 @@ When updates happen, and how to run code after them. All examples assume
 Waits until Rivue has applied pending updates to the screen. Use it when you change state and then
 need to read the updated Instances.
 
-- **Type**
+- **Example**
+
+  Read an Instance right after changing state:
 
   ```lua
-  function nextTick(callback: (() -> ())?)
+  local count = Rivue.ref(0)
+
+  local Counter = Rivue.defineComponent({
+  	name = "Counter",
+  	render = function()
+  		return h("TextLabel", { Text = tostring(count.value) })
+  	end,
+  })
+
+  local screen = Instance.new("ScreenGui")
+  Rivue.createApp(Counter):mount(screen)
+  local label = screen:FindFirstChild("Counter") :: TextLabel
+
+  count.value = 5
+  print(label.Text) -- "0": updates are batched, not applied yet
+  Rivue.nextTick()
+  print(label.Text) -- "5"
   ```
 
 - **Details**
@@ -30,26 +48,10 @@ need to read the updated Instances.
   callback, `nextTick` runs it after that flush. Without one, it yields the current thread until
   then.
 
-- **Example**
+- **Type**
 
   ```lua
-  local h = Rivue.h
-  local count = Rivue.ref(0)
-
-  local Counter = Rivue.defineComponent(function()
-  	return function()
-  		return h("TextLabel", { Text = tostring(count.value) })
-  	end
-  end, { name = "Counter" })
-
-  local screen = Instance.new("ScreenGui")
-  Rivue.createApp(Counter):mount(screen)
-  local label = screen:FindFirstChild("Counter") :: TextLabel
-
-  count.value = 5
-  print(label.Text) -- "0", not updated yet
-  Rivue.nextTick()
-  print(label.Text) -- "5"
+  function nextTick(callback: (() -> ())?)
   ```
 
 ---
@@ -58,25 +60,6 @@ need to read the updated Instances.
 
 Runs a function on the next update. Queuing the same function again before then does nothing,
 so it's a cheap way to batch expensive work.
-
-- **Type**
-
-  ```lua
-  function queueJob(job: () -> (), options: { mode: ("micro" | "render" | "heartbeat")? }?): JobHandle
-
-  type JobHandle = { cancel: () -> () }
-  ```
-
-- **Details**
-
-  - **Modes.**
-    - `"micro"` (the default) runs deferred, in the same frame.
-    - `"render"` runs on the next RenderStepped.
-    - `"heartbeat"` runs on the next Heartbeat.
-  - **Deduplicated.** Queuing the same function twice before it runs only runs it once.
-  - **In components.** Jobs queued in `setup()` are cancelled when the component unmounts.
-
-  `Rivue.scheduler.queueJob` is the same function without the automatic cancel.
 
 - **Example**
 
@@ -97,6 +80,25 @@ so it's a cheap way to batch expensive work.
 
   markDirty("volume")
   markDirty("sensitivity")
+  ```
+
+- **Details**
+
+  - **Modes.**
+    - `"micro"` (the default) runs deferred, in the same frame.
+    - `"render"` runs on the next RenderStepped.
+    - `"heartbeat"` runs on the next Heartbeat.
+  - **Deduplicated.** Queuing the same function twice before it runs only runs it once.
+  - **In components.** Jobs queued in `setup()` are cancelled when the component unmounts.
+
+  `Rivue.scheduler.queueJob` is the same function without the automatic cancel.
+
+- **Type**
+
+  ```lua
+  function queueJob(job: () -> (), options: { mode: ("micro" | "render" | "heartbeat")? }?): JobHandle
+
+  type JobHandle = { cancel: () -> () }
   ```
 
 ---
