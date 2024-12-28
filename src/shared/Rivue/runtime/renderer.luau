@@ -110,6 +110,10 @@ local function toUDim(v: unknown): UDim
 	return if type(v) == "number" then UDim.new(0, v) else v :: UDim
 end
 
+-- Instance -> its current event handlers, for Rivue.testing.trigger. The table is shared by every
+-- vnode of the element, so it's set once
+local elementHandlers: { [Instance]: { [string]: any } } = setmetatable({}, { __mode = "k" }) :: any
+
 -- IsA is an engine call. Element vnodes carry their ClassName, so these answer from it
 local guiObjectClasses: { [string]: boolean } = {}
 
@@ -473,7 +477,11 @@ local function setProp(inst: Instance, key: string, value: any, vnode: RenderVNo
 	if key:sub(1, 2) == "on" and type(value) == "function" then
 		-- Bookkeeping tables are created on first use, most elements need few of them
 		local conns = vnode._conns or {}
-		local handlers = vnode._handlers or {}
+		local handlers: { [string]: (...any) -> () } = vnode._handlers :: any
+		if not handlers then
+			handlers = {}
+			elementHandlers[inst] = handlers
+		end
 		vnode._conns, vnode._handlers = conns, handlers
 		handlers[key] = value
 		if conns[key] then
@@ -548,6 +556,9 @@ local function clearVNodeConns(vnode: RenderVNode?)
 		end
 		vnode._conns = nil
 		vnode._handlers = nil
+		if vnode.el then
+			elementHandlers[vnode.el] = nil
+		end
 	end
 
 	local dirs = vnode._dirs
@@ -2148,7 +2159,20 @@ local function createApp(root: VNode | ComponentDef, opts: AppOptions?): App
 	return api
 end
 
+--- Calls an element's current handler for an event prop, as if the event fired. Scripts can't fire
+--- engine signals like Activated, so tests use this instead. Updates are batched as usual: call
+--- Rivue.nextTick() before checking the result
+local function trigger(inst: Instance, key: string, ...: any)
+	local handlers = elementHandlers[inst]
+	local handler = if handlers then handlers[key] else nil
+	if not handler then
+		error(`[Rivue] {inst:GetFullName()} has no {key} handler`, 2)
+	end
+	handler(...)
+end
+
 return {
+	trigger = trigger,
 	createApp = createApp,
 	patch = patch,
 	formatTree = formatTree,

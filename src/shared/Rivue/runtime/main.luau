@@ -255,6 +255,7 @@ Rivue.useTween = robloxUtils.useTween
 Rivue.useSpring = robloxUtils.useSpring
 
 Rivue.createApp = renderer.createApp
+Rivue.testing = table.freeze({ trigger = renderer.trigger })
 
 function Rivue.mount(componentOrVNode: ComponentDef | VNode, parent: Instance, opts: AppOptions?): App
 	local vnode: VNode = if (componentOrVNode :: ComponentDef).__is_component
