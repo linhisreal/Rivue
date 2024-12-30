@@ -53,7 +53,7 @@ local function runTests()
 		local container, app = mount(require(Examples:WaitForChild("Counter")), { start = 2 })
 		local button = find(container, "Counter")
 		assertEquals(button.Text, "Clicked 2 times (x2 = 4)", "Starts from the start prop")
-		button.Activated:Fire()
+		Rivue.testing.trigger(button, "onClick")
 		task.wait()
 		assertEquals(button.Text, "Clicked 3 times (x2 = 6)", "Click increments")
 		app:unmount()
@@ -65,7 +65,7 @@ local function runTests()
 		local input = find(container, "Input")
 		for _, text in { "Milk", "Eggs" } do
 			input.Text = text
-			input.FocusLost:Fire(true)
+			Rivue.testing.trigger(input, "onFocusLost", true)
 			task.wait()
 		end
 		assertEquals(input.Text, "", "Input clears after adding")
@@ -76,11 +76,11 @@ local function runTests()
 			first.Parent.LayoutOrder > find(container, "Input").LayoutOrder,
 			"Todo rows are ordered after the input"
 		)
-		first.Activated:Fire()
+		Rivue.testing.trigger(first, "onClick")
 		task.wait()
 		assertEquals(first.Text, "[x] Milk", "Toggle marks it done")
 		assertEquals(find(container, "Remaining").Text, "1 left", "Remaining updates")
-		find(container, "Remove").Activated:Fire()
+		Rivue.testing.trigger(find(container, "Remove"), "onClick")
 		task.wait()
 		assertEquals(find(container, "Toggle").Text, "[ ] Eggs", "Remove drops the todo")
 		app:unmount()
@@ -97,7 +97,7 @@ local function runTests()
 		local list = container:FindFirstChildOfClass("ScrollingFrame") :: ScrollingFrame
 		assertTrue(#list:GetChildren() < 20, "Only visible rows are rendered")
 		local row = list:GetChildren()[1] :: TextButton
-		row.Activated:Fire()
+		Rivue.testing.trigger(row, "onClick")
 		task.wait()
 		local color = row.BackgroundColor3
 		assertTrue(
@@ -154,12 +154,12 @@ local function runTests()
 		end, { name = "TabsHost" })
 		container, app = mount(Host)
 		local counter = find(container, "Counter")
-		counter.Activated:Fire()
+		Rivue.testing.trigger(counter, "onClick")
 		task.wait()
-		find(container, "Two").Activated:Fire()
+		Rivue.testing.trigger(find(container, "Two"), "onClick")
 		task.wait()
 		assertTrue(find(container, "Second") ~= nil, "Second tab shown")
-		find(container, "One").Activated:Fire()
+		Rivue.testing.trigger(find(container, "One"), "onClick")
 		task.wait()
 		assertEquals(find(container, "Counter").Text, "Clicked 1 times (x2 = 2)", "First tab kept its state")
 		app:unmount()
@@ -184,7 +184,7 @@ local function runTests()
 		task.wait(0.2)
 		local sword = find(container, "sword")
 		assertEquals(sword.Text, "Sword - 100", "Products render after loading")
-		sword.Activated:Fire()
+		Rivue.testing.trigger(sword, "onClick")
 		task.wait()
 		assertEquals(sword.Text, "Buying...", "Pending state while buying")
 		task.wait(0.2)
@@ -226,7 +226,7 @@ local function runTests()
 				buttons[d.Text] = d
 			end
 		end
-		buttons["+ Increment"].Activated:Fire()
+		Rivue.testing.trigger(buttons["+ Increment"], "onClick")
 		task.wait()
 		local countLabel
 		for _, d in counter:GetDescendants() do
@@ -256,7 +256,7 @@ local function runTests()
 		input.Text = "Durian"
 		for _, d in list:GetDescendants() do
 			if d:IsA("TextButton") and d.Text == "Add" then
-				d.Activated:Fire()
+				Rivue.testing.trigger(d, "onClick")
 			end
 		end
 		task.wait()
@@ -264,7 +264,7 @@ local function runTests()
 		assertEquals(input.Text, "", "Input clears")
 		for _, d in list:GetDescendants() do
 			if d:IsA("TextButton") and d.Text == "x" then
-				d.Activated:Fire()
+				Rivue.testing.trigger(d, "onClick")
 				break
 			end
 		end

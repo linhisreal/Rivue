@@ -134,7 +134,7 @@ local function runTests()
 		local root = container:FindFirstChild("Root") :: Frame
 		local button = root:FindFirstChild("Up") :: TextButton
 		assertEquals(button.Text, "5", "Component receives modelValue")
-		button.Activated:Fire()
+		Rivue.testing.trigger(button, "onClick")
 		task.wait()
 		assertEquals(volume.value, 6, "update:modelValue writes the ref")
 		assertEquals(button.Text, "6", "Component re-renders with the new value")

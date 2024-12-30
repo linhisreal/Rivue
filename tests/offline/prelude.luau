@@ -136,6 +136,8 @@ end
 tick = function()
 	return now
 end
+-- Tests that fire engine input signals check this: Studio scripts can't fire them
+__OFFLINE = true
 local realOs = os
 -- Real wall clock for benchmarks (os.clock is virtual here)
 __realClock = realOs.clock
