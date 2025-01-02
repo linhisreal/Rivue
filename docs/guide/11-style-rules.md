@@ -229,7 +229,8 @@ h("TextBox", { model = "draft", vFocus = true })
 
 ---
 
-**You've finished the Guide.** Keep the [API reference](../API.md) open while you build, and
-browse the [examples](../../examples) when you want to see a feature in a real component.
+**That's the core of Rivue.** Keep the [API reference](../API.md) open while you build, and
+browse the [examples](../../examples) when you want to see a feature in a real component. Chapters
+12–16 go further: reusable composables, bigger apps, performance and testing.
 
-[← 10. Organising a project](10-organising-a-project.md) · [Guide contents](../GUIDE.md)
+[← 10. Organising a project](10-organising-a-project.md) · [Guide contents](../GUIDE.md) · [12. Writing composables →](12-writing-composables.md)
