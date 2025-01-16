@@ -390,6 +390,10 @@ local function reactive<T>(target: T): T
 		track(tbl, ITERATE_KEY)
 		return function(_: RawTable, k: unknown): (unknown, unknown)
 			local nk, nv = next(tbl, k)
+			-- Each value read by a loop is a read, so changing it re-runs the loop like it does in Vue
+			if nk ~= nil then
+				track(tbl, nk)
+			end
 			if shouldWrap(nv) then
 				nv = reactive(nv)
 			end
@@ -440,7 +444,15 @@ local function shallowReactive<T>(target: T): T
 	end
 	function mt.__iter(_: RawTable)
 		track(tbl, ITERATE_KEY)
-		return next, tbl
+		return function(_: RawTable, k: unknown): (unknown, unknown)
+			local nk, nv = next(tbl, k)
+			if nk ~= nil then
+				track(tbl, nk)
+			end
+			return nk, nv
+		end,
+			proxy,
+			nil
 	end
 	function mt.__len(_: RawTable): number
 		track(tbl, LENGTH_KEY)
@@ -897,24 +909,32 @@ local function createReadonly<T>(target: T, shallow: boolean): T
 		return target
 	end
 
-	local tbl: RawTable = target :: any
+	local source: RawTable = target :: any
 	local cache = if shallow then shallowReadonlyCache else readonlyCache
-	local cached = cache[tbl]
+	local cached = cache[source]
 	if cached then
 		return cached :: any
 	end
+	-- A view of a reactive table reads its raw table: deps are keyed by raw tables, and next() on
+	-- the proxy itself would find nothing
+	local tbl: RawTable = reactiveMarker[source] or source
 
 	local proxy: RawTable = {}
 
 	readonlyMarker[proxy] = true
-	reactiveMarker[proxy] = tbl
+	reactiveMarker[proxy] = source
 	if shallow then
 		shallowMarker[proxy] = true
 	end
-	cache[tbl] = proxy
+	cache[source] = proxy
 
+	-- Nested tables of a deep reactive source stay reactive under the readonly view, as in Vue
+	local deepReactive = tbl ~= source and not shallowMarker[source]
 	local function wrap(v: unknown): unknown
-		return if not shallow and shouldWrap(v) then createReadonly(v, false) else v
+		if shallow or not shouldWrap(v) then
+			return v
+		end
+		return createReadonly(if deepReactive then reactive(v) else v, false)
 	end
 
 	setmetatable(proxy :: any, {
@@ -935,6 +955,9 @@ local function createReadonly<T>(target: T, shallow: boolean): T
 			track(tbl, ITERATE_KEY)
 			return function(_: RawTable, k: unknown): (unknown, unknown)
 				local nk, nv = next(tbl, k)
+				if nk ~= nil then
+					track(tbl, nk)
+				end
 				return nk, wrap(nv)
 			end,
 				proxy,
