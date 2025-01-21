@@ -1,15 +1,16 @@
 --!nonstrict
 -- Loading data from the server with loading/error states, and buying with a pending state.
--- The server side is two Remote handlers:
+-- The server side is two RivueRemote handlers:
 --
---   Rivue.Remote.setupServer()
---   Rivue.Remote.handle("shop:list", function(player) return ShopService.list(player) end)
---   Rivue.Remote.handle("shop:buy", function(player, payload) return ShopService.buy(player, payload.id) end)
+--   Remote.setupServer()
+--   Remote.handle("shop:list", function(player) return ShopService.list(player) end)
+--   Remote.handle("shop:buy", function(player, payload) return ShopService.buy(player, payload.id) end)
 --
 -- `api` can be swapped (tests pass a fake); by default it calls the server through Remote.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
+local Remote = require(ReplicatedStorage:WaitForChild("RivueRemote"))
 local h = Rivue.h
 
 export type Product = { id: string, name: string, price: number }
@@ -21,11 +22,11 @@ export type ShopApi = {
 
 local remoteApi: ShopApi = {
 	list = function()
-		local data, err = Rivue.Remote.request("shop:list", nil)
+		local data, err = Remote.request("shop:list", nil)
 		return data :: { Product }?, err
 	end,
 	buy = function(id)
-		local data, err = Rivue.Remote.request("shop:buy", { id = id })
+		local data, err = Remote.request("shop:buy", { id = id })
 		return data == true, err
 	end,
 }
