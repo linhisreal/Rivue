@@ -9,8 +9,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService") :: any
-local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
-local Remote = Rivue.Remote
+local Remote = require(ReplicatedStorage:WaitForChild("RivueRemote"))
 
 local function assertEquals(actual: any, expected: any, message: string?)
 	if actual ~= expected then

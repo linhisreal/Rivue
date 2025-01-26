@@ -390,6 +390,44 @@ local function runTests()
 		end
 	end
 
+	print("Iterating a reactive table tracks its values")
+	do
+		local state = Rivue.reactive({ a = 1, b = 2 })
+		local shallow = Rivue.shallowReactive({ x = 1 })
+		local sum, shallowSum = 0, 0
+		Rivue.watchEffect(function()
+			local total = 0
+			for _, v in state do
+				total += v
+			end
+			sum = total
+		end)
+		Rivue.watchEffect(function()
+			local total = 0
+			for _, v in shallow do
+				total += v
+			end
+			shallowSum = total
+		end)
+		state.b = 5
+		shallow.x = 3
+		Rivue.nextTick()
+		assertEquals(sum, 6, "changing a value re-runs a loop over a reactive table")
+		assertEquals(shallowSum, 3, "same for shallowReactive")
+		local view = Rivue.readonly(state)
+		local viewSum = 0
+		Rivue.watchEffect(function()
+			local total = 0
+			for _, v in view do
+				total += v
+			end
+			viewSum = total
+		end)
+		state.a = 4
+		Rivue.nextTick()
+		assertEquals(viewSum, 9, "same through a readonly view")
+	end
+
 	print("\n========== REGRESSION TESTS COMPLETE ==========\n")
 end
 

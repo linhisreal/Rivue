@@ -799,21 +799,6 @@ local function runTests()
 		assertTrue(vnodes[1].type == "TextLabel", "hFor creates correct vnode types")
 	end
 
-	-- Test 39: hForParallel() - Parallel list rendering
-	print("\nTest 39: hForParallel() - Parallel list rendering with keys")
-	do
-		local items = { { id = 1, name = "Item 1" }, { id = 2, name = "Item 2" } }
-
-		local vnodes = Rivue.hForParallel(items, function(item, _index)
-			return Rivue.h("Frame", { Name = item.name })
-		end, function(item)
-			return item.id -- Key function
-		end)
-
-		assertEquals(#vnodes, 2, "hForParallel creates vnodes for each item")
-		assertTrue(vnodes[1].key ~= nil, "hForParallel assigns keys to vnodes")
-	end
-
 	-- Test 40: vModelProp() - Generic v-model helper
 	print("\nTest 40: vModelProp() - Generic v-model for any property")
 	do

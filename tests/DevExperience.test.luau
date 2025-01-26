@@ -379,6 +379,48 @@ local function runTests()
 		assertTrue(unmounted, "onUnmount callbacks run")
 	end
 
+	print("Rivue.story: function stories and UI Labs generic stories")
+	do
+		local Badge = Rivue.defineComponent({
+			name = "Badge",
+			props = { text = { type = "string", default = "New" } },
+			render = function(ctx)
+				return Rivue.h("TextLabel", { Name = "Badge", Text = ctx.text })
+			end,
+		})
+
+		local story = Rivue.story(Badge, { props = { text = "Sale" } })
+		local target = Instance.new("Frame")
+		local cleanup = story(target)
+		local label = target:FindFirstChild("Badge") :: TextLabel
+		assertEquals(label.Text, "Sale", "a function story mounts the component into the target")
+		cleanup()
+		assertTrue(target:FindFirstChild("Badge") == nil, "cleanup unmounts it")
+
+		local generic = Rivue.story(Badge, { controls = { text = "Hot" } })
+		assertEquals(generic.controls.text, "Hot", "controls are passed to UI Labs")
+		local listener
+		local disconnected = false
+		local target2 = Instance.new("Frame")
+		local cleanup2 = generic.render({
+			target = target2,
+			controls = { text = "Hot" },
+			subscribe = function(fn)
+				listener = fn
+				return function()
+					disconnected = true
+				end
+			end,
+		})
+		local label2 = target2:FindFirstChild("Badge") :: TextLabel
+		assertEquals(label2.Text, "Hot", "a generic story renders with the starting controls")
+		listener({ text = "Cold" }, {})
+		Rivue.nextTick()
+		assertEquals(label2.Text, "Cold", "changing a control re-renders the component")
+		cleanup2()
+		assertTrue(disconnected, "cleanup disconnects from the controls")
+	end
+
 	print("\n========== DEVELOPER EXPERIENCE TESTS COMPLETE ==========\n")
 end
 
