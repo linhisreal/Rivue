@@ -229,7 +229,7 @@ follow state, like saving settings or playing a sound.
 
   local stop = Rivue.watchEffect(function()
   	-- Reads every field, so a change to any of them re-runs this
-  	Rivue.Remote.fire("settings:save", {
+  	Remote.fire("settings:save", {
   		music = settings.music,
   		sfx = settings.sfx,
   		showFps = settings.showFps,

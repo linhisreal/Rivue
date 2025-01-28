@@ -272,6 +272,14 @@ module.
   same name. A component's own [`styles`](component.md#styles) option wins over app styles, and an
   element's own props win over both. Unknown class names warn in Studio.
 
+  A class can hold variants, which are tables of props too:
+  - `hover`, `pressed` and `selected` apply while the player interacts with the element, without
+    re-rendering. Pressed wins over hover, hover over selected.
+  - `disabled` applies when the element has `disabled = true`, which also sets
+    `Interactable = false` and turns hover and pressed off.
+  - `phone`, `tablet`, `desktop` and `console` apply on that device (see
+    [useDevice()](roblox.md#usedevice)).
+
 - **Type**
 
   ```lua

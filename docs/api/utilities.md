@@ -23,8 +23,9 @@ All examples assume `local Rivue = require(game.ReplicatedStorage.Rivue)`.
 - [utils.shallowEqual()](#utilsshallowequal)
 - [utils.profiler](#utilsprofiler)
 - [iterArray()](#iterarray)
-- [hForParallel()](#hforparallel)
 - [testing.trigger()](#testingtrigger)
+- [testing.setInteraction()](#testingsetinteraction)
+- [story()](#story)
 - [Types](#types)
 
 ---
@@ -458,38 +459,6 @@ Loops over a reactive list like `ipairs` would, which plain `ipairs` can't do wi
 
 ---
 
-## hForParallel()
-
-**Deprecated.** Use [`hFor()`](render-function.md#hfor) and set `key` in the mapper. It's still
-here so existing code keeps working, and warns once in Studio.
-
-- **Example**
-
-  ```lua
-  local h = Rivue.h
-  local items = { { id = 1, name = "Sword" } }
-
-  -- Before
-  Rivue.hForParallel(items, function(item)
-  	return h("TextLabel", { Text = item.name })
-  end, function(item)
-  	return item.id
-  end)
-
-  -- After
-  Rivue.hFor(items, function(item)
-  	return h("TextLabel", { key = item.id, Text = item.name })
-  end)
-  ```
-
-- **Type**
-
-  ```lua
-  function hForParallel<T>(items: { T }, mapper: (item: T, index: number) -> VNode?, keyFn: ((item: T) -> unknown)?): { VNode }
-  ```
-
----
-
 ## testing.trigger()
 
 Calls an element's event handler as if the event fired. Scripts can't fire engine events like
@@ -542,6 +511,115 @@ Calls an element's event handler as if the event fired. Scripts can't fire engin
 
   ```lua
   function testing.trigger(element: Instance, key: string, ...: any)
+  ```
+
+---
+
+## testing.setInteraction()
+
+Turns an element's hover, pressed or selected state on or off, as if the player did it. Use it to
+test [style class variants](application.md#appstyles), since scripts can't move the mouse.
+
+- **Example**
+
+  ```lua
+  local hoverColor = Color3.fromRGB(200, 200, 200)
+
+  local Button = Rivue.defineComponent({
+  	name = "HoverButton",
+  	styles = {
+  		button = {
+  			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+  			hover = { BackgroundColor3 = hoverColor },
+  		},
+  	},
+  	render = function()
+  		return h("TextButton", { Name = "Play", class = "button" })
+  	end,
+  })
+
+  local screen = Instance.new("Frame")
+  local app = Rivue.mount(Button, screen)
+  local button = screen:FindFirstChild("Play") :: TextButton
+
+  Rivue.testing.setInteraction(button, "hover", true)
+  assert(button.BackgroundColor3 == hoverColor)
+
+  app:unmount()
+  ```
+
+- **Details**
+
+  `state` is `"hover"`, `"pressed"` or `"selected"`. It does nothing on elements whose classes have
+  no state variants. The change is applied straight away, no `nextTick()` needed.
+
+- **Type**
+
+  ```lua
+  function testing.setInteraction(element: Instance, state: "hover" | "pressed" | "selected", on: boolean)
+  ```
+
+---
+
+## story()
+
+Turns a component into a storybook story, so you can preview it in Studio without pressing Play.
+Works with [UI Labs](https://github.com/PepeElToro41/ui-labs), [Hoarcekat](https://github.com/Kampfkarren/hoarcekat)
+and other plugins that take function stories.
+
+- **Example**
+
+  A ModuleScript named `ShopItem.story.luau` next to the component:
+
+  ```lua
+  local ShopItem = Rivue.defineComponent({
+  	name = "ShopItem",
+  	props = {
+  		name = { type = "string", required = true },
+  		price = { type = "number", required = true },
+  	},
+  	render = function(ctx)
+  		return h("TextLabel", { Name = "Item", Text = `{ctx.name}: {ctx.price} coins` })
+  	end,
+  })
+
+  -- A plain story
+  local story = Rivue.story(ShopItem, { props = { name = "Iron Sword", price = 40 } })
+
+  -- With controls you can change in UI Labs' panel
+  local withControls = Rivue.story(ShopItem, {
+  	controls = { name = "Iron Sword", price = 40 },
+  })
+
+  -- What the plugin does with them
+  local preview = Instance.new("Frame")
+  local cleanup = story(preview)
+  assert((preview:FindFirstChild("Item") :: TextLabel).Text == "Iron Sword: 40 coins")
+  cleanup()
+  ```
+
+  The module returns `story` (or `withControls`).
+
+- **Details**
+
+  Without `controls`, `story()` returns a function story: `function(target)` that mounts the
+  component into `target` and returns a cleanup function. That's the format UI Labs and Hoarcekat
+  both take.
+
+  With `controls`, it returns a UI Labs generic story (`{ controls, render }`). The controls are
+  passed as props, and the component re-renders when you change one.
+
+  `props` can be a table, or a function that gets the controls and returns props, to name or
+  convert them. `styles` registers style classes for the preview, like `app:styles()`.
+
+- **Type**
+
+  ```lua
+  function story(component: ComponentDef, options: {
+  	props: Props | ((controls) -> Props)?,
+  	controls: { [string]: any }?,
+  	styles: { [string]: Props }?,
+  }?): any
   ```
 
 ---

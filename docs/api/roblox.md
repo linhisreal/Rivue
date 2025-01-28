@@ -14,6 +14,7 @@ local Players = game:GetService("Players")
 ```
 
 - [useViewportSize()](#useviewportsize)
+- [useDevice()](#usedevice)
 - [useInputType()](#useinputtype)
 - [useSafeArea()](#usesafearea)
 - [useSelection()](#useselection)
@@ -24,6 +25,48 @@ local Players = game:GetService("Players")
 - [onRenderStepped() / onHeartbeat() / onStepped()](#onrenderstepped--onheartbeat--onstepped)
 - [useTheme()](#usetheme)
 - [useStyles()](#usestyles)
+
+---
+
+## useDevice()
+
+The kind of device the game is running on: `"phone"`, `"tablet"`, `"desktop"` or `"console"`.
+Style classes use it for their device variants, and you can read it to change layout.
+
+- **Example**
+
+  Show a bottom bar on phones and a side bar everywhere else:
+
+  ```lua
+  local Navigation = Rivue.defineComponent({
+  	name = "Navigation",
+  	setup = function()
+  		return { device = Rivue.useDevice() }
+  	end,
+  	render = function(ctx)
+  		if ctx.device == "phone" then
+  			return h("Frame", { Name = "BottomBar", Size = UDim2.new(1, 0, 0, 64), Position = UDim2.fromScale(0, 1), AnchorPoint = Vector2.new(0, 1) })
+  		end
+  		return h("Frame", { Name = "SideBar", Size = UDim2.new(0, 220, 1, 0) })
+  	end,
+  })
+  ```
+
+- **Details**
+
+  - `"console"` when `GuiService:IsTenFootInterface()` is true.
+  - On touch screens without a keyboard: `"phone"` when the screen's short side is under 500
+    pixels, otherwise `"tablet"`. Using the short side keeps a phone held sideways a phone.
+  - Everything else is `"desktop"`.
+
+  The ref is shared and updates when the screen size changes. It's never stopped, so it's safe to
+  read in render.
+
+- **Type**
+
+  ```lua
+  function useDevice(): Ref<"phone" | "tablet" | "desktop" | "console">
+  ```
 
 ---
 
