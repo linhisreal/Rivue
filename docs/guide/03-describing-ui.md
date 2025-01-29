@@ -28,6 +28,7 @@ h("Frame", { Size = UDim2.fromScale(1, 1), cornerRadius = 8 }, {
 | `onClick = fn`, `onMouseEnter = fn` | connects the event (`onClick` works on any button) |
 | `onSizeChanged = fn`, `onTextChanged = fn` | calls `fn(newValue)` when that property changes |
 | `cornerRadius = 8`, `padding = 12`, `stroke = color`, `aspectRatio = 1` | creates the UICorner / UIPadding / UIStroke / UIAspectRatioConstraint |
+| `gradient = { top, bottom, rotation = 90 }`, `scale = 1.2`, `sizeLimit = { max = size }`, `textSizeLimit = { min = 12, max = 32 }` | creates the UIGradient / UIScale / UISizeConstraint / UITextSizeConstraint |
 | `layout = "vertical"`, `flex = "fill"` | creates the list/grid layout and flex items, see [chapter 6](06-styling-and-layout.md) |
 | `class = "card"` | applies named styles, see [chapter 6](06-styling-and-layout.md) |
 | `vFocus = true`, `vShow = open` | applies a directive, see [chapter 5](05-forms-and-input.md) |

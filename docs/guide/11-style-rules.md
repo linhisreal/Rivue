@@ -97,14 +97,14 @@ connecting signals or calling the server there causes loops and duplicate reques
 ```lua
 -- ✗
 render = function(ctx)
-	Rivue.Remote.fire("seen", nil)
+	Remote.fire("seen", nil)
 	return h("Frame")
 end,
 
 -- ✓
 setup = function()
 	Rivue.onMounted(function()
-		Rivue.Remote.fire("seen", nil)
+		Remote.fire("seen", nil)
 	end)
 	return {}
 end,
