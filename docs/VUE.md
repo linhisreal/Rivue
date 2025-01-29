@@ -141,5 +141,4 @@ local Counter = Rivue.defineComponent({
   - `useTween`/`useSpring`,
   - `useViewportSize`, `useInputType`, `useSafeArea`, `useSelection`,
   - `attributeRef`, `useTag`,
-  - `Rivue.Remote`,
   - the Instance pool.

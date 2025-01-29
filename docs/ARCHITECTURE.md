@@ -21,7 +21,6 @@ runtime/
   composables.luau    useAttrs, useSlots, defineModel, useTheme, useStyles
   roblox.luau         attributeRef, useTag, RunService hooks, viewport/input/selection/tween/spring
   pool.luau           Instance pool
-  remote.luau         RemoteEvent request/response with rate limiting
   utils.luau          debounce, throttle, misc
   debug.luau          logging, inspect, invariants
 ```

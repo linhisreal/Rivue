@@ -89,6 +89,7 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [useAttrs()](api/component.md#useattrs) ·
 [useSlots()](api/component.md#useslots) ·
 [defineModel()](api/component.md#definemodel) ·
+[useModel()](api/component.md#usemodel) ·
 [useId()](api/component.md#useid) ·
 [getCurrentInstance()](api/component.md#getcurrentinstance) ·
 [defineAsyncComponent()](api/component.md#defineasynccomponent)
@@ -155,6 +156,7 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 
 **[Roblox Composables](api/roblox.md)**
 [useViewportSize()](api/roblox.md#useviewportsize) ·
+[useDevice()](api/roblox.md#usedevice) ·
 [useInputType()](api/roblox.md#useinputtype) ·
 [useSafeArea()](api/roblox.md#usesafearea) ·
 [useSelection()](api/roblox.md#useselection) ·
@@ -166,7 +168,7 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [useTheme()](api/roblox.md#usetheme) ·
 [useStyles()](api/roblox.md#usestyles)
 
-**[Remote](api/remote.md)**
+**[RivueRemote](api/remote.md)** (separate package)
 [setupServer()](api/remote.md#remotesetupserver) ·
 [handle()](api/remote.md#remotehandle) ·
 [request()](api/remote.md#remoterequest) ·
@@ -206,6 +208,7 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [utils.shallowEqual()](api/utilities.md#utilsshallowequal) ·
 [utils.profiler](api/utilities.md#utilsprofiler) ·
 [iterArray()](api/utilities.md#iterarray) ·
-[hForParallel()](api/utilities.md#hforparallel) ·
 [testing.trigger()](api/utilities.md#testingtrigger) ·
+[testing.setInteraction()](api/utilities.md#testingsetinteraction) ·
+[story()](api/utilities.md#story) ·
 [Types](api/utilities.md#types)
