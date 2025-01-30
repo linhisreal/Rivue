@@ -5,6 +5,9 @@
 
     "ReplicatedStorage": {
       "$className": "ReplicatedStorage",
+      "RivueRemote": {
+        "$path": "src/shared/RivueRemote.luau"
+      },
       "Rivue": {
         "$path": "src/shared/Rivue/Rivue.luau",
         "runtime": {
@@ -38,9 +41,6 @@
           },
           "directives": {
             "$path": "src/shared/Rivue/runtime/directives.luau"
-          },
-          "remote": {
-            "$path": "src/shared/Rivue/runtime/remote.luau"
           },
           "roblox": {
             "$path": "src/shared/Rivue/runtime/roblox.luau"

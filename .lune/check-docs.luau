@@ -20,6 +20,7 @@ local Rivue = require(game:GetService("ReplicatedStorage"):WaitForChild("Rivue")
 local h = Rivue.h
 local Players = game:GetService("Players")
 local array = Rivue.array
+local Remote = require(game:GetService("ReplicatedStorage"):WaitForChild("RivueRemote"))
 ]]
 
 local function markdownIn(dir: string): { string }
