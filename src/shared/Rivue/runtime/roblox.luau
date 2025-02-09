@@ -12,6 +12,9 @@ local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local GuiService = game:GetService("GuiService")
 local TweenService = game:GetService("TweenService")
+local ContextActionService = game:GetService("ContextActionService")
+local LocalizationService = game:GetService("LocalizationService")
+local Players = game:GetService("Players")
 
 type Ref<T> = Types.Ref<T>
 
@@ -226,6 +229,219 @@ local function useViewportSize(): Ref<Vector2>
 		created.value = value
 	end)
 	return created
+end
+
+export type KeybindOptions = {
+	enabled: Types.MaybeRefOrGetter<boolean>?,
+	priority: number?,
+	-- Let the input reach other bindings and the game too
+	passThrough: boolean?,
+}
+
+local keybindCount = 0
+
+--- Runs callback when one of keys is pressed, while the calling component is mounted. Takes any
+--- Enum.KeyCode or Enum.UserInputType, so gamepad buttons work too
+local function useKeybind(
+	keys: Enum.KeyCode | Enum.UserInputType | { Enum.KeyCode | Enum.UserInputType },
+	callback: (input: InputObject) -> (),
+	options: KeybindOptions?
+): ()
+	local opts: KeybindOptions = options or {}
+	keybindCount += 1
+	local name = `Rivue_Keybind_{keybindCount}`
+	local list = if type(keys) == "table" then keys else { keys }
+	local bound = false
+
+	local function handle(_: string, state: Enum.UserInputState, input: InputObject): Enum.ContextActionResult
+		if state == Enum.UserInputState.Begin then
+			callback(input)
+			if not opts.passThrough then
+				return Enum.ContextActionResult.Sink
+			end
+		end
+		return Enum.ContextActionResult.Pass
+	end
+	local function setBound(on: boolean)
+		if on and not bound then
+			ContextActionService:BindActionAtPriority(
+				name,
+				handle,
+				false,
+				opts.priority or Enum.ContextActionPriority.High.Value,
+				table.unpack(list)
+			)
+		elseif not on and bound then
+			ContextActionService:UnbindAction(name)
+		end
+		bound = on
+	end
+
+	local enabled = opts.enabled
+	if enabled == nil then
+		setBound(true)
+	else
+		reactivity.watch(function()
+			return reactivity.toValue(enabled) == true
+		end, setBound, { immediate = true })
+	end
+	reactivity.onScopeDispose(function()
+		setBound(false)
+	end, true)
+end
+
+local locale: Ref<string>? = nil
+local translator: Ref<Translator?>? = nil
+
+--- The local player's language, such as "en-us". Updates when they change it
+local function useLocale(): Ref<string>
+	local existing = locale
+	if existing then
+		return existing
+	end
+	local player = Players.LocalPlayer
+	local created = reactivity.ref(if player then player.LocaleId else LocalizationService.RobloxLocaleId)
+	locale = created
+	if player then
+		player:GetPropertyChangedSignal("LocaleId"):Connect(function()
+			created.value = player.LocaleId
+		end)
+	end
+	return created
+end
+
+local function loadTranslator(target: Ref<Translator?>)
+	local player = Players.LocalPlayer
+	if not player then
+		return
+	end
+	task.spawn(function()
+		-- Yields while the localization table loads
+		local ok, result = pcall(LocalizationService.GetTranslatorForPlayerAsync, LocalizationService, player)
+		if ok then
+			target.value = result
+		else
+			warn(`[Rivue] Couldn't load the translator: {result}`)
+		end
+	end)
+end
+
+--- A function that translates a key from the game's localization table. Text using it updates when
+--- the translations load and when the player changes language. Missing keys return the key
+local function useTranslator(): (key: string, args: { [string]: any }?) -> string
+	local current = translator
+	if not current then
+		local created: Ref<Translator?> = reactivity.shallowRef(nil :: Translator?)
+		translator = created
+		current = created
+		loadTranslator(created)
+		local language = useLocale()
+		reactivity.effectScope(true):run(function()
+			reactivity.watch(language, function()
+				loadTranslator(created)
+			end)
+			return nil
+		end)
+	end
+	local source = current :: Ref<Translator?>
+	return function(key: string, args: { [string]: any }?): string
+		local loaded = source.value
+		if loaded then
+			local ok, text = pcall(loaded.FormatByKey, loaded, key, args)
+			if ok then
+				return text
+			end
+		end
+		return key
+	end
+end
+
+export type ScrollOptions = {
+	-- Called when the player scrolls within threshold pixels of the end, to load more
+	onReachEnd: (() -> ())?,
+	threshold: number?,
+}
+
+export type Scroll = {
+	position: Ref<Vector2>,
+	atEnd: Ref<boolean>,
+	scrollTo: (position: Vector2 | number, tweenInfo: TweenInfo?) -> (),
+	scrollToEnd: (tweenInfo: TweenInfo?) -> (),
+}
+
+--- Scroll state and controls for a ScrollingFrame held by a template ref
+local function useScroll(frame: Ref<any>, options: ScrollOptions?): Scroll
+	local opts: ScrollOptions = options or {}
+	local threshold = opts.threshold or 100
+	local position = reactivity.ref(Vector2.new(0, 0))
+	local atEnd = reactivity.ref(false)
+	local conns: { RBXScriptConnection } = {}
+
+	local function disconnect()
+		for _, conn in conns do
+			conn:Disconnect()
+		end
+		table.clear(conns)
+	end
+
+	local function measure(target: ScrollingFrame)
+		position.value = target.CanvasPosition
+		local window = target.AbsoluteWindowSize
+		local canvas = target.AbsoluteCanvasSize
+		local vertical = target.ScrollingDirection ~= Enum.ScrollingDirection.X
+		local reached = if vertical
+			then target.CanvasPosition.Y + window.Y >= canvas.Y - threshold
+			else target.CanvasPosition.X + window.X >= canvas.X - threshold
+		if reached and not atEnd.value and opts.onReachEnd then
+			atEnd.value = true
+			opts.onReachEnd()
+		else
+			atEnd.value = reached
+		end
+	end
+
+	reactivity.watch(function()
+		return frame.value
+	end, function(target)
+		disconnect()
+		if typeof(target) == "Instance" and (target :: Instance):IsA("ScrollingFrame") then
+			local scrolling = target :: ScrollingFrame
+			local function update()
+				measure(scrolling)
+			end
+			table.insert(conns, scrolling:GetPropertyChangedSignal("CanvasPosition"):Connect(update))
+			table.insert(conns, scrolling:GetPropertyChangedSignal("AbsoluteCanvasSize"):Connect(update))
+			table.insert(conns, scrolling:GetPropertyChangedSignal("AbsoluteWindowSize"):Connect(update))
+			update()
+		end
+	end, { immediate = true })
+	reactivity.onScopeDispose(disconnect, true)
+
+	local function scrollTo(target: Vector2 | number, tweenInfo: TweenInfo?)
+		local scrolling = frame.value :: ScrollingFrame?
+		if not scrolling then
+			return
+		end
+		local goal = if type(target) == "number" then Vector2.new(scrolling.CanvasPosition.X, target) else target
+		if tweenInfo then
+			TweenService:Create(scrolling, tweenInfo, { CanvasPosition = goal }):Play()
+		else
+			scrolling.CanvasPosition = goal
+		end
+	end
+
+	return {
+		position = position,
+		atEnd = atEnd,
+		scrollTo = scrollTo,
+		scrollToEnd = function(tweenInfo: TweenInfo?)
+			local scrolling = frame.value :: ScrollingFrame?
+			if scrolling then
+				local window, canvas = scrolling.AbsoluteWindowSize, scrolling.AbsoluteCanvasSize
+				scrollTo(Vector2.new(math.max(0, canvas.X - window.X), math.max(0, canvas.Y - window.Y)), tweenInfo)
+			end
+		end,
+	}
 end
 
 export type Device = "phone" | "tablet" | "desktop" | "console"
@@ -470,6 +686,10 @@ return {
 	attributeRef = attributeRef,
 	useViewportSize = useViewportSize,
 	useDevice = useDevice,
+	useKeybind = useKeybind,
+	useLocale = useLocale,
+	useTranslator = useTranslator,
+	useScroll = useScroll,
 	useInputType = useInputType,
 	useSafeArea = useSafeArea,
 	useSelection = useSelection,
