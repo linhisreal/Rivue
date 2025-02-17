@@ -29,6 +29,7 @@ local Players = game:GetService("Players")
 - [app.config.errorHandler](#appconfigerrorhandler)
 - [app.config.warnHandler](#appconfigwarnhandler)
 - [app.config.globalProperties](#appconfigglobalproperties)
+- [app.config.devtools](#appconfigdevtools)
 - [Pooling options](#pooling-options)
 
 ---
@@ -576,6 +577,36 @@ Values every component in the app can read through `ctx.globals`, without inject
 
   ```lua
   app.config.globalProperties: { [string]: unknown }
+  ```
+
+---
+
+## app.config.devtools
+
+Lets the [Rivue DevTools plugin](../DEVTOOLS.md) show this app's components while you playtest.
+
+- **Example**
+
+  ```lua
+  local App = Rivue.defineComponent({ name = "App", render = function() return h("Frame") end })
+
+  local app = Rivue.createApp(App)
+  app.config.devtools = game:GetService("RunService"):IsStudio() -- only while testing in Studio
+  app:mountToPlayerGui(Players.LocalPlayer)
+  ```
+
+- **Details**
+
+  Each component's root Instance gets the `RivueComponent` tag and four attributes, updated on
+  every render: `RivueComponent` (its name), `RivueProps`, `RivueState` (the refs `setup`
+  returned) and `RivueRenders` (how many times it rendered). Reading them doesn't add
+  dependencies, so it doesn't change what re-renders. It does cost an engine call per attribute
+  per render, so leave it off in live games. Set it before `app:mount()`.
+
+- **Type**
+
+  ```lua
+  app.config.devtools: boolean?
   ```
 
 ---

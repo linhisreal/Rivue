@@ -15,6 +15,10 @@ local Players = game:GetService("Players")
 
 - [useViewportSize()](#useviewportsize)
 - [useDevice()](#usedevice)
+- [useKeybind()](#usekeybind)
+- [useLocale()](#uselocale)
+- [useTranslator()](#usetranslator)
+- [useScroll()](#usescroll)
 - [useInputType()](#useinputtype)
 - [useSafeArea()](#usesafearea)
 - [useSelection()](#useselection)
@@ -105,6 +109,165 @@ switch layouts on small screens.
 
   ```lua
   function useViewportSize(): Ref<Vector2>
+  ```
+
+---
+
+## useKeybind()
+
+Runs a function when a key or gamepad button is pressed, while the component is mounted. Unbinds
+by itself on unmount.
+
+- **Example**
+
+  Close a menu with Escape or the gamepad's B button, but only while it's open:
+
+  ```lua
+  local Menu = Rivue.defineComponent({
+  	name = "Menu",
+  	setup = function()
+  		local open = Rivue.ref(true)
+  		Rivue.useKeybind({ Enum.KeyCode.Escape, Enum.KeyCode.ButtonB }, function()
+  			open.value = false
+  		end, { enabled = open })
+  		return { open = open }
+  	end,
+  	render = function(ctx)
+  		return h("Frame", { Visible = ctx.open, Size = UDim2.fromOffset(300, 200) })
+  	end,
+  })
+  ```
+
+- **Details**
+
+  Uses `ContextActionService`, so a binding takes the key away from the game while active (the
+  character doesn't also act on it). Pass `passThrough = true` to let it through. `enabled` can be
+  a ref, a getter or a boolean. `priority` defaults to `Enum.ContextActionPriority.High`.
+
+- **Type**
+
+  ```lua
+  function useKeybind(
+  	keys: Enum.KeyCode | Enum.UserInputType | { Enum.KeyCode | Enum.UserInputType },
+  	callback: (input: InputObject) -> (),
+  	options: { enabled: MaybeRefOrGetter<boolean>?, priority: number?, passThrough: boolean? }?
+  )
+  ```
+
+---
+
+## useLocale()
+
+The player's language as a locale id, such as `"en-us"`. Updates when they change it in the
+Roblox menu.
+
+- **Example**
+
+  ```lua
+  local locale = Rivue.useLocale()
+  print(locale.value) -- "en-us"
+  ```
+
+- **Type**
+
+  ```lua
+  function useLocale(): Ref<string>
+  ```
+
+---
+
+## useTranslator()
+
+Translates keys from your game's localization table. Text that uses it updates when the
+translations load and when the player switches language.
+
+- **Example**
+
+  With a `Shop.Buy` entry in the localization table ("Buy for {price}" in English):
+
+  ```lua
+  local BuyButton = Rivue.defineComponent({
+  	name = "BuyButton",
+  	props = { price = { type = "number", required = true } },
+  	setup = function()
+  		return { t = Rivue.useTranslator() }
+  	end,
+  	render = function(ctx)
+  		return h("TextButton", { Text = ctx.t("Shop.Buy", { price = ctx.price }) })
+  	end,
+  })
+  ```
+
+- **Details**
+
+  Calls `LocalizationService:GetTranslatorForPlayerAsync` once, in the background, and again when
+  the language changes. Until it's loaded, and for keys the table doesn't have, `t` returns the key
+  itself. Arguments fill `{name}` placeholders, like `Translator:FormatByKey`.
+
+- **Type**
+
+  ```lua
+  function useTranslator(): (key: string, args: { [string]: any }?) -> string
+  ```
+
+---
+
+## useScroll()
+
+Scroll position and controls for a ScrollingFrame, with a callback for loading more when the
+player reaches the end.
+
+- **Example**
+
+  A feed that loads the next page near the bottom, with a "Back to top" button:
+
+  ```lua
+  local Feed = Rivue.defineComponent({
+  	name = "Feed",
+  	setup = function()
+  		local posts = Rivue.ref({})
+  		local frame = Rivue.useTemplateRef("feed")
+  		local scroll = Rivue.useScroll(frame, {
+  			threshold = 200,
+  			onReachEnd = function()
+  				-- load the next page into posts
+  			end,
+  		})
+  		return {
+  			posts = posts,
+  			toTop = function()
+  				scroll.scrollTo(0, TweenInfo.new(0.3))
+  			end,
+  		}
+  	end,
+  	render = function(ctx)
+  		return h("Frame", { Size = UDim2.fromOffset(300, 400) }, {
+  			h("ScrollingFrame", { ref = "feed", Size = UDim2.fromScale(1, 1), AutomaticCanvasSize = Enum.AutomaticSize.Y }),
+  			h("TextButton", { Text = "Back to top", onClick = ctx.toTop }),
+  		})
+  	end,
+  })
+  ```
+
+- **Details**
+
+  - `position` is a ref of `CanvasPosition`. `atEnd` is true within `threshold` pixels of the end.
+  - `onReachEnd` runs when the player reaches the end, then not again until they scroll away and
+    come back. A list shorter than the frame is already at its end, so it also runs once on
+    mount, which fills the first screen.
+  - `scrollTo` takes a Y position or a Vector2, and an optional TweenInfo to animate.
+    `scrollToEnd` goes to the bottom.
+  - Works with horizontal frames (`ScrollingDirection = X`) too.
+
+- **Type**
+
+  ```lua
+  function useScroll(frame: Ref<ScrollingFrame?>, options: { onReachEnd: (() -> ())?, threshold: number? }?): {
+  	position: Ref<Vector2>,
+  	atEnd: Ref<boolean>,
+  	scrollTo: (position: Vector2 | number, tweenInfo: TweenInfo?) -> (),
+  	scrollToEnd: (tweenInfo: TweenInfo?) -> (),
+  }
   ```
 
 ---
