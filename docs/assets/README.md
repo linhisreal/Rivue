@@ -6,7 +6,7 @@ The mark for Rivue's documentation. It's a sibling of the [Rivue icon](../../ass
 the same tilted Studio-blue tile, with the V drawn as the pages of an open book and the mint V as
 the spread inside.
 
-<img src="guide-lockup.svg" height="64" alt="Rivue Guide">
+<img src="./guide-lockup.svg" height="64" alt="Rivue Guide">
 
 ## Files
 
@@ -51,3 +51,10 @@ SIL Open Font License.
   a blue close to Studio blue, use the one-colour version.
 - **Don't** recolour the parts, untilt the tile, add shadows or gradients, stretch it, or set
   "Rivue Guide" in another font.
+
+## Badges
+
+The README's link badges in `badges/`, each on its brand's colour: `creator-store.svg` (the Roblox
+mark on black), `wally.svg` (Wally's logo from [wally.run](https://wally.run) on its red),
+`luau.svg` (Luau's logo from [luau.org](https://luau.org) on its navy) and `docs.svg` (the Guide
+icon on Rivue blue).
