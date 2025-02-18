@@ -57,6 +57,21 @@ h("TextBox", { model = "amount", modelModifiers = { number = true } }) -- "42" â
 h("TextBox", { model = "search", modelModifiers = { lazy = true } }) -- updates on focus lost
 ```
 
+## Keyboard and gamepad shortcuts
+
+`Rivue.useKeybind` binds keys or gamepad buttons while the component is mounted:
+
+```lua
+setup = function(_props, ctx)
+	Rivue.useKeybind({ Enum.KeyCode.Escape, Enum.KeyCode.ButtonB }, function()
+		ctx.emit("close")
+	end)
+	return {}
+end,
+```
+
+It unbinds when the component unmounts. Pass `{ enabled = someRef }` to switch it on and off.
+
 ## model on your own components
 
 A component supports `model` by reading `modelValue` and emitting `"update:modelValue"`.
