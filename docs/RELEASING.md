@@ -1,0 +1,39 @@
+[Docs](README.md) › **Releasing**
+
+# Releasing
+
+For maintainers.
+
+## A GitHub release
+
+1. Write the notes in `.github/release-notes/<tag>.md`, for example `v1.0.0.md`, and push them.
+2. Open **Actions → Release → Run workflow** and enter the tag. Tags starting with `pre-` become
+   pre-releases.
+
+The workflow runs the tests, builds `Rivue.rbxm`, `Rivue.min.rbxm`, `RivueRemote.rbxm` and `RivueDevTools.rbxm`, creates
+the tag on the current `main`, and attaches the files.
+
+## Wally
+
+`wally.toml` describes the package: the library in `src/shared/Rivue` and `default.project.json`,
+which Wally users' Rojo projects build into the `Rivue` ModuleScript. Everything else is excluded.
+
+1. Set `version` in `wally.toml` to the release's version (Wally needs plain SemVer, so
+   `v1.0.0` is published as `2.57.0`).
+2. Install Wally (`rokit add UpliftGames/wally`) and log in once with `wally login`.
+3. Check what will be uploaded with `wally package --list`, then run `wally publish`.
+
+After publishing, update the version in the README's Wally install line.
+
+`RivueRemote` isn't on Wally: a package needs its own `wally.toml` at the root of a repository.
+
+## Docs site
+
+The `docs/` folder is also a [VitePress](https://vitepress.dev) site, published to GitHub Pages
+by the **Docs site** workflow on every push that changes `docs/`. Turn it on once under
+**Settings → Pages → Source: GitHub Actions**. To preview locally:
+
+```sh
+npm install --no-save vitepress@1.6.4 vitepress-plugin-mermaid@2.0.17 mermaid@11
+npx vitepress dev docs
+```

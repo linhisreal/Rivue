@@ -22,9 +22,12 @@ Everything else maps closely.
 | `v-show="open"` | `vShow = open.value` |
 | `v-for="item in items" :key="item.id"` | `Rivue.hFor(items.value, function(item) return h(..., { key = item.id }) end)` |
 | `v-model="name"` | `model = name` (TextBox, or a component using `defineModel`), or `model = "name"` in `render(ctx)` |
+| `v-model.trim` / `.number` / `.lazy` | `modelModifiers = { trim = true }` (and `number`, `lazy`) |
+| `:hover` / `:active` / `:disabled` in CSS | `hover`, `pressed`, `disabled` variants in a style class |
+| `@media` queries | `phone`, `tablet`, `desktop`, `console` variants in a style class |
 | `v-focus` / custom `v-x` | `vFocus = true` / `vX = value` |
 | `v-memo="[a, b]"` | `memo = { a, b }` |
-| `v-once` | `memo = {}` (empty deps never change) |
+| `v-once` | `vOnce = true` |
 | `ref="input"` | `ref = "input"` + `Rivue.useTemplateRef("input")` |
 | `<slot name="header" :title="t" />` | `ctx.renderSlot("header", { title = t })` |
 | `<template #header="{ title }">` | `header = function(scope) ... end` in the children table |
