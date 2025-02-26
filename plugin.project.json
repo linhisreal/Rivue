@@ -1,0 +1,12 @@
+{
+  "name": "RivueDevTools",
+  "tree": {
+    "$className": "Folder",
+    "Rivue": {
+      "$path": "default.project.json"
+    },
+    "Main": {
+      "$path": "src/plugin/Main.server.luau"
+    }
+  }
+}
