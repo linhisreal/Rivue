@@ -28,7 +28,7 @@ local Modal = require("../components/Modal") -- from views/
 local Rivue = require(game.ReplicatedStorage.Rivue) -- another service: by Instance
 ```
 
-The [demo app](../../src/shared/Demo) in this repo is laid out this way.
+The [demo app](../../dev/Demo) in this repo is laid out this way.
 
 ## Anatomy of a component
 
@@ -64,7 +64,7 @@ from `setup`. [Chapter 12](12-writing-composables.md) covers writing them.
 
 ---
 
-**Try it:** [Demo app](../../src/shared/Demo) (views, components, app styles) · the `rcomponent`,
+**Try it:** [Demo app](../../dev/Demo) (views, components, app styles) · the `rcomponent`,
 `rview` and `rcomposable` snippets in `.vscode/rivue.code-snippets` scaffold these files
 **Reference:** [defineComponent()](../api/component.md#definecomponent) ·
 [components option](../api/component.md#components)
