@@ -209,7 +209,7 @@ whether there was slot content, and the renderer then queues a re-render.
 Test suites live in `tests/*.test.luau`. Each one returns a function, or a table with
 `runAllTests`.
 
-- **Studio**: `src/client/TestRunner.client.luau` runs every suite.
+- **Studio**: `dev/client/TestRunner.client.luau` runs every suite.
 - **Offline**: `lune run test` bundles each suite with `tests/offline/prelude.luau` and runs it
   in its own Lune environment (`.lune/lib/bundle.luau`, `.lune/lib/run.luau`). The prelude
   provides:
