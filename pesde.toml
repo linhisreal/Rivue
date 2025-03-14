@@ -1,0 +1,12 @@
+# The pesde workspace: each member is published on its own. Wally has no workspaces, so each
+# package also has a wally.toml.
+name = "linhisreal/rivue_workspace"
+version = "0.0.0"
+private = true
+workspace_members = ["packages/rivue", "packages/rivue-remote"]
+
+[target]
+environment = "roblox"
+
+[indices]
+default = "https://github.com/pesde-pkg/index"

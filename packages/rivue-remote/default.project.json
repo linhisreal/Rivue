@@ -1,6 +1,6 @@
 {
   "name": "RivueRemote",
   "tree": {
-    "$path": "src/shared/RivueRemote.luau"
+    "$path": "src"
   }
 }

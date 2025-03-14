@@ -20,13 +20,13 @@ jobs:
           cache: true
 
       - name: Format
-        run: stylua --check src tests examples .lune
+        run: stylua --check packages dev tests examples .lune
 
       - name: Type check
         run: |
-          rojo sourcemap place.project.json -o sourcemap.json
+          rojo sourcemap default.project.json -o sourcemap.json
           curl -sSfL -o globalTypes.d.luau https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/main/scripts/globalTypes.d.luau
-          luau-lsp analyze --sourcemap=sourcemap.json --definitions=globalTypes.d.luau src/ examples/
+          luau-lsp analyze --sourcemap=sourcemap.json --definitions=globalTypes.d.luau packages/ dev/ examples/
           lune setup
           luau-lsp analyze --platform=standard .lune
 
