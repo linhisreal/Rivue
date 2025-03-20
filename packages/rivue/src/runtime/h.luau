@@ -99,7 +99,13 @@ local function directiveName(key: string): string?
 	return if directives.get(name) then name else nil
 end
 
-local function expandProps(isElement: boolean, props: Props): Props
+-- A component with its own `model` prop (ViewportModel) gets the value as is, not v-model sugar
+local function declaresModel(component: unknown): boolean
+	local declared = if type(component) == "table" then (component :: any).props else nil
+	return type(declared) == "table" and (declared.model ~= nil or table.find(declared, "model") ~= nil)
+end
+
+local function expandProps(isElement: boolean, props: Props, ownModel: boolean): Props
 	local out: Props? = nil
 
 	local style = props.style
@@ -133,7 +139,7 @@ local function expandProps(isElement: boolean, props: Props): Props
 	end
 
 	local model = props.model
-	if model ~= nil then
+	if model ~= nil and not ownModel then
 		local target: Props = out or table.clone(props)
 		out = target
 		target.model = nil
@@ -226,7 +232,7 @@ local function h(type_: VNodeType, propsIn: Props?, children: Types.Children?): 
 	end
 	local props: Props = propsIn or {}
 	if propsIn and (props.style ~= nil or props.model ~= nil or props.vOnce ~= nil or type(type_) == "string") then
-		props = expandProps(type(type_) == "string", props)
+		props = expandProps(type(type_) == "string", props, props.model ~= nil and declaresModel(type_))
 	end
 	local ch: { Child }
 	local slots: Types.Slots? = nil
