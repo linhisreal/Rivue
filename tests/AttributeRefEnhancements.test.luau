@@ -174,7 +174,8 @@ local function runTests()
 		-- Use createApp and mount/unmount pattern
 		local Players = game:GetService("Players")
 		local gui = Instance.new("ScreenGui")
-		gui.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+		-- No local player on a server, where the ScreenGui stays unparented
+		gui.Parent = if Players.LocalPlayer then Players.LocalPlayer:WaitForChild("PlayerGui") else nil
 
 		local app = Rivue.createApp(Rivue.h(TestComponent))
 		app:mount(gui)

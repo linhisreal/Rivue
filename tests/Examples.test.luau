@@ -194,7 +194,9 @@ local function runTests()
 	end
 
 	print("Example: Hud")
-	do
+	if not game:GetService("Players").LocalPlayer then
+		print("  skipped: needs a local player")
+	else
 		local player = game:GetService("Players").LocalPlayer
 		player:SetAttribute("Health", 100)
 		local container, app = mount(require(Examples:WaitForChild("Hud")), { player = player })
