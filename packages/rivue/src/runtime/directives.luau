@@ -393,7 +393,8 @@ directives.register("fade-in", {
 
 		local allTweens: { Tween } = {}
 
-		task.spawn(function()
+		-- Cancelled on unmount, a pooled element may belong to another vnode by the time it runs
+		local thread = task.spawn(function()
 			if waitForLoad and not game:IsLoaded() then
 				game.Loaded:Wait()
 			end
@@ -410,15 +411,17 @@ directives.register("fade-in", {
 			fadeIn(el, allTweens)
 		end)
 
-		return allTweens
+		return { tweens = allTweens, thread = thread }
 	end,
-	unmounted = function(_el, cleanup)
-		if cleanup and type(cleanup) == "table" then
-			for _, tween in ipairs(cleanup) do
-				if tween then
-					tween:Cancel()
-				end
-			end
+	unmounted = function(_el, state)
+		if type(state) ~= "table" then
+			return
+		end
+		if coroutine.status(state.thread) == "suspended" then
+			task.cancel(state.thread)
+		end
+		for _, tween in state.tweens do
+			tween:Cancel()
 		end
 	end,
 })

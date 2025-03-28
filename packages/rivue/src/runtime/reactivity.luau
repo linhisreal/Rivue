@@ -702,6 +702,8 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 	local deep = deepOption == true or (type(deepOption) == "number" and deepOption > 0)
 	local deepLevels: number? = if type(deepOption) == "number" then deepOption else nil
 	local isMultiSource = false
+	-- A reactive item in a source list is the same table after a change, so any trigger counts
+	local forceTrigger = false
 	local getter: () -> T
 	if type(source) == "function" then
 		getter = source :: () -> T
@@ -719,6 +721,11 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 	elseif type(source) == "table" and isMultiSourceList(source) then
 		isMultiSource = true
 		local sources = source :: { unknown }
+		for _, item in sources do
+			if isReactive(item) then
+				forceTrigger = true
+			end
+		end
 		getter = function(): T
 			local values = table.create(#sources)
 			for i, item in sources do
@@ -761,7 +768,7 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 		if deep then
 			return true
 		elseif isMultiSource then
-			return not arrayShallowEqual(new :: any, oldValue :: any)
+			return forceTrigger or not arrayShallowEqual(new :: any, oldValue :: any)
 		end
 		return new ~= oldValue
 	end
@@ -803,7 +810,11 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 		run()
 
 		if flushMode == "sync" then
-			job()
+			-- Thrown from here it would reach the code that wrote the value and skip the other effects
+			local ok, err = pcall(job :: () -> ...unknown)
+			if not ok then
+				warn(`[Rivue] Error in sync watcher: {err}`)
+			end
 		elseif flushMode == "post" then
 			scheduler.queueJob(job, { mode = "heartbeat" })
 		else

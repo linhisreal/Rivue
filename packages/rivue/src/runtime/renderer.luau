@@ -226,15 +226,12 @@ local function applyLayout(layout: Instance, options: LayoutOptions)
 	local gap = options.gap
 	local gapUDim = if type(gap) == "number" then UDim.new(0, gap) else (gap :: UDim?) or UDim.new(0, 0)
 
-	-- align is the cross axis, justify the main axis, like CSS flexbox
+	-- align is the cross axis, justify the main axis, like CSS flexbox. Unset options go back to
+	-- their defaults, so switching layouts doesn't keep the old alignment
 	local alongX = if horizontal then options.justify else options.align
 	local alongY = if horizontal then options.align else options.justify
-	if alongX and HORIZONTAL_ALIGN[alongX] then
-		list.HorizontalAlignment = HORIZONTAL_ALIGN[alongX]
-	end
-	if alongY and VERTICAL_ALIGN[alongY] then
-		list.VerticalAlignment = VERTICAL_ALIGN[alongY]
-	end
+	list.HorizontalAlignment = alongX and HORIZONTAL_ALIGN[alongX] or Enum.HorizontalAlignment.Left
+	list.VerticalAlignment = alongY and VERTICAL_ALIGN[alongY] or Enum.VerticalAlignment.Top
 
 	if layout:IsA("UIGridLayout") then
 		local grid = layout :: UIGridLayout
@@ -245,14 +242,9 @@ local function applyLayout(layout: Instance, options: LayoutOptions)
 
 	list.Padding = gapUDim
 	list.Wraps = options.wrap == true
-	local flex = options.justify and FLEX_JUSTIFY[options.justify]
-	if flex then
-		if horizontal then
-			list.HorizontalFlex = flex
-		else
-			list.VerticalFlex = flex
-		end
-	end
+	local flex = options.justify and FLEX_JUSTIFY[options.justify] or Enum.UIFlexAlignment.None
+	list.HorizontalFlex = if horizontal then flex else Enum.UIFlexAlignment.None
+	list.VerticalFlex = if horizontal then Enum.UIFlexAlignment.None else flex
 end
 
 local sugarSpecs: { [string]: SugarSpec } = {
@@ -1894,11 +1886,8 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 		componentAPI.setRenderingInstance(prevRendering)
 
 		if not ok then
-			if props.fallback then
-				patch(nil, props.fallback, container, poolOpt)
-			else
-				inst:handleError(tostring(sub), "render")
-			end
+			-- The last good tree stays on screen
+			inst:handleError(tostring(sub), "render")
 			return
 		end
 
@@ -2420,6 +2409,8 @@ local function createApp(root: VNode | ComponentDef, opts: AppOptions?): App
 	end
 
 	local unmountCallbacks: { () -> () } = {}
+	-- The ScreenGui mountToPlayerGui made, removed with the app
+	local ownedGui: ScreenGui? = nil
 
 	function api.onUnmount(self: App, fn: () -> ()): App
 		table.insert(unmountCallbacks, fn)
@@ -2448,19 +2439,30 @@ local function createApp(root: VNode | ComponentDef, opts: AppOptions?): App
 			end
 		end
 		mounted.container = nil
+		if ownedGui then
+			ownedGui:Destroy()
+			ownedGui = nil
+		end
 	end
 
 	function api.rerender(self: App, newRoot: VNode?): MountedState
 		-- unmount() clears mounted.container
 		local container = mounted.container or error("no previous container", 2)
+		-- Same container again, so keep a ScreenGui made by mountToPlayerGui
+		local keep = ownedGui
+		ownedGui = nil
 		self:unmount()
+		ownedGui = keep
 		rootVNode = newRoot or rootVNode
 		return self:mount(container)
 	end
 
 	function api.swapRoot(self: App, newRoot: VNode): MountedState
 		local container = mounted.container or error("no previous container", 2)
+		local keep = ownedGui
+		ownedGui = nil
 		self:unmount()
+		ownedGui = keep
 		rootVNode = newRoot
 		return self:mount(container)
 	end
@@ -2475,6 +2477,7 @@ local function createApp(root: VNode | ComponentDef, opts: AppOptions?): App
 		screenGui.ResetOnSpawn = false
 		screenGui.Parent = player:WaitForChild("PlayerGui")
 		self:mount(screenGui)
+		ownedGui = screenGui
 	end
 
 	if usePool then
