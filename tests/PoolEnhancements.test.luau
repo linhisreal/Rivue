@@ -73,7 +73,7 @@ local function runTests()
 
 		local reacquired = Pool.acquire("TextLabel") :: TextLabel
 		if reacquired == label then
-			assertEquals(reacquired.Text, "", "Text should be cleared")
+			assertEquals(reacquired.Text, Instance.new("TextLabel").Text, "Text should be reset to the default")
 		end
 	end
 
@@ -87,7 +87,7 @@ local function runTests()
 
 		local reacquired = Pool.acquire("ImageLabel") :: ImageLabel
 		if reacquired == imageLabel then
-			assertEquals(reacquired.Image, "", "Image should be cleared")
+			assertEquals(reacquired.Image, Instance.new("ImageLabel").Image, "Image should be reset to the default")
 		end
 	end
 
@@ -106,7 +106,7 @@ local function runTests()
 		if reacquired == frame then
 			assertEquals(reacquired.LayoutOrder, 0, "LayoutOrder should be 0")
 			assertEquals(reacquired.Visible, true, "Visible should be true")
-			assertEquals(reacquired.Size, UDim2.new(0, 0, 0, 0), "Size should be reset")
+			assertEquals(reacquired.Size, Instance.new("Frame").Size, "Size should be reset to the default")
 			assertEquals(reacquired.Position, UDim2.new(0, 0, 0, 0), "Position should be reset")
 		end
 	end

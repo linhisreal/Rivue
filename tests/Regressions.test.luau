@@ -437,6 +437,171 @@ local function runTests()
 		part:Destroy()
 	end
 
+	print("watch() on a list holding a reactive object fires when the object changes")
+	do
+		local state = Rivue.reactive({ x = 1 })
+		local fired = 0
+		local stop = Rivue.watch({ state }, function()
+			fired += 1
+		end)
+		state.x = 2
+		Rivue.nextTick()
+		assertEquals(fired, 1, "the watcher ran")
+		stop()
+	end
+
+	print("A sync watcher that errors doesn't stop the write or other watchers")
+	do
+		local value = Rivue.ref(0)
+		local seen = 0
+		local first = Rivue.watch(value, function()
+			error("boom")
+		end, { flush = "sync" })
+		local second = Rivue.watch(value, function()
+			seen += 1
+		end, { flush = "sync" })
+		local ok = pcall(function()
+			value.value = 1
+		end)
+		assertTrue(ok, "the write doesn't throw")
+		assertEquals(seen, 1, "the other watcher still ran")
+		first()
+		second()
+	end
+
+	print("Post watchers run once per frame, not once per change")
+	do
+		local state = Rivue.reactive({ a = 1, b = 1 })
+		local calls, runs = 0, 0
+		local watcher = Rivue.watch(state, function()
+			calls += 1
+		end, { flush = "post" })
+		local effect = Rivue.watchEffect(function()
+			local _ = state.a + state.b
+			runs += 1
+		end, { flush = "post" })
+		runs = 0
+		state.a = 2
+		state.b = 2
+		task.wait(0.1)
+		assertEquals(calls, 1, "deep post watcher ran once")
+		assertEquals(runs, 1, "post watchEffect ran once")
+		watcher()
+		effect()
+	end
+
+	print("A render error is reported and doesn't mount the fallback prop")
+	do
+		local broken = Rivue.ref(false)
+		local Widget = Rivue.defineComponent({
+			name = "FallbackProp",
+			props = { fallback = { type = "table" } },
+			setup = function()
+				return function()
+					if broken.value then
+						error("render boom")
+					end
+					return h("Frame", { Name = "Body" })
+				end
+			end,
+		})
+		local container = Instance.new("Frame")
+		local app = Rivue.createApp(h(Widget, { fallback = h("TextLabel", { Name = "Oops" }) }))
+		local handled = 0
+		app.config.errorHandler = function()
+			handled += 1
+		end
+		app:mount(container)
+		broken.value = true
+		Rivue.nextTick()
+		assertEquals(handled, 1, "the error reached errorHandler")
+		assertTrue(container:FindFirstChild("Oops", true) == nil, "the fallback prop isn't mounted")
+		assertTrue(container:FindFirstChild("Body", true) ~= nil, "the last good tree stays")
+		app:unmount()
+	end
+
+	print("Watchers from a setup() that fails are stopped")
+	do
+		local source = Rivue.ref(0)
+		local runs = 0
+		local Failing = Rivue.defineComponent({
+			name = "FailingSetup",
+			setup = function()
+				Rivue.watch(source, function()
+					runs += 1
+				end)
+				error("setup boom")
+			end,
+		})
+		pcall(function()
+			Rivue.createApp(h(Failing)):mount(Instance.new("Frame"))
+		end)
+		source.value = 1
+		Rivue.nextTick()
+		assertEquals(runs, 0, "the watcher doesn't run")
+	end
+
+	print("Changing layout resets alignment the new value doesn't set")
+	do
+		local wide = Rivue.ref(true)
+		local Row = Rivue.defineComponent({
+			name = "LayoutSwitch",
+			setup = function()
+				return function()
+					return h("Frame", {
+						Name = "Row",
+						layout = if wide.value
+							then { direction = "horizontal", justify = "space-between", align = "center" }
+							else "vertical",
+					})
+				end
+			end,
+		})
+		local container = Instance.new("Frame")
+		local app = Rivue.createApp(h(Row))
+		app:mount(container)
+		local list = (container:FindFirstChild("Row") :: Frame):FindFirstChildOfClass("UIListLayout") :: UIListLayout
+		wide.value = false
+		Rivue.nextTick()
+		assertEquals(list.HorizontalFlex, Enum.UIFlexAlignment.None, "flex reset")
+		assertEquals(list.VerticalAlignment, Enum.VerticalAlignment.Top, "alignment reset")
+		app:unmount()
+	end
+
+	print("vFadeIn stops when the element unmounts")
+	do
+		local container = Instance.new("Frame")
+		local app = Rivue.createApp(
+			h("Frame", { Name = "Fading", BackgroundTransparency = 0.5, vFadeIn = { renderWait = 0.05 } })
+		)
+		app:mount(container)
+		local el = container:FindFirstChild("Fading") :: Frame
+		app:unmount()
+		el.BackgroundTransparency = 0.5
+		task.wait(0.15)
+		assertEquals(el.BackgroundTransparency, 0.5, "the element isn't hidden after unmount")
+	end
+
+	print("Pool settings and pooled elements")
+	do
+		local Pool = require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("pool"))
+		Pool.configure({ defaultTTL = 30 })
+		assertEquals(Pool.config.defaultTTL, 30, "configure sets defaultTTL")
+		Pool.configure({ defaultTTL = nil })
+		for _, className in { "Frame", "TextLabel" } do
+			local fresh = Instance.new(className) :: any
+			local pooled = Pool.acquire(className) :: any
+			pooled.Size = UDim2.fromOffset(1, 1)
+			Pool.release(pooled)
+			local reused = Pool.acquire(className) :: any
+			assertEquals(reused.Size, fresh.Size, `a pooled {className} gets the default Size`)
+			if className == "TextLabel" then
+				assertEquals(reused.Text, fresh.Text, "and the default Text")
+			end
+			Pool.release(reused)
+		end
+	end
+
 	print("\n========== REGRESSION TESTS COMPLETE ==========\n")
 end
 
