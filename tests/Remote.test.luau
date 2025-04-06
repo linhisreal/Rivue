@@ -25,10 +25,98 @@ local function assertTrue(condition: boolean, message: string?)
 	print("✓", message or "Assertion passed")
 end
 
+local RunService = game:GetService("RunService")
+
+-- After the client tests: offline, requests loop back to these handlers
+local function runServerTests()
+	print("Server: request handling")
+	do
+		-- Offline the stub RunService says client, so pretend to be a server for this part
+		local isServer = RunService.IsServer
+		if __OFFLINE then
+			(RunService :: any).IsServer = function()
+				return true
+			end
+		end
+		if not RunService:IsServer() then
+			print("  skipped: needs a server")
+		else
+			local player = Instance.new("Folder") :: any
+			local process = Remote._processRequest
+			local seen: unknown = nil
+			Remote.handle("test:echo", function(from, payload)
+				seen = from
+				return payload
+			end)
+			Remote.handle("test:fail", function()
+				error("secret details")
+			end)
+			Remote.handle("test:limited", function()
+				return true
+			end, { maxPerSecond = 2 })
+
+			local ok = process(player, { action = "test:echo", id = "1", payload = { value = 5 } })
+			assertTrue(ok ~= nil and ok.ok == true and ok.id == "1", "a handled request gets an ok reply")
+			assertEquals((ok :: any).data.value, 5, "with the handler's result")
+			assertTrue(seen == player, "the handler gets the player")
+
+			local failed = process(player, { action = "test:fail", id = "2" })
+			assertEquals((failed :: any).error, "handler_error", "a handler error becomes handler_error")
+			assertTrue(
+				not string.find(tostring((failed :: any).error), "secret", 1, true),
+				"without the server's error text"
+			)
+
+			local unsafe = process(player, { action = "test:echo", id = "3", payload = { f = print } })
+			assertEquals((unsafe :: any).error, "payload_unsafe_type", "functions in the payload are refused")
+
+			local deep = {}
+			local node = deep
+			for _ = 1, 20 do
+				node.next = {}
+				node = node.next
+			end
+			local tooDeep = process(player, { action = "test:echo", id = "4", payload = deep })
+			assertEquals((tooDeep :: any).error, "payload_too_deep", "deeply nested payloads are refused")
+
+			assertEquals(
+				process(player, { action = "test:echo", payload = 1 }),
+				nil,
+				"fire() without an id gets no reply"
+			)
+			assertEquals(process(player, "junk"), nil, "a request that isn't a table is ignored")
+			assertEquals(process(player, { action = 5, id = "5" }), nil, "a non-string action is ignored")
+
+			local results = {}
+			for i = 1, 3 do
+				local reply = process(player, { action = "test:limited", id = `l{i}` })
+				results[i] = if reply and reply.ok then "ok" else (reply :: any).error
+			end
+			assertEquals(table.concat(results, ","), "ok,ok,rate_limited", "maxPerSecond limits each player")
+			local other = process(Instance.new("Folder") :: any, { action = "test:limited", id = "o" })
+			assertTrue(other ~= nil and other.ok == true, "other players have their own limit")
+
+			local replies = 0
+			for i = 1, 40 do
+				local reply = process(player, { action = "test:missing", id = `u{i}` })
+				if reply then
+					assertEquals(reply.error, "unknown_action", "unknown actions say so")
+					replies += 1
+				end
+			end
+			assertTrue(replies <= 31, `replies to unknown actions are limited (got {replies})`)
+		end
+		if __OFFLINE then
+			(RunService :: any).IsServer = isServer
+		end
+	end
+end
+
 local function runTests()
 	print("\n========== REMOTE COMMUNICATION TEST SUITE ==========\n")
-	if not game:GetService("RunService"):IsClient() then
+	if not RunService:IsClient() then
 		print("  skipped: Remote's client API needs a client")
+		runServerTests()
 		return
 	end
 
@@ -168,6 +256,8 @@ local function runTests()
 		end)
 		assertTrue(ok, "Should accept valid payload")
 	end
+
+	runServerTests()
 
 	print("\n========== REMOTE COMMUNICATION TESTS COMPLETE ==========\n")
 end
