@@ -245,7 +245,7 @@ Listens on the client for events the server sends, like a new message or a price
   | Error | Meaning |
   |-------|---------|
   | `"timeout"` | No response in time |
-  | `"unknown_action"` | No `handle()` for that action on the server |
+  | `"unknown_action"` | No `handle()` for that action on the server (at most 30 of these replies a second per player) |
   | `"rate_limited"` | Over the action's `maxPerSecond` |
   | `"handler_error"` | The server handler errored |
   | `"invalid_action_name"` | Not a non-empty string of at most 100 characters |
