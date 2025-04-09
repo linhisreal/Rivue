@@ -93,7 +93,6 @@ directives.register("click-outside", {
 				return
 			end
 
-			-- mouse.Target only hits 3D parts, so check the GUI bounds instead
 			if el:IsA("GuiObject") then
 				local pos, size = el.AbsolutePosition, el.AbsoluteSize
 				local x, y = input.Position.X, input.Position.Y

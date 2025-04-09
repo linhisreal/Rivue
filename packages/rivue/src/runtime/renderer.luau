@@ -162,7 +162,6 @@ local function isGuiObject(el: Instance, className: string?): boolean
 	return cached
 end
 
--- No subclasses, so the ClassName alone decides
 const TEXT_CLASSES = table.freeze({ TextLabel = true, TextButton = true, TextBox = true })
 
 local function isTextObject(el: Instance, className: string?): boolean
@@ -411,7 +410,6 @@ local eventSignalCache: { [string]: { [string]: SignalTarget | false } } = {}
 
 local classPropCache: { [string]: { [string]: boolean } } = {}
 local function classHasProp(inst: Instance, prop: string, className: string?): boolean
-	-- The vnode type is the ClassName, reading inst.ClassName is an engine call
 	local cn = className or inst.ClassName
 	local cache = classPropCache[cn]
 	if not cache then
@@ -548,7 +546,6 @@ local function setProp(inst: Instance, key: string, value: any, vnode: RenderVNo
 	end
 
 	if key:sub(1, 2) == "on" and type(value) == "function" then
-		-- Bookkeeping tables are created on first use, most elements need few of them
 		local conns = vnode._conns or {}
 		local handlers: { [string]: (...any) -> () } = vnode._handlers :: any
 		if not handlers then
@@ -1156,7 +1153,6 @@ local function syncLayoutOrder(children: { Child })
 		k = before[k]
 	end
 
-	-- Fill each run of the others into the gap between its kept neighbours
 	local i = 1
 	local low: number? = nil
 	while i <= n do
@@ -1172,7 +1168,6 @@ local function syncLayoutOrder(children: { Child })
 		local count = j - i
 		local high: number? = if j <= n then appliedLayoutOrder[els[j]] else nil
 		if low and high and high - low - 1 < count then
-			-- No room left between the neighbours: renumber the whole list
 			for t = 1, n do
 				writeLayoutOrder(els[t], t * LAYOUT_STEP)
 			end
@@ -1902,7 +1897,6 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 			else nil,
 	})
 
-	-- First render now so dependencies are tracked
 	renderEffect.run()
 	inst._renderEffect = renderEffect
 end
