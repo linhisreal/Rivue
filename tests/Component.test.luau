@@ -1,5 +1,4 @@
 --!strict
--- Tests for component.luau - Component instance lifecycle and prop validation
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
@@ -31,7 +30,6 @@ local function runTests()
 	print(printHeader)
 	print(string.rep("=", 40) .. "\n")
 
-	-- Test 1: onMounted hook registration
 	print("Test 1: onMounted hook registration")
 	do
 		local mounted = false
@@ -55,7 +53,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 2: onUnmounted hook registration
 	print("Test 2: onUnmounted hook registration")
 	do
 		local unmounted = false
@@ -80,7 +77,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 3: onBeforeMount hook registration
 	print("Test 3: onBeforeMount hook registration")
 	do
 		local beforeMountCalled = false
@@ -104,7 +100,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 4: onBeforeUnmount hook registration
 	print("Test 4: onBeforeUnmount hook registration")
 	do
 		local beforeUnmountCalled = false
@@ -129,7 +124,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 5: Prop defaults are applied
 	print("Test 5: Prop defaults are applied")
 	do
 		local receivedProps: any = nil
@@ -157,7 +151,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 6: Factory function defaults
 	print("Test 6: Factory function defaults")
 	do
 		local receivedProps: any = nil
@@ -188,7 +181,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 7: ctx.expose() works
 	print("Test 7: ctx.expose() works")
 	do
 		local testRef = Rivue.ref(nil)

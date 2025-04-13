@@ -1,6 +1,6 @@
 --!strict
 
--- Pool: Instances are reset properly when released
+-- What Pool.release() resets before an Instance is reused
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Pool = require(ReplicatedStorage.Rivue.runtime.pool)
@@ -42,12 +42,10 @@ end
 local function runTests()
 	print("\n========== POOL ENHANCEMENTS TEST SUITE ==========\n")
 
-	-- Test 1: Clear children when releasing
 	print("Test 1: Clear all children when releasing")
 	do
 		local frame = Pool.acquire("Frame")
 
-		-- Add some children
 		local child1 = Instance.new("TextLabel")
 		child1.Parent = frame
 		local child2 = Instance.new("ImageLabel")
@@ -55,7 +53,6 @@ local function runTests()
 
 		Pool.release(frame)
 
-		-- Acquire again
 		local reacquired = Pool.acquire("Frame")
 
 		if reacquired == frame then
@@ -63,7 +60,6 @@ local function runTests()
 		end
 	end
 
-	-- Test 2: Reset text properties
 	print("Test 2: Reset text properties")
 	do
 		local label = Pool.acquire("TextLabel") :: TextLabel
@@ -77,7 +73,6 @@ local function runTests()
 		end
 	end
 
-	-- Test 3: Reset image properties
 	print("Test 3: Reset image properties")
 	do
 		local imageLabel = Pool.acquire("ImageLabel") :: ImageLabel
@@ -91,7 +86,6 @@ local function runTests()
 		end
 	end
 
-	-- Test 4: Reset GuiObject properties
 	print("Test 4: Reset GuiObject properties")
 	do
 		local frame = Pool.acquire("Frame") :: Frame
@@ -111,7 +105,6 @@ local function runTests()
 		end
 	end
 
-	-- Test 5: Clear all attributes
 	print("Test 5: Clear all attributes")
 	do
 		local frame = Pool.acquire("Frame")
@@ -128,7 +121,6 @@ local function runTests()
 		end
 	end
 
-	-- Test 6: Reset parent to nil
 	print("Test 6: Reset parent to nil")
 	do
 		local container = Instance.new("Frame")
@@ -141,10 +133,8 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 7: Pool.clear destroys all instances
 	print("Test 7: Pool.clear destroys all pooled instances")
 	do
-		-- Acquire and release some instances
 		local frame1 = Pool.acquire("Frame")
 		local frame2 = Pool.acquire("Frame")
 		local label1 = Pool.acquire("TextLabel")
@@ -153,10 +143,8 @@ local function runTests()
 		Pool.release(frame2)
 		Pool.release(label1)
 
-		-- Clear the pool
 		Pool.clear()
 
-		-- Acquiring new instances should create fresh ones
 		local newFrame = Pool.acquire("Frame")
 		assertTrue(newFrame and true or false, "Should create new instance after clear")
 		assertEquals(newFrame.ClassName, "Frame", "Should be correct class")

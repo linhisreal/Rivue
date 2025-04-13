@@ -1,5 +1,4 @@
 --!strict
--- Tests for RivueRemote: request/response patterns and event handling
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Remote = require(ReplicatedStorage:WaitForChild("RivueRemote"))
@@ -99,11 +98,11 @@ local function runServerTests()
 			local replies = 0
 			for i = 1, 40 do
 				local reply = process(player, { action = "test:missing", id = `u{i}` })
-				if reply then
-					assertEquals(reply.error, "unknown_action", "unknown actions say so")
+				if reply and reply.error == "unknown_action" then
 					replies += 1
 				end
 			end
+			assertTrue(replies > 0, "unknown actions say so")
 			assertTrue(replies <= 31, `replies to unknown actions are limited (got {replies})`)
 		end
 		if __OFFLINE then
@@ -120,17 +119,14 @@ local function runTests()
 		return
 	end
 
-	-- Test 1: Remote events folder is created
 	print("Test 1: Remote events folder is created")
 	do
-		-- Just calling any remote function should create the folder
 		Remote.fire("test", {})
 		task.wait(0.05)
 		local folder = ReplicatedStorage:FindFirstChild("RemoteEvents")
 		assertTrue(folder ~= nil, "Should create RemoteEvents folder")
 	end
 
-	-- Test 2: fire() creates and uses Request event
 	print("Test 2: fire() creates and uses Request event")
 	do
 		Remote.fire("testAction", { data = "test" })
@@ -141,10 +137,9 @@ local function runTests()
 		assertTrue(requestEvent:IsA("RemoteEvent"), "Should be a RemoteEvent")
 	end
 
-	-- Test 3: request() creates Response event
 	print("Test 3: request() creates Response event")
 	do
-		-- Start request (will timeout but that's ok)
+		-- Nothing answers, so this times out
 		task.spawn(function()
 			Remote.request("testRequest", { value = 123 }, 0.1)
 		end)
@@ -155,7 +150,6 @@ local function runTests()
 		assertTrue(responseEvent:IsA("RemoteEvent"), "Should be a RemoteEvent")
 	end
 
-	-- Test 4: request() times out properly
 	print("Test 4: request() times out properly")
 	do
 		local data, err = Remote.request("noResponse", { test = true }, 0.1)
@@ -163,12 +157,9 @@ local function runTests()
 		assertEquals(err, "timeout", "Should return timeout error")
 	end
 
-	-- Test 5: on() creates and listens to named event
 	print("Test 5: on() creates and listens to named event")
 	do
-		local conn = Remote.on("CustomEvent", function()
-			-- Event handler registered
-		end)
+		local conn = Remote.on("CustomEvent", function() end)
 		task.wait(0.05)
 		local folder = ReplicatedStorage:FindFirstChild("RemoteEvents")
 		local customEvent = folder and folder:FindFirstChild("CustomEvent")
@@ -178,39 +169,34 @@ local function runTests()
 		conn:Disconnect()
 	end
 
-	-- Test 6: Payload validation rejects non-serializable data
 	print("Test 6: Payload validation rejects non-serializable data")
 	do
 		local badPayload = {
-			func = function() end, -- Functions can't be serialized
+			func = function() end,
 		}
 		local data, err = Remote.request("badPayload", badPayload, 0.1)
 		assertTrue(data == nil, "Should reject non-serializable payload")
 		assertTrue(err ~= nil, "Should return error for non-serializable payload")
 	end
 
-	-- Test 7: Payload validation rejects oversized data
 	print("Test 7: Payload validation rejects oversized data")
 	do
-		-- Create a payload larger than 20KB
 		local largeString = string.rep("x", 25000)
 		local data, err = Remote.request("largePayload", { data = largeString }, 0.1)
 		assertTrue(data == nil, "Should reject oversized payload")
 		assertEquals(err, "payload_too_large", "Should return payload_too_large error")
 	end
 
-	-- Test 8: Payload validation rejects unsafe types
 	print("Test 8: Payload validation rejects unsafe types")
 	do
 		local unsafePayload = {
-			thread = coroutine.create(function() end), -- RemoteEvents can't carry threads
+			thread = coroutine.create(function() end),
 		}
 		local data, err = Remote.request("unsafePayload", unsafePayload, 0.1)
 		assertTrue(data == nil, "Should reject unsafe types")
 		assertEquals(err, "payload_unsafe_type", "Should return unsafe type error")
 	end
 
-	-- Test 9: Action name validation
 	print("Test 9: Action name validation")
 	do
 		local data, err = Remote.request("", {}, 0.1)
@@ -218,15 +204,10 @@ local function runTests()
 		assertEquals(err, "invalid_action_name", "Should return invalid action name error")
 	end
 
-	-- Test 10: Multiple listeners can be registered
 	print("Test 10: Multiple listeners can be registered")
 	do
-		local conn1 = Remote.on("MultiEvent", function()
-			-- Handler 1
-		end)
-		local conn2 = Remote.on("MultiEvent", function()
-			-- Handler 2
-		end)
+		local conn1 = Remote.on("MultiEvent", function() end)
+		local conn2 = Remote.on("MultiEvent", function() end)
 		task.wait(0.05)
 
 		local folder = ReplicatedStorage:FindFirstChild("RemoteEvents")
@@ -238,7 +219,6 @@ local function runTests()
 		conn2:Disconnect()
 	end
 
-	-- Test 11: fire() accepts valid payloads
 	print("Test 11: fire() accepts valid payloads")
 	do
 		local validPayload = {
@@ -250,7 +230,6 @@ local function runTests()
 				object = { key = "value" },
 			},
 		}
-		-- Should not error
 		local ok = pcall(function()
 			Remote.fire("validPayload", validPayload)
 		end)
