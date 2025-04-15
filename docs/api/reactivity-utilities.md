@@ -40,7 +40,7 @@ Tells you whether a value is a ref (computeds count).
 
 ## unref()
 
-Gives you the value whether you have a ref or a plain value. Handy in functions that accept either.
+Gives you the value whether you have a ref or a plain value. Use it in functions that accept either.
 
 - **Example**
 
@@ -97,7 +97,6 @@ pass a single prop or field to a composable that expects a ref.
 - **Details**
 
   The ref stays linked to the source: writing the ref writes the key, and the other way around.
-  This is the way to pass one prop into a composable while keeping it reactive.
 
 - **Type**
 
@@ -109,8 +108,8 @@ pass a single prop or field to a composable that expects a ref.
 
 ## toValue()
 
-Gives you the value from a plain value, a ref or a getter function. The friendliest way for a
-composable to accept "anything that holds a value".
+Gives you the value from a plain value, a ref or a getter function. Composables use it to accept any
+of the three.
 
 - **Example**
 
@@ -129,8 +128,7 @@ composable to accept "anything that holds a value".
 
 - **Details**
 
-  Like [`unref()`](#unref), but also calls getter functions. Useful in composables that accept
-  any of the three.
+  Like [`unref()`](#unref), but also calls getter functions.
 
 - **Type**
 
@@ -189,8 +187,7 @@ the state `setup()` returns.
 - **Details**
 
   Reading a key that holds a ref returns the ref's value. Assigning to it sets the ref. Other
-  keys pass through. The [`render(ctx)`](component.md#render) context uses this for what
-  `setup()` returns.
+  keys pass through.
 
 - **Type**
 
@@ -259,4 +256,4 @@ Tells you whether a table is a readonly view.
 
 ---
 
-[← Reactivity: Core](reactivity-core.md) · [API reference](../API.md) · [Array Helpers →](array.md)
+[← Reactivity: Core](reactivity-core.md) · [API reference](../API.md) · [Array helpers →](array.md)

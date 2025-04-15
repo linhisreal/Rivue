@@ -1,6 +1,6 @@
-[Docs](../README.md) › [API](../API.md) › **Instance Pool**
+[Docs](../README.md) › [API](../API.md) › **Instance pool**
 
-# Instance Pool
+# Instance pool
 
 **Learn it:** [Guide 9: Performance and debugging](../guide/09-performance-and-debugging.md)
 
@@ -282,4 +282,4 @@ Saves what's in the pool and puts it back later. Mostly useful in tests.
 
 ---
 
-[← Remote](remote.md) · [API reference](../API.md) · [Utilities and Debugging →](utilities.md)
+[← Remote](remote.md) · [API reference](../API.md) · [Utilities and debugging →](utilities.md)

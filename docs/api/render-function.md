@@ -1,6 +1,6 @@
-[Docs](../README.md) › [API](../API.md) › **Render Function**
+[Docs](../README.md) › [API](../API.md) › **Render function**
 
-# Render Function
+# Render function
 
 **Learn it:** [Guide 3: Describing UI](../guide/03-describing-ui.md) · [Guide 6: Styling and layout](../guide/06-styling-and-layout.md)
 
@@ -225,7 +225,7 @@ inside a children list.
 
 - **Details**
 
-  Shorthand for `if condition then vnode else nil`. The vnode is created either way, so prefer
+  The vnode is created either way, so prefer
   an `if` expression when building it is expensive.
 
 - **Type**
@@ -260,8 +260,8 @@ straight into a children list.
 - **Details**
 
   Returning `nil` from the mapper skips that item. Give each vnode a stable `key` (an id, not
-  the index), so reordering moves Instances instead of re-patching them. In Studio, Rivue warns
-  when list items have no key. The result can go straight into a children list.
+  the index), so reordering moves Instances instead of re-patching them.  In Studio, Rivue warns
+  when list items have no key.
 
 - **Type**
 
@@ -340,8 +340,7 @@ the children they were given.
 
 - **Details**
 
-  The copy keeps the original's children, slots and key. This is useful in wrapper components
-  that adjust what they were given.
+  The copy keeps the original's children, slots and key.
 
 - **Type**
 
@@ -408,8 +407,8 @@ code.
 
 ## Function components
 
-The lightest kind of component: just a function from props to UI, with no state and no hooks. Good
-for small display pieces like a badge or an icon.
+A function from props to UI, with no state and no hooks. Use one for small display pieces like a
+badge or an icon.
 
 - **Example**
 
@@ -427,8 +426,8 @@ for small display pieces like a badge or an icon.
 
 - **Details**
 
-  A function component runs again every time its parent re-renders. Use one for small
-  presentational pieces, and `defineComponent` when you need state or lifecycle.
+  A function component runs again every time its parent re-renders. Use `defineComponent` when
+  you need state or lifecycle.
 
 - **Type**
 

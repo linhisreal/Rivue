@@ -36,8 +36,7 @@ local h = Rivue.h
 
 ## defineComponent()
 
-Creates a component: a reusable piece of UI with its own state, props and events. Every component in
-your game starts here.
+Creates a component: a reusable piece of UI with its own state, props and events.
 
 - **Example**
 
@@ -434,8 +433,7 @@ Style classes that only this component uses, applied with the
 
 ## Setup context
 
-The second argument of `setup()`: your component's toolbox for emitting events, rendering slots and
-reading attrs.
+The second argument of `setup()`, for emitting events, rendering slots and reading attrs.
 
 - **Example**
 
@@ -627,8 +625,8 @@ Reads a value that an ancestor component (or the app) provided.
 
   The key is looked up through ancestors first, then in the app's provides. Returns `default` if
   nothing was provided. A component's own `provide()` doesn't change what it injects, so it can
-  read a value and provide a changed one to its children (a nesting depth, for example). Call it in `setup()` or inside
-  [`app:runWithContext()`](application.md#apprunwithcontext).
+  read a value and provide a changed one to its children (a nesting depth, for example). Call it
+  in `setup()` or inside [`app:runWithContext()`](application.md#apprunwithcontext).
 
 - **Type**
 
@@ -868,8 +866,8 @@ The same ref as [`defineModel()`](#definemodel), in one call inside `setup()`. M
 
 ## useId()
 
-A short id that's unique for this session, such as `"r12-1"`. Handy for naming Instances or linking
-a label to its input.
+A short id that's unique for this session, such as `"r12-1"`. Use it to name Instances or to link a
+label to its input.
 
 - **Example**
 
@@ -890,8 +888,8 @@ a label to its input.
 
 - **Details**
 
-  In `setup()`, ids are based on the component's uid, so each instance gets its own. It's handy
-  for unique Instance names, or keys for `CollectionService` or attributes.
+  In `setup()`, ids are based on the component's uid, so each instance gets its own. Use them for
+  unique Instance names, or as keys for `CollectionService` or attributes.
 
 - **Type**
 
@@ -917,8 +915,7 @@ components rarely need it.
 
 - **Details**
 
-  For library code that needs instance internals. App code rarely needs it: prefer the setup
-  context and composables.
+  In app code, the setup context and composables cover what this is usually wanted for.
 
 - **Type**
 
@@ -971,4 +968,4 @@ Use it for big screens most players never open.
 
 ---
 
-[← Render Function](render-function.md) · [API reference](../API.md) · [Lifecycle Hooks →](lifecycle.md)
+[← Render function](render-function.md) · [API reference](../API.md) · [Lifecycle hooks →](lifecycle.md)
