@@ -1,10 +1,10 @@
-[Docs](../README.md) › **Rivue Guide logo**
+[Docs](../README.md) › **Logos**
 
-# Rivue Guide logo
+# Rivue logos
 
-The mark for Rivue's documentation. It's a sibling of the [Rivue icon](../../assets/icon.svg):
-the same tilted Studio-blue tile, with the V drawn as the pages of an open book and the mint V as
-the spread inside.
+The Rivue icon is the main mark, used at the top of the README. The Guide's mark, for the
+documentation, is a sibling of it: the same tilted Studio-blue tile, with the V drawn as the pages
+of an open book and the mint V as the spread inside.
 
 <img src="./guide-lockup.svg" height="64" alt="Rivue Guide">
 
@@ -12,6 +12,7 @@ the spread inside.
 
 | File | Use it for |
 |---|---|
+| [icon.svg](icon.svg) · [icon.png](icon.png) | the Rivue icon |
 | [guide-icon.svg](guide-icon.svg) · [guide-icon.png](guide-icon.png) (512 px) | the symbol on its own, 33 px and up |
 | [guide-icon-small.svg](guide-icon-small.svg) | 32 px and below: wider spine gap, heavier inner V |
 | [guide-lockup.svg](guide-lockup.svg) | symbol and name, on light backgrounds |
@@ -54,7 +55,16 @@ SIL Open Font License.
 
 ## Badges
 
-The README's link badges in `badges/`, each on its brand's colour: `creator-store.svg` (the Roblox
-mark on black), `wally.svg` (Wally's logo from [wally.run](https://wally.run) on its red),
-`luau.svg` (Luau's logo from [luau.org](https://luau.org) on its navy) and `docs.svg` (the Guide
-icon on Rivue blue).
+The README's link badges in `badges/`. They share one layout (icon, small caption, bold name,
+40 px tall) and each sits on its brand's colour:
+
+| File | Icon and colour |
+|---|---|
+| `creator-store.svg` | the Roblox mark on black |
+| `wally.svg` | Wally's logo from [wally.run](https://wally.run) on its red |
+| `pesde.svg` | pesde's logo from [pesde.dev](https://pesde.dev) on its black |
+| `rokit.svg` | a terminal prompt on dark grey (Rokit has no logo) |
+| `luau.svg` | Luau's logo from [luau.org](https://luau.org) on its navy |
+| `docs.svg` | the Guide icon on Rivue blue |
+
+The dark badges have a grey outline so they don't vanish on GitHub's dark theme.
