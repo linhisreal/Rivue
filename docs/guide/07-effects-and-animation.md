@@ -2,13 +2,13 @@
 
 # 7. Side effects, cleanup and animation
 
-**You'll learn:** where code that isn't "describe the UI" goes, what cleans itself up, when things
-run after a change, and how to animate.
+Not every piece of UI code describes UI. Some of it connects signals, polls the server or ticks a
+timer. This chapter is about where that code lives, what cleans up after itself, the order things
+run in after a change, and animation.
 
 ## Side effects live in setup
 
-Connecting signals, starting timers, calling the server and reacting to changes all belong in
-`setup`, never in `render`:
+All of that goes in `setup`. Never in `render`, which can run many times a second:
 
 ```lua
 setup = function(props)
@@ -43,13 +43,14 @@ end,
 | `queueJob`, `useTag`, `attributeRef` | yes |
 | `something:Connect(...)` you wrote | **no**, disconnect it in `onUnmounted` |
 
-`watch(source, callback)` runs `callback(new, old)` when `source` changes. `watchEffect(fn)` runs
-`fn` now and again whenever anything it read changes.
+The two watchers differ in what they track. `watch(source, callback)` only looks at `source`, and
+calls `callback(new, old)` when it changes. `watchEffect(fn)` runs `fn` right away, then again
+whenever anything it read changes.
 
 ## What runs when, after a change
 
-You can change several values in a row: Rivue batches the updates and renders each component at
-most once.
+Change five values in a row and each affected component still renders once. Rivue batches the
+updates and runs them in this order:
 
 ```mermaid
 flowchart TD
@@ -60,14 +61,14 @@ flowchart TD
     M --> H["flush = 'post' watchers<br/>next Heartbeat"]
 ```
 
-Need the updated Instances right after a change? `Rivue.nextTick()` yields until the re-renders
-have run.
+So if you change state and immediately read an Instance, you'll see the old value.
+`Rivue.nextTick()` yields until the re-renders have run.
 
 ## Animation
 
-**Appearing and disappearing.** Wrap the element in `Transition` and toggle it inside. `from` is
-the hidden state: the element tweens from it when it appears, and back to it before it's
-destroyed.
+For things that appear and disappear, wrap the element in `Transition` and toggle it inside.
+`from` describes the hidden state. The element tweens out of it when it appears, and back into it
+before it's destroyed.
 
 ```lua
 h(Rivue.Transition, {
@@ -78,10 +79,11 @@ h(Rivue.Transition, {
 })
 ```
 
-Use `TransitionGroup` for lists: keyed items tween in when added and out when removed.
+Lists get `TransitionGroup`, where keyed items tween in when they're added and out when they're
+removed.
 
-**Values that move.** `useTween` and `useSpring` turn state into an animated value you bind to a
-prop:
+Then there are values that move, like a health bar sliding down. `useTween` and `useSpring` turn
+state into an animated value you can bind to a prop:
 
 ```lua
 setup = function(props)

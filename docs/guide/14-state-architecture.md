@@ -2,8 +2,8 @@
 
 # 14. Organising state
 
-**You'll learn:** where state should live, a complete store module, syncing server-owned data,
-and optimistic updates.
+Where should a piece of state live? This chapter answers that, then builds a complete store,
+syncs data the server owns, and makes purchases feel instant.
 
 ## Where state lives
 
@@ -15,13 +15,13 @@ flowchart TD
     Q -->|"the server decides it"| SV["The server sends it,<br/>a store keeps the client copy"]
 ```
 
-Start local and move state up when a second component needs it.
+Start local. Move state up only when a second component needs it.
 
 ## A store module
 
-[Chapter 8](08-state-and-server.md#game-wide-state-a-store-module) introduced stores. A fuller
-one, with derived state that outlives any component. Components read; only the store's functions
-write:
+[Chapter 8](08-state-and-server.md#game-wide-state-a-store-module) introduced stores. Here's a
+fuller one, with derived state that outlives any component. Components only read it, and only the
+store's own functions write:
 
 ![a store module](../images/store-flow.svg)
 
@@ -70,7 +70,8 @@ end,
 
 ## Server-owned data
 
-**Attributes** suit a few simple values. `attributeRef` is a ref that follows the attribute:
+For a few simple values, attributes are the easy route. `attributeRef` gives you a ref that
+follows one:
 
 ```lua
 -- Server
@@ -80,7 +81,8 @@ player:SetAttribute("Coins", 250)
 local coins = Rivue.attributeRef(Players.LocalPlayer, "Coins", 0)
 ```
 
-**Remote** suits lists and larger data: load once, then apply pushed changes:
+Lists and bigger data go through Remote instead. Load once, then apply the changes the server
+pushes:
 
 ```lua
 -- Client, in the store
@@ -100,7 +102,8 @@ end)
 
 ## Optimistic updates
 
-Apply the change before the server answers, and roll it back if it refuses:
+Waiting for the server makes a buy button feel slow. Apply the change right away, and roll it
+back if the server says no:
 
 ![optimistic update](../images/optimistic-update.svg)
 
@@ -141,10 +144,10 @@ end,
 
 ## Large data
 
-- `shallowRef` for data replaced as a whole (a results page, a leaderboard): its contents aren't
-  made reactive.
-- `markRaw` for tables that should never be reactive: Instances, class objects, static config.
-- [`VirtualList`](../api/builtins.md#virtuallist) for thousands of rows.
+Data you replace as a whole, like a page of results or a leaderboard, belongs in a `shallowRef`,
+which doesn't make its contents reactive. Tables that should never be reactive at all (Instances,
+class objects, static config) can be marked with `markRaw`. And for thousands of rows, use
+[`VirtualList`](../api/builtins.md#virtuallist).
 
 ---
 

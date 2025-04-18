@@ -2,12 +2,13 @@
 
 # 12. Writing composables
 
-**You'll learn:** how to write `use*` functions that accept refs, clean up after themselves, and
-load server data without race conditions.
+Sooner or later two components need the same logic. A composable is how you share it: a `use*`
+function called from `setup`. This chapter writes a few, from a simple countdown to a data loader
+that copes with slow answers.
 
 ## From component to composable
 
-A round timer:
+Start with a round timer:
 
 ```lua
 local RoundTimer = Rivue.defineComponent({
@@ -25,8 +26,7 @@ local RoundTimer = Rivue.defineComponent({
 })
 ```
 
-A sale banner needs the same countdown, so move it into a **composable**, a `use*` function
-called from `setup`:
+Now a sale banner needs the same countdown. Move it out into a composable:
 
 ```lua
 -- UI/composables/useCountdown.luau
@@ -55,14 +55,15 @@ end,
 
 ![each call to a composable makes its own state](../images/composable-calls.svg)
 
-Everything a composable creates during `setup` belongs to the calling component and stops when it
-unmounts. Each call creates new state, so if two components must share the *same* state, use a
-store ([chapter 14](14-state-architecture.md)).
+Whatever a composable creates during `setup` belongs to the component that called it, and stops
+when that component unmounts. Each call makes new state, too. Two components that need the same
+state, rather than the same logic, want a store instead ([chapter 14](14-state-architecture.md)).
 
 ## Accept a ref, not only a number
 
-If the round length is a ref, `useCountdown(roundLength.value)` reads it once and never sees it
-change. Accept a number, ref or getter (`MaybeRefOrGetter`) and read it with `Rivue.toValue()`:
+Say the round length is a ref. `useCountdown(roundLength.value)` reads it once and never notices
+when it changes. The fix is to accept a number, a ref or a getter (`MaybeRefOrGetter`) and read it
+with `Rivue.toValue()`:
 
 ```lua
 local function useCountdown(seconds: Rivue.MaybeRefOrGetter<number>)
@@ -83,8 +84,8 @@ local function useCountdown(seconds: Rivue.MaybeRefOrGetter<number>)
 end
 ```
 
-`toValue` unwraps a ref, calls a getter, or returns a plain value as is. Inside the `watch` source
-it also tracks the read:
+`toValue` unwraps a ref, calls a getter, and passes plain values through. Used inside the `watch`
+source, it also tracks the read, so all three of these work:
 
 ```lua
 useCountdown(90) -- a fixed number
@@ -96,7 +97,7 @@ end)
 
 ## Return the ref itself
 
-Return refs, not `.value`, or the caller gets a snapshot:
+Hand back the ref itself. Return `.value` and the caller gets a number that never changes:
 
 ```lua
 setup = function()
@@ -108,12 +109,12 @@ render = function(ctx)
 end,
 ```
 
-For several values, return a table of refs and functions:
+With several values, return a table of refs and functions, like
 `{ data = data, loading = loading, refresh = refresh }`.
 
 ## Clean up your own connections
 
-Watchers, computeds and `onHeartbeat` stop automatically. Your own `:Connect()` calls don't, so
+Watchers, computeds and `onHeartbeat` stop by themselves. Your own `:Connect()` calls don't, so
 disconnect them in `Rivue.onScopeDispose`:
 
 ```lua
@@ -136,12 +137,13 @@ local function usePartTouched(part: BasePart)
 end
 ```
 
-Prefer it over `onUnmounted`, which only works in a component: `onScopeDispose` also runs when
-the composable is used in a store or test [`effectScope`](../api/reactivity-advanced.md#effectscope).
+Why not `onUnmounted`? It only works inside a component. `onScopeDispose` also works when the
+composable runs in a store or in a test's [`effectScope`](../api/reactivity-advanced.md#effectscope).
 
 ## A debounced ref with customRef
 
-`customRef` lets you decide when a ref notifies its readers. A debounced one for a search box:
+With `customRef` you decide when a ref tells its readers it changed. Here's a debounced one, for a
+search box:
 
 ```lua
 local function useDebounced<T>(initial: T, delaySeconds: number)
@@ -170,7 +172,7 @@ local function useDebounced<T>(initial: T, delaySeconds: number)
 end
 ```
 
-It works anywhere a ref does, including `model`:
+Anywhere a ref works, this works, `model` included:
 
 ```lua
 setup = function()
@@ -187,12 +189,12 @@ end,
 
 ## Loading server data
 
-A loader returns data, loading and error refs, and a refresh function. It also has to handle
-answers arriving out of order:
+A loader gives back data, loading and error refs, plus a refresh function. The tricky part is
+answers that arrive out of order:
 
 ![an old answer arriving after a newer one](../images/stale-response.svg)
 
-Numbering requests and dropping any answer that isn't the latest fixes it:
+Number each request, and drop any answer that isn't for the latest one:
 
 ```lua
 local Remote = require(game.ReplicatedStorage.RivueRemote)
@@ -232,7 +234,7 @@ local function useRemoteData(action: string, payload: Rivue.MaybeRefOrGetter<any
 end
 ```
 
-A paged shop screen:
+Here it is driving a paged shop screen:
 
 ```lua
 setup = function()

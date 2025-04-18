@@ -2,25 +2,24 @@
 
 # 10. Organising a project
 
-**You'll learn:** where files go once you have more than one screen, the order to write a
-component's parts in, and when to split a component.
+One screen fits in one file. By the third screen you'll want some structure, so here's the one
+these docs use: where files go, the order a component's parts go in, and when to split one up.
 
 ## Folders by role
 
 ![project structure](../images/project-structure.svg)
 
-Each folder has one job:
+Each folder has one job. `views/` holds the screens (Shop, Inventory, Settings). A view owns its
+screen's state and arranges components, with little markup of its own. The components themselves
+live in `components/`: rows, cards, buttons, modals. They take props, emit events, and only keep
+their own UI state, like whether they're open or hovered.
 
-- **`views/`** are screens: Shop, Inventory, Settings. A view owns that screen's state and lays
-  out components. It has little markup of its own.
-- **`components/`** are reusable pieces: rows, cards, buttons, modals. They take props, emit
-  events, and only keep their own UI state (is this open, is this hovered).
-- **`composables/`** hold logic that several components share, as `use*` functions: timers,
-  loading data, input handling. They return state and functions, never UI.
-- **`styles.luau`** holds the app-wide style classes from [chapter 6](06-styling-and-layout.md).
+Logic that several components share goes in `composables/` as `use*` functions, such as a timer,
+a data loader or input handling. Those return state and functions, never UI. Finally,
+`styles.luau` holds the app-wide style classes from [chapter 6](06-styling-and-layout.md).
 
-Put **one component per ModuleScript**, named after the component (`ItemRow.luau` holds
-`name = "ItemRow"`). Inside `UI/`, require by path relative to the file:
+Keep one component per ModuleScript, named after it, so `ItemRow.luau` holds
+`name = "ItemRow"`. Inside `UI/`, require by path, relative to the file:
 
 ```lua
 local ItemRow = require("./ItemRow") -- a sibling
@@ -32,18 +31,18 @@ The [demo app](../../dev/Demo) in this repo is laid out this way.
 
 ## Anatomy of a component
 
-Write a component's parts in the same order every time, so any file reads the same way:
+If every component lists its parts in the same order, you can open any file and know where to
+look:
 
 ![anatomy of a component](../images/component-anatomy.svg)
 
-You won't need every part in every component. A small one might only have `name`, `props` and
-`render`.
+Most components skip some of these. A small one might only have `name`, `props` and `render`.
 
 ## Split before it gets deep
 
-A render function that does everything ends up long and deeply nested, and it re-renders as a
-whole whenever anything changes. Pull pieces out into components once a render passes about
-**40 lines or 4 levels of nesting**:
+A render function that does everything gets long and deeply nested, and it re-renders as a whole
+whenever anything in it changes. A rough rule: once a render passes 40 lines or 4 levels of
+nesting, pull pieces out into components.
 
 ![splitting a big render into components](../images/split-components.svg)
 
@@ -59,8 +58,9 @@ end,
 
 ## Share logic with composables
 
-Stateful logic used by several components goes in `composables/` as a `use*` function called
-from `setup`. [Chapter 12](12-writing-composables.md) covers writing them.
+When two components need the same stateful logic, move it into `composables/` as a `use*`
+function and call it from both setups. [Chapter 12](12-writing-composables.md) is all about
+writing those.
 
 ---
 

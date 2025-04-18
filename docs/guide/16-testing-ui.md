@@ -2,13 +2,12 @@
 
 # 16. Testing UI
 
-**You'll learn:** how to test composables and components from code, including clicking buttons,
-and which parts of Rivue need play-testing instead. The examples use plain `assert`, so they fit
-any test runner.
+Most UI logic can be tested from code, button clicks included. A few things can't, and this
+chapter says which. The examples use plain `assert`, so they work with any test runner.
 
 ## Testing a composable
 
-A quantity picker for the shop, as a composable:
+Take a quantity picker for the shop, written as a composable:
 
 ```lua
 local function useStepper(options: { min: number, max: number, start: number? })
@@ -37,8 +36,8 @@ local function useStepper(options: { min: number, max: number, start: number? })
 end
 ```
 
-Outside a component, run it inside an `effectScope` so `scope:stop()` cleans up its computeds and
-watchers:
+There's no component in a test, so run it inside an `effectScope`. Then `scope:stop()` cleans up
+its computeds and watchers afterwards:
 
 ```lua
 local scope = Rivue.effectScope()
@@ -56,12 +55,12 @@ assert(stepper.canDecrease.value == true)
 scope:stop()
 ```
 
-Refs and computeds update synchronously, so no waiting is needed.
+Refs and computeds update straight away, so there's nothing to wait for.
 
 ### Watchers need nextTick()
 
-Watchers are batched: they run once after your changes, not on each one. `Rivue.nextTick()` waits
-for that. An autosave composable:
+Watchers are different. They're batched, running once after a burst of changes, so a test has to
+wait with `Rivue.nextTick()`. Here's an autosave composable:
 
 ```lua
 local function useAutosave(settings, save: (any) -> ())
@@ -71,7 +70,7 @@ local function useAutosave(settings, save: (any) -> ())
 end
 ```
 
-Two changes, one save:
+Two changes, and only one save:
 
 ```lua
 local saves = {}
@@ -100,8 +99,9 @@ assert(#saves == 1) -- stopping the scope stopped the watcher
 
 ![the steps of a component test](../images/test-steps.svg)
 
-Mount into a Frame that isn't parented anywhere. Rivue still creates real Instances, so you read
-their `Text` and `Visible` directly. A helper that mounts and finds elements by `Name`:
+Mount into a Frame that isn't parented anywhere. Rivue still creates real Instances, so a test can
+read their `Text` and `Visible` directly. This helper mounts a component and finds elements by
+`Name`:
 
 ```lua
 local h = Rivue.h
@@ -121,7 +121,7 @@ local function mountForTest(component, props: { [string]: any }?)
 end
 ```
 
-The picker as a component, emitting `change`:
+And here's the picker as a component that emits `change`:
 
 ```lua
 local QuantityPicker = Rivue.defineComponent({
@@ -160,8 +160,8 @@ local QuantityPicker = Rivue.defineComponent({
 
 ### Clicking a button
 
-Scripts can't fire `Activated`, so `Rivue.testing.trigger(element, "onClick")` calls the
-element's current `onClick` handler instead:
+Scripts can't fire `Activated`. `Rivue.testing.trigger(element, "onClick")` gets around that by
+calling the element's current `onClick` handler directly:
 
 ```lua
 local changes = {}
@@ -185,13 +185,14 @@ assert(changes[1] == 2 and changes[2] == 2) -- one change event per click
 app:unmount()
 ```
 
-Re-renders are batched like watchers, so without `nextTick()` `Amount` would still read `1`.
-`trigger` errors if the element has no handler for that event, so clicking the wrong element
-fails the test.
+Re-renders are batched like watchers. Skip the `nextTick()` and `Amount` still reads `1`. Also,
+`trigger` errors when the element has no handler for that event, so a test that clicks the wrong
+thing fails instead of passing quietly.
 
 ### Typing into a text box
 
-Set `Text` (`model` picks it up), then trigger `onFocusLost` with `true` for Enter:
+Set `Text` and `model` picks it up. Then trigger `onFocusLost` with `true`, which is pressing
+Enter:
 
 ```lua
 local NameInput = Rivue.defineComponent({
@@ -234,9 +235,9 @@ app:unmount()
 
 ## What a script can't test
 
-`UserInputService` events and the camera's `ViewportSize` can't be driven from a script, so
-`vClickOutside`, `vDrag`, `useInputType()` and `useViewportSize()` need play-testing. Keep the
-decision in a plain function you can test, and only the wiring untested:
+A script can't drive `UserInputService` events or the camera's `ViewportSize`. That leaves
+`vClickOutside`, `vDrag`, `useInputType()` and `useViewportSize()` to play-testing. What you can
+do is keep the decision in a plain function and test that, so only the wiring goes untested:
 
 ```lua
 local function columnsFor(width: number): number
@@ -260,8 +261,8 @@ end, { name = "Grid" })
 
 ## Previewing in a storybook
 
-To look at a component in Studio without pressing Play, make a story with `Rivue.story`. It works
-with UI Labs and Hoarcekat:
+To preview a component without pressing Play, make a story with `Rivue.story` and open it in UI
+Labs or Hoarcekat:
 
 ```lua
 -- ShopItem.story.luau
