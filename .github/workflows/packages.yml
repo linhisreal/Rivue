@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ["packages/**", "pesde.toml", ".github/workflows/packages.yml"]
+    paths: ["packages/**", "pesde.toml", "pesde.lock", "rokit.toml", ".github/workflows/packages.yml"]
 
 jobs:
   package:
@@ -22,18 +22,12 @@ jobs:
         with:
           cache: true
 
-      - name: Install Wally and pesde
-        env:
-          GH_TOKEN: ${{ github.token }}
+      - name: Lockfiles are up to date
         run: |
-          # Outside the checkout, so they aren't packaged
-          cd "$RUNNER_TEMP"
-          curl -sSfL -o wally.zip https://github.com/UpliftGames/wally/releases/download/v0.3.2/wally-v0.3.2-linux.zip
-          unzip -q wally.zip -d tools
-          gh release download --repo pesde-pkg/pesde --pattern "*linux-x86_64*" --output pesde.zip
-          unzip -q pesde.zip -d tools
-          chmod +x tools/*
-          echo "$RUNNER_TEMP/tools" >> "$GITHUB_PATH"
+          pesde install --locked
+          # Wally has no --locked: reinstall and fail if its lockfile changed
+          wally install --project-path packages/${{ matrix.package }}
+          git diff --exit-code -- packages/${{ matrix.package }}/wally.lock
 
       - name: Wally package
         run: |
@@ -44,9 +38,6 @@ jobs:
           # Rojo runs from the checkout, where rokit.toml pins its version
           rojo build "$RUNNER_TEMP/unpacked" -o "$RUNNER_TEMP/from-wally.rbxm"
           ! test -e "$RUNNER_TEMP/unpacked/tests"
-
-      - name: pesde install
-        run: pesde install
 
       - name: pesde publish (dry run)
         working-directory: packages/${{ matrix.package }}

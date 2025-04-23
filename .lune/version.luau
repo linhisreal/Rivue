@@ -3,7 +3,8 @@
 
 	lune run version 2.57.0
 
-	Updates packages/*/wally.toml and pesde.toml, Rivue.version, and the install lines in the README.
+	Updates packages/*/wally.toml, pesde.toml and their lockfiles, Rivue.version, and the install
+	lines in the README.
 ]]
 
 local fs = require("@lune/fs")
@@ -28,7 +29,7 @@ end
 
 for _, name in fs.readDir("packages") do
 	local dir = `packages/{name}`
-	for _, manifest in { "wally.toml", "pesde.toml" } do
+	for _, manifest in { "wally.toml", "pesde.toml", "wally.lock", "pesde.lock" } do
 		if fs.isFile(`{dir}/{manifest}`) then
 			update(`{dir}/{manifest}`, '\nversion = "[^"]*"', `\nversion = "{version}"`)
 		end
