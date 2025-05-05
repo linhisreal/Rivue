@@ -80,6 +80,8 @@ type InstanceData = {
 	_pendingUpdate: boolean,
 	_idCount: number,
 	_keepAliveRenderer: { unmount: (vnode: VNode) -> () }?,
+	-- What made the next render happen, for app.config.devtools
+	_devtoolsTriggers: { string }?,
 }
 
 export type ComponentInstance = typeof(setmetatable({} :: InstanceData, ComponentInstance))
@@ -561,6 +563,9 @@ local function toChildList(result: unknown): { Child }
 	return { result :: Child }
 end
 
+-- The renderer fills this in: it owns the root Instance the DevTools read
+local devtoolsHooks: { emit: ((instance: ComponentInstance, eventName: string, args: { unknown }) -> ())? } = {}
+
 local function createSetupContext(instance: ComponentInstance): SetupContext
 	return {
 		emit = function(eventName: string, ...: any): ()
@@ -575,6 +580,10 @@ local function createSetupContext(instance: ComponentInstance): SetupContext
 				elseif type(validator) == "function" and validator(...) == false then
 					warn(`[Rivue] Invalid payload for event '{eventName}' in {def.__name or "Anonymous"}`)
 				end
+			end
+			local emitHook = devtoolsHooks.emit
+			if emitHook and instance.appContext.config.devtools then
+				emitHook(instance, eventName, { ... })
 			end
 			-- Declared listeners only live on the vnode
 			local vnodeProps = instance.vnode.props
@@ -690,6 +699,7 @@ local function createComponentInstance(
 		_pendingUpdate = false,
 		_idCount = 0,
 		_keepAliveRenderer = nil,
+		_devtoolsTriggers = nil,
 	}
 	local instance = setmetatable(data, ComponentInstance)
 	instance.ctx = createSetupContext(instance)
@@ -774,6 +784,7 @@ local Teleport: ComponentDef = table.freeze({
 })
 
 return {
+	devtoolsHooks = devtoolsHooks,
 	createComponentInstance = createComponentInstance,
 	updateComponentProps = updateComponentProps,
 	updateComponentSlots = updateComponentSlots,

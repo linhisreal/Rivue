@@ -172,9 +172,11 @@ function Rivue.defineComponent(opts: ComponentOptions | SetupFunction, extra: Co
 	if Rivue.dev and options.setup == nil and options.render == nil then
 		warn(`[Rivue] defineComponent({options.name or "Anonymous"}) needs a setup() or render()`)
 	end
+	local source, line = debug.info(2, "sl")
 	return {
 		__is_component = true :: true,
 		__name = options.name,
+		__source = if source and line then `{source}:{line}` else nil,
 		setup = options.setup,
 		render = options.render,
 		props = options.props,
