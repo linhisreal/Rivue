@@ -508,6 +508,8 @@ local TEXT_PROPS = {
 local IMAGE_PROPS = { Image = "", ImageTransparency = 0, ImageColor3 = Color3.new(1, 1, 1) }
 local CLASSES = {
 	Folder = { bases = {}, props = {} },
+	-- Only for scripts found by path (DevTools Open source): nothing runs them offline
+	ModuleScript = { bases = { "LuaSourceContainer" }, props = {} },
 	Frame = { bases = { "GuiObject", "GuiBase2d" }, props = { GUI_PROPS } },
 	ScrollingFrame = {
 		bases = { "GuiObject", "GuiBase2d" },

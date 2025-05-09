@@ -409,14 +409,16 @@ local function runTests()
 
 	print("app.config.devtools mirrors components onto their roots")
 	do
+		local count = Rivue.ref(3)
+		local bag = Rivue.reactive({ gems = 1 })
 		local Counter = Rivue.defineComponent({
 			name = "DevtoolsCounter",
 			props = { label = { type = "string", default = "Coins" } },
 			setup = function()
-				return { count = Rivue.ref(3), unused = Rivue.ref("hidden") }
+				return { count = count, unused = Rivue.ref("hidden"), bag = bag }
 			end,
 			render = function(ctx)
-				return Rivue.h("TextLabel", { Text = `{ctx.label}: {ctx.count}` })
+				return Rivue.h("TextLabel", { Text = `{ctx.label}: {ctx.count} {ctx.bag.gems}` })
 			end,
 		})
 		local container = Instance.new("Folder")
@@ -430,16 +432,86 @@ local function runTests()
 		assertEquals(root:GetAttribute("RivueProps"), 'label = "Gems"', "its props")
 		assertEquals(root:GetAttribute("RivueState"), 'count = 3\nunused = "hidden"', "its state refs")
 		assertEquals(root:GetAttribute("RivueRenders"), 1, "how many times it rendered")
+		assertEquals(root:GetAttribute("RivueTrigger"), "mount", "the first render is the mount")
+		assertTrue((root:GetAttribute("RivueRenderMs") :: number) >= 0, "how long the render took")
+
+		count.value = 4
+		Rivue.nextTick()
+		assertEquals(root:GetAttribute("RivueRenders"), 2, "re-renders are counted")
+		assertEquals(root:GetAttribute("RivueTrigger"), "count", "a ref is named after its setup key")
+
+		bag.gems = 2
+		count.value = 5
+		Rivue.nextTick()
+		assertEquals(root:GetAttribute("RivueTrigger"), "bag.gems, count", "batched writes are all listed")
+
+		local unrelated = Rivue.ref(0)
+		local conn = root.AttributeChanged:Connect(function()
+			local _ = unrelated.value
+		end)
+		count.value = 6
+		Rivue.nextTick()
+		conn:Disconnect()
+		local renders = root:GetAttribute("RivueRenders")
+		unrelated.value = 1
+		Rivue.nextTick()
+		assertEquals(root:GetAttribute("RivueRenders"), renders, "state read by attribute listeners isn't tracked")
+
+		assertTrue(
+			string.find(root:GetAttribute("RivueSource") :: string, ":%d+$") ~= nil,
+			"where the component was defined"
+		)
+
+		root:SetAttribute("RivueEdit", "count=42")
+		Rivue.nextTick()
+		assertEquals(count.value, 42, "the plugin can set a number ref")
+		assertEquals(root:GetAttribute("RivueEdit"), nil, "and the request is cleared")
+		root:SetAttribute("RivueEdit", "count=lots")
+		assertEquals(count.value, 42, "text that isn't a number is ignored")
+		root:SetAttribute("RivueEdit", 'unused="shown"')
+		Rivue.nextTick()
+		assertEquals(root:GetAttribute("RivueState"), 'count = 42\nunused = "shown"', "strings lose their quotes")
+		root:SetAttribute("RivueEdit", "bag=1")
+		assertEquals(bag.gems, 2, "only refs can be edited")
 		app:unmount()
 		assertTrue(not CollectionService:HasTag(root, "RivueComponent"), "unmounting removes the tag")
 		assertEquals(root:GetAttribute("RivueProps"), nil, "and the attributes")
+		assertEquals(root:GetAttribute("RivueTrigger"), nil, "all of them")
 
 		local plain = Instance.new("Folder")
 		local quiet = Rivue.createApp(Rivue.h(Counter))
 		quiet:mount(plain)
 		local quietRoot = plain:FindFirstChild("DevtoolsCounter") :: TextLabel
 		assertEquals(quietRoot:GetAttribute("RivueComponent"), nil, "off unless enabled")
+		quietRoot:SetAttribute("RivueEdit", "count=1")
+		assertEquals(count.value, 42, "and edits only work when enabled")
 		quiet:unmount()
+
+		local Buyer = Rivue.defineComponent({
+			name = "Buyer",
+			emits = { "buy" },
+			setup = function(_, ctx)
+				return {
+					buy = function()
+						ctx.emit("buy", "Sword", 3)
+					end,
+				}
+			end,
+			render = function(ctx)
+				return Rivue.h("TextButton", { onClick = ctx.buy })
+			end,
+		})
+		local shopFolder = Instance.new("Folder")
+		local shopApp = Rivue.createApp(Buyer)
+		shopApp.config.devtools = true
+		shopApp:mount(shopFolder)
+		local button = shopFolder:FindFirstChild("Buyer") :: TextButton
+		Rivue.testing.trigger(button, "onClick")
+		local first = button:GetAttribute("RivueEmit") :: string
+		assertTrue(string.find(first, '|buy|"Sword", 3$') ~= nil, `emits are logged with their arguments: {first}`)
+		Rivue.testing.trigger(button, "onClick")
+		assertTrue(button:GetAttribute("RivueEmit") ~= first, "the same event twice still changes the attribute")
+		shopApp:unmount()
 	end
 
 	print("\n========== DEVELOPER EXPERIENCE TESTS COMPLETE ==========\n")
