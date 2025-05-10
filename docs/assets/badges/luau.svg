@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="90" height="40" viewBox="0 0 180 80" role="img" aria-label="Written in Luau">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="72.8" height="32" viewBox="0 0 182 80" role="img" aria-label="Written in Luau">
 <title>Written in Luau</title>
-<rect x="1" y="1" width="178" height="78" rx="15" fill="#00239f"/>
+<rect x="1" y="1" width="180" height="78" rx="15" fill="#00239f"/>
 
 <g transform="translate(10 9) scale(1.18)">
 <rect x="11.8579" y="1.5051" width="40" height="40" rx="2" transform="rotate(15 11.8579 1.5051)" fill="#ffffff"/>
@@ -9,7 +9,6 @@
 
 </g>
 <g font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" fill="#ffffff">
-<text x="84" y="34" font-size="18" textLength="76" lengthAdjust="spacingAndGlyphs" fill-opacity="0.85">Written in</text>
-<text x="84" y="62" font-size="28" font-weight="700" textLength="67" lengthAdjust="spacingAndGlyphs">Luau</text>
+<text x="84" y="52" font-size="32" font-weight="700" textLength="76" lengthAdjust="spacingAndGlyphs">Luau</text>
 </g>
 </svg>
