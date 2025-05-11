@@ -10,6 +10,12 @@
     },
     "App": {
       "$path": "src/App.luau"
+    },
+    "Highlight": {
+      "$path": "src/Highlight.luau"
+    },
+    "Theme": {
+      "$path": "src/Theme.luau"
     }
   }
 }
