@@ -157,6 +157,34 @@ local function runTests()
 	end
 
 	local printFooter = "COMPOSABLES TESTS COMPLETE"
+	print("useStyles follows a theme provided as a ref")
+	do
+		local theme = Rivue.ref({ surface = "dark" })
+		local seen = nil
+		local Card = Rivue.defineComponent({
+			name = "RefThemeCard",
+			setup = function()
+				return {
+					styles = Rivue.useStyles(function(t: any)
+						return { surface = t.surface }
+					end),
+				}
+			end,
+			render = function(ctx)
+				seen = ctx.styles.surface
+				return Rivue.h("Frame")
+			end,
+		})
+		local app = Rivue.createApp(Card)
+		app:provide("theme", theme)
+		app:mount(Instance.new("Folder"))
+		assertEquals(seen, "dark", "the ref's value reaches the factory")
+		theme.value = { surface = "light" }
+		Rivue.nextTick()
+		assertEquals(seen, "light", "and swapping it rebuilds the styles")
+		app:unmount()
+	end
+
 	print("\n" .. string.rep("=", 40))
 	print(printFooter)
 	print(string.rep("=", 40) .. "\n")

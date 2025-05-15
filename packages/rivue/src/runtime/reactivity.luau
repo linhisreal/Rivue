@@ -49,6 +49,11 @@ const LENGTH_KEY = "__len"
 const REF_VALUE_KEY = "value"
 const COMPUTED_KEY = "computed"
 
+-- NaN ~= NaN in Luau, so a plain ~= would re-trigger on every NaN write. Same rule as Vue's Object.is
+local function hasChanged(a: unknown, b: unknown): boolean
+	return a ~= b and (a == a or b == b)
+end
+
 local scopeStack: { EffectScope } = {}
 local activeScope: EffectScope? = nil
 
@@ -391,7 +396,7 @@ local function reactive<T>(target: T): T
 		v = toRaw(v)
 		local old = tbl[k]
 		tbl[k] = v
-		if old ~= v then
+		if hasChanged(old, v) then
 			triggerSet(tbl, k, old, v)
 		end
 	end
@@ -448,7 +453,7 @@ local function shallowReactive<T>(target: T): T
 	function mt.__newindex(_: RawTable, k: unknown, v: unknown)
 		local old = tbl[k]
 		tbl[k] = v
-		if old ~= v then
+		if hasChanged(old, v) then
 			triggerSet(tbl, k, old, v)
 		end
 	end
@@ -494,7 +499,7 @@ function RefMT.__newindex(self: RefInternal, k: unknown, v: unknown)
 	local old = self._value
 	local newValue = if not self._shallow and shouldWrap(v) then reactive(v) else v
 	self._value = newValue
-	if old ~= newValue then
+	if hasChanged(old, newValue) then
 		trigger(self, REF_VALUE_KEY)
 	end
 end
@@ -597,7 +602,7 @@ local function toRef<K, V>(obj: { [K]: V }, key: K): Ref<V>
 			if k == REF_VALUE_KEY then
 				local old = obj[key]
 				obj[key] = v :: V
-				if old ~= v then
+				if hasChanged(old, v) then
 					trigger(obj, key)
 				end
 				return
@@ -672,7 +677,7 @@ local function arrayShallowEqual(a: { unknown }?, b: { unknown }?): boolean
 		return false
 	end
 	for i, v in a do
-		if b[i] ~= v then
+		if hasChanged(b[i], v) then
 			return false
 		end
 	end
@@ -773,13 +778,13 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 	local paused = false
 	local dirty = false
 
-	local function hasChanged(new: T): boolean
+	local function sourceChanged(new: T): boolean
 		if deep then
 			return true
 		elseif isMultiSource then
 			return forceTrigger or not arrayShallowEqual(new :: any, oldValue :: any)
 		end
-		return new ~= oldValue
+		return hasChanged(new, oldValue)
 	end
 
 	local stopped = false
@@ -789,7 +794,7 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 			return
 		end
 		local new = currentValue
-		if initialized and not hasChanged(new) then
+		if initialized and not sourceChanged(new) then
 			return
 		end
 		local shouldCall = initialized or immediate

@@ -196,8 +196,11 @@ local function createKeepAlive(): ComponentDef
 				end
 			end
 
-			componentModule.onUnmounted(function()
+			-- Before the subtree goes, so the child on screen is unmounted for real instead of cached
+			componentModule.onBeforeUnmount(function()
 				marker.disposed = true
+			end)
+			componentModule.onUnmounted(function()
 				for _, cached in cache do
 					if not isCurrent(cached) and renderer then
 						renderer.unmount(cached)
