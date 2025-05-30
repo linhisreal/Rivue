@@ -137,6 +137,8 @@ export type VNode = {
 	_handlers: { [string]: (...any) -> () }?,
 	_dirs: { [string]: unknown }?,
 	_touched: { [string]: boolean }?,
+	-- Properties bound to a ref or Rivue.bind(), each with its own effect
+	_bindings: { [any]: any }?,
 	_fnTree: VNode?,
 	_owner: unknown?,
 	_transition: TransitionConfig?,
@@ -236,6 +238,8 @@ export type AsyncComponentOptions = {
 	delay: number?,
 	-- ms
 	timeout: number?,
+	-- Called when a load fails or times out: call retry() to load again, or fail() to give up
+	onError: ((err: string, retry: () -> (), fail: () -> (), attempts: number) -> ())?,
 }
 
 export type SuspenseContext = {
