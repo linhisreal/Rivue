@@ -65,6 +65,7 @@ const api = [
 	["Components", "component"],
 	["Render function", "render-function"],
 	["Application", "application"],
+	["Navigation and loading", "navigation"],
 	["Lifecycle hooks", "lifecycle"],
 	["Built-in components", "builtins"],
 	["Directives", "directives"],
