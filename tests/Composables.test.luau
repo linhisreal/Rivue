@@ -157,6 +157,49 @@ local function runTests()
 	end
 
 	local printFooter = "COMPOSABLES TESTS COMPLETE"
+	print("defineModel keeps its own value when the parent passes no model")
+	do
+		local useModel = Rivue.defineModel()
+		local model: any
+		local Toggle = Rivue.defineComponent({
+			name = "LocalToggle",
+			props = { modelValue = {} },
+			setup = function(props, ctx)
+				model = useModel(props, ctx)
+				return { on = model }
+			end,
+			render = function(ctx)
+				return Rivue.h("TextLabel", { Name = "Label", Text = tostring(ctx.on) })
+			end,
+		})
+		local folder = Instance.new("Folder")
+		local app = Rivue.createApp(Toggle)
+		app:mount(folder)
+		assertEquals(model.value, nil, "unbound, it starts empty")
+		model.value = true
+		Rivue.nextTick()
+		assertEquals(model.value, true, "writes stick locally")
+		assertEquals((folder:FindFirstChild("Label") :: TextLabel).Text, "true", "and re-render")
+		app:unmount()
+
+		local bound = Rivue.ref(false)
+		local Parent = Rivue.defineComponent({
+			name = "BoundParent",
+			render = function()
+				return Rivue.h(Toggle, { model = bound })
+			end,
+		})
+		local boundApp = Rivue.createApp(Parent)
+		boundApp:mount(Instance.new("Folder"))
+		model.value = true
+		Rivue.nextTick()
+		assertEquals(bound.value, true, "bound, writes still go to the parent")
+		bound.value = false
+		Rivue.nextTick()
+		assertEquals(model.value, false, "and the parent's value wins")
+		boundApp:unmount()
+	end
+
 	print("useStyles follows a theme provided as a ref")
 	do
 		local theme = Rivue.ref({ surface = "dark" })
