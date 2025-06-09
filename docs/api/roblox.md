@@ -22,6 +22,7 @@ local Players = game:GetService("Players")
 - [useInputType()](#useinputtype)
 - [useSafeArea()](#usesafearea)
 - [useSelection()](#useselection)
+- [useGamepadFocus()](#usegamepadfocus)
 - [useTween()](#usetween)
 - [useSpring()](#usespring)
 - [attributeRef()](#attributeref)
@@ -386,6 +387,53 @@ Reads and sets which element is selected for gamepad navigation.
 
 ---
 
+## useGamepadFocus()
+
+Selects a button for gamepad navigation when a menu opens, and gives the selection back when it
+closes. Without it, a gamepad player opening a menu has to press the select button before
+anything responds.
+
+- **Example**
+
+  A pause menu that starts on Resume:
+
+  ```lua
+  local PauseMenu = Rivue.defineComponent({
+  	name = "PauseMenu",
+  	setup = function()
+  		local resume = Rivue.useTemplateRef("resume")
+  		Rivue.useGamepadFocus(resume)
+  		return {}
+  	end,
+  	render = function()
+  		return h("Frame", { layout = { gap = 8 } }, {
+  			h("TextButton", { Text = "Resume", ref = "resume" }),
+  			h("TextButton", { Text = "Settings" }),
+  		})
+  	end,
+  })
+  ```
+
+- **Details**
+
+  - It selects the target once it's mounted, if the player is on a gamepad, and again when they
+    switch to one with nothing selected. Something the player already selected stays selected.
+  - `always = true` selects it whatever the player is using.
+  - When the component unmounts, the selection goes back to what had it before, unless
+    `restore = false`.
+  - Does nothing on the server.
+
+- **Type**
+
+  ```lua
+  function useGamepadFocus(target: Ref<GuiObject?>, options: {
+  	always: boolean?, -- default false
+  	restore: boolean?, -- default true
+  }?)
+  ```
+
+---
+
 ## useTween()
 
 A value that animates toward its target, with the TweenInfo's time and easing, every time the
@@ -459,8 +507,9 @@ A value that follows its target like a spring, with a natural ease and optional 
 
 - **Details**
 
-  Supports numbers, Vector2 and Vector3. Unlike a tween, a spring keeps its velocity when the
-  target changes mid-motion, so it never jumps.
+  Supports numbers, Vector2, Vector3, UDim, UDim2 and Color3. Unlike a tween, a spring keeps its
+  velocity when the target changes mid-motion, so it never jumps. A bouncy Color3 is clamped to
+  0..1 on the way.
 
 - **Type**
 

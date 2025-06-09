@@ -465,7 +465,7 @@ rendered. Use it to check what's actually mounted.
 ## app:rerender() / app:swapRoot()
 
 Throws the current UI away and mounts again into the same container, optionally with a different
-root. Use it to hot-reload while you work in Studio.
+root.
 
 - **Example**
 
@@ -483,7 +483,7 @@ root. Use it to hot-reload while you work in Studio.
 - **Details**
 
   All component state is lost. To update the UI, change reactive state instead; these are for
-  swapping whole screens or for hot reloading.
+  swapping whole screens.
 
 - **Type**
 
