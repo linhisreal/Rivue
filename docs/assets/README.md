@@ -1,27 +1,43 @@
-[Docs](../README.md) › **Logos**
+[Docs](../README.md) › **Assets**
 
-# Rivue logos
+# Assets
 
-The Rivue icon is the main mark, used at the top of the README. The Guide's mark, for the
-documentation, is a sibling of it: the same tilted Studio-blue tile, with the V drawn as the pages
-of an open book and the mint V as the spread inside.
+Every image the README and the docs use lives in this folder.
+
+| Folder | What's in it |
+|---|---|
+| this folder | the Rivue icon and the Guide logo |
+| [diagrams/](diagrams) | the pictures in the guide and API pages |
+| [badges/](badges) | the link badges at the top of the README |
+| [web/](web) | favicons and app icons for the docs site |
+
+## Logos
+
+The Rivue icon is the one at the top of the README. The Guide logo, used for the documentation,
+is the same tilted blue tile with the V drawn as an open book.
 
 <img src="./guide-lockup.svg" height="64" alt="Rivue Guide">
-
-## Files
 
 | File | Use it for |
 |---|---|
 | [icon.svg](icon.svg) · [icon.png](icon.png) | the Rivue icon |
-| [guide-icon.svg](guide-icon.svg) · [guide-icon.png](guide-icon.png) (512 px) | the symbol on its own, 33 px and up |
-| [guide-icon-small.svg](guide-icon-small.svg) | 32 px and below: wider spine gap, heavier inner V |
+| [guide-icon.svg](guide-icon.svg) · [guide-icon.png](guide-icon.png) (512 px) | the Guide symbol, 33 px and up |
+| [guide-icon-small.svg](guide-icon-small.svg) | the Guide symbol at 32 px and below, with thicker lines so it stays readable |
 | [guide-lockup.svg](guide-lockup.svg) | symbol and name, on light backgrounds |
 | [guide-lockup-dark.svg](guide-lockup-dark.svg) | symbol and name, on dark backgrounds |
-| [guide-lockup-stacked.svg](guide-lockup-stacked.svg) | symbol over the name, for square spaces |
-| [guide-icon-black.svg](guide-icon-black.svg) · [guide-icon-white.svg](guide-icon-white.svg) | one-colour printing, embroidery, stamps |
-| [web/](web) | `favicon.ico`, 16 and 32 px favicons, 180 px Apple touch icon, 192 and 512 px app icons |
+| [guide-lockup-stacked.svg](guide-lockup-stacked.svg) | symbol above the name, for square spaces |
+| [guide-icon-black.svg](guide-icon-black.svg) · [guide-icon-white.svg](guide-icon-white.svg) | one colour, for printing |
 
-For a docs site, add this to the page `<head>`:
+The colours are Studio blue `#1F6FEB` for the tile, mint `#7EE8C0` for the inner V, white, and ink
+`#1F2328` for text on light backgrounds. The names are set in Inter Display and converted to
+outlines, so no font is needed to show them. Inter is under the SIL Open Font License.
+
+Leave a gap of about a quarter of the symbol's width around the logo. Below 33 px use the small
+cut, and don't put the colour version on a busy image or a blue close to the tile's; use the
+one-colour files there. Please don't recolour it, straighten the tile, stretch it, or add shadows.
+
+The docs site uses the files in `web/`. To use them on another site, put this in the page
+`<head>`:
 
 ```html
 <link rel="icon" href="/favicon.ico" sizes="32x32">
@@ -29,42 +45,15 @@ For a docs site, add this to the page `<head>`:
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 ```
 
-## Colours
+## Diagrams
 
-| | Hex | RGB |
-|---|---|---|
-| Studio blue (tile, "Guide" on light) | `#1F6FEB` | 31, 111, 235 |
-| Mint (inner V, "Guide" on dark) | `#7EE8C0` | 126, 232, 192 |
-| White (pages, "Rivue" on dark) | `#FFFFFF` | 255, 255, 255 |
-| Ink ("Rivue" on light) | `#1F2328` | 31, 35, 40 |
-
-The same palette as the Rivue icon. The type is Inter Display (Bold for "Rivue", Medium for
-"Guide"), converted to outlines, so no font is needed to display it. Inter is licensed under the
-SIL Open Font License.
-
-## Using it
-
-- **Clear space:** keep at least the width of one page (a quarter of the symbol) empty around the
-  logo.
-- **Minimum size:** 16 px for the symbol (use the small cut below 33 px), 96 px wide for the
-  horizontal lockup.
-- **Backgrounds:** the colour symbol works on white, light grey and near-black. On a busy image or
-  a blue close to Studio blue, use the one-colour version.
-- **Don't** recolour the parts, untilt the tile, add shadows or gradients, stretch it, or set
-  "Rivue Guide" in another font.
+Hand-written SVGs, 780 px wide, white with a grey border, so they read the same on GitHub and on
+the docs site in light or dark mode. Link them with a relative path, like
+`![a store module](../assets/diagrams/store-flow.svg)` from a guide page.
 
 ## Badges
 
-The README's link badges in `badges/`. They share one layout (icon and name, 32 px tall, so all
-six fit on one row) and each sits on its brand's colour:
-
-| File | Icon and colour |
-|---|---|
-| `creator-store.svg` | the Roblox mark on black |
-| `wally.svg` | Wally's logo from [wally.run](https://wally.run) on its red |
-| `pesde.svg` | pesde's logo from [pesde.dev](https://pesde.dev) on its black |
-| `rokit.svg` | a terminal prompt on dark grey (Rokit has no logo) |
-| `luau.svg` | Luau's logo from [luau.org](https://luau.org) on its navy |
-| `docs.svg` | the Guide icon on Rivue blue |
-
-The dark badges have a grey outline so they don't vanish on GitHub's dark theme.
+Each badge is the project's icon and name on its own colour, 32 px tall, so all six fit on one
+row. The Wally, pesde and Luau icons are those projects' own logos. Rokit has no logo, so its
+badge uses a terminal prompt. The three dark badges have a grey outline, which keeps them visible
+on GitHub's dark theme.
