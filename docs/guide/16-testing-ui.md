@@ -97,7 +97,7 @@ assert(#saves == 1) -- stopping the scope stopped the watcher
 
 ## Testing a component
 
-![the steps of a component test](../images/test-steps.svg)
+![the steps of a component test](../assets/diagrams/test-steps.svg)
 
 Mount into a Frame that isn't parented anywhere. Rivue still creates real Instances, so a test can
 read their `Text` and `Visible` directly. This helper mounts a component and finds elements by
@@ -233,6 +233,34 @@ assert(box.Text == "") -- the box clears after submitting
 app:unmount()
 ```
 
+## Shorter tests with testing.render
+
+The helpers above show what a component test does. Rivue ships the same idea in a shorter form,
+modelled on Testing Library: find elements by the text the player sees, and act the way they
+would. This is the picker test from above, written with them:
+
+```lua
+local changes = {}
+local screen = Rivue.testing.render(QuantityPicker, {
+	max = 2,
+	onChange = function(amount)
+		table.insert(changes, amount)
+	end,
+})
+
+Rivue.testing.click(screen.getByText("+"))
+Rivue.testing.click(screen.getByText("+")) -- already at the max of 2
+
+assert(screen.getByText("2"))
+assert(changes[1] == 2 and changes[2] == 2)
+
+screen.unmount()
+```
+
+`click` and `typeInto` wait for the re-render themselves, so there's no `nextTick()` to forget.
+`getByText` fails the test when the text isn't there, or is there twice; `queryByText` returns
+nil instead, for checking something is gone.
+
 ## What a script can't test
 
 A script can't drive `UserInputService` events or the camera's `ViewportSize`. That leaves
@@ -273,7 +301,8 @@ return Rivue.story(ShopItem, {
 
 ---
 
-**Reference:** [testing.trigger()](../api/utilities.md#testingtrigger) ·
+**Reference:** [testing.render()](../api/utilities.md#testingrender) ·
+[testing.trigger()](../api/utilities.md#testingtrigger) ·
 [nextTick()](../api/scheduler.md#nexttick) · [effectScope()](../api/reactivity-advanced.md#effectscope) ·
 [mount()](../api/application.md#mount) · [story()](../api/utilities.md#story)
 

@@ -163,7 +163,7 @@ like `class = { "button", danger and "button-danger" }`.
 
 ### Lay out with layout, not positions
 
-![layout = "vertical", "horizontal" and grid](../images/layout-direction.svg)
+![layout = "vertical", "horizontal" and grid](../assets/diagrams/layout-direction.svg)
 
 ```lua
 -- ✗ Breaks as soon as a label wraps
