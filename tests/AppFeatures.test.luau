@@ -3,6 +3,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
+local Router = require(ReplicatedStorage:WaitForChild("RivueRouter"))
 local h = Rivue.h
 
 local function assertEquals(actual: any, expected: any, message: string)
@@ -103,11 +104,11 @@ return function()
 				return h("TextLabel", { Name = "Screen", Text = `item {ctx.id}` })
 			end,
 		})
-		local router = Rivue.createRouter({ routes = { home = Home, item = Item }, initial = "home" })
+		local router = Router.createRouter({ routes = { home = Home, item = Item }, initial = "home" })
 		local Shell = Rivue.defineComponent({
 			name = "Shell",
 			render = function()
-				return h("Frame", { Name = "Shell" }, { h(Rivue.RouterView) })
+				return h("Frame", { Name = "Shell" }, { h(Router.RouterView) })
 			end,
 		})
 		local folder = Instance.new("Folder")
@@ -162,7 +163,7 @@ return function()
 		local Probe = Rivue.defineComponent({
 			name = "RouterProbe",
 			setup = function()
-				injected = Rivue.useRouter()
+				injected = Router.useRouter()
 				return {}
 			end,
 			render = function()
@@ -176,11 +177,11 @@ return function()
 		probeApp:unmount()
 		app:unmount()
 
-		local keptRouter = Rivue.createRouter({ routes = { home = Home, item = Item }, initial = "item" })
+		local keptRouter = Router.createRouter({ routes = { home = Home, item = Item }, initial = "item" })
 		local Kept = Rivue.defineComponent({
 			name = "KeptShell",
 			render = function()
-				return h("Frame", nil, { h(Rivue.RouterView, { keepAlive = true }) })
+				return h("Frame", nil, { h(Router.RouterView, { keepAlive = true }) })
 			end,
 		})
 		local keptApp = Rivue.createApp(Kept)
