@@ -1,8 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
-  <title>Rivue</title>
-  <rect x="24" y="24" width="208" height="208" rx="48" fill="#1f6feb" transform="rotate(-15 128 128)"/>
-  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M68.0 80 L128 184 L188.0 80" stroke="#ffffff" stroke-width="28"/>
-    <path d="M106.6 82 L128 119.0 L149.4 82" stroke="#7ee8c0" stroke-width="17"/>
-  </g>
-</svg>
