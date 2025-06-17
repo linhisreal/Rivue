@@ -56,7 +56,8 @@ only run when this is true.
 
 ## Rivue.version
 
-The version of Rivue that's running, such as `"2.57.0"`. Every Rivue package shares one version.
+The version of Rivue that's running, such as `"0.9.0-rc.1"`. RivueRemote and RivueRouter have their
+own, in `Remote.version` and `Router.version`.
 
 - **Example**
 

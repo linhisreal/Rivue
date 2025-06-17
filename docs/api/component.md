@@ -31,6 +31,7 @@ local h = Rivue.h
 - [useId()](#useid)
 - [getCurrentInstance()](#getcurrentinstance)
 - [defineAsyncComponent()](#defineasynccomponent)
+- [useAsync()](#useasync)
 
 ---
 
@@ -1005,6 +1006,70 @@ Use it for big screens most players never open.
   		onError: ((err: string, retry: () -> (), fail: () -> (), attempts: number) -> ())?,
   	}?
   ): ComponentDef
+  ```
+
+---
+
+## useAsync()
+
+Runs something that yields, like a RemoteFunction call or a
+[RivueRemote request](remote.md#remoterequest), and keeps its result, loading state and error
+in refs.
+
+- **Example**
+
+  A shop that loads its items, with a loading label and a retry button:
+
+  ```lua
+  local function fetchItems(category: string): { string }
+  	task.wait(0.1) -- stands in for a request to the server
+  	return { `{category} sword`, `{category} shield` }
+  end
+
+  local Shop = Rivue.defineComponent({
+  	name = "Shop",
+  	setup = function()
+  		local items = Rivue.useAsync(fetchItems, { args = { "Iron" }, initial = {} })
+  		return { items = items.data, loading = items.loading, failed = items.error, retry = items.refresh }
+  	end,
+  	render = function(ctx)
+  		if ctx.loading then
+  			return h("TextLabel", { Text = "Loading..." })
+  		elseif ctx.failed then
+  			return h("TextButton", { Text = "Couldn't load, tap to retry", onClick = ctx.retry })
+  		end
+  		return h("TextLabel", { Text = table.concat(ctx.items, ", ") })
+  	end,
+  })
+  ```
+
+- **Details**
+
+  - It runs straight away with `args`, unless `immediate = false`. `run(...)` runs it again
+    with new arguments, `refresh()` with the last ones.
+  - Only the newest run's result lands. A slow answer to an old request never overwrites a
+    newer one.
+  - An error goes into `error` as a string, and `data` keeps its last good value.
+  - Called in `setup()`, results that arrive after the component unmounts are dropped.
+  - Inside a [Suspense](builtins.md#suspense), the Suspense shows its fallback until every
+    `useAsync` under it has its first result, so one loading screen covers a whole panel.
+    `suspense = false` opts out. A failed load stays in `error` and doesn't fail the Suspense.
+
+- **Type**
+
+  ```lua
+  function useAsync<T>(fn: (...any) -> T, options: {
+  	immediate: boolean?, -- default true
+  	args: { any }?,
+  	initial: T?,
+  	suspense: boolean?, -- default true
+  }?): {
+  	data: Ref<T?>,
+  	loading: Ref<boolean>,
+  	error: Ref<string?>,
+  	run: (...any) -> (),
+  	refresh: () -> (),
+  }
   ```
 
 ---
