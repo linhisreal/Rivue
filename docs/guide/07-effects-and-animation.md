@@ -82,7 +82,7 @@ h(Rivue.Transition, {
 Most UI uses the same few moves, so Rivue has them ready in `Rivue.transitions`: `fade`, `slide`
 and `pop`. Each returns the props for a Transition:
 
-![what fade, slide and pop do when an element enters](../assets/diagrams/transition-presets.svg)
+![what fade, slide and pop do when an element enters](../assets/diagrams/transition-presets.webp)
 
 ```lua
 h(Rivue.Transition, Rivue.transitions.slide({ direction = "up" }), {

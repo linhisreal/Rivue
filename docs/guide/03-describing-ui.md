@@ -71,7 +71,7 @@ Give every list item a `key`, and make it something that belongs to the item, li
 position in the list won't do. Keys are how Rivue tells which Instance is which when the list
 changes:
 
-![keys let Rivue keep the right Instances](../assets/diagrams/keyed-list.svg)
+![keys let Rivue keep the right Instances](../assets/diagrams/keyed-list.webp)
 
 Leave them out and removing one row re-patches every row after it. Worse, state inside a row
 component, like a hover or a half-typed value, ends up on the wrong item.

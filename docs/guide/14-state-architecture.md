@@ -23,7 +23,7 @@ Start local. Move state up only when a second component needs it.
 fuller one, with derived state that outlives any component. Components only read it, and only the
 store's own functions write:
 
-![a store module](../assets/diagrams/store-flow.svg)
+![a store module](../assets/diagrams/store-flow.webp)
 
 ```lua
 -- UI/stores/Inventory.luau
@@ -105,7 +105,7 @@ end)
 Waiting for the server makes a buy button feel slow. Apply the change right away, and roll it
 back if the server says no:
 
-![optimistic update](../assets/diagrams/optimistic-update.svg)
+![optimistic update](../assets/diagrams/optimistic-update.webp)
 
 ```lua
 -- In the Inventory store
