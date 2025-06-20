@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/icon.svg" width="128" height="128" alt="Rivue logo">
+  <img src="docs/assets/icon.webp" width="128" height="128" alt="Rivue logo">
 </p>
 
 <h1 align="center">Rivue</h1>
@@ -9,12 +9,12 @@
 </p>
 
 <p align="center">
-  <a href="https://create.roblox.com/store/models?keyword=Rivue"><img src="docs/assets/badges/creator-store.svg" height="32" alt="Get it on the Roblox Creator Store"></a>
-  <a href="https://wally.run/package/linhisreal/rivue"><img src="docs/assets/badges/wally.svg" height="32" alt="Install with Wally"></a>
-  <a href="https://pesde.dev/packages/linhisreal/rivue"><img src="docs/assets/badges/pesde.svg" height="32" alt="Install with pesde"></a>
-  <a href="rokit.toml"><img src="docs/assets/badges/rokit.svg" height="32" alt="Tools pinned with Rokit"></a>
-  <a href="https://luau.org"><img src="docs/assets/badges/luau.svg" height="32" alt="Written in Luau"></a>
-  <a href="https://linhisreal.github.io/Rivue/"><img src="docs/assets/badges/docs.svg" height="32" alt="Read the docs"></a>
+  <a href="https://create.roblox.com/store/models?keyword=Rivue"><img src="docs/assets/badges/creator-store.webp" height="32" alt="Get it on the Roblox Creator Store"></a>
+  <a href="https://wally.run/package/linhisreal/rivue"><img src="docs/assets/badges/wally.webp" height="32" alt="Install with Wally"></a>
+  <a href="https://pesde.dev/packages/linhisreal/rivue"><img src="docs/assets/badges/pesde.webp" height="32" alt="Install with pesde"></a>
+  <a href="rokit.toml"><img src="docs/assets/badges/rokit.webp" height="32" alt="Tools pinned with Rokit"></a>
+  <a href="https://luau.org"><img src="docs/assets/badges/luau.webp" height="32" alt="Written in Luau"></a>
+  <a href="https://linhisreal.github.io/Rivue/"><img src="docs/assets/badges/docs.webp" height="32" alt="Read the docs"></a>
 </p>
 
 <p align="center">
@@ -57,7 +57,8 @@ and styles, and there are more in [examples](examples).
 
 Rivue is still young, so the API can change between releases. It runs in LocalScripts. When you
 need the server, there's a separate package for that, [RivueRemote](docs/api/remote.md), with
-requests, events and rate limits.
+requests, events and rate limits. For moving between screens there's
+[RivueRouter](docs/api/router.md), which works like Vue Router.
 
 ## Why Rivue
 
@@ -79,7 +80,7 @@ and `flex` replace the usual UIListLayout boilerplate, and tweens, springs, `Tra
 | Components | `setup` + `render(ctx)`, validated props, emits, slots, provide/inject, every lifecycle hook |
 | Styling | style classes per app or component; `layout`, `flex`, `cornerRadius`, `padding`, `stroke` props |
 | Performance | keyed diffing, batched parent-first updates, `Rivue.bind` for properties that change every frame, `memo`, optional Instance pool |
-| Built-ins | `Transition` with fade/slide/pop presets, `TransitionGroup`, `KeepAlive`, `Teleport`, `Suspense`, `VirtualList`, `Dialog`, `ErrorBoundary`, `Row`/`Column`/`Spacer`, a router, `useAsync` |
+| Built-ins | `Transition` with fade/slide/pop presets, `TransitionGroup`, `KeepAlive`, `Teleport`, `Suspense`, `VirtualList`, `Dialog`, `ErrorBoundary`, `Row`/`Column`/`Spacer`, `useAsync` |
 | Roblox | tweens, springs, viewport and input-type composables, gamepad selection, attribute refs, tags |
 | Studio | warnings that name the component chain, roots named after components, `app:printTree()`, a DevTools plugin, `testing.render` for tests |
 | Types | strict Luau with exported types like `Rivue.Ref<T>` and `Rivue.VNode` |
@@ -93,11 +94,13 @@ Use whichever install you already use for other packages.
 
 ```toml
 [dependencies]
-Rivue = "linhisreal/rivue@2.57.0"
-RivueRemote = "linhisreal/rivue-remote@2.57.0" # optional, for client/server calls
+Rivue = "linhisreal/rivue@0.9.0-rc.1"
+RivueRemote = "linhisreal/rivue-remote@0.5.0-beta.1" # optional, for client/server calls
+RivueRouter = "linhisreal/rivue-router@0.1.0-beta.1" # optional, for screens and back/forward
 ```
 
-**With pesde**, run `pesde add linhisreal/rivue` (and `linhisreal/rivue_remote` if you want it).
+**With pesde**, run `pesde add linhisreal/rivue` (and `linhisreal/rivue_remote` or
+`linhisreal/rivue_router` if you want them).
 
 **With Rojo**, add this repo as a git submodule and point your project at the package:
 
@@ -109,8 +112,8 @@ RivueRemote = "linhisreal/rivue-remote@2.57.0" # optional, for client/server cal
 
 **Without Rojo**, download `Rivue.rbxm` from the latest
 [release](https://github.com/linhisreal/Rivue/releases) and drag it into `ReplicatedStorage`.
-There's also `Rivue.min.rbxm` (same code, comments stripped) and `RivueRemote.rbxm`, the optional
-client/server package.
+There's also `Rivue.min.rbxm` (same code, comments stripped), and the optional `RivueRemote.rbxm`
+and `RivueRouter.rbxm`, which go next to it.
 
 ## Docs
 
@@ -133,7 +136,7 @@ lune setup                        # editor types for the Lune scripts
 lune run test                     # all suites, without Studio
 lune run check-docs               # links resolve and every API example runs
 lune run build                    # the packages and the dev place, into build/
-lune run version 2.57.0           # one version for every package
+lune run version rivue 0.9.0-rc.2 # bump one package
 rojo serve                        # the dev place in Studio
 ```
 
@@ -144,6 +147,7 @@ second time inside a real Roblox server. How releases and publishing work is in
 ```
 packages/rivue/            the UI framework                 Wally, pesde, Rivue.rbxm
 packages/rivue-remote/     client/server calls              Wally, pesde, RivueRemote.rbxm
+packages/rivue-router/     screens and history              Wally, pesde, RivueRouter.rbxm
 packages/rivue-devtools/   Studio plugin                    RivueDevTools.rbxm
 dev/                       the dev place: test runner, demo app, examples, stress test
 examples/                  example components, tested in tests/Examples.test.luau
