@@ -44,4 +44,5 @@ jobs:
             build/Rivue.rbxm
             build/Rivue.min.rbxm
             build/RivueRemote.rbxm
+            build/RivueRouter.rbxm
             build/RivueDevTools.rbxm
