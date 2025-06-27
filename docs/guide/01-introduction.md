@@ -34,7 +34,7 @@ LocalScript:
 -- StarterPlayerScripts/Hud.client.luau
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Rivue = require(ReplicatedStorage.Rivue)
+local Rivue = require(ReplicatedStorage.RivueUI)
 local h = Rivue.h
 
 local Counter = Rivue.defineComponent({

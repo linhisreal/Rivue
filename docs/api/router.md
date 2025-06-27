@@ -5,7 +5,7 @@
 **Learn it:** [Guide 13: Component patterns](../guide/13-advanced-components.md#switching-screens)
 
 Screens with history, like a small Vue Router. It's a separate package, the way Vue Router is
-separate from Vue: install `RivueRouter` next to `Rivue`, in the same Packages folder or both in
+separate from Vue: install `RivueRouter` next to `RivueUI`, in the same Packages folder or both in
 ReplicatedStorage. It uses the Rivue your game already requires. All examples assume
 `local Router = require(game.ReplicatedStorage.RivueRouter)`.
 

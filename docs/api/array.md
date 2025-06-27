@@ -12,7 +12,7 @@ methods. They also work on plain arrays.
 All examples assume:
 
 ```lua
-local Rivue = require(game.ReplicatedStorage.Rivue)
+local Rivue = require(game.ReplicatedStorage.RivueUI)
 local array = Rivue.array
 ```
 

@@ -2,7 +2,7 @@
 -- A form and a keyed list: model binding, a child component with emits, array helpers.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
+local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
 local h = Rivue.h
 local array = Rivue.array
 

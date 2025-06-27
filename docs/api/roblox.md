@@ -8,7 +8,7 @@ Composables for engine state: devices, input, attributes, tags, frames and anima
 `setup()` (or inside an `effectScope`) so they clean up automatically. All examples assume:
 
 ```lua
-local Rivue = require(game.ReplicatedStorage.Rivue)
+local Rivue = require(game.ReplicatedStorage.RivueUI)
 local h = Rivue.h
 local Players = game:GetService("Players")
 ```

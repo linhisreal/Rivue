@@ -5,7 +5,7 @@
 **Learn it:** [Guide 7: Effects and animation](../guide/07-effects-and-animation.md)
 
 When updates happen, and how to run code after them. All examples assume
-`local Rivue = require(game.ReplicatedStorage.Rivue)`.
+`local Rivue = require(game.ReplicatedStorage.RivueUI)`.
 
 - [nextTick()](#nexttick)
 - [queueJob()](#queuejob)

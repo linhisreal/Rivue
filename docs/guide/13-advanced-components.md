@@ -172,7 +172,7 @@ Normally, switching away unmounts a screen. `KeepAlive` keeps the ones in `inclu
 so the shop is still scrolled where the player left it.
 
 Once screens need a back button, or pass each other data, use RivueRouter instead of a lookup
-table. It's a separate package, like Vue Router, so install it next to Rivue. It keeps the history
+table. It's a separate package, like Vue Router, so install it next to RivueUI. It keeps the history
 for you, passes params to the screen as props, and can keep screens alive the same way:
 
 ```lua

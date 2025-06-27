@@ -2,8 +2,8 @@
 -- Array helpers, render(ctx), local components, style classes and the layout props
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
-local renderer = require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("renderer"))
+local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
+local renderer = require(ReplicatedStorage:WaitForChild("RivueUI"):WaitForChild("runtime"):WaitForChild("renderer"))
 
 local h = Rivue.h
 local array = Rivue.array

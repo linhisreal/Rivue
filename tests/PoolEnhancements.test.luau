@@ -3,7 +3,7 @@
 -- What Pool.release() resets before an Instance is reused
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Pool = require(ReplicatedStorage.Rivue.runtime.pool)
+local Pool = require(ReplicatedStorage.RivueUI.runtime.pool)
 
 local function assertEquals(actual: any, expected: any, message: string?)
 	if actual ~= expected then

@@ -2,8 +2,8 @@
 -- Authoring helpers: v* props, model, style, mergeProps, printTree and error reporting
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
-local renderer = require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("renderer"))
+local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
+local renderer = require(ReplicatedStorage:WaitForChild("RivueUI"):WaitForChild("runtime"):WaitForChild("renderer"))
 
 local h = Rivue.h
 

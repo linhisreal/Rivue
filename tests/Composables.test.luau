@@ -1,9 +1,9 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
+local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
 local composables_module =
-	require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("composables"))
+	require(ReplicatedStorage:WaitForChild("RivueUI"):WaitForChild("runtime"):WaitForChild("composables"))
 
 local function assertEquals(actual: any, expected: any, message: string?)
 	if actual ~= expected then

@@ -3,7 +3,7 @@
 -- its own component, so selecting one only re-renders two rows.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
+local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
 local h = Rivue.h
 
 export type Item = { id: number, name: string, count: number }

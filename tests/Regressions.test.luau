@@ -4,8 +4,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GuiService = game:GetService("GuiService")
 local UserInputService = game:GetService("UserInputService")
-local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
-local renderer = require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("renderer"))
+local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
+local renderer = require(ReplicatedStorage:WaitForChild("RivueUI"):WaitForChild("runtime"):WaitForChild("renderer"))
 
 local h = Rivue.h
 
@@ -584,7 +584,7 @@ local function runTests()
 
 	print("Pool settings and pooled elements")
 	do
-		local Pool = require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("pool"))
+		local Pool = require(ReplicatedStorage:WaitForChild("RivueUI"):WaitForChild("runtime"):WaitForChild("pool"))
 		Pool.configure({ defaultTTL = 30 })
 		assertEquals(Pool.config.defaultTTL, 30, "configure sets defaultTTL")
 		Pool.configure({ defaultTTL = nil })

@@ -24,7 +24,7 @@ Keep one component per ModuleScript, named after it, so `ItemRow.luau` holds
 ```lua
 local ItemRow = require("./ItemRow") -- a sibling
 local Modal = require("../components/Modal") -- from views/
-local Rivue = require(game.ReplicatedStorage.Rivue) -- another service: by Instance
+local Rivue = require(game.ReplicatedStorage.RivueUI) -- another service: by Instance
 ```
 
 The [demo app](../../dev/Demo) in this repo is laid out this way.

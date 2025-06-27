@@ -27,7 +27,7 @@ store's own functions write:
 
 ```lua
 -- UI/stores/Inventory.luau
-local Rivue = require(game.ReplicatedStorage.Rivue)
+local Rivue = require(game.ReplicatedStorage.RivueUI)
 
 local state = Rivue.reactive({
 	coins = 100,

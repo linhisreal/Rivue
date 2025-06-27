@@ -2,7 +2,7 @@
 -- The router, useAsync, gamepad focus, bindings, testing helpers and the built-in UI components
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
+local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
 local Router = require(ReplicatedStorage:WaitForChild("RivueRouter"))
 local h = Rivue.h
 

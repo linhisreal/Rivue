@@ -4,7 +4,7 @@
 
 **Learn it:** [Guide 9: Performance and debugging](../guide/09-performance-and-debugging.md)
 
-All examples assume `local Rivue = require(game.ReplicatedStorage.Rivue)`.
+All examples assume `local Rivue = require(game.ReplicatedStorage.RivueUI)`.
 
 - [Rivue.dev](#rivuedev)
 - [Rivue.version](#rivueversion)

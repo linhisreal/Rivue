@@ -9,7 +9,7 @@ Reusable behaviour attached to an element. Use a `v` prop with the directive's n
 All examples assume:
 
 ```lua
-local Rivue = require(game.ReplicatedStorage.Rivue)
+local Rivue = require(game.ReplicatedStorage.RivueUI)
 local h = Rivue.h
 ```
 

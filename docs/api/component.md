@@ -7,7 +7,7 @@
 APIs for defining components and using them in `setup()`. All examples assume:
 
 ```lua
-local Rivue = require(game.ReplicatedStorage.Rivue)
+local Rivue = require(game.ReplicatedStorage.RivueUI)
 local h = Rivue.h
 ```
 

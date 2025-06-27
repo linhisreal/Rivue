@@ -3,7 +3,7 @@
 -- attributeRef: no feedback loop between the ref and the attribute
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Rivue = require(ReplicatedStorage.Rivue)
+local Rivue = require(ReplicatedStorage.RivueUI)
 
 local function assertEquals(actual: any, expected: any, message: string?)
 	if actual ~= expected then
