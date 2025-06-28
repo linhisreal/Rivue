@@ -183,7 +183,6 @@ local function watch(instance: Instance)
 	end
 end
 
--- Defined with the styles below
 local setPalette: (next: Theme.Palette) -> ()
 
 --- Starts following tagged components and Studio's theme. Returns a function that stops
