@@ -337,7 +337,7 @@ Rivue.useGamepadFocus = robloxUtils.useGamepadFocus
 Rivue.useTween = robloxUtils.useTween
 Rivue.useSpring = robloxUtils.useSpring
 
--- Set by `lune run version rivue <version>`
+-- Set by `lune run version rivue-ui <version>`
 Rivue.version = "0.9.0-rc.1"
 
 --- A property value that follows `getter`: when what it reads changes, Rivue writes just that
