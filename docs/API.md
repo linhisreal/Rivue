@@ -190,8 +190,18 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 
 **[RivueRouter](api/router.md)** (separate package)
 [createRouter()](api/router.md#routercreaterouter) ·
+[route records](api/router.md#route-records) ·
+[push()](api/router.md#routerpush-and-routerreplace) ·
+[go()](api/router.md#routergo-back-and-forward) ·
+[guards](api/router.md#navigation-guards) ·
+[onBeforeRouteLeave()](api/router.md#onbeforerouteleave-and-onbeforerouteupdate) ·
+[addRoute()](api/router.md#dynamic-routes) ·
+[scrollBehavior](api/router.md#scrollbehavior) ·
 [RouterView](api/router.md#routerrouterview) ·
-[useRouter()](api/router.md#routeruserouter)
+[RouterLink](api/router.md#routerrouterlink) ·
+[useRouter() / useRoute()](api/router.md#routeruserouter-and-routeruseroute) ·
+[useLink()](api/router.md#routeruselink) ·
+[navigation failures](api/router.md#navigation-failures)
 
 **[Instance pool](api/pool.md)**
 [configure()](api/pool.md#poolconfigure) ·

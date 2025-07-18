@@ -177,9 +177,13 @@ There's no SSR and no hydration. Rivue runs on the client.
 
 ### Vue Router
 
-[RivueRouter](api/router.md) is a smaller Vue Router, and a separate package like Vue's:
-`createRouter`, `RouterView` and `useRouter` cover named routes, params, history and `beforeEach`
-guards, without URLs.
+[RivueRouter](api/router.md) follows Vue Router 4, and is a separate package like Vue's.
+`createRouter`, `RouterView`, `RouterLink`, `useRouter`, `useRoute`, `useLink`, nested routes,
+named views, `redirect`, `alias`, `meta`, `addRoute`, the global and per-route guards,
+`onBeforeRouteLeave`, `onBeforeRouteUpdate`, navigation failures and `scrollBehavior` work the way
+they do in Vue Router. The differences come from Roblox having no URLs: routes have names but no paths,
+there's no query or hash, and guards yield where Vue's return Promises. The
+[full list](api/router.md#differences-from-vue-router) is short.
 
 ### Things Vue doesn't have
 

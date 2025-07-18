@@ -44,5 +44,6 @@
 | check my code follows the conventions | [Guide 11](guide/11-style-rules.md) | | |
 | reuse logic between components | [Guide 12](guide/12-writing-composables.md) | [toValue()](api/reactivity-utilities.md#tovalue), [onScopeDispose()](api/reactivity-advanced.md#onscopedispose) | |
 | build tabs, menus or modals that fit together | [Guide 13](guide/13-advanced-components.md) | [provide()](api/component.md#provide), [Teleport](api/builtins.md#teleport) | [Tabs](../examples/components/Tabs.luau) |
+| move between screens with a back button | [Guide 17](guide/17-screens-and-navigation.md) | [RivueRouter](api/router.md) | |
 | test my UI | [Guide 16](guide/16-testing-ui.md) | [testing.trigger()](api/utilities.md#testingtrigger) | |
 | find out why something broke | [Guide 9](guide/09-performance-and-debugging.md#debugging) | [Utilities and debugging](api/utilities.md) | |
