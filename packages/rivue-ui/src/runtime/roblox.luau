@@ -241,8 +241,6 @@ export type KeybindOptions = {
 
 local keybindCount = 0
 
---- Runs callback when one of keys is pressed, while the calling component is mounted. Takes any
---- Enum.KeyCode or Enum.UserInputType, so gamepad buttons work too
 local function useKeybind(
 	keys: Enum.KeyCode | Enum.UserInputType | { Enum.KeyCode | Enum.UserInputType },
 	callback: (input: InputObject) -> (),
@@ -294,7 +292,6 @@ end
 local locale: Ref<string>? = nil
 local translator: Ref<Translator?>? = nil
 
---- The local player's language, such as "en-us". Updates when they change it
 local function useLocale(): Ref<string>
 	local existing = locale
 	if existing then
@@ -369,7 +366,6 @@ export type Scroll = {
 	scrollToEnd: (tweenInfo: TweenInfo?) -> (),
 }
 
---- Scroll state and controls for a ScrollingFrame held by a template ref
 local function useScroll(frame: Ref<any>, options: ScrollOptions?): Scroll
 	local opts: ScrollOptions = options or {}
 	local threshold = opts.threshold or 100

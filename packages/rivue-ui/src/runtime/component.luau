@@ -228,7 +228,6 @@ local function inject<T>(key: unknown, default: T?): T?
 	return if provided ~= nil then provided :: T else default
 end
 
---- Return true from fn to stop the error going further up
 local function onErrorCaptured(fn: ErrorCapturedHook): ()
 	local inst = currentInstance
 	if not inst then
@@ -781,7 +780,7 @@ local function onTransition(name: string, fn: (el: Instance) -> ()): ()
 	table.insert(list, fn)
 end
 
---- Teleport: renders its children into `props.to`. Only a marker, the renderer implements it
+-- Only a marker: the renderer implements Teleport
 local Teleport: ComponentDef = table.freeze({
 	__is_component = true :: true,
 	__name = "Teleport",
