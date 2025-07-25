@@ -1,6 +1,7 @@
 --!nonstrict
--- A HUD that adapts to the device and animates smoothly: useInputType/useViewportSize for layout,
--- useSpring for the health bar, attributeRef to read state the server writes on the player.
+-- A health bar. It reads the Health attribute the server sets, and a spring eases the bar towards
+-- it through a binding, so the HUD doesn't re-render every frame. On touch screens and small
+-- windows the bar is shorter and sits higher.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
@@ -58,7 +59,9 @@ return Rivue.defineComponent({
 			h("Frame", {
 				Name = "Fill",
 				class = { "fill", if ctx.ratio < 0.3 then "low" else "healthy" },
-				Size = UDim2.fromScale(ctx.shown, 1),
+				Size = Rivue.bind(function()
+					return UDim2.fromScale(ctx.shown, 1)
+				end),
 			}),
 			h("TextLabel", { Name = "Value", class = "label", Text = `{ctx.health or 0} / {ctx.maxHealth}` }),
 		})
