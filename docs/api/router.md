@@ -209,8 +209,6 @@ A route can be a bare component, or a record with more options.
 `push` opens a route and adds it to the history. `replace` swaps the current entry, so `back`
 skips it.
 
-![push, back, forward and replace on the history](../assets/diagrams/router-history.webp)
-
 - **Example**
 
   ```lua
@@ -309,8 +307,6 @@ Moves through the history. `back()` is `go(-1)` and `forward()` is `go(1)`.
 ## Navigation guards
 
 Functions that run before or after every navigation, `back` and `forward` included.
-
-![the order guards run in](../assets/diagrams/router-guard.webp)
 
 - **Example**
 
