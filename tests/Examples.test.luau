@@ -193,6 +193,95 @@ local function runTests()
 		app:unmount()
 	end
 
+	print("Example: Shop load error and retry")
+	do
+		local attempts = 0
+		local api = {
+			list = function()
+				attempts += 1
+				task.wait(0.1)
+				if attempts == 1 then
+					return nil, "timeout"
+				end
+				return { { id = "bow", name = "Bow", price = 50 } }, nil
+			end,
+			buy = function()
+				return true, nil
+			end,
+		}
+		local container, app = mount(require(Examples:WaitForChild("Shop")), { api = api })
+		task.wait(0.2)
+		local errorButton = find(container, "Error")
+		assertEquals(
+			errorButton and errorButton.Text,
+			"Couldn't load the shop (timeout) - tap to retry",
+			"Shows the load error"
+		)
+		Rivue.testing.trigger(errorButton, "onClick")
+		task.wait(0.2)
+		assertTrue(find(container, "Error") == nil, "Retrying clears the error")
+		assertEquals(find(container, "bow").Text, "Bow - 50", "and loads the products")
+		app:unmount()
+	end
+
+	print("Example: GameMenu")
+	do
+		local GameMenu = require(Examples:WaitForChild("GameMenu"))
+		local container = Instance.new("Frame")
+		local app = Rivue.createApp(GameMenu.App)
+		app:styles(GameMenu.styles)
+		app:use(GameMenu.createRouter())
+		app:mount(container)
+		local function click(name: string)
+			Rivue.testing.trigger(find(container, name), "onActivated")
+			task.wait(0.5)
+		end
+		local function title(): string
+			return find(container, "Title").Text
+		end
+
+		assertEquals(title(), "Menu", "Starts in the lobby, titled from meta")
+		assertEquals(find(container, "Back").Visible, false, "No back button on the first screen")
+
+		click("OpenShop")
+		assertEquals(title(), "Shop", "The shop link opens the shop")
+		assertTrue(find(container, "Sword") ~= nil, "on its first tab, through redirect")
+		assertEquals(find(container, "WeaponsTab").TextColor3, Color3.new(1, 1, 1), "The open tab is highlighted")
+		click("PetsTab")
+		assertTrue(find(container, "Owl") ~= nil and find(container, "Sword") == nil, "Tabs are child routes")
+		assertEquals(find(container, "PetsTab").TextColor3, Color3.new(1, 1, 1), "and the highlight follows")
+		click("Back")
+		click("Back")
+		assertEquals(title(), "Menu", "Back walks the history")
+
+		click("OpenSettings")
+		click("Music")
+		assertEquals(find(container, "Music").Text, "Music: off", "Toggling changes the draft")
+		task.spawn(function()
+			Rivue.testing.trigger(find(container, "Back"), "onActivated")
+		end)
+		task.wait(0.5)
+		assertTrue(find(container, "Question") ~= nil, "Leaving with unsaved changes asks first")
+		click("Stay")
+		assertEquals(title(), "Settings", "Stay keeps the player there")
+		task.spawn(function()
+			Rivue.testing.trigger(find(container, "Back"), "onActivated")
+		end)
+		task.wait(0.5)
+		click("Leave")
+		assertEquals(title(), "Menu", "Leave goes back")
+		assertEquals(GameMenu.musicOn.value, true, "without saving")
+
+		click("OpenSettings")
+		click("Music")
+		click("Save")
+		click("Back")
+		assertEquals(title(), "Menu", "Saved changes leave without asking")
+		assertEquals(GameMenu.musicOn.value, false, "and the setting is saved")
+		GameMenu.musicOn.value = true
+		app:unmount()
+	end
+
 	print("Example: Hud")
 	if not game:GetService("Players").LocalPlayer then
 		print("  skipped: needs a local player")

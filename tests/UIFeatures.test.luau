@@ -1,5 +1,4 @@
 --!strict
--- Built-in components (Transition, KeepAlive, Teleport, VirtualList) and smaller UI features
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GuiService = game:GetService("GuiService")

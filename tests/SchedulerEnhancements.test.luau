@@ -1,7 +1,5 @@
 --!strict
 
--- Scheduler: reentrancy limits and job ordering
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage.RivueUI)
 
