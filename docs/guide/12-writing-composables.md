@@ -268,6 +268,8 @@ See [useAsync()](../api/component.md#useasync).
 
 ---
 
+**Try it:** [Shop example](../../examples/components/Shop.luau) (useAsync with a retry button)
+
 **Reference:** [toValue()](../api/reactivity-utilities.md#tovalue) ·
 [customRef()](../api/reactivity-advanced.md#customref) ·
 [onScopeDispose()](../api/reactivity-advanced.md#onscopedispose) · [watch()](../api/reactivity-core.md#watch)
