@@ -1,7 +1,5 @@
 name: Packages
 
-# Packs every package for Wally and pesde the way publishing would, without publishing, and checks
-# each one builds in Rojo like it would in someone's Packages folder
 on:
   workflow_dispatch:
   push:
@@ -31,7 +29,6 @@ jobs:
           wally package --project-path packages/${{ matrix.package }} --output "$RUNNER_TEMP/package.zip"
           mkdir "$RUNNER_TEMP/unpacked"
           unzip -q "$RUNNER_TEMP/package.zip" -d "$RUNNER_TEMP/unpacked"
-          # Rojo runs from the checkout, where rokit.toml pins its version
           rojo build "$RUNNER_TEMP/unpacked" -o "$RUNNER_TEMP/from-wally.rbxm"
           ! test -e "$RUNNER_TEMP/unpacked/tests"
 

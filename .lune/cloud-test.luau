@@ -121,7 +121,6 @@ for _ = 1, 120 do
 	end
 end
 
--- Logs come a page at a time
 local pageToken = ""
 repeat
 	local logs = call("GET", `{API}/cloud/v2/{path}/logs?maxPageSize=10000&pageToken={pageToken}`)

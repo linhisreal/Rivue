@@ -64,12 +64,10 @@ for _, lockfile in { "wally.lock", "pesde.lock" } do
 	update(`{dir}/{lockfile}`, '\nversion = "[^"]*"', `\nversion = "{version}"`, false)
 end
 
--- The `.version = "..."` field each package exposes at runtime
 for _, source in { `{dir}/src/runtime/main.luau`, `{dir}/src/init.luau` } do
 	update(source, '([%.%s]version = )"[^"]*"', `%1"{version}"`, false)
 end
 
--- The Wally install line in the README, matched by this package's exact Wally name
 local wallyToml = if fs.isFile(`{dir}/wally.toml`) then fs.readFile(`{dir}/wally.toml`) else ""
 local wallyName = string.match(wallyToml, 'name = "([^"]+)"')
 if wallyName then

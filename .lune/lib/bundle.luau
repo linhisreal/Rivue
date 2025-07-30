@@ -28,7 +28,6 @@ local function defineModule(out: { string }, parentVar: string, name: string, so
 	)
 end
 
--- Mirrors a folder of ModuleScripts (and subfolders) under parentVar
 local function addFolder(out: { string }, path: string, var: string, parentVar: string, name: string)
 	table.insert(out, `local {var} = makeFolder("{name}", {parentVar})\n{parentVar}._children["{name}"] = {var}`)
 	local entries = fs.readDir(path)
