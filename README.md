@@ -14,16 +14,13 @@
   <a href="https://pesde.dev/packages/linhisreal/rivue_ui"><img src="docs/assets/badges/pesde.webp" height="32" alt="Install with pesde"></a>
   <a href="rokit.toml"><img src="docs/assets/badges/rokit.webp" height="32" alt="Tools pinned with Rokit"></a>
   <a href="https://luau.org"><img src="docs/assets/badges/luau.webp" height="32" alt="Written in Luau"></a>
-  <a href="https://linhisreal.github.io/Rivue/"><img src="docs/assets/badges/docs.webp" height="32" alt="Read the docs"></a>
+  <a href="docs/README.md"><img src="docs/assets/badges/docs.webp" height="32" alt="Read the docs"></a>
 </p>
 
-<p align="center">
-  <a href="https://github.com/linhisreal/Rivue/actions/workflows/build.yml"><img src="https://github.com/linhisreal/Rivue/actions/workflows/build.yml/badge.svg" alt="CI"></a>
-</p>
-
-Stop writing `label.Text = ...` by hand. Write what the screen should look like for the current
-state, and Rivue keeps the Instances in sync: when a value changes, only the components that read
-it re-render, and only the properties that changed get written.
+Rivue lets you describe a Roblox UI as components, the way Vue does on the web. You write what the
+screen should show for the current state, and Rivue updates the Instances when that state changes.
+Only the components that read a changed value re-render, and only the properties that changed are
+written.
 
 ```lua
 local Rivue = require(game.ReplicatedStorage.RivueUI)
@@ -52,25 +49,21 @@ local Counter = Rivue.defineComponent({
 Rivue.createApp(Counter):mountToPlayerGui(game.Players.LocalPlayer)
 ```
 
-Want something bigger? [TodoList](examples/components/TodoList.luau) has a text box, a keyed list
-and styles, and there are more in [examples](examples).
+[TodoList](examples/components/TodoList.luau) is a bigger example, with a text box, a keyed list
+and styles. The rest are in [examples](examples).
 
-Rivue is still young, so the API can change between releases. It runs in LocalScripts. When you
-need the server, there's a separate package for that, [RivueRemote](docs/api/remote.md), with
-requests, events and rate limits. For moving between screens there's
-[RivueRouter](docs/api/router.md), which works like Vue Router.
+Rivue runs in LocalScripts. It's still young, so the API can change between releases.
 
 ## Why Rivue
 
-Know Vue? Then you know most of Rivue already: `ref`, `computed`, `watch`, and components with
-props, emits, slots and provide/inject. The [cheat sheet](docs/VUE.md) covers the differences.
+Most of it will look familiar if you know Vue: `ref`, `computed`, `watch`, and components with
+props, emits, slots and provide/inject. The [cheat sheet](docs/VUE.md) lists where Rivue differs.
 
-Updates are tracked per value. A parent re-rendering doesn't drag its children along unless their
-props changed, and you don't need `memo` to get that.
+Updates are tracked per value. When a parent re-renders, a child only re-renders if its props
+changed, and you get that without `memo`.
 
-And it was made for Roblox UI from the start. Colours and fonts live in style classes, `layout`
-and `flex` replace the usual UIListLayout boilerplate, and tweens, springs, `Transition` and
-`VirtualList` come built in.
+It's built around Roblox UI. Colours and fonts go in style classes, the `layout` and `flex` props
+replace most UIListLayout setup, and tweens, springs, `Transition` and `VirtualList` are included.
 
 ## Features
 
@@ -85,12 +78,39 @@ and `flex` replace the usual UIListLayout boilerplate, and tweens, springs, `Tra
 | Studio | warnings that name the component chain, roots named after components, `app:printTree()`, a DevTools plugin, `testing.render` for tests |
 | Types | strict Luau with exported types like `Rivue.Ref<T>` and `Rivue.VNode` |
 
+## Packages
+
+RivueUI is the framework, and everything above is part of it. The other packages are optional and
+have their own versions, like Vue Router next to Vue.
+
+<table>
+<tr>
+<td width="72"><img src="docs/assets/packages/rivue-ui.webp" width="56" height="56" alt="RivueUI"></td>
+<td>RivueUI: components, state, styling, layout and the built-in components.</td>
+</tr>
+<tr>
+<td><img src="docs/assets/packages/rivue-remote.webp" width="56" height="56" alt="RivueRemote"></td>
+<td><a href="docs/api/remote.md">RivueRemote</a>: client/server calls and events over RemoteEvents,
+with payload checks and per-player rate limits.</td>
+</tr>
+<tr>
+<td><img src="docs/assets/packages/rivue-router.webp" width="56" height="56" alt="RivueRouter"></td>
+<td><a href="docs/api/router.md">RivueRouter</a>: screens with history, guards and nested routes,
+following Vue Router 4.</td>
+</tr>
+<tr>
+<td><img src="docs/assets/packages/rivue-devtools.webp" width="56" height="56" alt="RivueDevTools"></td>
+<td><a href="docs/DEVTOOLS.md">RivueDevTools</a>: a Studio plugin that shows each component's
+props, state and renders during a playtest.</td>
+</tr>
+</table>
+
 ## Installation
 
-Rivue is a single ModuleScript with a `runtime` folder inside, and it goes in `ReplicatedStorage`.
-Use whichever install you already use for other packages.
+Rivue is a ModuleScript with a `runtime` folder inside, and it goes in `ReplicatedStorage`. Install
+it the same way as your other packages.
 
-**With Wally**, add it to your `wally.toml` and run `wally install`:
+With Wally, add it to `wally.toml` and run `wally install`:
 
 ```toml
 [dependencies]
@@ -99,10 +119,10 @@ RivueRemote = "linhisreal/rivue-remote@0.5.0-beta.1" # optional, for client/serv
 RivueRouter = "linhisreal/rivue-router@0.1.0-beta.1" # optional, for screens and back/forward
 ```
 
-**With pesde**, run `pesde add linhisreal/rivue_ui` (and `linhisreal/rivue_remote` or
-`linhisreal/rivue_router` if you want them).
+With pesde, run `pesde add linhisreal/rivue_ui`, plus `linhisreal/rivue_remote` or
+`linhisreal/rivue_router` if you want them.
 
-**With Rojo**, add this repo as a git submodule and point your project at the package:
+With Rojo, add this repo as a git submodule and point your project at the package:
 
 ```json
 "ReplicatedStorage": {
@@ -110,16 +130,13 @@ RivueRouter = "linhisreal/rivue-router@0.1.0-beta.1" # optional, for screens and
 }
 ```
 
-**Without Rojo**, download `RivueUI.rbxm` from the latest
-[release](https://github.com/linhisreal/Rivue/releases) and drag it into `ReplicatedStorage`.
-There's also `RivueUI.min.rbxm` (same code, comments stripped), and the optional `RivueRemote.rbxm`
-and `RivueRouter.rbxm`, which go next to it.
+Without Rojo, download `RivueUI.rbxm` from the latest release on the repo's Releases page and drag
+it into `ReplicatedStorage`. The release also has `RivueUI.min.rbxm` (the same code without
+comments), and `RivueRemote.rbxm` and `RivueRouter.rbxm`, which go next to it.
 
 ## Docs
 
-They're at [linhisreal.github.io/Rivue](https://linhisreal.github.io/Rivue/). If you'd rather read
-them on GitHub, the [docs home](docs/README.md) has an "I want to…" table that points you at the
-right page.
+The [docs home](docs/README.md) has an "I want to…" table that points to the right page.
 
 [Guide](docs/GUIDE.md) · [Examples](examples) · [API reference](docs/API.md) ·
 [Coming from Vue](docs/VUE.md) ·
@@ -162,12 +179,11 @@ pesde.toml                 the pesde workspace
 <a href="https://polyformproject.org/licenses/noncommercial/1.0.0"><img src="docs/assets/polyform-logo.png" height="48" alt="PolyForm"></a>
 
 [PolyForm Noncommercial 1.0.0](LICENSE.md), with an extra permission for games. You can use, fork,
-port and change Rivue, closed source or open, as long as you keep the credit notice. You can't
-sell Rivue's code or use it commercially. Games built with Rivue may make money, if they credit
-it. See [LICENSE](LICENSE.md) for the exact terms.
+port and change Rivue, in closed or open source, as long as you keep the credit notice. You can't
+sell Rivue's code or use it commercially, but games built with Rivue may make money if they credit
+it. [LICENSE](LICENSE.md) has the exact terms.
 
-Games that use Rivue need a credit in the description or an in-game credits screen, for
-example:
+Credit Rivue in the game's description or an in-game credits screen, for example:
 
 ```
 UI built with Rivue (github.com/linhisreal/Rivue)
