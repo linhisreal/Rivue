@@ -81,7 +81,8 @@ sequenceDiagram
 ```
 
 Adding or removing a key also triggers `ITERATE_KEY`, and a change in array length triggers
-`LENGTH_KEY`.
+`LENGTH_KEY`. A `ref` skips the map and keeps its own dep set, as Vue's `RefImpl` does, so reading
+and writing `.value` costs one table lookup instead of two.
 
 An effect throws its old dependencies away and collects them fresh on every run. If it writes
 state it also reads, it doesn't re-trigger itself. Component render effects are the exception
@@ -91,7 +92,10 @@ the micro queue, deduplicated. Its queued entry point, `effect.job`, skips effec
 stopped in the meantime.
 
 Computeds are lazy. A trigger only marks one dirty and passes the news on to its own dependents;
-the getter runs the next time someone reads `.value`.
+the getter runs the next time someone reads `.value`. Each getter runs inside a `pcall` up to 16
+computeds deep, and directly past that. Luau allows about 200 nested C calls, and a `pcall` on
+every level stopped chains at about 100 computeds. An error in a getter reaches whoever read the
+value, as in Vue.
 
 `watch` is an effect whose scheduler refreshes the watched value and then queues the callback
 according to `flush`: `"pre"` on the micro queue, `"post"` on Heartbeat, `"sync"` inline. A sync
@@ -270,7 +274,10 @@ the Transition config are applied to the root, and the result is patched into `i
 The effect's scheduler queues an update job keyed by the instance uid. While the component is
 deactivated, those jobs only mark it dirty, and it catches up when it's activated again.
 
-Props and attrs are `shallowReactive` tables. `updateComponentProps` writes through them, so only
+Props and attrs are `shallowReactive` tables. When a parent re-renders, `propsUnchanged` first
+compares the old and new vnode props shallowly, like Vue's `shouldUpdateComponent`. A fresh closure
+for a declared listener counts as unchanged, because `emit` reads listeners from the current vnode.
+Only when something did change does `updateComponentProps` write through the proxies, so only
 effects that read a changed prop run again. Slots aren't reactive, so `updateComponentSlots`
 reports whether there was slot content and the renderer queues the re-render itself.
 

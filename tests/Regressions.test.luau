@@ -723,6 +723,44 @@ local function runTests()
 		app:unmount()
 	end
 
+	print("A long chain of computeds stays below Luau's C call limit")
+	do
+		-- Each computed used its own pcall, so the 99th level overflowed the C stack and read nil
+		local base = Rivue.ref(1)
+		local chain: { any } = { base }
+		for i = 2, 150 do
+			local previous = chain[i - 1]
+			chain[i] = Rivue.computed(function()
+				return previous.value + 1
+			end)
+		end
+		assertEquals(chain[150].value, 150, "150 levels evaluate")
+		base.value = 11
+		assertEquals(chain[150].value, 160, "and update")
+		local broken = Rivue.computed(function(): number
+			error("bad getter")
+		end)
+		local ok, err = pcall(function()
+			return broken.value
+		end)
+		assertTrue(
+			not ok and string.find(tostring(err), "bad getter", 1, true) ~= nil,
+			"a getter's error reaches the reader"
+		)
+		local other = Rivue.ref(1)
+		local runs = 0
+		local stop = Rivue.watchEffect(function()
+			runs += 1
+			pcall(function()
+				return broken.value
+			end)
+			local _ = other.value
+		end, { flush = "sync" })
+		other.value = 2
+		assertEquals(runs, 2, "an effect that catches the error still tracks what it reads after")
+		stop()
+	end
+
 	print("\n========== REGRESSION TESTS COMPLETE ==========\n")
 end
 
