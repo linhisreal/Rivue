@@ -116,6 +116,132 @@ local function runTests()
 		assertEquals(badErr, "payload_unsafe_type", "Functions are still rejected")
 	end
 
+	print("Test 7: fire() checks its payload like request() does")
+	do
+		local reached = false
+		asServer(function()
+			Remote.handle("fireCheck", function()
+				reached = true
+				return nil
+			end)
+		end)
+		assertEquals(
+			Remote.fire("fireCheck", { fn = function() end }),
+			"payload_unsafe_type",
+			"an unsafe payload is refused"
+		)
+		assertEquals(reached, false, "and never reaches the server")
+		assertEquals(Remote.fire("", {}), "invalid_action_name", "so is an empty action name")
+		assertEquals(Remote.fire("fireCheck", { ok = true }), nil, "a good payload is sent")
+		assertEquals(reached, true, "and handled")
+	end
+
+	print("Test 8: send() and sendAll() reach Remote.on() on the client")
+	do
+		asServer(function()
+			Remote.sendAll("announce", "warm-up")
+		end)
+		local received = {}
+		local conn = Remote.on("announce", function(payload)
+			table.insert(received, payload)
+		end)
+		asServer(function()
+			Remote.sendAll("announce", "double coins")
+			Remote.send(game:GetService("Players").LocalPlayer, "announce", { text = "just you" })
+		end)
+		assertEquals(received[1], "double coins", "sendAll delivers")
+		assertEquals(received[2] and received[2].text, "just you", "send delivers to one player")
+		conn:Disconnect()
+		local folder = game:GetService("ReplicatedStorage"):WaitForChild("RemoteEvents")
+		assertEquals(folder:FindFirstChild("announce").ClassName, "RemoteEvent", "the server made the event")
+		local okReserved = pcall(function()
+			asServer(function()
+				Remote.sendAll("Response", 1)
+			end)
+		end)
+		assertEquals(okReserved, false, "Request and Response can't be used as event names")
+	end
+
+	print("Test 9: unreliable events")
+	do
+		local got = nil
+		asServer(function()
+			Remote.sendAll("position", 0, { unreliable = true })
+		end)
+		local conn = Remote.on("position", function(payload)
+			got = payload
+		end)
+		asServer(function()
+			Remote.sendAll("position", 42, { unreliable = true })
+		end)
+		assertEquals(got, 42, "an unreliable event is received the same way")
+		local folder = game:GetService("ReplicatedStorage"):WaitForChild("RemoteEvents")
+		assertEquals(
+			folder:FindFirstChild("position").ClassName,
+			"UnreliableRemoteEvent",
+			"as an UnreliableRemoteEvent"
+		)
+		local okMixed = pcall(function()
+			asServer(function()
+				Remote.sendAll("position", 1)
+			end)
+		end)
+		assertEquals(okMixed, false, "one name can't be sent both ways")
+		conn:Disconnect()
+	end
+
+	print("Test 10: check rejects a payload before the handler runs")
+	do
+		local ran = false
+		asServer(function()
+			Remote.handle("checked", function(_player, payload: any)
+				ran = true
+				return payload.id
+			end, {
+				check = function(payload: any)
+					return type(payload) == "table" and type(payload.id) == "string"
+				end,
+			})
+		end)
+		local _, err = Remote.request("checked", { id = 5 }, 1)
+		assertEquals(err, "invalid_payload", "a payload that fails the check is rejected")
+		assertEquals(ran, false, "and the handler doesn't run")
+		local data = Remote.request("checked", { id = "sword" }, 1)
+		assertEquals(data, "sword", "a good payload goes through")
+	end
+
+	print("Test 11: middleware runs before every handler")
+	do
+		local seen = {}
+		local remove
+		asServer(function()
+			remove = Remote.use(function(_player, action, payload: any)
+				table.insert(seen, action)
+				return not (type(payload) == "table" and payload.banned)
+			end)
+		end)
+		local data = Remote.request("double", { n = 2 }, 1)
+		assertEquals(data, 4, "an allowed request goes through")
+		local _, err = Remote.request("double", { n = 2, banned = true }, 1)
+		assertEquals(err, "rejected", "returning false rejects it")
+		assertEquals(seen[1], "double", "the middleware sees the action name")
+		remove()
+		local _, after = Remote.request("double", { n = 2, banned = true }, 1)
+		assertEquals(after, nil, "the remover takes it away")
+	end
+
+	print("Test 12: Remote.action ties both sides to one name")
+	do
+		local Double = Remote.action("doubleAction")
+		asServer(function()
+			Double.handle(function(_player, payload: any)
+				return payload * 2
+			end)
+		end)
+		assertEquals(Double.request(21, 1), 42, "request goes through the action")
+		assertEquals(Double.name, "doubleAction", "and it knows its name")
+	end
+
 	print("\n========== REMOTE SERVER TESTS COMPLETE ==========\n")
 end
 

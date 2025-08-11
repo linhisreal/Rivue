@@ -496,4 +496,78 @@ return function()
 		assertEquals(find(folder, "List").CanvasPosition.Y, 0, "a push scrolls to the top")
 		app:unmount()
 	end
+
+	print("scrollBehavior with el")
+	do
+		local Screen = Rivue.defineComponent({
+			name = "TwoLists",
+			render = function()
+				return h("Frame", nil, {
+					h("ScrollingFrame", { Name = "Main" }),
+					h("ScrollingFrame", { Name = "Side" }),
+				})
+			end,
+		})
+		local router = Router.createRouter({
+			routes = { a = Screen, b = label("B") },
+			initial = "b",
+			scrollBehavior = function()
+				return { el = "Main", top = 40 }
+			end,
+		})
+		local folder, app = mount(router)
+		router.push("a")
+		task.wait()
+		assertEquals(find(folder, "Main").CanvasPosition.Y, 40, "the frame named by el scrolls")
+		assertEquals(find(folder, "Side").CanvasPosition.Y, 0, "the others stay put")
+		app:unmount()
+	end
+
+	print("isReady and onError")
+	do
+		local release: thread? = nil
+		local router = Router.createRouter({ routes = { a = label("A"), b = label("B") }, initial = "a" })
+		router.beforeEach(function(to, from)
+			if from == Router.START_LOCATION then
+				release = coroutine.running()
+				coroutine.yield()
+			end
+			return to.name ~= "b"
+		end)
+		local folder, app = mount(router)
+		assertEquals(router.currentRoute.value, Router.START_LOCATION, "a waiting guard doesn't block mounting")
+		local readyAt = nil
+		task.spawn(function()
+			router.isReady()
+			readyAt = router.currentRoute.value.name
+		end)
+		assertEquals(readyAt, nil, "isReady waits for the first navigation")
+		task.spawn(release :: thread)
+		task.wait()
+		assertEquals(readyAt, "a", "and returns once it's done")
+		Rivue.nextTick()
+		assertTrue(find(folder, "A") ~= nil, "the first screen shows")
+		router.isReady()
+
+		local errors = {}
+		local removeHandler = router.onError(function(err, to)
+			table.insert(errors, `{to.name}:{tostring(err):match("broken") ~= nil}`)
+		end)
+		local removeGuard = router.beforeEach(function(to)
+			if to.name == "a" then
+				error("broken guard")
+			end
+			return true
+		end)
+		router.replace("b")
+		local result = router.push("a", { again = true })
+		assertTrue(
+			Router.isNavigationFailure(result, Router.NavigationFailureType.aborted),
+			"an erroring guard still aborts"
+		)
+		assertEquals(errors[1], "a:true", "onError gets the error and the target route")
+		removeHandler()
+		removeGuard()
+		app:unmount()
+	end
 end
