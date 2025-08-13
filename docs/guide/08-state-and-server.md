@@ -51,7 +51,7 @@ Only the module's own functions write to it. When a value is wrong, that's the o
 
 Rivue itself only does UI. For the server there's [RivueRemote](../api/remote.md), a separate
 package you put next to it. It does request/response and fire-and-forget calls over RemoteEvents,
-and the server side has per-player rate limits:
+lets the server push events to clients, and has per-player rate limits on the server:
 
 ```mermaid
 sequenceDiagram
@@ -68,8 +68,14 @@ sequenceDiagram
 local Remote = require(game.ReplicatedStorage.RivueRemote)
 Remote.setupServer()
 Remote.handle("shop:buy", function(player, payload)
-	return ShopService.buy(player, payload.id) -- validate everything the client sends
-end, { maxPerSecond = 5 })
+	return ShopService.buy(player, payload.id)
+end, {
+	maxPerSecond = 5,
+	-- The client can send anything, so reject a bad payload before the handler sees it
+	check = function(payload)
+		return type(payload) == "table" and type(payload.id) == "string"
+	end,
+})
 ```
 
 `Remote.request` yields, so a component calls it from a spawned thread and keeps the result and
