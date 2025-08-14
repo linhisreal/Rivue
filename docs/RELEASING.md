@@ -8,7 +8,7 @@ run in a real Roblox server.
 ## A GitHub release
 
 A GitHub release covers the whole repo, so it has its own number, separate from the packages':
-`v2.58.4` for a release, `v1.1.0-beta.1` for a pre-release. Write the release notes first, in
+`v1.2.0` for a release, `v1.2.0-beta.1` for a pre-release. Write the release notes first, in
 `.github/release-notes/<tag>.md`, listing each package's version in it, and push them. Then open
 **Actions → Release → Run workflow** and type the tag. A tag with a suffix like `-beta.1` is published
 as a pre-release.
@@ -18,7 +18,7 @@ the files to the release:
 
 ```mermaid
 flowchart LR
-    T["tag v1.1.0-beta.1"] --> W["Release workflow<br/>test, build"]
+    T["tag v1.1.0"] --> W["Release workflow<br/>test, build"]
     W --> R1["RivueUI.rbxm<br/>RivueUI.min.rbxm"]
     W --> R2["RivueRemote.rbxm"]
     W --> R4["RivueRouter.rbxm"]
