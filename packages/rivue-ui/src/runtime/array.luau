@@ -56,11 +56,10 @@ end
 function array.removeWhere<T>(list: { T }, predicate: (item: T, index: number) -> boolean): number
 	local raw = rawOf(list)
 	local count = #raw
-	-- Decide everything before touching the list, so a predicate that errors leaves it intact
+	-- Decided up front, so a predicate that errors leaves the list intact
 	local keep = table.create(count)
 	for i = 1, count do
 		local item = raw[i]
-		-- Pass the reactive version, so reads inside are tracked like normal reads
 		local view = if type(item) == "table" and list ~= raw then (list :: any)[i] else item
 		keep[i] = not predicate(view, i)
 	end
@@ -83,7 +82,6 @@ end
 function array.splice<T>(list: { T }, start: number, deleteCount: number?, ...: T): { T }
 	local raw = rawOf(list)
 	local count = #raw
-	-- Past the end appends, like JavaScript's splice, instead of leaving a hole
 	start = math.clamp(start, 1, count + 1)
 	local removeCount = math.clamp(deleteCount or (count - start + 1), 0, math.max(count - start + 1, 0))
 	local removed = table.move(raw, start, start + removeCount - 1, 1, {})
@@ -128,7 +126,6 @@ end
 
 --- table.find doesn't see through proxies, this does
 function array.indexOf<T>(list: { T }, value: T): number?
-	-- Read every slot through the list, so a computed using this also updates when an item is replaced
 	local target = toRaw(value)
 	for i = 1, #list do
 		if toRaw(list[i]) == target then

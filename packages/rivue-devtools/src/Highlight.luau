@@ -1,6 +1,4 @@
 --!nonstrict
--- Outlines a component on the game screen while its row is hovered. Plugins can parent to
--- CoreGui, which sits above the game's own UI and never gets saved into the place.
 
 local Highlight = {}
 

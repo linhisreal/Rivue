@@ -98,8 +98,6 @@ Rivue.getCurrentScope = reactivity.getCurrentScope
 Rivue.onScopeDispose = reactivity.onScopeDispose
 Rivue.onWatcherCleanup = reactivity.onWatcherCleanup
 
--- watch, effect, watchEffect and queueJob below stop what they create when the component
--- that called them unmounts
 local function trackForCleanup(handle: WatchHandle | Effect)
 	local currentInstance = componentAPI.getCurrentInstance()
 	if currentInstance then
@@ -337,8 +335,7 @@ Rivue.useGamepadFocus = robloxUtils.useGamepadFocus
 Rivue.useTween = robloxUtils.useTween
 Rivue.useSpring = robloxUtils.useSpring
 
--- Set by `lune run version rivue-ui <version>`
-Rivue.version = "0.9.0-rc.1"
+Rivue.version = "0.9.0-rc.2"
 
 function Rivue.bind<T>(getter: () -> T): T
 	assert(type(getter) == "function", "Rivue.bind expects a function")

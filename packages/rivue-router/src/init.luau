@@ -1,10 +1,8 @@
 --!strict
 --!optimize 2
 
--- It uses the Rivue your game already requires, the way Vue Router uses your Vue: two copies would
--- track state separately and the router's components couldn't see the app's
+-- Uses the game's own RivueUI, a second copy would track state separately
 
--- Something else in the game may also be called Rivue, so check it really is
 local function loadRivue(candidate: Instance?): any
 	if not candidate then
 		return nil
@@ -17,8 +15,6 @@ local function loadRivue(candidate: Instance?): any
 end
 
 local function findRivue(): any
-	-- Wally and pesde put Rivue in the same Packages folder as the router, a few levels up from the
-	-- installed copy. A manual install keeps both in ReplicatedStorage
 	local node: Instance? = script.Parent
 	while node do
 		local found = loadRivue(node:FindFirstChild("RivueUI"))
@@ -151,7 +147,6 @@ local function asList<T>(value: T | { T } | nil): { T }
 	return { value :: any }
 end
 
--- A ScrollingFrame's place inside a screen, by names, so the same frame is found after a remount
 local function scrollKey(frame: Instance, root: Instance): string
 	local parts = {}
 	local node: Instance? = frame
@@ -178,7 +173,6 @@ local function scrollingFrames(root: Instance?): { ScrollingFrame }
 	return frames
 end
 
--- The screen's top Instance, under any components (KeepAlive, Transition) wrapping it
 local function rootElement(vnode: any): Instance?
 	while vnode do
 		if type(vnode.type) == "string" and vnode.el then
@@ -221,7 +215,6 @@ export type Router = {
 local function createRouter(options: RouterOptions): Router
 	assert(type(options) == "table" and type(options.routes) == "table", "createRouter expects { routes, initial }")
 
-	-- name -> normalized record; aliases point at the record they stand for
 	local records: { [string]: any } = {}
 	local aliases: { [string]: any } = {}
 	local roots: { any } = {}
@@ -240,7 +233,6 @@ local function createRouter(options: RouterOptions): Router
 		local record = {
 			name = name,
 			components = components,
-			-- Named views take props per view, like Vue Router
 			props = if def.components
 				then def.props or {}
 				else { default = if def.props == nil then true else def.props },
@@ -340,7 +332,6 @@ local function createRouter(options: RouterOptions): Router
 		return to
 	end
 
-	-- Builds the route object without following redirects
 	local function build(location: RouteLocation, redirectedFrom: Route?): Route
 		local record = findRecord(location.name)
 		local matched = {}
@@ -364,7 +355,6 @@ local function createRouter(options: RouterOptions): Router
 		}) :: any
 	end
 
-	-- Follows `redirect` on route records, the way Vue Router does before running any guard
 	local function resolveRedirects(location: RouteLocation): Route
 		local route = build(location, nil)
 		local first = route
@@ -479,7 +469,6 @@ local function createRouter(options: RouterOptions): Router
 		pending += 1
 		local id = pending
 
-		-- Same order as Vue Router: leave guards, beforeEach, update guards, beforeEnter, beforeResolve
 		local queue: { Guard } = {}
 		local fromMatched, toMatched = from.matched :: { any }, to.matched :: { any }
 		for i = #fromMatched, 1, -1 do
@@ -511,7 +500,6 @@ local function createRouter(options: RouterOptions): Router
 		end
 
 		for _, guard in queue do
-			-- A guard may yield, for a confirm dialog say; navigation waits for it
 			local ok, result = pcall(guard, to, from)
 			if pending ~= id then
 				local cancelled = failure(NavigationFailureType.cancelled, to, from)
@@ -540,7 +528,6 @@ local function createRouter(options: RouterOptions): Router
 					matched = redirected.matched,
 					redirectedFrom = to,
 				}) :: any
-				-- History has not moved yet, so a redirect during back() or go() is a push
 				local nextKind = if location.replace then "replace" elseif kind == "pop" then "push" else kind
 				return navigate(nextKind, redirected, nil, depth + 1)
 			end
@@ -610,7 +597,6 @@ local function createRouter(options: RouterOptions): Router
 			local entry = history[target].route
 			local ok, route = pcall(build, { name = entry.name :: string, params = entry.params }, entry.redirectedFrom)
 			if not ok then
-				-- The route was removed with removeRoute since
 				warn(`[RivueRouter] {route}`)
 				return failure(NavigationFailureType.aborted, from, from)
 			end
@@ -622,7 +608,6 @@ local function createRouter(options: RouterOptions): Router
 		forward = function(): NavigationFailure?
 			return router.go(1)
 		end,
-		-- Like Vue Router's, it doesn't follow redirects, so a link to a parent stays active on its children
 		resolve = function(to: string | RouteLocation, params: Params?): Route
 			return build(toLocation(to, params), nil)
 		end,
@@ -642,7 +627,6 @@ local function createRouter(options: RouterOptions): Router
 				type(def) == "table" and type(def.name) == "string",
 				"[RivueRouter] addRoute needs a record with a name"
 			)
-			-- Vue Router replaces a route added under a name that's taken
 			if records[def.name] then
 				removeRecord(records[def.name])
 			end
@@ -686,8 +670,6 @@ local function createRouter(options: RouterOptions): Router
 			if index ~= 0 then
 				return
 			end
-			-- The first screen goes through the guards too, as in Vue Router. A guard that waits
-			-- doesn't hold up mounting; isReady() waits for it instead
 			task.spawn(function()
 				local route = resolveRedirects({ name = options.initial, params = options.initialParams })
 				navigate("replace", route, nil, 0)
@@ -785,7 +767,6 @@ local RouterView = table.freeze({
 
 		return function(): any
 			local route = router.currentRoute.value
-			-- Records without a component only group their children, so they take no view
 			local at = depth
 			local skipped = 0
 			local record: any = nil
@@ -802,7 +783,6 @@ local RouterView = table.freeze({
 			local screen: any = nil
 			if component then
 				screen = h(component, propsFor(record, props.name, route))
-				-- Keyed by route record, so two routes sharing a component get separate instances
 				screen.key = record.name
 			end
 			if ctx.hasSlot("default") then
@@ -887,8 +867,7 @@ local RouterLink = table.freeze({
 				end
 				return nil
 			end
-			-- The active classes go after the link's own class, so their styles win
-			-- Copied by hand: table.clone would keep the reactive proxy, and writes would reach ctx.attrs
+			-- table.clone keeps the proxy, so writes would reach ctx.attrs
 			local attrs = {}
 			for key, value in ctx.attrs do
 				attrs[key] = value
@@ -917,7 +896,6 @@ local RouterLink = table.freeze({
 })
 
 return table.freeze({
-	-- Set by `lune run version rivue-router <version>`
 	version = "0.2.0-beta.1",
 	createRouter = createRouter,
 	useRouter = useRouter,
