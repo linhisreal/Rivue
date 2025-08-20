@@ -19,17 +19,17 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
 
-      - run: npm install --no-save vitepress@1.6.3 vitepress-plugin-mermaid@2.0.17 mermaid@11
+      - run: npm install --no-save vitepress@1.6.4 vitepress-plugin-mermaid@2.0.17 mermaid@11
 
       - run: npx vitepress build docs
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v4
         with:
           path: docs/.vitepress/dist
 
