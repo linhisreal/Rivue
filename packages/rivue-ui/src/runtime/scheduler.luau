@@ -25,10 +25,7 @@ const MAX_REENTRANCY_DEPTH = 100
 
 local NOOP_HANDLE: JobHandle = table.freeze({ cancel = function() end })
 
--- Roblox drops a task.defer more than 80 deferred levels deep (a loop of nextTick() calls gets
--- there), and it only logs, so pcall can't see it. The flush would never run and updateScheduled
--- would stay true forever, so the depth is counted here and anything past 60 waits for the next
--- Heartbeat.
+-- Roblox silently drops a task.defer nested over 80 deep, so past 60 we wait for Heartbeat
 const MAX_DEFER_DEPTH = 60
 local deferDepth = 0
 local overflow: { thread | () -> () } = {}
@@ -62,7 +59,6 @@ end
 
 type FrameMode = "render" | "heartbeat"
 local frameQueues: { [FrameMode]: { Job } } = { render = {}, heartbeat = {} }
--- Queuing the same function twice before its frame runs it once, as in micro mode
 local frameQueued: { [FrameMode]: { [() -> ()]: Job } } = { render = {}, heartbeat = {} }
 local frameConns: { [FrameMode]: RBXScriptConnection? } = {}
 
@@ -73,7 +69,6 @@ local function flushFrame(mode: FrameMode): ()
 		frameConns[mode] = nil
 	end
 
-	-- Swap first, jobs queued during flush run next frame
 	local q = frameQueues[mode]
 	frameQueues[mode] = {}
 	frameQueued[mode] = {}
@@ -213,7 +208,6 @@ function scheduler.queueEffect(fn: () -> ()): ()
 end
 
 export type UpdateJob = {
-	-- Creation order, parents have lower ids than their children
 	id: number,
 	run: () -> (),
 }
@@ -242,7 +236,6 @@ local function flushUpdates(): ()
 		updateQueue = {}
 		table.sort(q, byId)
 		for _, job in q do
-			-- Cleared first so a parent's re-render can queue this job again if needed
 			updateQueued[job] = nil
 			local ok, err = pcall(job.run :: () -> ...unknown)
 			if not ok then

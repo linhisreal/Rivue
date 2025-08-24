@@ -57,7 +57,6 @@ function utils.throttle<A...>(fn: (A...) -> (), ms: number): (A...) -> ()
 			pcall(fn, ...)
 			return
 		end
-		-- Trailing call uses the latest arguments
 		pendingArgs = table.pack(...)
 		if not scheduled then
 			scheduled = true
