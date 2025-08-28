@@ -346,6 +346,40 @@ local function runTests()
 		app:unmount()
 	end
 
+	print("computed gets its previous value, like Vue 3.4")
+	do
+		local list = Rivue.reactive({ 1, 2, 3 })
+		local seen: { any } = {}
+		local calls = 0
+		local evens = Rivue.computed(function(previous: { number }?)
+			calls += 1
+			seen[calls] = previous
+			local out = {}
+			for i = 1, #list do
+				if list[i] % 2 == 0 then
+					table.insert(out, list[i])
+				end
+			end
+			if previous and #previous == #out and previous[1] == out[1] then
+				return previous
+			end
+			return out
+		end)
+		local first = evens.value
+		assertEquals(calls, 1, "runs once on the first read")
+		assertEquals(seen[1], nil, "nil on the first run")
+		local fired = 0
+		local stop = Rivue.watch(evens, function()
+			fired += 1
+		end, { flush = "sync" })
+		Rivue.array.push(list, 5)
+		local second = evens.value
+		assertEquals(seen[2], first, "then the value it returned last time")
+		assertEquals(second, first, "returning it keeps the same table")
+		assertEquals(fired, 0, "so a watcher on it doesn't fire")
+		stop()
+	end
+
 	print("\n========== VUE FEATURES TESTS COMPLETE ==========\n")
 end
 
