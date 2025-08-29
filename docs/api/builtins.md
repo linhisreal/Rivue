@@ -548,7 +548,7 @@ doesn't take the rest of the screen with it.
 - **Details**
 
   - It catches what [`onErrorCaptured()`](lifecycle.md#onerrorcaptured) catches: errors in
-    descendants' render, lifecycle hooks and emit handlers.
+    descendants' render, lifecycle hooks, emit and event handlers, and watchers.
   - `fallback` is a vnode, or a function of `(message, reset)` that returns one. `reset()` clears
     the error and mounts the children again.
   - `onError(message, info)` runs first, for logging.
