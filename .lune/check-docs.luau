@@ -75,7 +75,6 @@ local function exists(path: string): boolean
 	return fs.isFile(path) or fs.isDir(path)
 end
 
--- GitHub's anchor for a heading
 local function slug(heading: string): string
 	local text = string.lower((string.gsub(heading, "^%s+", "")))
 	text = string.gsub(text, "%s+$", "")
