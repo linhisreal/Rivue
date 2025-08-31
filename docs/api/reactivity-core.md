@@ -185,8 +185,8 @@ Makes a whole table reactive, nested tables included. You read and write fields 
   The conversion is deep: nested tables are made reactive when you read them. Passing a proxy
   returns that same proxy.
 
-  Luau has no `__pairs`/`__ipairs`, so `pairs()`, `ipairs()` and the `table.*` functions see an
-  empty table. Iterate with `for k, v in proxy do` (or a numeric loop) and append with
+  Luau has no `__pairs`/`__ipairs`, so `pairs()`, `ipairs()`, `next()` and the `table.*`
+  functions see an empty table. Iterate with `for k, v in proxy do` (or a numeric loop) and append with
   `list[#list + 1] = value`.
 
   To keep the original table out of the reactivity system, use
