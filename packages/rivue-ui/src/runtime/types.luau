@@ -49,6 +49,7 @@ export type Effect = {
 	onTrack: ((event: DebuggerEvent) -> ())?,
 	onTrigger: ((event: DebuggerEvent) -> ())?,
 	allowRecurse: boolean?,
+	cleanups: { () -> () }?,
 }
 
 export type EffectScope = {
@@ -252,6 +253,7 @@ export type AppConfig = {
 	globalProperties: { [string]: unknown }?,
 	warnHandler: ((message: string, instance: unknown, trace: string) -> ())?,
 	devtools: boolean?,
+	performance: boolean?,
 }
 
 export type AppContext = {
