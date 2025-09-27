@@ -17,6 +17,9 @@ and per-player rate limits. It's a separate package from Rivue, which only does 
 - [Remote.send() and Remote.sendAll()](#remotesend-and-remotesendall)
 - [Remote.use()](#remoteuse)
 - [Remote.action()](#remoteaction)
+- [Remote.state()](#remotestate)
+- [Remote.useState(), getState() and onState()](#remoteusestate-getstate-and-onstate)
+- [Remote.useRequest()](#remoteuserequest)
 - [Remote.configure()](#remoteconfigure)
 - [Remote.stats()](#remotestats)
 - [Payloads and errors](#payloads-and-errors)
@@ -219,8 +222,11 @@ Listens on the client for events the server sends, like a new message or a price
 - **Details**
 
   The server sends with [`send()` or `sendAll()`](#remotesend-and-remotesendall). Each callback
-  runs in its own thread, as with a RemoteEvent. Disconnect the connection when you're done, for
-  example in `onUnmounted`.
+  runs in its own thread, as with a RemoteEvent.
+
+  Called inside a component's `setup()` (or an effect scope), the listener disconnects when the
+  component unmounts, like a Vue composable. RivueRemote finds the game's RivueUI for this the
+  same way RivueRouter does. Anywhere else, call `Disconnect()` when you're done.
 
 - **Type**
 
@@ -349,6 +355,128 @@ name and its types. Put it in a ModuleScript in ReplicatedStorage and require it
   }
 
   function Remote.action<Req, Res>(name: string): Action<Req, Res>
+  ```
+
+---
+
+## Remote.state()
+
+A value on the server that every client can read and follow, like the round phase, a timer or a
+player's coins. Changes reach clients with the frame's other sends.
+
+- **Example**
+
+  <!-- server -->
+  ```lua
+  local round = Remote.state("round", { phase = "lobby", endsAt = 0 })
+  local coins = Remote.state("coins", 0)
+
+  round.set({ phase = "playing", endsAt = os.time() + 120 })
+
+  Players.PlayerAdded:Connect(function(player)
+  	coins.setFor(player, 100) -- this player's own value
+  end)
+  ```
+
+- **Details**
+
+  - `set(value)` changes the value for everyone who doesn't have their own.
+  - `setFor(player, value)` gives one player their own value. `setFor(player, nil)` goes back to
+    the shared one. It's forgotten when the player leaves.
+  - `get(player?)` reads it on the server.
+  - Values are checked like payloads. `set` and `setFor` return the reason when one can't be sent.
+  - A player who joins later loads the current values when their client first reads state.
+
+- **Type**
+
+  ```lua
+  type State<T> = {
+  	set: (value: T) -> string?,
+  	setFor: (player: Player, value: T?) -> string?,
+  	get: (player: Player?) -> T,
+  }
+
+  function Remote.state<T>(name: string, initial: T): State<T>
+  ```
+
+---
+
+## Remote.useState(), getState() and onState()
+
+Read a [`Remote.state()`](#remotestate) on the client. `useState` gives a read-only ref, so a
+component re-renders when the server changes the value.
+
+- **Example**
+
+  ```lua
+  local CoinsLabel = Rivue.defineComponent({
+  	name = "CoinsLabel",
+  	setup = function()
+  		return { coins = Remote.useState("coins", 0) }
+  	end,
+  	render = function(ctx)
+  		return h("TextLabel", { Text = `{ctx.coins} coins` })
+  	end,
+  })
+  ```
+
+- **Details**
+
+  - `useState(name, default)` returns a read-only ref. It starts at `default` until the value has
+    loaded, so it never yields in `setup()`. It needs RivueUI.
+  - `getState(name)` returns the current value. The first call yields while the values load.
+  - `onState(name, callback)` calls back with each new value. In `setup()` it disconnects when
+    the component unmounts.
+
+- **Type**
+
+  ```lua
+  function Remote.useState<T>(name: string, default: T?): { value: T }
+  function Remote.getState(name: string): any
+  function Remote.onState(name: string, callback: (value: any) -> ()): Connection
+  ```
+
+---
+
+## Remote.useRequest()
+
+[`useAsync()`](component.md#useasync) around [`Remote.request()`](#remoterequest): the result,
+`loading` and `error` as refs, and an answer to an old request never overwrites a newer one.
+
+- **Example**
+
+  ```lua
+  local Inventory = Rivue.defineComponent({
+  	name = "Inventory",
+  	setup = function()
+  		local items = Remote.useRequest("inventory:list", { initial = {} })
+  		return { items = items.data, loading = items.loading, reload = items.refresh }
+  	end,
+  	render = function(ctx)
+  		return h("TextLabel", { Text = if ctx.loading then "Loading..." else `{#ctx.items} items` })
+  	end,
+  })
+  ```
+
+- **Details**
+
+  It sends straight away unless `immediate = false`, with `payload` if you give one. `run(payload)`
+  sends again with a new payload and `refresh()` repeats the last one. A request error such as
+  `"rate_limited"` or `"timeout"` ends up in `error`. Like `useAsync`, it holds a surrounding
+  Suspense while loading unless `suspense = false`. It needs RivueUI.
+
+- **Type**
+
+  ```lua
+  type RequestOptions = {
+  	payload: unknown?,
+  	immediate: boolean?, -- default true
+  	timeout: number?, -- seconds, default 10
+  	initial: unknown?,
+  	suspense: boolean?, -- default true
+  }
+
+  function Remote.useRequest(name: string, options: RequestOptions?): AsyncState
   ```
 
 ---

@@ -20,6 +20,7 @@ local h = Rivue.h
 - [watchSyncEffect()](#watchsynceffect)
 - [watch()](#watch)
 - [onWatcherCleanup()](#onwatchercleanup)
+- [onEffectCleanup()](#oneffectcleanup)
 
 ---
 
@@ -508,6 +509,41 @@ to cancel the previous request or timer.
 
   ```lua
   function onWatcherCleanup(cleanupFn: () -> (), failSilently: boolean?)
+  ```
+
+---
+
+## onEffectCleanup()
+
+Registers clean-up for the effect that's running, like Vue 3.5's. It runs before the effect runs
+again and when it stops.
+
+- **Example**
+
+  ```lua
+  local target = Rivue.ref(1)
+
+  Rivue.watchEffect(function()
+  	local id = target.value
+  	local timer = task.delay(1, function()
+  		print("still showing", id)
+  	end)
+  	Rivue.onEffectCleanup(function()
+  		task.cancel(timer)
+  	end)
+  end)
+  ```
+
+- **Details**
+
+  It works in `effect()`, `watchEffect()` and computeds. Inside a `watch()` callback it does the
+  same as `onWatcherCleanup()`. Call it synchronously, not after a yield. Outside an effect it
+  warns, unless `failSilently` is true.
+
+- **Type**
+
+  ```lua
+  function onEffectCleanup(cleanupFn: () -> (), failSilently: boolean?)
   ```
 
 ---
