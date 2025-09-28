@@ -17,7 +17,8 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [watchPostEffect()](api/reactivity-core.md#watchposteffect) ·
 [watchSyncEffect()](api/reactivity-core.md#watchsynceffect) ·
 [watch()](api/reactivity-core.md#watch) ·
-[onWatcherCleanup()](api/reactivity-core.md#onwatchercleanup)
+[onWatcherCleanup()](api/reactivity-core.md#onwatchercleanup) ·
+[onEffectCleanup()](api/reactivity-core.md#oneffectcleanup)
 
 **[Utilities](api/reactivity-utilities.md)**
 [isRef()](api/reactivity-utilities.md#isref) ·
@@ -189,6 +190,9 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [send() / sendAll()](api/remote.md#remotesend-and-remotesendall) ·
 [use()](api/remote.md#remoteuse) ·
 [action()](api/remote.md#remoteaction) ·
+[state()](api/remote.md#remotestate) ·
+[useState()](api/remote.md#remoteusestate-getstate-and-onstate) ·
+[useRequest()](api/remote.md#remoteuserequest) ·
 [configure()](api/remote.md#remoteconfigure) ·
 [stats()](api/remote.md#remotestats) ·
 [Payloads and errors](api/remote.md#payloads-and-errors)
@@ -206,6 +210,7 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [RouterLink](api/router.md#routerrouterlink) ·
 [useRouter() / useRoute()](api/router.md#routeruserouter-and-routeruseroute) ·
 [useLink()](api/router.md#routeruselink) ·
+[lazy()](api/router.md#routerlazy) ·
 [isReady() / onError()](api/router.md#routerisready-and-routeronerror) ·
 [navigation failures](api/router.md#navigation-failures)
 
