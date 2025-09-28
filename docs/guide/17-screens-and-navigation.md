@@ -109,6 +109,14 @@ the store has changed since.
 A component deeper inside the screen can read the params with `Router.useRoute()` instead of
 having them passed down: `route.params.id`.
 
+For something that isn't part of what the screen is, like which tab is open, use a query, as in
+Vue Router. It doesn't change which screen matches, and links stay active whatever the query is:
+
+```lua
+router.push({ name = "item", params = { id = "sword" }, query = { tab = "stats" } })
+-- in the screen: Router.useRoute().query.tab
+```
+
 ## A back button
 
 `canGoBack` is a ref, so a back button can hide itself on the first screen. Bind Escape and the
@@ -133,6 +141,18 @@ local BackButton = Rivue.defineComponent({
 
 Put it in `App`, next to the `RouterView`, rather than in each screen. Then there's one binding
 for the whole game.
+
+If you only need the keys, without a button, let the router bind them:
+
+```lua
+local router = Router.createRouter({
+	routes = routes,
+	initial = "lobby",
+	backKeys = { Enum.KeyCode.Escape, Enum.KeyCode.ButtonB },
+})
+```
+
+The keys go back while there's history, and reach the rest of the game when there isn't.
 
 ## Screens inside screens
 
