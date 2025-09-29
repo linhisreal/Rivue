@@ -1,5 +1,5 @@
 name = "linhisreal/rivue_remote"
-version = "0.7.0-beta.1"
+version = "0.8.0-beta.1"
 description = "Client/server requests and events over RemoteEvents, with rate limits. Companion to Rivue"
 license = "PolyForm-Noncommercial-1.0.0"
 authors = ["linhisreal"]
