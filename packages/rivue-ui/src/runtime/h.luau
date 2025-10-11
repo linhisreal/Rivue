@@ -284,7 +284,9 @@ local function h(type_: VNodeType, propsIn: Props?, children: Types.Children?): 
 		slots = slots,
 		key = props.key,
 		_uid = vnodeIdCounter,
-		_owner = if type(props.ref) == "string" then componentModule.getRenderingInstance() else nil,
+		_owner = if type(props.ref) == "string" or props.class ~= nil
+			then componentModule.getRenderingInstance()
+			else nil,
 	}
 end
 

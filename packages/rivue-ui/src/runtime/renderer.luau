@@ -2401,7 +2401,7 @@ local function patchInner(oldVNode: RenderVNode?, newVNode: RenderVNode?, contai
 			newVNode._classApplied = true
 			newVNode.props = applyClasses(
 				props,
-				currentRenderingInstance,
+				(newVNode._owner :: ComponentInstance?) or currentRenderingInstance,
 				if currentRenderingInstance then currentRenderingInstance.appContext else currentAppContext
 			)
 		end
