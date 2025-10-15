@@ -857,6 +857,33 @@ local function runTests()
 		app:unmount()
 	end
 
+	print("A class in slot content uses the styles of the component that wrote it")
+	do
+		-- Rows passed into a Column were styled by Column, which has no styles of its own
+		local Panel = Rivue.defineComponent({
+			name = "StyledPanel",
+			styles = { title = { TextColor3 = Color3.fromRGB(255, 0, 0) } },
+			render = function()
+				return h(Rivue.Column, nil, {
+					h("TextLabel", { Name = "Title", class = "title" }),
+				})
+			end,
+		})
+		local folder = Instance.new("Folder")
+		local app = Rivue.createApp(Panel)
+		app:mount(folder)
+		local title = folder:FindFirstChild("Title", true)
+		if not title then
+			for _, d in folder:GetDescendants() do
+				if d.Name == "Title" then
+					title = d
+				end
+			end
+		end
+		assertEquals((title :: TextLabel).TextColor3.R, 1, "the parent's class applies")
+		app:unmount()
+	end
+
 	print("\n========== REGRESSION TESTS COMPLETE ==========\n")
 end
 
