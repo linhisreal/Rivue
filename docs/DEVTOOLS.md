@@ -23,42 +23,51 @@ app.config.devtools = game:GetService("RunService"):IsStudio()
 
 Then press Play and click **Rivue → DevTools** in the Plugins toolbar.
 
-Components show up as a tree with their render counts. Click an arrow to fold a branch away.
-Hover a row and the component is outlined on the game screen. Row colours:
+Components show up as a tree, each with its render count on the right. Click an arrow to fold a
+branch away. Hover a row and the component is outlined on the game screen. What the rows show:
 
-- **orange**: rendered again since the last refresh. One that keeps flashing re-renders too
-  often ([Guide 15](guide/15-performance-in-depth.md)).
-- **red**: the last render took 2 ms or more.
+- **orange, with a dot**: rendered again since the last refresh. One that keeps flashing
+  re-renders too often ([Guide 15](guide/15-performance-in-depth.md)).
+- **red, with its time**: the last render took longer than the slow threshold (2 ms unless you
+  change it in settings).
 
-Click a row and it's selected in the Explorer. Below the list you get:
+Click a row and it's selected in the Explorer. The panel below the tree shows:
 
-- how long its last render took, and what caused it: `count changed`, `props.title changed`,
-  `first render` or `parent update` (new slots or `forceUpdate`). A computed or a store shows as
-  `a computed or outside state`.
+- its render count, how long its last render took, and what caused it: `count changed`,
+  `props.title changed`, `first render` or `parent update` (new slots or `forceUpdate`). A
+  computed or a store shows as `a computed or outside state`.
 - **Open source**, which opens the script that defined the component at the `defineComponent`
   line.
-- its props, and its state. Numbers, strings and booleans in state are editable: type a new
-  value, press Enter, and the game updates.
-- the keys it provides, and the keys it injects.
+- cards for its props, its state, and the keys it provides and injects. Click a card's title to
+  fold it. Numbers, strings and booleans in state are editable: type a new value, press Enter,
+  and the game updates.
+
+Drag the line between the tree and the details to give either more room.
 
 Type in the filter box to show only components whose name matches. Their parents stay in the
-list, so you can still see where each match sits.
+list, so you can still see where each match sits. Next to it, **Sort** switches between the tree,
+most renders and slowest first, and **Reset counts** counts from zero, so you can do one thing in
+the game and see what it re-rendered.
 
-The buttons:
+The tabs show how many components, events and timeline entries there are. Along the bottom:
 
-- **Sort**: tree, most renders, or slowest first.
-- **Pause**: freeze the list while the UI keeps changing.
-- **Reset counts**: count from zero, do one thing in the game, and see what it re-rendered.
+- **Highlight updates** flashes an outline around every component that re-renders, on the game
+  screen, like Vue DevTools' option of the same name.
+- **Pause** freezes the lists while the UI keeps changing.
 
 The **Events** tab lists every `emit` as it happens, newest first, with its arguments. Click one
 to select the component that sent it.
 
 The **Timeline** tab puts renders, emits, router navigations and RivueRemote requests in one list,
-newest first, with the time and how long each took. It's the place to look when one click causes
-more work than you expected.
+newest first. Each entry has its time, and a bar and a duration when it has one, so the slow ones
+stand out. The chips at the top hide or show each kind. Click a render or an emit to open its
+component. It's the place to look when one click causes more work than you expected.
 
-The **Router** tab shows RivueRouter's current route: its name, params, query and meta, and the
-history, with the current entry in brackets.
+The **Router** tab shows RivueRouter's current route, its params, query and meta, and the
+history, with the current entry marked.
+
+The **⚙** tab sets the slow-render threshold and how many timeline entries to keep. Settings and
+Highlight updates are saved with the plugin.
 
 The window follows Studio's light or dark theme.
 
