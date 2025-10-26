@@ -1,6 +1,9 @@
 {
   "name": "RivueRemote",
   "tree": {
-    "$path": "src"
+    "$path": "src",
+    "LICENSE": {
+      "$path": "LICENSE.txt"
+    }
   }
 }

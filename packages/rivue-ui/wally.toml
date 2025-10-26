@@ -2,7 +2,7 @@
 name = "linhisreal/rivue-ui"
 description = "Vue 3's component model for Roblox UI, in Luau"
 version = "0.10.0-rc.1"
-license = "PolyForm-Noncommercial-1.0.0"
+license = "LicenseRef-Rivue"
 authors = ["linhisreal"]
 realm = "shared"
 registry = "https://github.com/UpliftGames/wally-index"
