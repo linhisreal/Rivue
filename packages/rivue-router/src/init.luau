@@ -126,15 +126,17 @@ local function isLazy(value: any): boolean
 	return type(value) == "table" and value.__rivueLazy == true
 end
 
-local function describe(value: any): string
+local function describe(value: any, depth: number?): string
 	if type(value) == "string" then
 		return string.format("%q", value)
 	elseif type(value) ~= "table" then
 		return tostring(value)
+	elseif (depth or 0) >= 2 then
+		return "{...}"
 	end
 	local parts = {}
 	for key, item in value do
-		table.insert(parts, `{key} = {describe(item)}`)
+		table.insert(parts, `{key} = {describe(item, (depth or 0) + 1)}`)
 	end
 	table.sort(parts)
 	return "{ " .. table.concat(parts, ", ") .. " }"
@@ -438,6 +440,9 @@ local function createRouter(options: RouterOptions): Router
 	end
 	local pending = 0
 	local router: Router
+	backActions += 1
+	local backAction = `RivueRouterBack{backActions}`
+	local backInstalls = 0
 
 	local function sync()
 		currentRoute.value = history[index].route
@@ -780,17 +785,21 @@ local function createRouter(options: RouterOptions): Router
 			app:provide(ROUTER_KEY, router)
 			local backKeys = options.backKeys
 			if backKeys and #backKeys > 0 and RunService:IsClient() then
-				backActions += 1
-				local action = `RivueRouterBack{backActions}`
-				ContextActionService:BindActionAtPriority(action, function(_, state)
-					if state ~= Enum.UserInputState.Begin or not canGoBack.value then
-						return Enum.ContextActionResult.Pass
-					end
-					router.back()
-					return Enum.ContextActionResult.Sink
-				end, false, Enum.ContextActionPriority.High.Value, table.unpack(backKeys))
+				backInstalls += 1
+				if backInstalls == 1 then
+					ContextActionService:BindActionAtPriority(backAction, function(_, state)
+						if state ~= Enum.UserInputState.Begin or not canGoBack.value then
+							return Enum.ContextActionResult.Pass
+						end
+						router.back()
+						return Enum.ContextActionResult.Sink
+					end, false, Enum.ContextActionPriority.High.Value, table.unpack(backKeys))
+				end
 				app:onUnmount(function()
-					ContextActionService:UnbindAction(action)
+					backInstalls -= 1
+					if backInstalls == 0 then
+						ContextActionService:UnbindAction(backAction)
+					end
 				end)
 			end
 			if index ~= 0 then
