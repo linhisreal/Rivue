@@ -1558,6 +1558,7 @@ local function unmountVNode(vnode: RenderVNode?, poolOpt: PoolOptions?, doRemove
 			end
 			unmountVNode(inst.subTree, poolOpt, doRemove)
 			inst:runUnmounted()
+			inst._hooksDone = true
 			vnode._instance = nil
 		end
 		return

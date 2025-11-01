@@ -926,6 +926,66 @@ local function runTests()
 		assertTrue(ok, "no stack overflow")
 	end
 
+	print("emit() still works in onBeforeUnmount and onUnmounted, like Vue")
+	do
+		local heard: { string } = {}
+		local Child = Rivue.defineComponent({
+			name = "Leaving",
+			emits = { "leaving", "left" },
+			setup = function(_, ctx)
+				Rivue.onBeforeUnmount(function()
+					ctx.emit("leaving")
+				end)
+				Rivue.onUnmounted(function()
+					ctx.emit("left")
+				end)
+				return {}
+			end,
+			render = function()
+				return h("Frame")
+			end,
+		})
+		local show = Rivue.ref(true)
+		local Parent = Rivue.defineComponent({
+			name = "LeavingParent",
+			render = function()
+				return if show.value
+					then h(Child, {
+						onLeaving = function()
+							table.insert(heard, "leaving")
+						end,
+						onLeft = function()
+							table.insert(heard, "left")
+						end,
+					})
+					else nil
+			end,
+		})
+		local app = Rivue.createApp(Parent)
+		app:mount(Instance.new("Folder"))
+		show.value = false
+		Rivue.nextTick()
+		assertEquals(table.concat(heard, ","), "leaving,left", "both hooks can still emit")
+		app:unmount()
+	end
+
+	print("onEffectCleanup runs when a computed recalculates")
+	do
+		local n = Rivue.ref(1)
+		local cleaned: { number } = {}
+		local doubled = Rivue.computed(function()
+			local v = n.value
+			Rivue.onEffectCleanup(function()
+				table.insert(cleaned, v)
+			end)
+			return v * 2
+		end)
+		assertEquals(doubled.value, 2, "first value")
+		n.value = 2
+		assertEquals(doubled.value, 4, "recalculated")
+		assertEquals(cleaned[1], 1, "the last run's cleanup ran first")
+	end
+
 	print("\n========== REGRESSION TESTS COMPLETE ==========\n")
 end
 

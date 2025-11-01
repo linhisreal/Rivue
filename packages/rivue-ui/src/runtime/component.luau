@@ -83,6 +83,7 @@ type InstanceData = {
 	_keepAliveRenderer: { unmount: (vnode: VNode) -> () }?,
 	_devtoolsTriggers: { string }?,
 	_injected: { [unknown]: boolean }?,
+	_hooksDone: boolean,
 }
 
 export type ComponentInstance = typeof(setmetatable({} :: InstanceData, ComponentInstance))
@@ -602,7 +603,7 @@ local devtoolsHooks: { emit: ((instance: ComponentInstance, eventName: string, a
 local function createSetupContext(instance: ComponentInstance): SetupContext
 	return {
 		emit = function(eventName: string, ...: any): ()
-			if instance.isUnmounted then
+			if instance._hooksDone then
 				return
 			end
 			local handlerName = toHandlerKey(eventName)
@@ -735,6 +736,7 @@ local function createComponentInstance(
 		_keepAliveRenderer = nil,
 		_devtoolsTriggers = nil,
 		_injected = nil,
+		_hooksDone = false,
 	}
 	local instance = setmetatable(data, ComponentInstance)
 	instance.ctx = createSetupContext(instance)
