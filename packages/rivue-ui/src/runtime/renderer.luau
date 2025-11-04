@@ -78,6 +78,51 @@ local function queuePost(fn: () -> ())
 	table.insert(postQueue, fn)
 end
 
+local updatedQueue: { ComponentInstance } = {}
+
+local function depthOf(inst: ComponentInstance): number
+	local depth = 0
+	local cur = inst.parent
+	while cur do
+		depth += 1
+		cur = cur.parent
+	end
+	return depth
+end
+
+local updatedJob = {
+	id = math.huge,
+	run = function()
+		local queue = updatedQueue
+		updatedQueue = {}
+		local depths: { [ComponentInstance]: number } = {}
+		local order: { [ComponentInstance]: number } = {}
+		for i, inst in queue do
+			depths[inst] = depthOf(inst)
+			order[inst] = i
+		end
+		table.sort(queue, function(a, b)
+			if depths[a] ~= depths[b] then
+				return depths[a] > depths[b]
+			end
+			return order[a] < order[b]
+		end)
+		for _, inst in queue do
+			if not inst.isUnmounted then
+				inst:runUpdated()
+			end
+		end
+	end,
+}
+
+local function queueUpdated(inst: ComponentInstance)
+	if #inst.updatedCbs == 0 or table.find(updatedQueue, inst) then
+		return
+	end
+	table.insert(updatedQueue, inst)
+	scheduler.queueUpdate(updatedJob)
+end
+
 local function flushPostQueue()
 	while #postQueue > 0 do
 		local queue = postQueue
@@ -1630,9 +1675,15 @@ local function patchKeyedChildren(
 	local newList: { Child } = newChildren or {}
 
 	local oldMap: { [unknown]: VNode } = {}
+	local duplicates: { VNode }? = nil
 	for _, oc in oldList do
 		if type(oc) == "table" and oc.key ~= nil then
-			oldMap[oc.key] = oc
+			if oldMap[oc.key] then
+				duplicates = duplicates or {}
+				table.insert(duplicates :: { VNode }, oc)
+			else
+				oldMap[oc.key] = oc
+			end
 		end
 	end
 
@@ -1674,6 +1725,12 @@ local function patchKeyedChildren(
 
 	for _, v in oldMap do
 		unmountVNode(v, poolOpt)
+	end
+
+	if duplicates then
+		for _, v in duplicates do
+			unmountVNode(v, poolOpt)
+		end
 	end
 
 	for i = 1, table.maxn(oldList) do
@@ -2140,7 +2197,7 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 				inst:handleError(tostring(err), "patch")
 				return
 			end
-			inst:runUpdated()
+			queueUpdated(inst)
 		else
 			if profiled then
 				debug.profilebegin(label .. " patch")
