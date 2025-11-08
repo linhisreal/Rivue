@@ -615,7 +615,7 @@ local function connectEvent(
 	local names: { string } = {}
 
 	if aliases then
-		for _, n in ipairs(aliases) do
+		for _, n in aliases do
 			table.insert(names, n)
 		end
 	else
@@ -630,7 +630,7 @@ local function connectEvent(
 		end
 	end
 
-	for _, evName in ipairs(names) do
+	for _, evName in names do
 		local signal, isProperty = tryGetSignal(inst, evName)
 		if signal then
 			local target = { name = evName, isProperty = isProperty }

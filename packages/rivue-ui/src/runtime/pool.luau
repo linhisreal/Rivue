@@ -239,7 +239,7 @@ local function resetInstance(inst: Instance, touched: { [string]: boolean }?): (
 		inst.Parent = nil
 
 		local children = inst:GetChildren()
-		for _, child in ipairs(children) do
+		for _, child in children do
 			pcall(function()
 				child:Destroy()
 			end)
@@ -257,7 +257,7 @@ local function resetInstance(inst: Instance, touched: { [string]: boolean }?): (
 		if inst.GetAttributes then
 			pcall(function()
 				local attrs = inst:GetAttributes()
-				for attrName, _ in pairs(attrs) do
+				for attrName, _ in attrs do
 					pcall(function()
 						inst:SetAttribute(attrName, nil)
 					end)
@@ -455,7 +455,7 @@ function Pool.release(inst: Instance, touched: { [string]: boolean }?): ()
 end
 
 function Pool.releaseMultiple(instances: { Instance }): ()
-	for _, inst in ipairs(instances) do
+	for _, inst in instances do
 		Pool.release(inst)
 	end
 end
@@ -467,7 +467,7 @@ function Pool.clear(className: string?): ()
 		local list = Pool.store[className]
 		if list then
 			totalCleared = #list
-			for _, inst in ipairs(list) do
+			for _, inst in list do
 				Pool.instanceMetadata[inst] = nil
 				pcall(function()
 					inst:Destroy()
@@ -476,9 +476,9 @@ function Pool.clear(className: string?): ()
 			Pool.store[className] = {}
 		end
 	else
-		for cls, list in pairs(Pool.store) do
+		for cls, list in Pool.store do
 			totalCleared += #list
-			for _, inst in ipairs(list) do
+			for _, inst in list do
 				Pool.instanceMetadata[inst] = nil
 				pcall(function()
 					inst:Destroy()
@@ -517,7 +517,7 @@ const CONFIG_KEYS = table.freeze({
 })
 
 function Pool.configure(config: PoolConfig): ()
-	for key, value in pairs(config) do
+	for key, value in config do
 		if CONFIG_KEYS[key] then
 			(Pool.config :: any)[key] = value
 		end
@@ -565,7 +565,7 @@ function Pool.getStatistics(): PoolStatistics
 	local totalInstances = 0
 	local poolsByClass = {}
 
-	for cls, list in pairs(Pool.store) do
+	for cls, list in Pool.store do
 		poolsByClass[cls] = #list
 		totalInstances += #list
 	end
@@ -587,7 +587,7 @@ function Pool.validateHealth(): boolean
 	local removedCount = 0
 	local totalChecked = 0
 
-	for _, list in pairs(Pool.store) do
+	for _, list in Pool.store do
 		local i = 1
 		while i <= #list do
 			totalChecked += 1
@@ -628,14 +628,14 @@ end
 
 function Pool.createSnapshot(): { [string]: { Instance } }
 	local snapshot = {}
-	for className, list in pairs(Pool.store) do
+	for className, list in Pool.store do
 		snapshot[className] = table.clone(list)
 	end
 
 	if Pool._debugMode then
 		local totalInstances = 0
 		local classNames = {}
-		for className, list in pairs(snapshot) do
+		for className, list in snapshot do
 			totalInstances += #list
 			table.insert(classNames, className)
 		end
@@ -651,7 +651,7 @@ end
 function Pool.restoreSnapshot(snapshot: { [string]: { Instance } }): ()
 	Pool.clear()
 
-	for className, list in pairs(snapshot) do
+	for className, list in snapshot do
 		Pool.store[className] = table.clone(list)
 	end
 	recountPooled()
@@ -659,7 +659,7 @@ function Pool.restoreSnapshot(snapshot: { [string]: { Instance } }): ()
 	if Pool._debugMode then
 		local totalInstances = 0
 		local classNames = {}
-		for className, list in pairs(Pool.store) do
+		for className, list in Pool.store do
 			totalInstances += #list
 			table.insert(classNames, className)
 		end

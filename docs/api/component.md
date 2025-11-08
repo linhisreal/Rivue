@@ -987,13 +987,15 @@ Use it for big screens most players never open.
 
 - **Details**
 
-  - The loader runs when the component first mounts. Inside a [`Suspense`](builtins.md#suspense)
-    it also counts as pending, so Suspense shows its fallback until it loads or gives up.
+  - The loader runs when the component first mounts. Copies mounted while it's loading share that
+    load, and once it has loaded, new copies render straight away without calling it again. Inside
+    a [`Suspense`](builtins.md#suspense) it also counts as pending, so Suspense shows its fallback
+    until it loads or gives up.
   - Without `onError`, a failed load shows `errorComponent` straight away. With it, you decide:
     call `retry()` to run the loader again, or `fail()` to show the error. `attempts` counts the
     tries so far, starting at 1. Same as Vue.
-  - A timeout counts as a failure, so it goes to `onError` too. If an earlier attempt answers
-    after you've retried, its answer is ignored.
+  - A timeout counts as a failure, so it goes to `onError` too. If the load finishes after the
+    error is showing, the component replaces the error, as in Vue.
 
 - **Type**
 

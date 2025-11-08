@@ -616,11 +616,43 @@ builtins.ViewportModel = table.freeze(viewportModel)
 
 function builtins.defineAsyncComponent(loader: () -> ComponentDef, opts: AsyncComponentOptions?): ComponentDef
 	local options: AsyncComponentOptions = opts or {}
+	local resolved: ComponentDef? = nil
+	local waiting: { thread }? = nil
+
+	local function load(fresh: boolean): (boolean, any)
+		if resolved then
+			return true, resolved
+		end
+		if waiting and not fresh then
+			table.insert(waiting, coroutine.running())
+			return coroutine.yield()
+		end
+		local queue: { thread } = {}
+		waiting = queue
+		local ok, result = pcall(loader)
+		if waiting == queue then
+			waiting = nil
+		end
+		if ok then
+			resolved = result
+		end
+		for _, thread in queue do
+			task.spawn(thread, ok, result)
+		end
+		return ok, result
+	end
 
 	return {
 		__is_component = true,
 		__name = "AsyncComponent",
 		setup = function(props: Props, context: SetupContext)
+			local loaded = resolved
+			if loaded then
+				return function()
+					return h(loaded, props)
+				end
+			end
+
 			local component = shallowRef(nil :: ComponentDef?)
 			local loading = ref(false)
 			local error = ref(nil :: string?)
@@ -642,6 +674,7 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, opts: AsyncCo
 			local timeoutTimer: thread? = nil
 			local attempts = 0
 			local finished = false
+			local unmounted = false
 
 			local function stopTimers()
 				if delayTimer then
@@ -709,8 +742,14 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, opts: AsyncCo
 					end)
 				end
 				task.spawn(function()
-					local success, result = pcall(loader)
-					if finished or this ~= attempts then
+					local success, result = load(this > 1)
+					if unmounted then
+						return
+					elseif success and error.value ~= nil then
+						component.value = result
+						error.value = nil
+						return
+					elseif finished or this ~= attempts then
 						return
 					end
 					if success then
@@ -730,6 +769,7 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, opts: AsyncCo
 
 			componentModule.onUnmounted(function()
 				finished = true
+				unmounted = true
 				stopTimers()
 			end)
 

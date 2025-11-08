@@ -1102,6 +1102,14 @@ do
 		t[name] = t[name] or makeSignal()
 		return t[name]
 	end
+	__preloaded = {}
+	services.ContentProvider = {
+		PreloadAsync = function(_, list)
+			for _, item in list do
+				table.insert(__preloaded, item)
+			end
+		end,
+	}
 	services.CollectionService = {
 		GetTagged = function(_, name)
 			return table.clone(tags[name] or {})
