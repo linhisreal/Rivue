@@ -583,26 +583,26 @@ local function runTests()
 		task.wait(0.2)
 		assertEquals(debounceCalled, 1, "debounce only calls once after delay")
 
-	-- Throttle
-	local throttleCalled = 0
-	local throttled = Rivue.utils.throttle(function()
-		throttleCalled = throttleCalled + 1
-	end, 100) -- 100ms throttle interval
+		-- Throttle
+		local throttleCalled = 0
+		local throttled = Rivue.utils.throttle(function()
+			throttleCalled = throttleCalled + 1
+		end, 100) -- 100ms throttle interval
 
-	-- First call executes immediately
-	throttled()
-	assertEquals(throttleCalled, 1, "throttle executes first call immediately")
-	
-	-- Subsequent calls within interval are throttled
-	throttled()
-	throttled()
-	assertEquals(throttleCalled, 1, "throttle ignores calls within interval")
-	
-	-- After interval, next call should execute
-	task.wait(0.12)
-	throttled()
-	task.wait(0.05)
-	assertTrue(throttleCalled >= 1, "throttle limits call frequency")		-- nextTick
+		-- First call executes immediately
+		throttled()
+		assertEquals(throttleCalled, 1, "throttle executes first call immediately")
+
+		-- Subsequent calls within interval are throttled
+		throttled()
+		throttled()
+		assertEquals(throttleCalled, 1, "throttle ignores calls within interval")
+
+		-- After interval, next call should execute
+		task.wait(0.12)
+		throttled()
+		task.wait(0.05)
+		assertTrue(throttleCalled >= 1, "throttle limits call frequency") -- nextTick
 		local nextTickCalled = false
 		Rivue.utils.nextTick(function()
 			nextTickCalled = true
