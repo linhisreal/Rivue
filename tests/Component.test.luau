@@ -12,12 +12,14 @@ local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
 
 local function assertEquals(actual: any, expected: any, message: string?)
 	if actual ~= expected then
-		error(string.format(
-			"Assertion failed: %s\nExpected: %s\nActual: %s",
-			message or "values not equal",
-			tostring(expected),
-			tostring(actual)
-		))
+		error(
+			string.format(
+				"Assertion failed: %s\nExpected: %s\nActual: %s",
+				message or "values not equal",
+				tostring(expected),
+				tostring(actual)
+			)
+		)
 	end
 	print("✓", message or "Assertion passed")
 end
@@ -34,7 +36,7 @@ local function runTests()
 	print("\n" .. string.rep("=", 40))
 	print(printHeader)
 	print(string.rep("=", 40) .. "\n")
-	
+
 	-- Test 1: onMounted hook registration
 	print("Test 1: onMounted hook registration")
 	do
@@ -48,9 +50,9 @@ local function runTests()
 				return function()
 					return Rivue.h("Frame")
 				end
-			end
+			end,
 		})
-		
+
 		local container = Instance.new("Folder")
 		local app = Rivue.mount(TestComponent, container)
 		task.wait(0.1)
@@ -58,7 +60,7 @@ local function runTests()
 		app:unmount()
 		container:Destroy()
 	end
-	
+
 	-- Test 2: onUnmounted hook registration
 	print("Test 2: onUnmounted hook registration")
 	do
@@ -72,9 +74,9 @@ local function runTests()
 				return function()
 					return Rivue.h("Frame")
 				end
-			end
+			end,
 		})
-		
+
 		local container = Instance.new("Folder")
 		local app = Rivue.mount(TestComponent, container)
 		task.wait(0.05)
@@ -83,7 +85,7 @@ local function runTests()
 		assertTrue(unmounted, "Should call onUnmounted hook")
 		container:Destroy()
 	end
-	
+
 	-- Test 3: onBeforeMount hook registration
 	print("Test 3: onBeforeMount hook registration")
 	do
@@ -97,9 +99,9 @@ local function runTests()
 				return function()
 					return Rivue.h("Frame")
 				end
-			end
+			end,
 		})
-		
+
 		local container = Instance.new("Folder")
 		local app = Rivue.mount(TestComponent, container)
 		task.wait(0.1)
@@ -107,7 +109,7 @@ local function runTests()
 		app:unmount()
 		container:Destroy()
 	end
-	
+
 	-- Test 4: onBeforeUnmount hook registration
 	print("Test 4: onBeforeUnmount hook registration")
 	do
@@ -121,9 +123,9 @@ local function runTests()
 				return function()
 					return Rivue.h("Frame")
 				end
-			end
+			end,
 		})
-		
+
 		local container = Instance.new("Folder")
 		local app = Rivue.mount(TestComponent, container)
 		task.wait(0.05)
@@ -132,7 +134,7 @@ local function runTests()
 		assertTrue(beforeUnmountCalled, "Should call onBeforeUnmount hook")
 		container:Destroy()
 	end
-	
+
 	-- Test 5: Prop defaults are applied
 	print("Test 5: Prop defaults are applied")
 	do
@@ -142,17 +144,17 @@ local function runTests()
 			props = {
 				count = {
 					type = "number",
-					default = 10
-				}
+					default = 10,
+				},
 			},
 			setup = function(props)
 				receivedProps = props
 				return function()
 					return Rivue.h("Frame")
 				end
-			end
+			end,
 		})
-		
+
 		local container = Instance.new("Folder")
 		local app = Rivue.mount(TestComponent, container)
 		task.wait(0.05)
@@ -160,7 +162,7 @@ local function runTests()
 		app:unmount()
 		container:Destroy()
 	end
-	
+
 	-- Test 6: Factory function defaults
 	print("Test 6: Factory function defaults")
 	do
@@ -172,17 +174,17 @@ local function runTests()
 					type = "table",
 					default = function()
 						return { x = 1, y = 2 }
-					end
-				}
+					end,
+				},
 			},
 			setup = function(props)
 				receivedProps = props
 				return function()
 					return Rivue.h("Frame")
 				end
-			end
+			end,
 		})
-		
+
 		local container = Instance.new("Folder")
 		local app = Rivue.mount(TestComponent, container)
 		task.wait(0.05)
@@ -191,7 +193,7 @@ local function runTests()
 		app:unmount()
 		container:Destroy()
 	end
-	
+
 	-- Test 7: ctx.expose() works
 	print("Test 7: ctx.expose() works")
 	do
@@ -202,14 +204,14 @@ local function runTests()
 				ctx.expose({
 					testMethod = function()
 						return "exposed"
-					end
+					end,
 				})
 				return function()
 					return Rivue.h("Frame")
 				end
-			end
+			end,
 		})
-		
+
 		local container = Instance.new("Folder")
 		local app = Rivue.mount(Rivue.h(TestComponent, { ref = testRef }), container)
 		task.wait(0.1)
@@ -221,7 +223,7 @@ local function runTests()
 		app:unmount()
 		container:Destroy()
 	end
-	
+
 	local printFooter = "COMPONENT TESTS COMPLETE"
 	print("\n" .. string.rep("=", 40))
 	print(printFooter)

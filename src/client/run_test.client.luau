@@ -9,8 +9,8 @@ local playerGui = localPlayer:WaitForChild("PlayerGui")
 
 -- Prevent double-execution: check if already running
 if playerGui:FindFirstChild("TestEnhancementsRoot") then
-    print("⚠️ TestEnhancements already mounted, skipping duplicate execution")
-    return
+	print("⚠️ TestEnhancements already mounted, skipping duplicate execution")
+	return
 end
 
 -- Require the test module (mapped as Test4 in default.project.json)

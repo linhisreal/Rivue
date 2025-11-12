@@ -165,7 +165,7 @@ export type PoolConfig = {
 	enableMetrics: boolean?,
 	enableDebug: boolean?,
 	defaultTTL: number?,
-	enableAutoWarmup: boolean?
+	enableAutoWarmup: boolean?,
 }
 
 export type PoolMetrics = {
@@ -175,14 +175,14 @@ export type PoolMetrics = {
 	hits: number,
 	misses: number,
 	destroyed: number,
-	evictions: number
+	evictions: number,
 }
 
 export type PoolStatistics = {
 	totalInstances: number,
 	poolsByClass: { [string]: number },
 	metrics: PoolMetrics,
-	hitRate: number
+	hitRate: number,
 }
 
 export type ResetHandler = (inst: Instance) -> ()
@@ -191,7 +191,7 @@ export type PoolEventHooks = {
 	onAcquire: ((inst: Instance, fromPool: boolean) -> ())?,
 	onRelease: ((inst: Instance, pooled: boolean) -> ())?,
 	onClear: ((totalCleared: number) -> ())?,
-	onEvict: ((inst: Instance, reason: string) -> ())?
+	onEvict: ((inst: Instance, reason: string) -> ())?,
 }
 
 type PoolStore = { [string]: { Instance } }
@@ -202,38 +202,37 @@ type PoolType = {
 	customResetHandlers: { [string]: ResetHandler },
 	eventHooks: PoolEventHooks,
 	instanceMetadata: { [Instance]: { acquiredAt: number, releasedAt: number? } },
-	
+
 	acquire: (className: string) -> Instance,
 	acquireMultiple: (className: string, count: number) -> { Instance },
 	release: (inst: Instance) -> (),
 	releaseMultiple: (instances: { Instance }) -> (),
 	clear: (className: string?) -> (),
-	
+
 	configure: (config: PoolConfig) -> (),
 	warmup: (className: string, count: number) -> (),
 	getStatistics: () -> PoolStatistics,
 	validateHealth: () -> boolean,
 	createSnapshot: () -> { [string]: { Instance } },
 	restoreSnapshot: (snapshot: { [string]: { Instance } }) -> (),
-	
+
 	setResetHandler: (className: string, handler: ResetHandler) -> (),
 	setEventHook: (hookName: string, handler: (...any) -> ()) -> (),
-	
-	_debugMode: boolean,
-	_typeCheckCache: { [string]: { isGuiObject: boolean, isText: boolean, isImage: boolean } }
-}
 
+	_debugMode: boolean,
+	_typeCheckCache: { [string]: { isGuiObject: boolean, isText: boolean, isImage: boolean } },
+}
 
 local debugModule = require(script.Parent:WaitForChild("debug"))
 
 -- Default configuration
 local DEFAULT_CONFIG: PoolConfig = {
-	maxPoolSize = 50,        -- Max instances per class
-	maxTotalSize = 500,      -- Max total instances across all classes
-	enableMetrics = true,    -- Track usage statistics
-	enableDebug = false,     -- Enhanced debug logging
-	defaultTTL = nil,        -- Time-to-live in seconds (nil = infinite)
-	enableAutoWarmup = false -- Auto-warmup on first acquire
+	maxPoolSize = 50, -- Max instances per class
+	maxTotalSize = 500, -- Max total instances across all classes
+	enableMetrics = true, -- Track usage statistics
+	enableDebug = false, -- Enhanced debug logging
+	defaultTTL = nil, -- Time-to-live in seconds (nil = infinite)
+	enableAutoWarmup = false, -- Auto-warmup on first acquire
 }
 
 local Pool: PoolType = {} :: any
@@ -246,7 +245,7 @@ Pool.metrics = {
 	hits = 0,
 	misses = 0,
 	destroyed = 0,
-	evictions = 0
+	evictions = 0,
 }
 Pool.customResetHandlers = {}
 Pool.eventHooks = {}
@@ -264,14 +263,14 @@ local function getTypeInfo(className: string): { isGuiObject: boolean, isText: b
 			Pool._typeCheckCache[className] = {
 				isGuiObject = testInst:IsA("GuiObject"),
 				isText = testInst:IsA("TextLabel") or testInst:IsA("TextButton") or testInst:IsA("TextBox"),
-				isImage = testInst:IsA("ImageLabel") or testInst:IsA("ImageButton")
+				isImage = testInst:IsA("ImageLabel") or testInst:IsA("ImageButton"),
 			}
 			testInst:Destroy()
 		else
 			Pool._typeCheckCache[className] = {
 				isGuiObject = false,
 				isText = false,
-				isImage = false
+				isImage = false,
 			}
 		end
 	end
@@ -291,11 +290,15 @@ end
 --- Evicts old instances based on TTL
 --- @param className string -- Class name to check
 local function evictStaleInstances(className: string): ()
-	if not Pool.config.defaultTTL then return end
-	
+	if not Pool.config.defaultTTL then
+		return
+	end
+
 	local list = Pool.store[className]
-	if not list then return end
-	
+	if not list then
+		return
+	end
+
 	local now = os.clock()
 	local i = 1
 	while i <= #list do
@@ -310,23 +313,23 @@ local function evictStaleInstances(className: string): ()
 				pcall(function()
 					inst:Destroy()
 				end)
-				
+
 				if Pool.config.enableMetrics then
 					Pool.metrics.evictions += 1
 					Pool.metrics.destroyed += 1
 				end
-				
+
 				if Pool.eventHooks.onEvict then
 					pcall(function()
 						Pool.eventHooks.onEvict(inst, "TTL_EXPIRED")
 					end)
 				end
-				
+
 				if Pool._debugMode then
-					debugModule.log("Pool", "Evicted stale instance", { 
-						className = className, 
-						age = age, 
-						ttl = Pool.config.defaultTTL 
+					debugModule.log("Pool", "Evicted stale instance", {
+						className = className,
+						age = age,
+						ttl = Pool.config.defaultTTL,
 					})
 				end
 				continue
@@ -339,22 +342,24 @@ end
 --- Resets an Instance to its default state
 --- @param inst Instance -- Instance to reset
 local function resetInstance(inst: Instance): ()
-	if not inst then return end
-	
+	if not inst then
+		return
+	end
+
 	-- Use custom handler if available
 	local handler = Pool.customResetHandlers[inst.ClassName]
 	if handler then
 		pcall(handler, inst)
 		return
 	end
-	
+
 	-- Get cached type information
 	local typeInfo = getTypeInfo(inst.ClassName)
-	
+
 	pcall(function()
 		-- Clear parent first
 		inst.Parent = nil
-		
+
 		-- Destroy all children
 		local children = inst:GetChildren()
 		for _, child in ipairs(children) do
@@ -362,17 +367,17 @@ local function resetInstance(inst: Instance): ()
 				child:Destroy()
 			end)
 		end
-		
+
 		-- Clear text properties (using cached type check)
-		if typeInfo.isText then 
-			(inst :: any).Text = "" 
+		if typeInfo.isText then
+			(inst :: any).Text = ""
 		end
-		
+
 		-- Clear image properties (using cached type check)
-		if typeInfo.isImage then 
-			(inst :: any).Image = "" 
+		if typeInfo.isImage then
+			(inst :: any).Image = ""
 		end
-		
+
 		-- Reset GuiObject properties in a single pcall
 		if typeInfo.isGuiObject then
 			local guiObj = inst :: any
@@ -383,21 +388,21 @@ local function resetInstance(inst: Instance): ()
 			guiObj.AnchorPoint = Vector2.new(0, 0)
 			guiObj.BackgroundTransparency = 0
 		end
-		
-	-- Reset name
-	inst.Name = "Pooled" .. inst.ClassName
-	
-	-- Clear all attributes (synchronous for immediate cleanup)
-	if inst.GetAttributes then
-		pcall(function()
-			local attrs = inst:GetAttributes()
-			for attrName, _ in pairs(attrs) do
-				pcall(function()
-					inst:SetAttribute(attrName, nil)
-				end)
-			end
-		end)
-	end		-- Disconnect all connections stored on the instance
+
+		-- Reset name
+		inst.Name = "Pooled" .. inst.ClassName
+
+		-- Clear all attributes (synchronous for immediate cleanup)
+		if inst.GetAttributes then
+			pcall(function()
+				local attrs = inst:GetAttributes()
+				for attrName, _ in pairs(attrs) do
+					pcall(function()
+						inst:SetAttribute(attrName, nil)
+					end)
+				end
+			end)
+		end -- Disconnect all connections stored on the instance
 		local connections = (inst :: any)._connections
 		if connections and type(connections) == "table" then
 			for _, conn in ipairs(connections) do
@@ -419,23 +424,23 @@ function Pool.acquire(className: string): Instance
 	if Pool.config.enableMetrics then
 		Pool.metrics.acquires += 1
 	end
-	
+
 	-- Auto-warmup on first acquire
 	if Pool.config.enableAutoWarmup and not Pool.store[className] then
 		Pool.warmup(className, 5)
 	end
-	
+
 	Pool.store[className] = Pool.store[className] or {}
 	local list = Pool.store[className]
-	
+
 	-- Evict stale instances if TTL is enabled
 	if Pool.config.defaultTTL then
 		evictStaleInstances(className)
 	end
-	
+
 	local fromPool = false
 	local inst: Instance
-	
+
 	if #list > 0 then
 		-- Try to get from pool, validate it's not destroyed
 		local attempts = 0
@@ -457,14 +462,14 @@ function Pool.acquire(className: string): Instance
 			end
 		end
 	end
-	
+
 	if not fromPool then
 		-- Create new instance
 		if Pool.config.enableMetrics then
 			Pool.metrics.misses += 1
 			Pool.metrics.creates += 1
 		end
-		
+
 		local ok, result = pcall(function()
 			return Instance.new(className)
 		end)
@@ -475,29 +480,29 @@ function Pool.acquire(className: string): Instance
 			inst = Instance.new("Frame")
 		end
 	end
-	
+
 	-- Track metadata
 	Pool.instanceMetadata[inst] = {
 		acquiredAt = os.clock(),
-		releasedAt = nil
+		releasedAt = nil,
 	}
-	
+
 	-- Fire event hook
 	if Pool.eventHooks.onAcquire then
 		pcall(function()
 			Pool.eventHooks.onAcquire(inst, fromPool)
 		end)
 	end
-	
+
 	if Pool._debugMode or (not fromPool and Pool.config.enableDebug) then
 		debugModule.log("Pool", "Acquired instance", {
 			className = className,
 			fromPool = fromPool,
 			poolSize = #list,
-			totalInstances = Pool.getStatistics().totalInstances
+			totalInstances = Pool.getStatistics().totalInstances,
 		})
 	end
-	
+
 	return inst
 end
 
@@ -520,11 +525,11 @@ function Pool.release(inst: Instance): ()
 		warn("[Pool] Attempted to release invalid instance")
 		return
 	end
-	
+
 	if Pool.config.enableMetrics then
 		Pool.metrics.releases += 1
 	end
-	
+
 	-- Validate instance is not destroyed
 	if not isInstanceValid(inst) then
 		Pool.instanceMetadata[inst] = nil
@@ -533,10 +538,10 @@ function Pool.release(inst: Instance): ()
 		end
 		if Pool._debugMode then
 			debugModule.log("Pool", "Cannot release destroyed instance", {
-				className = inst.ClassName
+				className = inst.ClassName,
 			})
 		end
-		
+
 		if Pool.eventHooks.onRelease then
 			pcall(function()
 				Pool.eventHooks.onRelease(inst, false)
@@ -544,14 +549,14 @@ function Pool.release(inst: Instance): ()
 		end
 		return
 	end
-	
+
 	Pool.store[inst.ClassName] = Pool.store[inst.ClassName] or {}
 	local list = Pool.store[inst.ClassName]
-	
+
 	-- Check pool size limits
 	local shouldPool = true
 	local evictionReason = ""
-	
+
 	if Pool.config.maxPoolSize and #list >= Pool.config.maxPoolSize then
 		shouldPool = false
 		evictionReason = "MAX_POOL_SIZE"
@@ -562,25 +567,25 @@ function Pool.release(inst: Instance): ()
 			evictionReason = "MAX_TOTAL_SIZE"
 		end
 	end
-	
+
 	if shouldPool then
 		-- Update metadata
 		if not Pool.instanceMetadata[inst] then
 			Pool.instanceMetadata[inst] = {
 				acquiredAt = os.clock(),
-				releasedAt = nil
+				releasedAt = nil,
 			}
 		end
 		Pool.instanceMetadata[inst].releasedAt = os.clock()
-		
+
 		-- Reset and pool
 		resetInstance(inst)
 		table.insert(list, inst)
-		
+
 		if Pool._debugMode then
 			debugModule.log("Pool", "Released instance to pool", {
 				className = inst.ClassName,
-				poolSize = #list
+				poolSize = #list,
 			})
 		end
 	else
@@ -589,27 +594,27 @@ function Pool.release(inst: Instance): ()
 		pcall(function()
 			inst:Destroy()
 		end)
-		
+
 		if Pool.config.enableMetrics then
 			Pool.metrics.evictions += 1
 			Pool.metrics.destroyed += 1
 		end
-		
+
 		if Pool.eventHooks.onEvict then
 			pcall(function()
 				Pool.eventHooks.onEvict(inst, evictionReason)
 			end)
 		end
-		
+
 		if Pool._debugMode then
 			debugModule.log("Pool", "Evicted instance (limit reached)", {
 				className = inst.ClassName,
 				reason = evictionReason,
-				poolSize = #list
+				poolSize = #list,
 			})
 		end
 	end
-	
+
 	-- Fire release event hook
 	if Pool.eventHooks.onRelease then
 		pcall(function()
@@ -630,7 +635,7 @@ end
 --- @param className string? -- Optional class name to clear (nil = clear all)
 function Pool.clear(className: string?): ()
 	local totalCleared = 0
-	
+
 	if className then
 		-- Clear specific class
 		local list = Pool.store[className]
@@ -657,22 +662,22 @@ function Pool.clear(className: string?): ()
 			Pool.store[cls] = {}
 		end
 	end
-	
+
 	if Pool.config.enableMetrics then
 		Pool.metrics.destroyed += totalCleared
 	end
-	
+
 	-- Fire event hook
 	if Pool.eventHooks.onClear then
 		pcall(function()
 			Pool.eventHooks.onClear(totalCleared)
 		end)
 	end
-	
+
 	if Pool._debugMode or Pool.config.enableDebug then
 		debugModule.log("Pool", "Cleared pool", {
 			className = className or "ALL",
-			instancesDestroyed = totalCleared
+			instancesDestroyed = totalCleared,
 		})
 	end
 end
@@ -685,9 +690,9 @@ function Pool.configure(config: PoolConfig): ()
 			(Pool.config :: any)[key] = value
 		end
 	end
-	
+
 	Pool._debugMode = Pool.config.enableDebug == true
-	
+
 	if Pool._debugMode then
 		debugModule.log("Pool", "Configuration updated", config)
 	end
@@ -699,7 +704,7 @@ end
 function Pool.warmup(className: string, count: number): ()
 	Pool.store[className] = Pool.store[className] or {}
 	local list = Pool.store[className]
-	
+
 	local created = 0
 	for _ = 1, count do
 		local ok, inst = pcall(function()
@@ -711,17 +716,17 @@ function Pool.warmup(className: string, count: number): ()
 			created += 1
 		end
 	end
-	
+
 	if Pool.config.enableMetrics then
 		Pool.metrics.creates += created
 	end
-	
+
 	if Pool._debugMode or Pool.config.enableDebug then
 		debugModule.log("Pool", "Warmup completed", {
 			className = className,
 			requested = count,
 			created = created,
-			poolSize = #list
+			poolSize = #list,
 		})
 	end
 end
@@ -731,22 +736,22 @@ end
 function Pool.getStatistics(): PoolStatistics
 	local totalInstances = 0
 	local poolsByClass = {}
-	
+
 	for cls, list in pairs(Pool.store) do
 		poolsByClass[cls] = #list
 		totalInstances += #list
 	end
-	
+
 	local hitRate = 0
 	if Pool.metrics.acquires > 0 then
 		hitRate = Pool.metrics.hits / Pool.metrics.acquires
 	end
-	
+
 	return {
 		totalInstances = totalInstances,
 		poolsByClass = poolsByClass,
 		metrics = table.clone(Pool.metrics),
-		hitRate = hitRate
+		hitRate = hitRate,
 	}
 end
 
@@ -755,7 +760,7 @@ end
 function Pool.validateHealth(): boolean
 	local removedCount = 0
 	local totalChecked = 0
-	
+
 	for _, list in pairs(Pool.store) do
 		local i = 1
 		while i <= #list do
@@ -765,11 +770,11 @@ function Pool.validateHealth(): boolean
 				table.remove(list, i)
 				Pool.instanceMetadata[inst] = nil
 				removedCount += 1
-				
+
 				if Pool.config.enableMetrics then
 					Pool.metrics.destroyed += 1
 				end
-				
+
 				if Pool.eventHooks.onEvict then
 					pcall(function()
 						Pool.eventHooks.onEvict(inst, "HEALTH_CHECK_FAILED")
@@ -780,17 +785,17 @@ function Pool.validateHealth(): boolean
 			end
 		end
 	end
-	
+
 	local isHealthy = removedCount == 0
-	
+
 	if Pool._debugMode or (not isHealthy and Pool.config.enableDebug) then
 		debugModule.log("Pool", "Health check completed", {
 			totalChecked = totalChecked,
 			removedCount = removedCount,
-			isHealthy = isHealthy
+			isHealthy = isHealthy,
 		})
 	end
-	
+
 	return isHealthy
 end
 
@@ -801,7 +806,7 @@ function Pool.createSnapshot(): { [string]: { Instance } }
 	for className, list in pairs(Pool.store) do
 		snapshot[className] = table.clone(list)
 	end
-	
+
 	if Pool._debugMode then
 		local totalInstances = 0
 		local classNames = {}
@@ -811,10 +816,10 @@ function Pool.createSnapshot(): { [string]: { Instance } }
 		end
 		debugModule.log("Pool", "Snapshot created", {
 			classes = table.concat(classNames, ", "),
-			totalInstances = totalInstances
+			totalInstances = totalInstances,
 		})
 	end
-	
+
 	return snapshot
 end
 
@@ -823,12 +828,12 @@ end
 function Pool.restoreSnapshot(snapshot: { [string]: { Instance } }): ()
 	-- Clear current pool
 	Pool.clear()
-	
+
 	-- Restore from snapshot
 	for className, list in pairs(snapshot) do
 		Pool.store[className] = table.clone(list)
 	end
-	
+
 	if Pool._debugMode then
 		local totalInstances = 0
 		local classNames = {}
@@ -838,7 +843,7 @@ function Pool.restoreSnapshot(snapshot: { [string]: { Instance } }): ()
 		end
 		debugModule.log("Pool", "Snapshot restored", {
 			classes = table.concat(classNames, ", "),
-			totalInstances = totalInstances
+			totalInstances = totalInstances,
 		})
 	end
 end
@@ -848,10 +853,10 @@ end
 --- @param handler ResetHandler -- Custom reset function
 function Pool.setResetHandler(className: string, handler: ResetHandler): ()
 	Pool.customResetHandlers[className] = handler
-	
+
 	if Pool._debugMode then
 		debugModule.log("Pool", "Custom reset handler registered", {
-			className = className
+			className = className,
 		})
 	end
 end
@@ -862,10 +867,10 @@ end
 function Pool.setEventHook(hookName: string, handler: (...any) -> ()): ()
 	if hookName == "onAcquire" or hookName == "onRelease" or hookName == "onClear" or hookName == "onEvict" then
 		(Pool.eventHooks :: any)[hookName] = handler
-		
+
 		if Pool._debugMode then
 			debugModule.log("Pool", "Event hook registered", {
-				hookName = hookName
+				hookName = hookName,
 			})
 		end
 	else
