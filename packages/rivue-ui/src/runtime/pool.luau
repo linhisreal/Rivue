@@ -103,7 +103,9 @@ Pool._typeCheckCache = {}
 
 local function getTypeInfo(className: string): { isGuiObject: boolean, isText: boolean, isImage: boolean }
 	if not Pool._typeCheckCache[className] then
-		local success, testInst = pcall(Instance.new, className)
+		local success, testInst = pcall(function()
+			return Instance.new(className)
+		end)
 		if success and testInst then
 			Pool._typeCheckCache[className] = {
 				isGuiObject = testInst:IsA("GuiObject"),
@@ -123,9 +125,10 @@ local function getTypeInfo(className: string): { isGuiObject: boolean, isText: b
 end
 
 local function isInstanceValid(inst: Instance): boolean
-	return pcall(function()
+	local ok = pcall(function()
 		inst.Parent = nil
 	end)
+	return ok
 end
 
 local function evictStaleInstances(className: string): ()
@@ -158,10 +161,9 @@ local function evictStaleInstances(className: string): ()
 					Pool.metrics.destroyed += 1
 				end
 
-				if Pool.eventHooks.onEvict then
-					pcall(function()
-						Pool.eventHooks.onEvict(inst, "TTL_EXPIRED")
-					end)
+				local onEvict = Pool.eventHooks.onEvict
+				if onEvict then
+					pcall(onEvict, inst, "TTL_EXPIRED")
 				end
 
 				if Pool._debugMode then
@@ -184,7 +186,9 @@ local function restoreTouchedProps(inst: Instance, touched: { [string]: boolean 
 	local className = inst.ClassName
 	local template = defaultTemplates[className]
 	if template == nil then
-		local ok, created = pcall(Instance.new, className)
+		local ok, created = pcall(function()
+			return Instance.new(className)
+		end)
 		local resolved: Instance | false = false
 		if ok then
 			resolved = created :: any
@@ -202,14 +206,15 @@ local function restoreTouchedProps(inst: Instance, touched: { [string]: boolean 
 	end
 end
 
-const GUI_RESET = table.freeze({
+const GUI_RESET: { [string]: boolean } = {
 	LayoutOrder = true,
 	Visible = true,
 	Size = true,
 	Position = true,
 	AnchorPoint = true,
 	BackgroundTransparency = true,
-})
+}
+table.freeze(GUI_RESET)
 local function withProp(base: { [string]: boolean }, prop: string): { [string]: boolean }
 	local set = table.clone(base)
 	set[prop] = true
@@ -333,10 +338,9 @@ function Pool.acquire(className: string): Instance
 		releasedAt = nil,
 	}
 
-	if Pool.eventHooks.onAcquire then
-		pcall(function()
-			Pool.eventHooks.onAcquire(inst, fromPool)
-		end)
+	local onAcquire = Pool.eventHooks.onAcquire
+	if onAcquire then
+		pcall(onAcquire, inst, fromPool)
 	end
 
 	if Pool._debugMode or (not fromPool and Pool.config.enableDebug) then
@@ -352,7 +356,7 @@ function Pool.acquire(className: string): Instance
 end
 
 function Pool.acquireMultiple(className: string, count: number): { Instance }
-	local instances = table.create(count)
+	local instances: { Instance } = {}
 	for i = 1, count do
 		instances[i] = Pool.acquire(className)
 	end
@@ -380,10 +384,9 @@ function Pool.release(inst: Instance, touched: { [string]: boolean }?): ()
 			})
 		end
 
-		if Pool.eventHooks.onRelease then
-			pcall(function()
-				Pool.eventHooks.onRelease(inst, false)
-			end)
+		local onRelease = Pool.eventHooks.onRelease
+		if onRelease then
+			pcall(onRelease, inst, false)
 		end
 		return
 	end
@@ -432,10 +435,9 @@ function Pool.release(inst: Instance, touched: { [string]: boolean }?): ()
 			Pool.metrics.destroyed += 1
 		end
 
-		if Pool.eventHooks.onEvict then
-			pcall(function()
-				Pool.eventHooks.onEvict(inst, evictionReason)
-			end)
+		local onEvict = Pool.eventHooks.onEvict
+		if onEvict then
+			pcall(onEvict, inst, evictionReason)
 		end
 
 		if Pool._debugMode then
@@ -447,10 +449,9 @@ function Pool.release(inst: Instance, touched: { [string]: boolean }?): ()
 		end
 	end
 
-	if Pool.eventHooks.onRelease then
-		pcall(function()
-			Pool.eventHooks.onRelease(inst, shouldPool)
-		end)
+	local onRelease = Pool.eventHooks.onRelease
+	if onRelease then
+		pcall(onRelease, inst, shouldPool)
 	end
 end
 
@@ -493,10 +494,9 @@ function Pool.clear(className: string?): ()
 		Pool.metrics.destroyed += totalCleared
 	end
 
-	if Pool.eventHooks.onClear then
-		pcall(function()
-			Pool.eventHooks.onClear(totalCleared)
-		end)
+	local onClear = Pool.eventHooks.onClear
+	if onClear then
+		pcall(onClear, totalCleared)
 	end
 
 	if Pool._debugMode or Pool.config.enableDebug then
@@ -507,17 +507,18 @@ function Pool.clear(className: string?): ()
 	end
 end
 
-const CONFIG_KEYS = table.freeze({
+const CONFIG_KEYS: { [string]: boolean } = {
 	maxPoolSize = true,
 	maxTotalSize = true,
 	enableMetrics = true,
 	enableDebug = true,
 	defaultTTL = true,
 	enableAutoWarmup = true,
-})
+}
+table.freeze(CONFIG_KEYS)
 
 function Pool.configure(config: PoolConfig): ()
-	for key, value in config do
+	for key, value in config :: any do
 		if CONFIG_KEYS[key] then
 			(Pool.config :: any)[key] = value
 		end
@@ -602,10 +603,9 @@ function Pool.validateHealth(): boolean
 					Pool.metrics.destroyed += 1
 				end
 
-				if Pool.eventHooks.onEvict then
-					pcall(function()
-						Pool.eventHooks.onEvict(inst, "HEALTH_CHECK_FAILED")
-					end)
+				local onEvict = Pool.eventHooks.onEvict
+				if onEvict then
+					pcall(onEvict, inst, "HEALTH_CHECK_FAILED")
 				end
 			else
 				i += 1

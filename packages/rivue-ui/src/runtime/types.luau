@@ -113,7 +113,7 @@ export type Slots = { [string]: SlotFunction }
 
 export type ChildInput = (Child | { ChildInput } | boolean)?
 
-export type Children = { [unknown]: unknown } | string | number | () -> VNode?
+export type Children = { any } | { [string]: (scope: any) -> any } | string | number | () -> VNode?
 
 export type FunctionalComponent = (props: Props) -> VNode?
 
@@ -182,7 +182,7 @@ export type SetupContext = {
 	provide: (key: string, value: unknown) -> (),
 	inject: (key: string, default: unknown?) -> unknown?,
 	slots: { Child },
-	renderSlot: (name: string, scope: any?, fallback: { Child }?) -> { Child },
+	renderSlot: (name: string, scope: any?, fallback: { Child }?) -> { any },
 	hasSlot: (name: string) -> boolean,
 	attrs: Props,
 	globals: { [string]: unknown },

@@ -66,7 +66,8 @@ function composables.defineModel<T>(options: ModelOptions?): (props: Props, cont
 end
 
 function composables.useModel<T>(props: Props, context: SetupContext, name: string?): Ref<T>
-	return composables.defineModel({ name = name })(props, context)
+	local options: ModelOptions = { name = name }
+	return composables.defineModel(options)(props, context)
 end
 
 function composables.useTheme<T>(): T?

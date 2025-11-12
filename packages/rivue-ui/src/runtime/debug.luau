@@ -40,7 +40,7 @@ function debug.measure<R...>(name: string, fn: () -> R...): R...
 	end
 
 	local startTime = os.clock()
-	local results = table.pack(fn())
+	local results = table.pack((fn :: () -> ...any)())
 	local duration = (os.clock() - startTime) * 1000
 
 	debug.log("Performance", `{name} took {string.format("%.3f", duration)}ms`)

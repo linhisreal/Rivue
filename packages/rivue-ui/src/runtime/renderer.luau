@@ -46,7 +46,7 @@ export type App = {
 	use: (self: App, plugin: Plugin, ...any) -> App,
 	directive: (self: App, name: string, hooks: Types.Directive) -> App,
 	component: (self: App, name: string, def: ComponentDef) -> App,
-	styles: (self: App, styles: { [string]: Props }) -> App,
+	styles: (self: App, styles: any) -> App,
 	onUnmount: (self: App, fn: () -> ()) -> App,
 	runWithContext: <T>(self: App, fn: () -> T) -> T,
 	printTree: (self: App) -> string,
@@ -289,7 +289,7 @@ local function isGuiObject(el: Instance, className: string?): boolean
 	return cached
 end
 
-const TEXT_CLASSES = table.freeze({ TextLabel = true, TextButton = true, TextBox = true })
+const TEXT_CLASSES: { [string]: boolean } = table.freeze({ TextLabel = true, TextButton = true, TextBox = true }) :: any
 
 local function isTextObject(el: Instance, className: string?): boolean
 	return TEXT_CLASSES[className or el.ClassName] == true
@@ -319,28 +319,28 @@ local function layoutOptions(value: any): LayoutOptions
 	return value :: LayoutOptions
 end
 
-const HORIZONTAL_ALIGN = table.freeze({
+const HORIZONTAL_ALIGN: { [string]: Enum.HorizontalAlignment } = table.freeze({
 	start = Enum.HorizontalAlignment.Left,
 	center = Enum.HorizontalAlignment.Center,
 	["end"] = Enum.HorizontalAlignment.Right,
-})
-const VERTICAL_ALIGN = table.freeze({
+}) :: any
+const VERTICAL_ALIGN: { [string]: Enum.VerticalAlignment } = table.freeze({
 	start = Enum.VerticalAlignment.Top,
 	center = Enum.VerticalAlignment.Center,
 	["end"] = Enum.VerticalAlignment.Bottom,
-})
-const FLEX_JUSTIFY = table.freeze({
+}) :: any
+const FLEX_JUSTIFY: { [string]: Enum.UIFlexAlignment } = table.freeze({
 	["space-between"] = Enum.UIFlexAlignment.SpaceBetween,
 	["space-around"] = Enum.UIFlexAlignment.SpaceAround,
 	["space-evenly"] = Enum.UIFlexAlignment.SpaceEvenly,
 	fill = Enum.UIFlexAlignment.Fill,
-})
-const FLEX_MODES = table.freeze({
+}) :: any
+const FLEX_MODES: { [string]: Enum.UIFlexMode } = table.freeze({
 	fill = Enum.UIFlexMode.Fill,
 	grow = Enum.UIFlexMode.Grow,
 	shrink = Enum.UIFlexMode.Shrink,
 	none = Enum.UIFlexMode.None,
-})
+}) :: any
 
 local function applyLayout(layout: Instance, options: LayoutOptions)
 	local horizontal = options.direction == "horizontal"
@@ -445,12 +445,14 @@ local sugarSpecs: { [string]: SugarSpec } = {
 			local gradient = c :: UIGradient
 			local kind = typeof(v)
 			if kind == "ColorSequence" or kind == "Color3" then
-				gradient.Color = if kind == "Color3" then ColorSequence.new(v) else v
+				gradient.Color = if kind == "Color3" then ColorSequence.new(v :: Color3) else v
 				return
 			end
 			local first, second = v[1], v[2]
 			if first ~= nil then
-				gradient.Color = if second ~= nil then ColorSequence.new(first, second) else ColorSequence.new(first)
+				gradient.Color = if second ~= nil
+					then (ColorSequence.new :: any)(first, second)
+					else (ColorSequence.new :: any)(first)
 			elseif v.color ~= nil then
 				gradient.Color = if typeof(v.color) == "Color3" then ColorSequence.new(v.color) else v.color
 			end
@@ -901,7 +903,7 @@ local function resolveGoals(el: Instance, goals: { [string]: any }): { [string]:
 			return (el :: any)[k]
 		end)
 		if ok and current ~= nil then
-			out[k] = if type(v) == "function" then v(current) else v
+			out[k] = if type(v) == "function" then (v :: (any) -> any)(current) else v
 		end
 	end
 	return out
@@ -1002,7 +1004,7 @@ local function asComponent(vnodeType: unknown): ComponentDef?
 	return nil
 end
 
-const RESERVED_PROPS = table.freeze({
+const RESERVED_PROPS: { [string]: boolean } = table.freeze({
 	__directives = true,
 	__states = true,
 	key = true,
@@ -1011,7 +1013,7 @@ const RESERVED_PROPS = table.freeze({
 	memo = true,
 	class = true,
 	disabled = true,
-})
+}) :: any
 
 local function collectClassNames(value: unknown, out: { string })
 	if type(value) == "string" then
@@ -1034,7 +1036,7 @@ local function collectClassNames(value: unknown, out: { string })
 	end
 end
 
-const STYLE_VARIANTS = table.freeze({
+const STYLE_VARIANTS: { [string]: boolean } = table.freeze({
 	hover = true,
 	pressed = true,
 	selected = true,
@@ -1043,7 +1045,7 @@ const STYLE_VARIANTS = table.freeze({
 	tablet = true,
 	desktop = true,
 	console = true,
-})
+}) :: any
 const INTERACTION_STATES = table.freeze({ "selected", "hover", "pressed" })
 
 local function mergeInto(into: Props, from: unknown)
@@ -1260,8 +1262,8 @@ local function syncStates(vnode: RenderVNode, el: Instance)
 	applyStates(el, current)
 end
 
-const LAYOUT_CLASSES =
-	table.freeze({ UIListLayout = true, UIGridLayout = true, UIPageLayout = true, UITableLayout = true })
+const LAYOUT_CLASSES: { [string]: boolean } =
+	table.freeze({ UIListLayout = true, UIGridLayout = true, UIPageLayout = true, UITableLayout = true }) :: any
 
 local function hasLayoutChild(children: { Child }): boolean
 	for _, child in children do
@@ -1401,7 +1403,9 @@ local function mountElement(vnode: RenderVNode, container: Instance, poolOpt: Po
 	if poolOpt and poolOpt.usePool then
 		inst = Pool.acquire(tag)
 	else
-		local ok, created = pcall(Instance.new, tag)
+		local ok, created = pcall(function()
+			return Instance.new(tag)
+		end)
 		if ok then
 			inst = created
 		else
@@ -2376,7 +2380,7 @@ local function patchElement(oldVNode: RenderVNode, newVNode: RenderVNode, poolOp
 		if newProps and newProps.onTextChanged ~= nil and newProps.Text ~= nil and className == "TextBox" then
 			local box = el :: TextBox
 			if box.Text ~= newProps.Text then
-				box.Text = newProps.Text
+				box.Text = newProps.Text :: string
 			end
 		end
 		return
@@ -2671,7 +2675,7 @@ local function createApp(root: VNode | ComponentDef, opts: AppOptions?): App
 		return self
 	end
 
-	function api.styles(self: App, styles: { [string]: Props }): App
+	function api.styles(self: App, styles: any): App
 		for name, style in styles do
 			appContext.styles[name] = style
 		end

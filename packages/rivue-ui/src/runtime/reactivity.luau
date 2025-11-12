@@ -37,7 +37,7 @@ local RunService = game:GetService("RunService")
 
 const IS_STUDIO = RunService:IsStudio()
 
-local function weakKeyed<K, V>(): { [K]: V }
+local function weakKeyed(): any
 	return setmetatable({}, { __mode = "k" }) :: any
 end
 
@@ -421,7 +421,7 @@ local function reactive<T>(target: T): T
 	assert(type(target) == "table", "reactive expects a table")
 	local tbl: RawTable = target :: any
 	if rawMarker[tbl] or reactiveMarker[tbl] or readonlyMarker[tbl] then
-		return target
+		return target :: any
 	end
 	local cached = proxyCache[tbl]
 	if cached then
@@ -481,7 +481,7 @@ local function shallowReactive<T>(target: T): T
 	assert(type(target) == "table", "shallowReactive expects a table")
 	local tbl: RawTable = target :: any
 	if rawMarker[tbl] or reactiveMarker[tbl] or readonlyMarker[tbl] then
-		return target
+		return target :: any
 	end
 	local cached = shallowProxyCache[tbl]
 	if cached then
@@ -572,12 +572,12 @@ table.freeze(RefMT)
 local function ref<T>(initial: T): Ref<T>
 	local wrapped: unknown = if shouldWrap(initial) then reactive(initial) else initial
 	local r: RefInternal = { _is_ref = true, _value = wrapped, _dep = false }
-	return setmetatable(r :: any, RefMT)
+	return setmetatable(r :: any, RefMT) :: any
 end
 
 local function shallowRef<T>(initial: T): Ref<T>
 	local r: RefInternal = { _is_ref = true, _value = initial, _shallow = true, _dep = false }
-	return setmetatable(r :: any, RefMT)
+	return setmetatable(r :: any, RefMT) :: any
 end
 
 local function isRef(r: unknown): boolean
@@ -724,7 +724,7 @@ local function _traverse<T>(value: T, seen: { [unknown]: true }?, depth: number?
 	end
 	local seenTables: { [unknown]: true } = seen or {}
 	if seenTables[value] then
-		return value
+		return value :: any
 	end
 	seenTables[value] = true
 	local proxyOrRaw: RawTable = value :: any
@@ -735,7 +735,7 @@ local function _traverse<T>(value: T, seen: { [unknown]: true }?, depth: number?
 	for k in raw do
 		_traverse(proxyOrRaw[k], seenTables, remaining - 1)
 	end
-	return value
+	return value :: any
 end
 
 local function readSource(item: unknown): unknown
@@ -821,7 +821,7 @@ local function onEffectCleanup(fn: () -> (), failSilently: boolean?)
 	end
 end
 
-local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: WatchOptions?): WatchHandle
+local function watch<T>(source: WatchSource<T> | { [any]: any }, cb: WatchCallback<T>, opts: WatchOptions?): WatchHandle
 	local options: WatchOptions = opts or {}
 	local deepOption = options.deep
 	local deep = deepOption == true or (type(deepOption) == "number" and deepOption > 0)
@@ -839,9 +839,9 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 	elseif isReactive(source) then
 		deep = deepOption ~= false and deepOption ~= 0
 		getter = function(): T
-			return source :: T
+			return source :: any
 		end
-	elseif type(source) == "table" and isMultiSourceList(source) then
+	elseif type(source) == "table" and isMultiSourceList(source :: any) then
 		isMultiSource = true
 		local sources = source :: { unknown }
 		for _, item in sources do
@@ -858,7 +858,7 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 		end
 	else
 		getter = function(): T
-			return source :: T
+			return source :: any
 		end
 	end
 
@@ -1220,7 +1220,7 @@ local function proxyRefs<T>(object: T): T
 	}) :: any
 end
 
-local function triggerListChange(raw: RawTable, first: number, last: number, lengthChanged: boolean)
+local function triggerListChange(raw: { [any]: any }, first: number, last: number, lengthChanged: boolean)
 	local deps = depMap[raw]
 	if not deps then
 		return

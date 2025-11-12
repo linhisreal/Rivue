@@ -124,7 +124,7 @@ function Remote.configure(config: Config)
 	end
 end
 
-const SAFE_DATATYPES = table.freeze({
+const SAFE_DATATYPES: { [string]: boolean } = table.freeze({
 	Vector2 = true,
 	Vector3 = true,
 	CFrame = true,
@@ -137,7 +137,7 @@ const SAFE_DATATYPES = table.freeze({
 	NumberRange = true,
 	Rect = true,
 	DateTime = true,
-})
+}) :: any
 
 local function validatePayload(payload: unknown): (boolean, string?, number)
 	local size = 0
@@ -662,7 +662,7 @@ function Remote.action<Req, Res>(name: string): Action<Req, Res>
 		handle = function(handler: (player: Player, payload: Req) -> Res, opts: HandleOptions?)
 			Remote.handle(name, handler :: any, opts)
 		end,
-	})
+	}) :: any
 end
 
 const STATE_EVENT = "__rivueState"
@@ -744,7 +744,7 @@ function Remote.state<T>(name: string, initial: T): State<T>
 		get = function(player: Player?): T
 			return if player then effectiveValue(state, player) else state.value
 		end,
-	})
+	}) :: any
 end
 
 local clientStates: { [string]: { value: any, version: number } } = {}

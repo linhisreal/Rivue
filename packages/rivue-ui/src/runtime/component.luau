@@ -136,7 +136,7 @@ local function createHook(hookName: string, list: HookList): (fn: () -> ()) -> (
 				{ component = inst.type.__name or "Anonymous" }
 			)
 		end
-		table.insert(inst[list], fn)
+		table.insert((inst :: any)[list], fn)
 	end
 end
 
@@ -829,7 +829,7 @@ end
 local Teleport: ComponentDef = table.freeze({
 	__is_component = true :: true,
 	__name = "Teleport",
-})
+}) :: any
 
 return {
 	devtoolsHooks = devtoolsHooks,
