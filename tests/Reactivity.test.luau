@@ -30,6 +30,13 @@ local function assertTrue(condition: boolean, message: string?)
 	print("✓", message or "Assertion passed")
 end
 
+local function assertFalse(condition: boolean, message: string?)
+	if condition then
+		error("Assertion failed: " .. (message or "condition is true"))
+	end
+	print("✓", message or "Assertion passed")
+end
+
 local function runTests()
 	print("\n========== REACTIVITY TEST SUITE ==========\n")
 
@@ -142,6 +149,190 @@ local function runTests()
 		local refs2 = Rivue.toRefs(obj)
 		obj.value = 99
 		assertTrue(refs1.value.value == 99 and refs2.value.value == 99, "All refs should stay in sync with source")
+	end
+
+	-- Test 11: effectScope creates and manages effects
+	print("Test 11: effectScope creates and manages effects")
+	do
+		local scope = Rivue.effectScope()
+		local count = 0
+		scope:run(function()
+			Rivue.effect(function()
+				count = count + 1
+				return nil
+			end)
+			return nil
+		end)
+		task.wait(0.05)
+		local initialCount = count
+		assertTrue(initialCount > 0, "Effect should have run")
+		scope:stop()
+		task.wait(0.05)
+		assertEquals(count, initialCount, "Effect should not run after scope stopped")
+	end
+
+	-- Test 12: getCurrentScope returns active scope
+	print("Test 12: getCurrentScope returns active scope")
+	do
+		local scope = Rivue.effectScope()
+		local capturedScope
+		scope:run(function()
+			capturedScope = Rivue.getCurrentScope()
+			return nil
+		end)
+		assertTrue(capturedScope == scope, "getCurrentScope should return active scope")
+	end
+
+	-- Test 13: onScopeDispose runs cleanup on scope stop
+	print("Test 13: onScopeDispose runs cleanup on scope stop")
+	do
+		local scope = Rivue.effectScope()
+		local cleanupRan = false
+		scope:run(function()
+			Rivue.onScopeDispose(function()
+				cleanupRan = true
+				return nil
+			end)
+			return nil
+		end)
+		assertFalse(cleanupRan, "Cleanup should not run before stop")
+		scope:stop()
+		assertTrue(cleanupRan, "Cleanup should run after stop")
+	end
+
+	-- Test 14: readonly prevents mutations
+	print("Test 14: readonly prevents mutations")
+	do
+		local obj = Rivue.reactive({ value = 10 })
+		local readonlyObj = Rivue.readonly(obj)
+		assertEquals(readonlyObj.value, 10, "Should read values correctly")
+		readonlyObj.value = 20 -- This should be prevented
+		assertEquals(readonlyObj.value, 10, "Readonly should prevent mutations")
+		obj.value = 30
+		assertEquals(readonlyObj.value, 30, "Readonly should reflect source changes")
+	end
+
+	-- Test 15: isReadonly checks for readonly proxies
+	print("Test 15: isReadonly checks for readonly proxies")
+	do
+		local obj = Rivue.reactive({ value = 1 })
+		local readonlyObj = Rivue.readonly(obj)
+		assertFalse(Rivue.isReadonly(obj), "Regular reactive should not be readonly")
+		assertTrue(Rivue.isReadonly(readonlyObj), "Readonly proxy should be detected")
+	end
+
+	-- Test 16: isProxy checks for any proxy type
+	print("Test 16: isProxy checks for any proxy type")
+	do
+		local reactive = Rivue.reactive({ a = 1 })
+		local readonly = Rivue.readonly({ b = 2 })
+		local plain = { c = 3 }
+		assertTrue(Rivue.isProxy(reactive), "Reactive should be a proxy")
+		assertTrue(Rivue.isProxy(readonly), "Readonly should be a proxy")
+		assertFalse(Rivue.isProxy(plain), "Plain object should not be a proxy")
+	end
+
+	-- Test 17: markRaw prevents reactivity
+	print("Test 17: markRaw prevents reactivity")
+	do
+		local rawObj = Rivue.markRaw({ value = 42 })
+		local state = Rivue.reactive({ data = rawObj })
+		assertTrue(Rivue.toRaw(state.data) == rawObj, "markRaw should prevent reactivity")
+	end
+
+	-- Test 18: triggerRef manually triggers updates
+	print("Test 18: triggerRef manually triggers updates")
+	do
+		local shallowRef = Rivue.shallowRef({ count = 0 })
+		local triggered = false
+		Rivue.effect(function()
+			local _ = shallowRef.value.count
+			triggered = true
+		end)
+		task.wait(0.05)
+		triggered = false
+		shallowRef.value.count = 10 -- Internal mutation, no auto-trigger
+		task.wait(0.05)
+		assertFalse(triggered, "Shallow ref mutation should not auto-trigger")
+		Rivue.triggerRef(shallowRef)
+		task.wait(0.05)
+		assertTrue(triggered, "triggerRef should manually trigger updates")
+	end
+
+	-- Test 19: customRef allows custom tracking logic
+	print("Test 19: customRef allows custom tracking logic")
+	do
+		local value = 0
+		local customRef = Rivue.customRef(function(track, trigger)
+			return {
+				get = function()
+					track()
+					return value
+				end,
+				set = function(newValue)
+					value = newValue
+					trigger()
+				end,
+			}
+		end)
+		assertEquals(customRef.value, 0, "Custom ref should read initial value")
+		customRef.value = 42
+		assertEquals(customRef.value, 42, "Custom ref should update value")
+	end
+
+	-- Test 20: shallowRef doesn't auto-wrap objects
+	print("Test 20: shallowRef doesn't auto-wrap objects")
+	do
+		local obj = { nested = { value = 10 } }
+		local shallow = Rivue.shallowRef(obj)
+		assertTrue(shallow.value == obj, "shallowRef should not wrap objects")
+		assertFalse(Rivue.isReactive(shallow.value), "shallowRef value should not be reactive")
+	end
+
+	-- Test 21: watchEffect runs immediately and tracks dependencies
+	print("Test 21: watchEffect runs immediately and tracks dependencies")
+	do
+		local count = Rivue.ref(0)
+		local watchCount = 0
+		local stop = Rivue.watchEffect(function()
+			local _ = count.value
+			watchCount = watchCount + 1
+		end)
+		task.wait(0.05)
+		assertTrue(watchCount >= 1, "watchEffect should run immediately")
+		local initial = watchCount
+		count.value = 5
+		task.wait(0.05)
+		assertTrue(watchCount > initial, "watchEffect should re-run on dependency change")
+		stop()
+	end
+
+	-- Test 22: Nested effectScopes with parent-child cleanup
+	print("Test 22: Nested effectScopes with parent-child cleanup")
+	do
+		local parentScope = Rivue.effectScope()
+		local childCleanupRan = false
+		local parentCleanupRan = false
+
+		parentScope:run(function()
+			Rivue.onScopeDispose(function()
+				parentCleanupRan = true
+				return nil
+			end)
+
+			local childScope = Rivue.effectScope()
+			childScope:run(function()
+				Rivue.onScopeDispose(function()
+					childCleanupRan = true
+					return nil
+				end)
+				return nil
+			end)
+			return nil
+		end)
+
+		parentScope:stop()
+		assertTrue(childCleanupRan and parentCleanupRan, "Both parent and child cleanups should run")
 	end
 
 	print("\n========== REACTIVITY TESTS COMPLETE ==========\n")
