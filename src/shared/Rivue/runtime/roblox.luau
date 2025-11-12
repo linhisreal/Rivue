@@ -84,12 +84,24 @@ local RunService = game:GetService("RunService")
 --- @param defaultValue T? -- Default value if attribute doesn't exist
 --- @param opts { throttle: number? }? -- Options (throttle in ms for high-frequency updates)
 --- @return Ref<T> -- Reactive reference synced with the attribute
-local function attributeRef<T>(instance: Instance, attributeName: string, defaultValue: T?, opts: { throttle: number? }?): any
+local function attributeRef<T>(
+	instance: Instance,
+	attributeName: string,
+	defaultValue: T?,
+	opts: { throttle: number? }?
+): any
 	assert(typeof(instance) == "Instance", "attributeRef expects an Instance")
-	assert(type(attributeName) == "string" and attributeName ~= "", "attributeRef expects a non-empty string for attributeName")
-	
-	debugModule.log("Roblox", "Creating attributeRef", { attributeName = attributeName, defaultValue = tostring(defaultValue) })
-	
+	assert(
+		type(attributeName) == "string" and attributeName ~= "",
+		"attributeRef expects a non-empty string for attributeName"
+	)
+
+	debugModule.log(
+		"Roblox",
+		"Creating attributeRef",
+		{ attributeName = attributeName, defaultValue = tostring(defaultValue) }
+	)
+
 	local initialValue = instance:GetAttribute(attributeName)
 	if initialValue == nil then
 		initialValue = defaultValue
@@ -97,17 +109,17 @@ local function attributeRef<T>(instance: Instance, attributeName: string, defaul
 			instance:SetAttribute(attributeName, defaultValue)
 		end
 	end
-	
+
 	local r = reactivity.ref(initialValue)
 	local isUpdatingFromAttribute = false
 	local isUpdatingFromRef = false
-	
+
 	-- Sync attribute changes to ref (with optional throttling)
 	local updateFromAttribute = function()
 		if isUpdatingFromRef then
 			return -- Prevent circular update
 		end
-		
+
 		local newValue = instance:GetAttribute(attributeName)
 		-- Only update if value actually changed
 		if r.value ~= newValue then
@@ -116,20 +128,20 @@ local function attributeRef<T>(instance: Instance, attributeName: string, defaul
 			isUpdatingFromAttribute = false
 		end
 	end
-	
+
 	-- Apply throttling if specified
 	if opts and opts.throttle and opts.throttle > 0 then
 		updateFromAttribute = utils.throttle(updateFromAttribute, opts.throttle)
 	end
-	
+
 	local conn = instance:GetAttributeChangedSignal(attributeName):Connect(updateFromAttribute)
-	
+
 	-- Sync ref changes to attribute
 	local stopWatch = reactivity.watch(r, function(newValue)
 		if isUpdatingFromAttribute then
 			return -- Prevent circular update
 		end
-		
+
 		local currentAttr = instance:GetAttribute(attributeName)
 		-- Only set attribute if value actually changed to avoid redundant signals
 		if currentAttr ~= newValue then
@@ -138,7 +150,7 @@ local function attributeRef<T>(instance: Instance, attributeName: string, defaul
 			isUpdatingFromRef = false
 		end
 	end)
-	
+
 	-- Auto-cleanup on component unmount
 	local currentInstance = componentAPI.getCurrentInstance()
 	if currentInstance then
@@ -154,7 +166,7 @@ local function attributeRef<T>(instance: Instance, attributeName: string, defaul
 			stopWatch()
 		end
 	end
-	
+
 	return r
 end
 
@@ -165,18 +177,22 @@ local function useTag(tagName: string, onAdded: (instance: Instance) -> (() -> (
 	if not onAdded then
 		return
 	end
-	
-	debugModule.log("Roblox", "Registering tag listener", { tagName = tagName, initialCount = #CollectionService:GetTagged(tagName) })
-	
+
+	debugModule.log(
+		"Roblox",
+		"Registering tag listener",
+		{ tagName = tagName, initialCount = #CollectionService:GetTagged(tagName) }
+	)
+
 	local cleanupMap: { [Instance]: () -> () } = {}
-	
+
 	local addedConn = CollectionService:GetInstanceAddedSignal(tagName):Connect(function(instance)
 		local cleanup = onAdded(instance)
 		if cleanup and type(cleanup) == "function" then
 			cleanupMap[instance] = cleanup
 		end
 	end)
-	
+
 	local removedConn = CollectionService:GetInstanceRemovedSignal(tagName):Connect(function(instance)
 		local cleanup = cleanupMap[instance]
 		if cleanup then
@@ -184,7 +200,7 @@ local function useTag(tagName: string, onAdded: (instance: Instance) -> (() -> (
 			cleanupMap[instance] = nil
 		end
 	end)
-	
+
 	-- Process existing tagged instances
 	for _, instance in ipairs(CollectionService:GetTagged(tagName)) do
 		local cleanup = onAdded(instance)
@@ -192,7 +208,7 @@ local function useTag(tagName: string, onAdded: (instance: Instance) -> (() -> (
 			cleanupMap[instance] = cleanup
 		end
 	end
-	
+
 	-- Auto-cleanup on component unmount
 	local currentInstance = componentAPI.getCurrentInstance()
 	if currentInstance then
@@ -215,9 +231,9 @@ local function onRenderStepped(callback: (deltaTime: number) -> ()): ()
 	if not currentInstance then
 		error("onRenderStepped must be called during component setup()")
 	end
-	
+
 	local conn = RunService.RenderStepped:Connect(callback)
-	
+
 	componentAPI.onUnmounted(function()
 		conn:Disconnect()
 	end)
@@ -231,9 +247,9 @@ local function onHeartbeat(callback: (deltaTime: number) -> ()): ()
 	if not currentInstance then
 		error("onHeartbeat must be called during component setup()")
 	end
-	
+
 	local conn = RunService.Heartbeat:Connect(callback)
-	
+
 	componentAPI.onUnmounted(function()
 		conn:Disconnect()
 	end)
@@ -247,9 +263,9 @@ local function onStepped(callback: (time: number, deltaTime: number) -> ()): ()
 	if not currentInstance then
 		error("onStepped must be called during component setup()")
 	end
-	
+
 	local conn = RunService.Stepped:Connect(callback)
-	
+
 	componentAPI.onUnmounted(function()
 		conn:Disconnect()
 	end)

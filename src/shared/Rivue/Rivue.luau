@@ -66,12 +66,14 @@
 
 local runtimeFolder = script:FindFirstChild("runtime")
 if runtimeFolder then
-    return require(runtimeFolder:WaitForChild("main"))
+	return require(runtimeFolder:WaitForChild("main"))
 else
-    local ReplicatedStorage = game:GetService("ReplicatedStorage")
-    local runtimeModule = ReplicatedStorage:FindFirstChild("Rivue")
-    if runtimeModule and runtimeModule:FindFirstChild("main") then
-        return require(runtimeModule:WaitForChild("main"))
-    end
-    error("Rivue runtime not found. Place 'runtime' folder as child of this ModuleScript or place runtime in ReplicatedStorage.")
+	local ReplicatedStorage = game:GetService("ReplicatedStorage")
+	local runtimeModule = ReplicatedStorage:FindFirstChild("Rivue")
+	if runtimeModule and runtimeModule:FindFirstChild("main") then
+		return require(runtimeModule:WaitForChild("main"))
+	end
+	error(
+		"Rivue runtime not found. Place 'runtime' folder as child of this ModuleScript or place runtime in ReplicatedStorage."
+	)
 end

@@ -13,12 +13,14 @@ local Pool = require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runti
 
 local function assertEquals(actual: any, expected: any, message: string?)
 	if actual ~= expected then
-		error(string.format(
-			"Assertion failed: %s\nExpected: %s\nActual: %s",
-			message or "values not equal",
-			tostring(expected),
-			tostring(actual)
-		))
+		error(
+			string.format(
+				"Assertion failed: %s\nExpected: %s\nActual: %s",
+				message or "values not equal",
+				tostring(expected),
+				tostring(actual)
+			)
+		)
 	end
 	print("✓", message or "Assertion passed")
 end
@@ -32,7 +34,7 @@ end
 
 local function runTests()
 	print("\n========== RENDERER TEST SUITE ==========\n")
-	
+
 	-- Test 1: createApp creates valid app instance
 	print("Test 1: createApp creates valid app instance")
 	do
@@ -43,7 +45,7 @@ local function runTests()
 		assertTrue(type(app.unmount) == "function", "Should have unmount method")
 		assertTrue(type(app.rerender) == "function", "Should have rerender method")
 	end
-	
+
 	-- Test 2: Mount creates DOM element
 	print("Test 2: Mount creates DOM element")
 	do
@@ -60,7 +62,7 @@ local function runTests()
 		app:unmount()
 		container:Destroy()
 	end
-	
+
 	-- Test 3: Unmount removes DOM element
 	print("Test 3: Unmount removes DOM element")
 	do
@@ -75,7 +77,7 @@ local function runTests()
 		assertTrue(container:FindFirstChild("UnmountTest") == nil, "Should remove element")
 		container:Destroy()
 	end
-	
+
 	-- Test 4: Patch updates properties
 	print("Test 4: Patch updates properties")
 	do
@@ -92,14 +94,14 @@ local function runTests()
 		app:unmount()
 		container:Destroy()
 	end
-	
+
 	-- Test 5: Keyed children are mounted
 	print("Test 5: Keyed children are mounted")
 	do
 		local container = Instance.new("Folder")
 		local vnode1 = Rivue.h("Frame", {}, {
 			Rivue.h("TextLabel", { key = "a", Name = "LabelA", Text = "A" }),
-			Rivue.h("TextLabel", { key = "b", Name = "LabelB", Text = "B" })
+			Rivue.h("TextLabel", { key = "b", Name = "LabelB", Text = "B" }),
 		})
 		local app = renderer.createApp(vnode1)
 		app:mount(container)
@@ -112,7 +114,7 @@ local function runTests()
 		app:unmount()
 		container:Destroy()
 	end
-	
+
 	-- Test 6: Component mounting with setup
 	print("Test 6: Component mounting with setup")
 	do
@@ -125,18 +127,21 @@ local function runTests()
 				return function()
 					return Rivue.h("Frame", { Name = "ComponentFrame" })
 				end
-			end
+			end,
 		})
 		local vnode = Rivue.h(TestComponent, {})
 		local app = renderer.createApp(vnode)
 		app:mount(container)
 		task.wait(0.05)
 		assertTrue(setupCalled, "Should call setup function")
-		assertTrue(container:FindFirstChild("ComponentFrame", true) and true or false, "Should mount component render result")
+		assertTrue(
+			container:FindFirstChild("ComponentFrame", true) and true or false,
+			"Should mount component render result"
+		)
 		app:unmount()
 		container:Destroy()
 	end
-	
+
 	-- Test 8: Pool reuses instances when enabled
 	print("Test 8: Pool reuses instances when enabled")
 	do
@@ -157,7 +162,7 @@ local function runTests()
 		Pool.clear()
 		container:Destroy()
 	end
-	
+
 	-- Test 9: Lifecycle hooks execute in order
 	print("Test 9: Lifecycle hooks execute in order")
 	do
@@ -181,7 +186,7 @@ local function runTests()
 				return function()
 					return Rivue.h("Frame", { Name = "LifecycleFrame" })
 				end
-			end
+			end,
 		})
 		local app = renderer.createApp(Rivue.h(TestComponent, {}))
 		app:mount(container)
@@ -194,7 +199,7 @@ local function runTests()
 		assertTrue(events[4] == "unmounted", "unmounted should run last")
 		container:Destroy()
 	end
-	
+
 	-- Test 10: Template refs work correctly
 	print("Test 10: Template refs work correctly")
 	do
@@ -213,14 +218,14 @@ local function runTests()
 		assertTrue(myRef.value == nil, "Ref should be cleared on unmount")
 		container:Destroy()
 	end
-	
+
 	-- Test 11: Children rendering
 	print("Test 11: Children rendering")
 	do
 		local container = Instance.new("Folder")
 		local vnode = Rivue.h("Frame", { Name = "Parent" }, {
 			Rivue.h("TextLabel", { Name = "Child1", Text = "First" }),
-			Rivue.h("TextLabel", { Name = "Child2", Text = "Second" })
+			Rivue.h("TextLabel", { Name = "Child2", Text = "Second" }),
 		})
 		local app = renderer.createApp(vnode)
 		app:mount(container)
@@ -234,7 +239,7 @@ local function runTests()
 		app:unmount()
 		container:Destroy()
 	end
-	
+
 	-- Test 12: Reactive re-rendering with component
 	print("Test 12: Reactive re-rendering with component")
 	do
@@ -248,10 +253,10 @@ local function runTests()
 					renderCount = renderCount + 1
 					return Rivue.h("TextLabel", {
 						Name = "Counter",
-						Text = tostring(count.value)
+						Text = tostring(count.value),
 					})
 				end
-			end
+			end,
 		})
 		local app = renderer.createApp(Rivue.h(TestComponent, {}))
 		app:mount(container)
@@ -259,7 +264,7 @@ local function runTests()
 		assertTrue(renderCount >= 1, "Should render at least once")
 		container:Destroy()
 	end
-	
+
 	print("\n========== RENDERER TESTS COMPLETE ==========\n")
 end
 
