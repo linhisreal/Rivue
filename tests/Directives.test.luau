@@ -8,16 +8,19 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
-local directives_module = require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("directives"))
+local directives_module =
+	require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("directives"))
 
 local function assertEquals(actual: any, expected: any, message: string?)
 	if actual ~= expected then
-		error(string.format(
-			"Assertion failed: %s\nExpected: %s\nActual: %s",
-			message or "values not equal",
-			tostring(expected),
-			tostring(actual)
-		))
+		error(
+			string.format(
+				"Assertion failed: %s\nExpected: %s\nActual: %s",
+				message or "values not equal",
+				tostring(expected),
+				tostring(actual)
+			)
+		)
 	end
 	print("✓", message or "Assertion passed")
 end
@@ -34,18 +37,18 @@ local function runTests()
 	print("\n" .. string.rep("=", 40))
 	print(printHeader)
 	print(string.rep("=", 40) .. "\n")
-	
+
 	-- Test 1: register() adds directive to registry
 	print("Test 1: register() adds directive to registry")
 	do
 		local testDirective = {
-			mounted = function() end
+			mounted = function() end,
 		}
 		directives_module.register("test-directive", testDirective)
 		local retrieved = directives_module.get("test-directive")
 		assertTrue(retrieved and true or false, "Should register and retrieve directive")
 	end
-	
+
 	-- Test 2: Built-in focus directive exists
 	print("Test 2: Built-in focus directive exists")
 	do
@@ -53,7 +56,7 @@ local function runTests()
 		assertTrue(focusDirective and true or false, "Should have focus directive")
 		assertTrue(focusDirective.mounted and true or false, "Should have mounted hook")
 	end
-	
+
 	-- Test 3: Built-in click-outside directive exists
 	print("Test 3: Built-in click-outside directive exists")
 	do
@@ -61,56 +64,56 @@ local function runTests()
 		assertTrue(clickOutsideDirective and true or false, "Should have click-outside directive")
 		assertTrue(clickOutsideDirective.mounted and true or false, "Should have mounted hook")
 	end
-	
+
 	-- Test 4: vModelText creates two-way binding props
 	print("Test 4: vModelText creates two-way binding props")
 	do
 		local textRef = Rivue.ref("initial")
 		local props = directives_module.vModelText(textRef)
-		
+
 		assertEquals(props.Text, "initial", "Should have Text property with ref value")
 		assertTrue(type(props.onTextChanged) == "function", "Should have onTextChanged handler")
-		
+
 		-- Test binding
 		props.onTextChanged("updated")
 		task.wait(0.05)
 		assertEquals(textRef.value, "updated", "Should update ref when onTextChanged is called")
 	end
-	
+
 	-- Test 5: vModelText with debounce option
 	print("Test 5: vModelText with debounce option")
 	do
 		local textRef = Rivue.ref("initial")
 		local props = directives_module.vModelText(textRef, { debounce = 100 })
-		
+
 		assertEquals(props.Text, "initial", "Should have Text property")
 		assertTrue(type(props.onTextChanged) == "function", "Should have debounced handler")
 	end
-	
+
 	-- Test 6: vModelProp creates generic two-way binding
 	print("Test 6: vModelProp creates generic two-way binding")
 	do
 		local valueRef = Rivue.ref(50)
 		local props = directives_module.vModelProp(valueRef, "Value")
-		
+
 		assertEquals(props.Value, 50, "Should have Value property with ref value")
 		assertTrue(type(props.onValue) == "function", "Should have onValue handler")
-		
+
 		-- Test binding
 		props.onValue(75)
 		assertEquals(valueRef.value, 75, "Should update ref when handler is called")
 	end
-	
+
 	-- Test 7: vModelProp with custom event name
 	print("Test 7: vModelProp with custom event name")
 	do
 		local valueRef = Rivue.ref(100)
 		local props = directives_module.vModelProp(valueRef, "Position", "onPositionChanged")
-		
+
 		assertEquals(props.Position, 100, "Should have Position property")
 		assertTrue(type(props.onPositionChanged) == "function", "Should have custom event handler")
 	end
-	
+
 	-- Test 8: Built-in show directive exists
 	print("Test 8: Built-in show directive exists")
 	do
@@ -119,7 +122,7 @@ local function runTests()
 		assertTrue(showDirective.mounted and true or false, "Should have mounted hook")
 		assertTrue(showDirective.updated and true or false, "Should have updated hook")
 	end
-	
+
 	-- Test 9: Built-in drag directive exists
 	print("Test 9: Built-in drag directive exists")
 	do
@@ -127,7 +130,7 @@ local function runTests()
 		assertTrue(dragDirective and true or false, "Should have drag directive")
 		assertTrue(dragDirective.mounted and true or false, "Should have mounted hook")
 	end
-	
+
 	-- Test 10: Built-in fade-in directive exists
 	print("Test 10: Built-in fade-in directive exists")
 	do
@@ -136,7 +139,7 @@ local function runTests()
 		assertTrue(fadeInDirective.mounted and true or false, "Should have mounted hook")
 		assertTrue(fadeInDirective.unmounted and true or false, "Should have unmounted hook")
 	end
-	
+
 	local printFooter = "DIRECTIVES TESTS COMPLETE"
 	print("\n" .. string.rep("=", 40))
 	print(printFooter)

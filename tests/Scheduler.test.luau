@@ -12,12 +12,14 @@ local scheduler = require(Rivue:WaitForChild("runtime"):WaitForChild("scheduler"
 
 local function assertEquals(actual: any, expected: any, message: string?)
 	if actual ~= expected then
-		error(string.format(
-			"Assertion failed: %s\nExpected: %s\nActual: %s",
-			message or "values not equal",
-			tostring(expected),
-			tostring(actual)
-		))
+		error(
+			string.format(
+				"Assertion failed: %s\nExpected: %s\nActual: %s",
+				message or "values not equal",
+				tostring(expected),
+				tostring(actual)
+			)
+		)
 	end
 	print("✓", message or "Assertion passed")
 end
@@ -38,7 +40,7 @@ end
 
 local function runTests()
 	print("\n========== SCHEDULER TEST SUITE ==========\n")
-	
+
 	-- Test 1: Micro mode executes function
 	print("Test 1: queueJob micro mode executes function")
 	do
@@ -49,7 +51,7 @@ local function runTests()
 		task.wait(0.1)
 		assertTrue(executed, "Micro job should have executed")
 	end
-	
+
 	-- Test 2: Micro mode deduplicates same function
 	print("Test 2: queueJob micro mode deduplicates same function")
 	do
@@ -63,7 +65,7 @@ local function runTests()
 		task.wait(0.1)
 		assertTrue(count == 1, "Should execute only once due to deduplication")
 	end
-	
+
 	-- Test 3: Micro mode allows re-queue after flush
 	print("Test 3: queueJob micro mode allows re-queue after flush")
 	do
@@ -78,7 +80,7 @@ local function runTests()
 		task.wait(0.1)
 		assertEquals(count, 2, "Should allow re-queue after flush")
 	end
-	
+
 	-- Test 4: Micro mode cancels correctly
 	print("Test 4: queueJob micro mode cancels correctly")
 	do
@@ -90,7 +92,7 @@ local function runTests()
 		task.wait(0.1)
 		assertFalse(executed, "Cancelled job should not execute")
 	end
-	
+
 	-- Test 5: Micro mode batches multiple different functions
 	print("Test 5: queueJob micro mode batches multiple different functions")
 	do
@@ -107,7 +109,7 @@ local function runTests()
 		task.wait(0.1)
 		assertTrue(count1 == 1 and count2 == 1 and count3 == 1, "All different jobs should execute")
 	end
-	
+
 	-- Test 6: Render mode executes on next RenderStepped
 	print("Test 6: queueJob render mode executes on next RenderStepped")
 	do
@@ -118,7 +120,7 @@ local function runTests()
 		task.wait(0.1)
 		assertTrue(executed, "Render job should have executed")
 	end
-	
+
 	-- Test 7: Render mode cancels correctly
 	print("Test 7: queueJob render mode cancels correctly")
 	do
@@ -130,7 +132,7 @@ local function runTests()
 		task.wait(0.1)
 		assertFalse(executed, "Cancelled render job should not execute")
 	end
-	
+
 	-- Test 8: Heartbeat mode executes on next Heartbeat
 	print("Test 8: queueJob heartbeat mode executes on next Heartbeat")
 	do
@@ -141,7 +143,7 @@ local function runTests()
 		task.wait(0.1)
 		assertTrue(executed, "Heartbeat job should have executed")
 	end
-	
+
 	-- Test 9: Heartbeat mode cancels correctly
 	print("Test 9: queueJob heartbeat mode cancels correctly")
 	do
@@ -153,7 +155,7 @@ local function runTests()
 		task.wait(0.1)
 		assertFalse(executed, "Cancelled heartbeat job should not execute")
 	end
-	
+
 	-- Test 10: Error handling
 	print("Test 10: queueJob micro mode handles errors gracefully")
 	do
@@ -167,7 +169,7 @@ local function runTests()
 		task.wait(0.1)
 		assertTrue(executed, "Subsequent jobs should execute even after error")
 	end
-	
+
 	-- Test 11: Defaults to micro mode
 	print("Test 11: queueJob defaults to micro mode")
 	do
@@ -178,7 +180,7 @@ local function runTests()
 		task.wait(0.1)
 		assertTrue(executed, "Should default to micro mode")
 	end
-	
+
 	print("\n========== SCHEDULER TESTS COMPLETE ==========\n")
 end
 

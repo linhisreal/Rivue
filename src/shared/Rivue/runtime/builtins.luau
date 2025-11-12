@@ -44,7 +44,7 @@ local builtins = {}
 			h(AsyncComponent)
 		})
 ]=]
-builtins.Suspense = nil :: any  -- Forward declaration
+builtins.Suspense = nil :: any -- Forward declaration
 
 local function createSuspense()
 	return {
@@ -52,14 +52,14 @@ local function createSuspense()
 		__name = "Suspense",
 		props = {
 			fallback = { type = "table" },
-			timeout = { type = "number", default = 5000 }
+			timeout = { type = "number", default = 5000 },
 		},
 		setup = function(props: any, context: any)
 			local isLoading = ref(true)
 			local error = ref(nil :: string?)
 			local hasTimedOut = ref(false)
 			local pendingCount = ref(0)
-			
+
 			-- Provide suspense context to children
 			context.provide("suspense", {
 				register = function()
@@ -75,9 +75,9 @@ local function createSuspense()
 				reject = function(err: string)
 					error.value = err
 					isLoading.value = false
-				end
+				end,
 			})
-			
+
 			-- Setup timeout
 			if props.timeout and props.timeout > 0 then
 				task.delay(props.timeout / 1000, function()
@@ -87,52 +87,53 @@ local function createSuspense()
 					end
 				end)
 			end
-			
+
 			-- Cleanup on unmount
 			componentModule.onUnmounted(function()
 				pendingCount.value = 0
 				isLoading.value = false
 			end)
-			
+
 			return function()
 				-- Error state
 				if error.value then
 					return h("Frame", {
 						Size = UDim2.fromScale(1, 1),
-						BackgroundTransparency = 1
+						BackgroundTransparency = 1,
 					}, {
 						h("TextLabel", {
 							Size = UDim2.fromScale(1, 1),
 							Text = "Error: " .. tostring(error.value),
 							TextColor3 = Color3.fromRGB(255, 100, 100),
 							BackgroundTransparency = 1,
-							TextWrapped = true
-						})
+							TextWrapped = true,
+						}),
 					})
 				end
-				
+
 				-- Loading state
 				if isLoading.value then
-					return props.fallback or h("Frame", {
-						Size = UDim2.fromScale(1, 1),
-						BackgroundTransparency = 1
-					}, {
-						h("TextLabel", {
+					return props.fallback
+						or h("Frame", {
 							Size = UDim2.fromScale(1, 1),
-							Text = "Loading...",
-							TextColor3 = Color3.fromRGB(200, 200, 200),
-							BackgroundTransparency = 1
+							BackgroundTransparency = 1,
+						}, {
+							h("TextLabel", {
+								Size = UDim2.fromScale(1, 1),
+								Text = "Loading...",
+								TextColor3 = Color3.fromRGB(200, 200, 200),
+								BackgroundTransparency = 1,
+							}),
 						})
-					})
 				end
-				
+
 				-- Loaded state - render children
 				return h("Frame", {
 					Size = UDim2.fromScale(1, 1),
-					BackgroundTransparency = 1
+					BackgroundTransparency = 1,
 				}, context.slots)
 			end
-		end
+		end,
 	}
 end
 
@@ -164,12 +165,12 @@ local function createKeepAlive()
 		props = {
 			include = { type = "table" },
 			exclude = { type = "table" },
-			max = { type = "number", default = 10 }
+			max = { type = "number", default = 10 },
 		},
 		setup = function(props: any, context: any)
 			local cache = ref({} :: { [string]: { vnode: VNode, instance: any } })
 			local keys = ref({} :: { string })
-			
+
 			local shouldCache = function(name: string): boolean
 				if props.include then
 					local found = false
@@ -179,9 +180,11 @@ local function createKeepAlive()
 							break
 						end
 					end
-					if not found then return false end
+					if not found then
+						return false
+					end
 				end
-				
+
 				if props.exclude then
 					for _, n in ipairs(props.exclude) do
 						if n == name then
@@ -189,10 +192,10 @@ local function createKeepAlive()
 						end
 					end
 				end
-				
+
 				return true
 			end
-			
+
 			local pruneCache = function()
 				if props.max and #keys.value > props.max then
 					local oldest = table.remove(keys.value, 1)
@@ -210,7 +213,7 @@ local function createKeepAlive()
 					end
 				end
 			end
-			
+
 			-- Cleanup all cached instances on unmount
 			componentModule.onUnmounted(function()
 				for _, cached in pairs(cache.value) do
@@ -225,20 +228,20 @@ local function createKeepAlive()
 				cache.value = {}
 				keys.value = {}
 			end)
-			
+
 			return function()
 				local slots = context.slots
 				if not slots or #slots == 0 then
 					return nil
 				end
-				
+
 				local child = slots[1]
 				if not child or not child.type then
 					return child
 				end
-				
+
 				local name = (child.type :: any).__name or "anonymous"
-				
+
 				if shouldCache(name) then
 					if cache.value[name] then
 						-- Return cached instance (move to end for LRU)
@@ -247,31 +250,31 @@ local function createKeepAlive()
 							table.remove(keys.value, index)
 						end
 						table.insert(keys.value, name)
-						
+
 						-- Restore cached vnode but update props
 						local cached = cache.value[name]
 						if child.props then
 							cached.vnode.props = child.props
 						end
-						
+
 						return cached.vnode
 					else
 						-- Cache new instance
 						cache.value[name] = {
 							vnode = child,
-							instance = (child :: any)._instance
+							instance = (child :: any)._instance,
 						}
 						table.insert(keys.value, name)
 						pruneCache()
-						
+
 						return child
 					end
 				end
-				
+
 				-- Don't cache this component
 				return child
 			end
-		end
+		end,
 	}
 end
 
@@ -305,7 +308,7 @@ builtins.KeepAlive = createKeepAlive()
 ]=]
 function builtins.defineAsyncComponent(loader: () -> ComponentDef, options: any?): ComponentDef
 	options = options or {}
-	
+
 	return {
 		__is_component = true,
 		__name = "AsyncComponent",
@@ -314,10 +317,10 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, options: any?
 			local loading = ref(false)
 			local error = ref(nil :: string?)
 			local showLoading = ref(false)
-			
+
 			-- Get suspense context if available
 			local suspense = context.inject("suspense")
-			
+
 			-- Delay before showing loading component
 			local delayTimer
 			if options.delay and options.delay > 0 then
@@ -329,7 +332,7 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, options: any?
 			else
 				showLoading.value = true
 			end
-			
+
 			-- Timeout for loading
 			local timeoutTimer
 			if options.timeout and options.timeout > 0 then
@@ -343,22 +346,22 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, options: any?
 					end
 				end)
 			end
-			
+
 			-- Register with suspense
 			if suspense then
 				suspense.register()
 			end
-			
+
 			-- Start loading
 			loading.value = true
 			task.spawn(function()
 				local success, result = pcall(loader)
-				
+
 				if success then
 					component.value = result
 					loading.value = false
 					showLoading.value = false
-					
+
 					if suspense then
 						suspense.resolve()
 					end
@@ -366,12 +369,12 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, options: any?
 					error.value = tostring(result)
 					loading.value = false
 					showLoading.value = false
-					
+
 					if suspense then
 						suspense.reject(error.value)
 					end
 				end
-				
+
 				-- Cancel timers
 				if delayTimer then
 					task.cancel(delayTimer)
@@ -380,7 +383,7 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, options: any?
 					task.cancel(timeoutTimer)
 				end
 			end)
-			
+
 			-- Cleanup on unmount
 			componentModule.onUnmounted(function()
 				if delayTimer then
@@ -390,7 +393,7 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, options: any?
 					task.cancel(timeoutTimer)
 				end
 			end)
-			
+
 			return function()
 				-- Error state
 				if error.value then
@@ -401,10 +404,10 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, options: any?
 						Size = UDim2.fromScale(1, 1),
 						Text = "Failed to load component",
 						TextColor3 = Color3.fromRGB(255, 100, 100),
-						BackgroundTransparency = 1
+						BackgroundTransparency = 1,
 					})
 				end
-				
+
 				-- Loading state
 				if loading.value and showLoading.value then
 					if options.loadingComponent then
@@ -414,19 +417,19 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, options: any?
 						Size = UDim2.fromScale(1, 1),
 						Text = "Loading...",
 						TextColor3 = Color3.fromRGB(200, 200, 200),
-						BackgroundTransparency = 1
+						BackgroundTransparency = 1,
 					})
 				end
-				
+
 				-- Loaded state
 				if component.value then
 					return h(component.value, props)
 				end
-				
+
 				-- Initial state (before delay)
 				return nil
 			end
-		end
+		end,
 	}
 end
 

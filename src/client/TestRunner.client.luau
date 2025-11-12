@@ -1,4 +1,3 @@
-
 --!nonstrict
 --[[
 	Test Runner with JSON Reporter
@@ -13,21 +12,21 @@ export type TestResult = {
 	suite: string,
 	name: string,
 	passed: boolean,
-	error: string?
+	error: string?,
 }
 
 export type TestSuiteResult = {
 	suite: string,
 	passed: number,
 	failed: number,
-	tests: {TestResult}
+	tests: { TestResult },
 }
 
 export type TestRunResult = {
 	timestamp: string,
 	totalPassed: number,
 	totalFailed: number,
-	suites: {TestSuiteResult}
+	suites: { TestSuiteResult },
 }
 
 local HttpService = game:GetService("HttpService")
@@ -35,13 +34,12 @@ local HttpService = game:GetService("HttpService")
 -- Wait for test modules to load
 local Tests = ReplicatedStorage:WaitForChild("Tests")
 
-
 local function runAllTests(): TestRunResult
 	local results: TestRunResult = {
 		timestamp = tostring(os.time()),
 		totalPassed = 0,
 		totalFailed = 0,
-		suites = {}
+		suites = {},
 	}
 
 	local testSuites = {
@@ -60,7 +58,7 @@ local function runAllTests(): TestRunResult
 		-- Enhancement Tests
 		{ name = "SchedulerEnhancements", moduleName = "SchedulerEnhancements" },
 		{ name = "PoolEnhancements", moduleName = "PoolEnhancements" },
-		{ name = "AttributeRefEnhancements", moduleName = "AttributeRefEnhancements" }
+		{ name = "AttributeRefEnhancements", moduleName = "AttributeRefEnhancements" },
 	}
 
 	for _, suite in ipairs(testSuites) do
@@ -70,7 +68,7 @@ local function runAllTests(): TestRunResult
 			suite = suite.name,
 			passed = 0,
 			failed = 0,
-			tests = {}
+			tests = {},
 		}
 
 		local testModuleInstance = Tests:FindFirstChild(suite.moduleName)
@@ -81,7 +79,7 @@ local function runAllTests(): TestRunResult
 				suite = suite.name,
 				name = "suite_resolution",
 				passed = false,
-				error = string.format("Test suite %s not found in ReplicatedStorage.Tests", suite.name)
+				error = string.format("Test suite %s not found in ReplicatedStorage.Tests", suite.name),
 			})
 			warn(string.format("❌ %s not found", suite.name))
 			table.insert(results.suites, suiteResult)
@@ -101,7 +99,7 @@ local function runAllTests(): TestRunResult
 				suite = suite.name,
 				name = "suite_require",
 				passed = false,
-				error = tostring(moduleOrErr)
+				error = tostring(moduleOrErr),
 			})
 			warn(string.format("❌ %s failed to require: %s", suite.name, moduleOrErr))
 			table.insert(results.suites, suiteResult)
@@ -129,7 +127,7 @@ local function runAllTests(): TestRunResult
 				suite = suite.name,
 				name = "suite_execution",
 				passed = false,
-				error = tostring(runResult)
+				error = tostring(runResult),
 			})
 			warn(string.format("❌ %s errored during execution: %s", suite.name, runResult))
 			table.insert(results.suites, suiteResult)
@@ -179,7 +177,7 @@ local function outputJSON(results: TestRunResult): ()
 	print(string.rep("=", 60))
 	print(json)
 	print(string.rep("=", 60))
-	
+
 	-- Write to ReplicatedStorage for external tools to read
 	local storage = ReplicatedStorage:FindFirstChild("TestResults")
 	if not storage then
@@ -196,10 +194,11 @@ local function printSummary(results: TestRunResult): ()
 	print(string.rep("=", 60))
 	print(string.format("Total Passed: %d", results.totalPassed))
 	print(string.format("Total Failed: %d", results.totalFailed))
-	print(string.format("Success Rate: %.1f%%", 
-		results.totalPassed / (results.totalPassed + results.totalFailed) * 100))
+	print(
+		string.format("Success Rate: %.1f%%", results.totalPassed / (results.totalPassed + results.totalFailed) * 100)
+	)
 	print(string.rep("=", 60))
-	
+
 	if results.totalFailed > 0 then
 		print("\n⚠️  Some tests failed - see details above")
 	else

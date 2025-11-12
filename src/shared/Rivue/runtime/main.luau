@@ -311,12 +311,12 @@ Rivue.onScopeDispose = reactivity.onScopeDispose
 --- @return any -- Stop handle to manually stop watcher
 -- watch with auto-cleanup tracking
 Rivue.watch = function(source, callback, options)
-    local stopHandle = reactivity.watch(source, callback, options)
-    local currentInstance = componentAPI.getCurrentInstance()
-    if currentInstance and (currentInstance :: any)._effects then
-        table.insert((currentInstance :: any)._effects, stopHandle)
-    end
-    return stopHandle
+	local stopHandle = reactivity.watch(source, callback, options)
+	local currentInstance = componentAPI.getCurrentInstance()
+	if currentInstance and (currentInstance :: any)._effects then
+		table.insert((currentInstance :: any)._effects, stopHandle)
+	end
+	return stopHandle
 end
 
 --- Creates a reactive effect with automatic dependency tracking and immediate execution
@@ -326,12 +326,12 @@ end
 --- @return any -- Stop handle to manually stop effect
 -- watchEffect with auto-cleanup tracking
 Rivue.watchEffect = function(fn, opts)
-    local stopHandle = reactivity.watchEffect(fn, opts)
-    local currentInstance = componentAPI.getCurrentInstance()
-    if currentInstance and (currentInstance :: any)._effects then
-        table.insert((currentInstance :: any)._effects, stopHandle)
-    end
-    return stopHandle
+	local stopHandle = reactivity.watchEffect(fn, opts)
+	local currentInstance = componentAPI.getCurrentInstance()
+	if currentInstance and (currentInstance :: any)._effects then
+		table.insert((currentInstance :: any)._effects, stopHandle)
+	end
+	return stopHandle
 end
 
 --- Creates a reactive effect with auto-cleanup for components
@@ -340,12 +340,12 @@ end
 --- @return any -- Effect handle to manually stop effect
 -- effect with auto-cleanup tracking
 Rivue.effect = function(fn, opts)
-    local eff = reactivity.effect(fn, opts)
-    local currentInstance = componentAPI.getCurrentInstance()
-    if currentInstance and (currentInstance :: any)._effects then
-        table.insert((currentInstance :: any)._effects, eff)
-    end
-    return eff
+	local eff = reactivity.effect(fn, opts)
+	local currentInstance = componentAPI.getCurrentInstance()
+	if currentInstance and (currentInstance :: any)._effects then
+		table.insert((currentInstance :: any)._effects, eff)
+	end
+	return eff
 end
 
 -- h and helpers
@@ -359,14 +359,14 @@ Rivue.hForParallel = hModule.hForParallel
 --- @return any -- Component definition object
 -- components
 Rivue.defineComponent = function(opts): any
-    local comp = {}
-    comp.__is_component = true
-    comp.setup = opts and opts.setup
-    comp.render = opts and opts.render
-    comp.props = opts and opts.props
-    comp.__name = opts and opts.name
-    comp.inheritAttrs = opts and opts.inheritAttrs
-    return comp
+	local comp = {}
+	comp.__is_component = true
+	comp.setup = opts and opts.setup
+	comp.render = opts and opts.render
+	comp.props = opts and opts.props
+	comp.__name = opts and opts.name
+	comp.inheritAttrs = opts and opts.inheritAttrs
+	return comp
 end
 
 -- lifecycle
@@ -400,12 +400,12 @@ Rivue.scheduler = schedulerModule
 -- Wrap scheduler.queueJob to enable auto-cleanup tracking
 local originalQueueJob = schedulerModule.queueJob
 Rivue.queueJob = function(fn, opts)
-    local jobHandle = originalQueueJob(fn, opts)
-    local currentInstance = componentAPI.getCurrentInstance()
-    if currentInstance and (currentInstance :: any)._schedulerJobs then
-        table.insert((currentInstance :: any)._schedulerJobs, jobHandle)
-    end
-    return jobHandle
+	local jobHandle = originalQueueJob(fn, opts)
+	local currentInstance = componentAPI.getCurrentInstance()
+	if currentInstance and (currentInstance :: any)._schedulerJobs then
+		table.insert((currentInstance :: any)._schedulerJobs, jobHandle)
+	end
+	return jobHandle
 end
 
 -- Export pool
@@ -432,7 +432,7 @@ Rivue.onStepped = robloxUtils.onStepped
 --- @return any -- App API with mount/unmount methods
 -- createApp
 Rivue.createApp = function(vnode, opts)
-    return renderer.createApp(vnode, opts)
+	return renderer.createApp(vnode, opts)
 end
 
 --- Convenience method to mount a component or VNode to a parent Instance
@@ -442,15 +442,15 @@ end
 --- @return any -- Mounted app instance
 -- convenience mount
 function Rivue.mount(componentOrVNode: any, parent: Instance, opts: any?): any
-    local vnode = componentOrVNode
+	local vnode = componentOrVNode
 
-    if type(componentOrVNode) == "table" and (componentOrVNode :: any).__is_component then
-        vnode = Rivue.h(componentOrVNode)
-    end
+	if type(componentOrVNode) == "table" and (componentOrVNode :: any).__is_component then
+		vnode = Rivue.h(componentOrVNode)
+	end
 
-    local app = Rivue.createApp(vnode :: any, opts or {})
-    app:mount(parent)
-    return app
+	local app = Rivue.createApp(vnode :: any, opts or {})
+	app:mount(parent)
+	return app
 end
 
 --- Creates a v-model directive for text input binding with optional debounce
@@ -459,7 +459,7 @@ end
 --- @return any -- Directive configuration
 -- v-model helpers
 Rivue.vModelText = function(r, opts)
-    return directives.vModelText(r, opts)
+	return directives.vModelText(r, opts)
 end
 
 --- Creates a v-model directive for custom property binding
@@ -468,7 +468,7 @@ end
 --- @param eventName any -- Event name to listen to
 --- @return any -- Directive configuration
 Rivue.vModelProp = function(r, propName, eventName)
-    return directives.vModelProp(r, propName, eventName)
+	return directives.vModelProp(r, propName, eventName)
 end
 
 return Rivue
