@@ -43,12 +43,12 @@ print("\n=== Testing nested reactive structures ===")
 local complexState = reactive({
 	users = {
 		{ name = "Alice", age = 30 },
-		{ name = "Bob", age = 25 }
+		{ name = "Bob", age = 25 },
 	},
 	settings = {
 		theme = "dark",
-		notifications = true
-	}
+		notifications = true,
+	},
 })
 print("Complex state with prettyPrint:")
 Rivue.prettyPrint(complexState)
@@ -57,7 +57,7 @@ print("\n=== Testing circular reference handling ===")
 local circular: any = reactive({ name = "circular" })
 circular.self = circular
 print("Circular reference (should handle gracefully):")
-Rivue.prettyPrint(circular)    
+Rivue.prettyPrint(circular)
 
 local vnode = h(SimpleApp)
 print("VNode created")

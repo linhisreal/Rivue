@@ -45,7 +45,7 @@ function composables.defineModel(options: { name: string?, event: string? }?)
 	local opts = (options or {}) :: { name: string?, event: string? }
 	local propName = opts.name or "modelValue"
 	local eventName = opts.event or ("update:" .. propName)
-	
+
 	return function(props: any, context: any)
 		-- Create a writable computed-like ref using customRef
 		local model = reactivity.customRef(function(track, trigger)
@@ -57,10 +57,10 @@ function composables.defineModel(options: { name: string?, event: string? }?)
 				set = function(value: any)
 					context.emit(eventName, value)
 					trigger()
-				end
+				end,
 			}
 		end)
-		
+
 		return model
 	end
 end
@@ -72,7 +72,7 @@ function composables.useTheme(): any?
 	if not instance then
 		return nil
 	end
-	
+
 	-- Walk up the component tree looking for theme
 	local current = instance
 	while current do
@@ -81,7 +81,7 @@ function composables.useTheme(): any?
 		end
 		current = (current :: any).parent
 	end
-	
+
 	return nil
 end
 
@@ -89,12 +89,12 @@ end
 --- Returns a computed ref that updates when theme changes
 function composables.useStyles(styleFactory: (theme: any) -> { [string]: any })
 	local themeRef = reactivity.ref(composables.useTheme())
-	
+
 	-- Watch for theme changes via reactive tracking
 	local styles = reactivity.computed(function()
 		return styleFactory(themeRef.value or {})
 	end)
-	
+
 	return styles
 end
 

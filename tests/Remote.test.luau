@@ -11,12 +11,14 @@ local Remote = require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("run
 
 local function assertEquals(actual: any, expected: any, message: string?)
 	if actual ~= expected then
-		error(string.format(
-			"Assertion failed: %s\nExpected: %s\nActual: %s",
-			message or "values not equal",
-			tostring(expected),
-			tostring(actual)
-		))
+		error(
+			string.format(
+				"Assertion failed: %s\nExpected: %s\nActual: %s",
+				message or "values not equal",
+				tostring(expected),
+				tostring(actual)
+			)
+		)
 	end
 	print("✓", message or "Assertion passed")
 end
@@ -30,7 +32,7 @@ end
 
 local function runTests()
 	print("\n========== REMOTE COMMUNICATION TEST SUITE ==========\n")
-	
+
 	-- Test 1: Remote events folder is created
 	print("Test 1: Remote events folder is created")
 	do
@@ -40,7 +42,7 @@ local function runTests()
 		local folder = ReplicatedStorage:FindFirstChild("RemoteEvents")
 		assertTrue(folder ~= nil, "Should create RemoteEvents folder")
 	end
-	
+
 	-- Test 2: fire() creates and uses Request event
 	print("Test 2: fire() creates and uses Request event")
 	do
@@ -51,7 +53,7 @@ local function runTests()
 		assertTrue(requestEvent ~= nil, "Should create Request RemoteEvent")
 		assertTrue(requestEvent:IsA("RemoteEvent"), "Should be a RemoteEvent")
 	end
-	
+
 	-- Test 3: request() creates Response event
 	print("Test 3: request() creates Response event")
 	do
@@ -65,7 +67,7 @@ local function runTests()
 		assertTrue(responseEvent ~= nil, "Should create Response RemoteEvent")
 		assertTrue(responseEvent:IsA("RemoteEvent"), "Should be a RemoteEvent")
 	end
-	
+
 	-- Test 4: request() times out properly
 	print("Test 4: request() times out properly")
 	do
@@ -73,7 +75,7 @@ local function runTests()
 		assertTrue(data == nil, "Should return nil data on timeout")
 		assertEquals(err, "timeout", "Should return timeout error")
 	end
-	
+
 	-- Test 5: on() creates and listens to named event
 	print("Test 5: on() creates and listens to named event")
 	do
@@ -88,18 +90,18 @@ local function runTests()
 		-- Note: Cannot test FireClient from client - would need server-side test
 		conn:Disconnect()
 	end
-	
+
 	-- Test 6: Payload validation rejects non-serializable data
 	print("Test 6: Payload validation rejects non-serializable data")
 	do
 		local badPayload = {
-			func = function() end -- Functions can't be serialized
+			func = function() end, -- Functions can't be serialized
 		}
 		local data, err = Remote.request("badPayload", badPayload, 0.1)
 		assertTrue(data == nil, "Should reject non-serializable payload")
 		assertTrue(err ~= nil, "Should return error for non-serializable payload")
 	end
-	
+
 	-- Test 7: Payload validation rejects oversized data
 	print("Test 7: Payload validation rejects oversized data")
 	do
@@ -109,18 +111,18 @@ local function runTests()
 		assertTrue(data == nil, "Should reject oversized payload")
 		assertEquals(err, "payload_too_large", "Should return payload_too_large error")
 	end
-	
+
 	-- Test 8: Payload validation rejects unsafe types
 	print("Test 8: Payload validation rejects unsafe types")
 	do
 		local unsafePayload = {
-			instance = Instance.new("Part") -- Instances not allowed
+			instance = Instance.new("Part"), -- Instances not allowed
 		}
 		local data, err = Remote.request("unsafePayload", unsafePayload, 0.1)
 		assertTrue(data == nil, "Should reject unsafe types")
 		assertEquals(err, "payload_unsafe_type", "Should return unsafe type error")
 	end
-	
+
 	-- Test 9: Action name validation
 	print("Test 9: Action name validation")
 	do
@@ -128,27 +130,27 @@ local function runTests()
 		assertTrue(data == nil, "Should reject empty action name")
 		assertEquals(err, "invalid_action_name", "Should return invalid action name error")
 	end
-	
+
 	-- Test 10: Multiple listeners can be registered
 	print("Test 10: Multiple listeners can be registered")
 	do
-		local conn1 = Remote.on("MultiEvent", function() 
+		local conn1 = Remote.on("MultiEvent", function()
 			-- Handler 1
-        end)
-		local conn2 = Remote.on("MultiEvent", function() 
+		end)
+		local conn2 = Remote.on("MultiEvent", function()
 			-- Handler 2
-        end)
+		end)
 		task.wait(0.05)
-		
+
 		local folder = ReplicatedStorage:FindFirstChild("RemoteEvents")
 		local event = folder and folder:FindFirstChild("MultiEvent")
-		
+
 		assertTrue(event ~= nil, "Should create event for multiple listeners")
 		-- Note: Cannot test firing from client - would need server-side test
 		conn1:Disconnect()
 		conn2:Disconnect()
 	end
-	
+
 	-- Test 11: fire() accepts valid payloads
 	print("Test 11: fire() accepts valid payloads")
 	do
@@ -158,8 +160,8 @@ local function runTests()
 			boolean = true,
 			nested = {
 				array = { 1, 2, 3 },
-				object = { key = "value" }
-			}
+				object = { key = "value" },
+			},
 		}
 		-- Should not error
 		local ok = pcall(function()
@@ -167,7 +169,7 @@ local function runTests()
 		end)
 		assertTrue(ok, "Should accept valid payload")
 	end
-	
+
 	print("\n========== REMOTE COMMUNICATION TESTS COMPLETE ==========\n")
 end
 
