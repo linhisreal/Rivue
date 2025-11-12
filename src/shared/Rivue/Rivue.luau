@@ -70,8 +70,11 @@ if runtimeFolder then
 else
 	local ReplicatedStorage = game:GetService("ReplicatedStorage")
 	local runtimeModule = ReplicatedStorage:FindFirstChild("Rivue")
-	if runtimeModule and runtimeModule:FindFirstChild("main") then
-		return require(runtimeModule:WaitForChild("main"))
+	if runtimeModule then
+		local fallbackRuntimeFolder = runtimeModule:FindFirstChild("runtime")
+		if fallbackRuntimeFolder and fallbackRuntimeFolder:FindFirstChild("main") then
+			return require(fallbackRuntimeFolder:WaitForChild("main"))
+		end
 	end
 	error(
 		"Rivue runtime not found. Place 'runtime' folder as child of this ModuleScript or place runtime in ReplicatedStorage."

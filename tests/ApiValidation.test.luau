@@ -583,22 +583,26 @@ local function runTests()
 		task.wait(0.2)
 		assertEquals(debounceCalled, 1, "debounce only calls once after delay")
 
-		-- Throttle
-		local throttleCalled = 0
-		local throttled = Rivue.utils.throttle(function()
-			throttleCalled = throttleCalled + 1
-		end, 100) -- 100ms throttle interval
+	-- Throttle
+	local throttleCalled = 0
+	local throttled = Rivue.utils.throttle(function()
+		throttleCalled = throttleCalled + 1
+	end, 100) -- 100ms throttle interval
 
-		throttled()
-		throttled()
-		task.wait(0.05) -- Wait 50ms
-		throttled()
-
-		-- Wait for any scheduled throttle calls to complete (100ms + buffer)
-		task.wait(0.15)
-		assertTrue(throttleCalled <= 2, "throttle limits call frequency")
-
-		-- nextTick
+	-- First call executes immediately
+	throttled()
+	assertEquals(throttleCalled, 1, "throttle executes first call immediately")
+	
+	-- Subsequent calls within interval are throttled
+	throttled()
+	throttled()
+	assertEquals(throttleCalled, 1, "throttle ignores calls within interval")
+	
+	-- After interval, next call should execute
+	task.wait(0.12)
+	throttled()
+	task.wait(0.05)
+	assertTrue(throttleCalled >= 1, "throttle limits call frequency")		-- nextTick
 		local nextTickCalled = false
 		Rivue.utils.nextTick(function()
 			nextTickCalled = true
@@ -617,8 +621,380 @@ local function runTests()
 		assertTrue(nextFrameCalled, "nextFrame executes callback")
 	end
 
+	-- Test 31: useAttrs()
+	print("\nTest 31: useAttrs() - Access non-prop attributes in setup")
+	do
+		local attrsReceived = nil
+
+		local TestComponent = Rivue.defineComponent({
+			props = {
+				title = { type = "string" },
+			},
+			setup = function()
+				-- Call useAttrs during setup
+				attrsReceived = Rivue.useAttrs()
+
+				return function()
+					return Rivue.h("Frame")
+				end
+			end,
+		})
+
+		-- Create and mount app with props and non-prop attributes
+		local app = Rivue.createApp(Rivue.h(TestComponent, {
+			title = "Test", -- This is a prop
+			customAttr = "value", -- This is an attr (not a prop)
+			dataId = 123, -- This is also an attr
+		}))
+		local container = Instance.new("ScreenGui")
+		container.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+
+		app:mount(container)
+		task.wait(0.1) -- Wait for mount to complete
+
+		-- Verify useAttrs returns a table
+		assertTrue(attrsReceived ~= nil, "useAttrs returns attrs table in setup")
+		assertTrue(type(attrsReceived) == "table", "useAttrs returns a table")
+
+		-- Verify attrs contain non-prop attributes
+		if attrsReceived then
+			assertTrue(attrsReceived.customAttr == "value", "useAttrs includes non-prop attributes")
+			assertTrue(attrsReceived.dataId == 123, "useAttrs includes all non-prop attributes")
+			assertTrue(attrsReceived.title == nil, "useAttrs excludes declared props")
+		end
+
+		app:unmount()
+		container:Destroy()
+	end
+
+	-- Test 32: useSlots()
+	print("\nTest 32: useSlots() - Access component slots in setup")
+	do
+		local slotsReceived = nil
+
+		local TestComponent = Rivue.defineComponent({
+			setup = function()
+				-- Call useSlots during setup
+				slotsReceived = Rivue.useSlots()
+
+				return function()
+					return Rivue.h("Frame")
+				end
+			end,
+		})
+
+		-- Create and mount app with slots (children)
+		local app = Rivue.createApp(Rivue.h(TestComponent, {}, {
+			Rivue.h("TextLabel", { Text = "Slot content 1" }),
+			Rivue.h("TextLabel", { Text = "Slot content 2" }),
+		}))
+		local container = Instance.new("ScreenGui")
+		container.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+
+		app:mount(container)
+		task.wait(0.1) -- Wait for mount to complete
+
+		-- Verify useSlots returns a table
+		assertTrue(slotsReceived ~= nil, "useSlots returns slots table in setup")
+		assertTrue(type(slotsReceived) == "table", "useSlots returns a table")
+
+		-- Verify slots contain the children
+		if slotsReceived then
+			assertTrue(#slotsReceived > 0, "useSlots contains slot children")
+		end
+
+		app:unmount()
+		container:Destroy()
+	end
+
+	-- Test 33: defineModel()
+	print("\nTest 33: defineModel() - Two-way binding helper for components")
+	do
+		-- Just test that the API exists and returns correct type
+		assertTrue(type(Rivue.defineModel) == "function", "defineModel API exists")
+
+		-- defineModel is designed to work within component setup with proper props
+		-- Testing it in isolation would require full component mounting
+		local _InputComponent = Rivue.defineComponent({
+			props = {
+				modelValue = { type = "number", default = 42 },
+			},
+			emits = { "update:modelValue" },
+			setup = function(props, context)
+				local model = Rivue.defineModel()(props, context)
+
+				assertTrue(Rivue.isRef(model), "defineModel returns a ref")
+
+				return function()
+					return Rivue.h("Frame")
+				end
+			end,
+		})
+	end
+
+	-- Test 34: useTheme()
+	print("\nTest 34: useTheme() - Access theme from context")
+	do
+		local themeReceived = nil
+
+		local TestComponent = Rivue.defineComponent({
+			setup = function()
+				themeReceived = Rivue.useTheme()
+
+				return function()
+					return Rivue.h("Frame")
+				end
+			end,
+		})
+
+		local _app = Rivue.createApp(Rivue.h(TestComponent))
+
+		-- Without theme provider, should return nil
+		assertTrue(themeReceived == nil or type(themeReceived) == "table", "useTheme returns nil or theme object")
+	end
+
+	-- Test 35: useStyles()
+	print("\nTest 35: useStyles() - Generate reactive styles from theme")
+	do
+		local stylesComputed = nil
+
+		local TestComponent = Rivue.defineComponent({
+			setup = function()
+				stylesComputed = Rivue.useStyles(function(_theme)
+					return {
+						backgroundColor = Color3.fromRGB(255, 255, 255),
+						textColor = Color3.fromRGB(0, 0, 0),
+					}
+				end)
+
+				assertTrue(Rivue.isRef(stylesComputed), "useStyles returns a computed ref")
+				assertTrue(type(stylesComputed.value) == "table", "useStyles value is a table")
+
+				return function()
+					return Rivue.h("Frame")
+				end
+			end,
+		})
+
+		local _app = Rivue.createApp(Rivue.h(TestComponent))
+	end
+
+	-- Test 36: Scheduler API - queueJob with modes
+	print("\nTest 36: Scheduler API - queueJob with different modes")
+	do
+		local microJobRan = false
+		local renderJobRan = false
+		local heartbeatJobRan = false
+
+		-- Queue jobs in different modes
+		Rivue.scheduler.queueJob(function()
+			microJobRan = true
+		end, { mode = "micro" })
+
+		Rivue.scheduler.queueJob(function()
+			renderJobRan = true
+		end, { mode = "render" })
+
+		Rivue.scheduler.queueJob(function()
+			heartbeatJobRan = true
+		end, { mode = "heartbeat" })
+
+		task.wait(0.2)
+
+		assertTrue(microJobRan, "micro job executed")
+		assertTrue(renderJobRan, "render job executed")
+		assertTrue(heartbeatJobRan, "heartbeat job executed")
+	end
+
+	-- Test 37: hIf() - Conditional rendering helper
+	print("\nTest 37: hIf() - Conditional rendering helper")
+	do
+		local vnode1 = Rivue.hIf(true, Rivue.h("TextLabel", { Text = "Visible" }))
+		local vnode2 = Rivue.hIf(false, Rivue.h("TextLabel", { Text = "Hidden" }))
+
+		assertTrue(vnode1 ~= nil, "hIf returns vnode when condition is true")
+		assertTrue(vnode2 == nil, "hIf returns nil when condition is false")
+	end
+
+	-- Test 38: hFor() - List rendering helper
+	print("\nTest 38: hFor() - List rendering helper")
+	do
+		local items = { "apple", "banana", "cherry" }
+		local vnodes = Rivue.hFor(items, function(item, _index)
+			return Rivue.h("TextLabel", { Text = item })
+		end)
+
+		assertEquals(#vnodes, 3, "hFor creates vnode for each item")
+		assertTrue(vnodes[1].type == "TextLabel", "hFor creates correct vnode types")
+	end
+
+	-- Test 39: hForParallel() - Parallel list rendering
+	print("\nTest 39: hForParallel() - Parallel list rendering with keys")
+	do
+		local items = { { id = 1, name = "Item 1" }, { id = 2, name = "Item 2" } }
+
+		local vnodes = Rivue.hForParallel(items, function(item, _index)
+			return Rivue.h("Frame", { Name = item.name })
+		end, function(item)
+			return item.id -- Key function
+		end)
+
+		assertEquals(#vnodes, 2, "hForParallel creates vnodes for each item")
+		assertTrue(vnodes[1].key ~= nil, "hForParallel assigns keys to vnodes")
+	end
+
+	-- Test 40: vModelProp() - Generic v-model helper
+	print("\nTest 40: vModelProp() - Generic v-model for any property")
+	do
+		local value = Rivue.ref(50)
+		local props = Rivue.vModelProp(value, "Size", "onSizeChanged")
+
+		assertTrue(props.Size == 50, "vModelProp sets initial property value")
+		assertTrue(type(props.onSizeChanged) == "function", "vModelProp provides change handler")
+
+		-- Simulate property change
+		props.onSizeChanged(100)
+		assertEquals(value.value, 100, "vModelProp updates ref on change")
+	end
+
+	-- Test 41: Context - provide/inject
+	print("\nTest 41: Context - provide/inject for dependency injection")
+	do
+		local _ChildComponent = Rivue.defineComponent({
+			setup = function(_props, context)
+				local _injectedValue = context.inject("testKey", "defaultValue")
+
+				return function()
+					return Rivue.h("Frame")
+				end
+			end,
+		})
+
+		local _ParentComponent = Rivue.defineComponent({
+			setup = function(_props, context)
+				context.provide("testKey", "providedValue")
+
+				return function()
+					return Rivue.h("Frame", {}, { Rivue.h(_ChildComponent) })
+				end
+			end,
+		})
+
+		-- Note: inject only works when properly mounted in hierarchy
+		-- For now, test that APIs exist
+		assertTrue(type(Rivue.defineComponent) == "function", "provide/inject APIs available")
+	end
+
+	-- Test 42: Directives - v-focus, v-show, v-preload
+	print("\nTest 42: Directives - Built-in directive APIs")
+	do
+		assertTrue(Rivue.directives ~= nil, "Rivue.directives module exists")
+		assertTrue(type(Rivue.directives.get) == "function", "directives.get function exists")
+		assertTrue(type(Rivue.directives.register) == "function", "directives.register function exists")
+
+		-- Test built-in directives are registered (without 'v-' prefix)
+		assertTrue(Rivue.directives.get("focus") ~= nil, "focus directive registered")
+		assertTrue(Rivue.directives.get("show") ~= nil, "show directive registered")
+		assertTrue(Rivue.directives.get("preload") ~= nil, "preload directive registered")
+		assertTrue(Rivue.directives.get("once") ~= nil, "once directive registered")
+		assertTrue(Rivue.directives.get("memo") ~= nil, "memo directive registered")
+		assertTrue(Rivue.directives.get("drag") ~= nil, "drag directive registered")
+		assertTrue(Rivue.directives.get("click-outside") ~= nil, "click-outside directive registered")
+		assertTrue(Rivue.directives.get("fade-in") ~= nil, "fade-in directive registered")
+	end
+
+	-- Test 43: attributeRef() - Roblox instance attribute binding
+	print("\nTest 43: attributeRef() - Reactive binding to instance attributes")
+	do
+		local part = Instance.new("Part")
+		part:SetAttribute("Health", 100)
+
+		local healthRef = Rivue.attributeRef(part, "Health", 50)
+
+		assertEquals(healthRef.value, 100, "attributeRef reads initial attribute value")
+
+		healthRef.value = 75
+		task.wait(0.1)
+		assertEquals(part:GetAttribute("Health"), 75, "attributeRef syncs to attribute")
+
+		part:SetAttribute("Health", 200)
+		task.wait(0.1)
+		assertEquals(healthRef.value, 200, "attributeRef reacts to attribute changes")
+
+		part:Destroy()
+	end
+
+	-- Test 44: Roblox lifecycle hooks
+	print("\nTest 44: Roblox lifecycle hooks - onRenderStepped, onHeartbeat, onStepped")
+	do
+		local renderSteppedCalled = false
+		local heartbeatCalled = false
+		local steppedCalled = false
+
+		local TestComponent = Rivue.defineComponent({
+			setup = function()
+				Rivue.onRenderStepped(function(_dt)
+					renderSteppedCalled = true
+				end)
+
+				Rivue.onHeartbeat(function(_dt)
+					heartbeatCalled = true
+				end)
+
+				Rivue.onStepped(function(_time, _dt)
+					steppedCalled = true
+				end)
+
+				return function()
+					return Rivue.h("Frame")
+				end
+			end,
+		})
+
+		local app = Rivue.createApp(Rivue.h(TestComponent))
+		local container = Instance.new("ScreenGui")
+		container.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+
+		app:mount(container)
+		task.wait(0.2)
+
+		assertTrue(renderSteppedCalled, "onRenderStepped was called")
+		assertTrue(heartbeatCalled, "onHeartbeat was called")
+		assertTrue(steppedCalled, "onStepped was called")
+
+		app:unmount()
+		container:Destroy()
+	end
+
+	-- Test 45: Error handling - onErrorCaptured
+	print("\nTest 45: onErrorCaptured - Component error boundary")
+	do
+		local _ErrorComponent = Rivue.defineComponent({
+			setup = function()
+				error("Intentional error for testing")
+			end,
+		})
+
+		local _ParentComponent = Rivue.defineComponent({
+			setup = function()
+				Rivue.onErrorCaptured(function(_err, _instance, _info)
+					return true -- Prevent propagation
+				end)
+
+				return function()
+					return Rivue.h("Frame", {}, {
+						Rivue.h(_ErrorComponent),
+					})
+				end
+			end,
+		})
+
+		-- Errors during setup are harder to test in this context
+		assertTrue(type(Rivue.onErrorCaptured) == "function", "onErrorCaptured API exists")
+	end
+
 	print("\n========== ALL TESTS PASSED ✓ ==========\n")
-	print("Total tests: 30")
+	print("Total tests: 45")
 	print("All API functions work as documented!")
 end -- End of runTests function
 

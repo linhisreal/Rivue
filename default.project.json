@@ -91,6 +91,9 @@
         "Component": {
           "$path": "tests/Component.test.luau"
         },
+        "Composables": {
+          "$path": "tests/Composables.test.luau"
+        },
         "SchedulerEnhancements": {
           "$path": "tests/SchedulerEnhancements.test.luau"
         },
