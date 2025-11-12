@@ -22,7 +22,6 @@
 
 ## Demo
 
-<<<<<<< HEAD
 ### 📸 More Screenshots
 
 #### Todo App Example
@@ -36,30 +35,6 @@ Soon!
 #### Performance Monitoring
 
 Soon!
-=======
-<div align="center">
-
-<!-- Add your demo GIF here -->
-![Rivue Demo](https://via.placeholder.com/800x400/1a1a1a/00A2FF?text=Rivue+Demo+GIF+Here)
-
-*Building a reactive counter with live updates in under 30 seconds*
-
-</div>
-
-<details>
-<summary>📸 <b>More Screenshots</b></summary>
-
-### Todo App Example
-![Todo App](https://via.placeholder.com/600x400/1a1a1a/00A2FF?text=Todo+App+Screenshot)
-
-### Reactive Components
-![Components](https://via.placeholder.com/600x400/1a1a1a/00A2FF?text=Component+Lifecycle+Demo)
-
-### Performance Monitoring
-![Performance](https://via.placeholder.com/600x400/1a1a1a/00A2FF?text=Performance+Profiler)
-
-</details>
->>>>>>> test
 
 ---
 
@@ -624,10 +599,6 @@ If you find Rivue helpful, consider supporting its development:
 
 <div align="center">
 
-<<<<<<< HEAD
-=======
-<!-- This will automatically show contributor avatars -->
->>>>>>> test
 <a href="https://github.com/linhisreal/Rivue/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=linhisreal/Rivue" />
 </a>
