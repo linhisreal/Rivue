@@ -14,27 +14,9 @@
 [![Coverage](https://img.shields.io/badge/API%20Coverage-45%20APIs%20Validated-success.svg?style=flat-square)](tests/ApiValidation.test.luau)
 [![Maintained](https://img.shields.io/badge/Maintained-Yes-green.svg?style=flat-square)](https://github.com/linhisreal/Rivue/commits/main)
 
-[Features](#features) • [Demo](#demo) • [Installation](#installation) • [Quick Start](#quick-start) • [Documentation](#documentation) • [Examples](#examples) • [FAQ](#faq) • [Contributing](#contributing)
+[Features](#features) • [Installation](#installation) • [Quick Start](#quick-start) • [Documentation](#documentation) • [Examples](#examples) • [FAQ](#faq) • [Contributing](#contributing)
 
 </div>
-
----
-
-## Demo
-
-### 📸 More Screenshots
-
-#### Todo App Example
-
-Soon!
-
-#### Reactive Components
-
-Soon!
-
-#### Performance Monitoring
-
-Soon!
 
 ---
 
