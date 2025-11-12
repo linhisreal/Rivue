@@ -62,6 +62,10 @@ jobs:
     - name: Generate Rojo sourcemap
       run: rojo sourcemap default.project.json --output sourcemap.json
       
+    - name: Create build directory
+      run: New-Item -ItemType Directory -Force -Path build
+      shell: powershell
+      
     - name: Build production rbxl
       run: rojo build default.project.json -o build/vue-framework.rbxl
       
