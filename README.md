@@ -2,39 +2,21 @@
 
 # 🎨 Rivue
 
-**A Vue.js-Inspired Reactive UI Framework for Roblox**
+## A Vue.js-Inspired Reactive UI Framework for Roblox
 
-[![MIT License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE)
+[![GPL-3.0 License](https://img.shields.io/badge/License-GPL--3.0-blue.svg?style=for-the-badge)](LICENSE)
 [![Luau](https://img.shields.io/badge/Language-Luau-00A2FF.svg?style=for-the-badge&logo=lua)](https://luau-lang.org/)
 [![Roblox](https://img.shields.io/badge/Platform-Roblox-E03A3E.svg?style=for-the-badge&logo=roblox)](https://www.roblox.com/)
-[![Version](https://img.shields.io/badge/Version-2.1.0-brightgreen.svg?style=for-the-badge)](https://github.com/linhisreal/Rivue/releases)
+[![GitHub release](https://img.shields.io/github/v/release/linhisreal/Rivue?style=for-the-badge)](https://github.com/linhisreal/Rivue/releases)
 
 [![Tests](https://img.shields.io/badge/Tests-16%20Suites%20%7C%2045%2B%20Tests-success.svg?style=flat-square)](tests/)
 [![Code Quality](https://img.shields.io/badge/Code%20Quality-A+-brightgreen.svg?style=flat-square)](https://github.com/linhisreal/Rivue)
 [![Coverage](https://img.shields.io/badge/API%20Coverage-45%20APIs%20Validated-success.svg?style=flat-square)](tests/ApiValidation.test.luau)
 [![Maintained](https://img.shields.io/badge/Maintained-Yes-green.svg?style=flat-square)](https://github.com/linhisreal/Rivue/commits/main)
 
-[Features](#features) • [Demo](#demo) • [Installation](#installation) • [Quick Start](#quick-start) • [Documentation](#documentation) • [Examples](#examples) • [FAQ](#faq) • [Contributing](#contributing)
+[Features](#features) • [Installation](#installation) • [Quick Start](#quick-start) • [Documentation](#documentation) • [Examples](#examples) • [FAQ](#faq) • [Contributing](#contributing)
 
 </div>
-
----
-
-## Demo
-
-### 📸 More Screenshots
-
-#### Todo App Example
-
-Soon!
-
-#### Reactive Components
-
-Soon!
-
-#### Performance Monitoring
-
-Soon!
 
 ---
 
@@ -814,19 +796,26 @@ rojo serve
 
 ## License
 
-This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the **GNU General Public License v3.0** - see the [LICENSE](LICENSE) file for details.
+
+**Rivue** is free and open-source software under the **GPL-3.0 License**.
 
 You are free to:
 
-- ✅ Use commercially
-- ✅ Modify
-- ✅ Distribute
-- ✅ Private use
+- ✅ Use the software for any purpose
+- ✅ Study and modify the source code
+- ✅ Distribute copies of the software
+- ✅ Distribute modified versions
 
 Under the conditions that you:
 
-- 📋 Include the original copyright notice
-- 📋 Include the license text
+- 📋 **Disclose Source**: Make the complete source code available
+- 📋 **Same License**: License derivative works under GPL-3.0
+- 📋 **State Changes**: Document significant modifications
+- 📋 **Include License**: Include the original GPL-3.0 license and copyright notices
+- 📋 **No Additional Restrictions**: Don't impose further restrictions on recipients' rights
+
+**Important**: This is a **copyleft license**. Any derivative work must also be distributed under the GPL-3.0 license and with source code available. For more details, see the [GNU GPL-3.0](https://www.gnu.org/licenses/gpl-3.0.en.html).
 
 ---
 
