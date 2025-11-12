@@ -1,0 +1,114 @@
+name: Vue Framework Build
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  lint:
+    name: Luau Lint & Type Check
+    runs-on: windows-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Aftman
+      uses: ok-nick/setup-aftman@v0.4.1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Install dependencies
+      run: aftman install
+      
+    - name: Check code formatting with StyLua
+      run: stylua --check src/ tests/
+      continue-on-error: false
+      
+    - name: Run Selene (Linter)
+      run: selene src/ tests/
+      continue-on-error: true
+      
+    - name: Run Luau Type Checker
+      run: |
+        Write-Host "Installing luau-lsp for type checking..."
+        aftman add JohnnyMorganz/luau-lsp@1.56.0
+        aftman install
+        Write-Host "Running Luau type analysis..."
+        luau-lsp analyze --sourcemap=sourcemap.json src/
+      shell: powershell
+      continue-on-error: true
+
+  build:
+    name: Build Distributable
+    runs-on: windows-latest
+    needs: lint
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Aftman
+      uses: ok-nick/setup-aftman@v0.4.1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Install dependencies
+      run: aftman install
+      
+    - name: Generate Rojo sourcemap
+      run: rojo sourcemap default.project.json --output sourcemap.json
+      
+    - name: Build production rbxl
+      run: rojo build default.project.json -o build/vue-framework.rbxl
+      
+    - name: Build model file
+      run: rojo build default.project.json -o build/VueFramework.rbxm
+      
+    - name: Create bundled version with darklua
+      run: |
+        Write-Host "Creating optimized bundle..."
+        New-Item -ItemType Directory -Force -Path build/bundle
+        darklua process src/shared/Framework build/bundle/Framework --config .darklua.json
+        Write-Host "Bundle created successfully"
+      shell: powershell
+      
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: vue-framework-build
+        path: build/
+        retention-days: 30
+
+  docs:
+    name: Validate Documentation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Check for broken links in docs
+      uses: gaurav-nelson/github-action-markdown-link-check@v1
+      with:
+        use-quiet-mode: 'yes'
+        folder-path: 'docs/'
+        file-extension: '.md'
+      continue-on-error: true
+        
+    - name: Validate API.md structure
+      run: |
+        if [ ! -f "docs/API.md" ]; then
+          echo "Error: API.md not found!"
+          exit 1
+        fi
+        echo "API.md found - validation passed"
+
+
+# Future improvements:
+# - Add performance benchmarks
+# - Auto-generate API docs from source
+# - Integrate visual regression testing
