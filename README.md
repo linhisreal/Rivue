@@ -22,28 +22,19 @@
 
 ## Demo
 
-<div align="center">
+### 📸 More Screenshots
 
-<!-- Add your demo GIF here -->
-![Rivue Demo](https://via.placeholder.com/800x400/1a1a1a/00A2FF?text=Rivue+Demo+GIF+Here)
+#### Todo App Example
 
-*Building a reactive counter with live updates in under 30 seconds*
+Soon!
 
-</div>
+#### Reactive Components
 
-<details>
-<summary>📸 <b>More Screenshots</b></summary>
+Soon!
 
-### Todo App Example
-![Todo App](https://via.placeholder.com/600x400/1a1a1a/00A2FF?text=Todo+App+Screenshot)
+#### Performance Monitoring
 
-### Reactive Components
-![Components](https://via.placeholder.com/600x400/1a1a1a/00A2FF?text=Component+Lifecycle+Demo)
-
-### Performance Monitoring
-![Performance](https://via.placeholder.com/600x400/1a1a1a/00A2FF?text=Performance+Profiler)
-
-</details>
+Soon!
 
 ---
 
@@ -544,7 +535,7 @@ Under the conditions that you:
 
 - [Luau](https://luau-lang.org/) - The programming language
 - [Rojo](https://rojo.space/) - Project management and sync
-- [Aftman](https://wally.run/) - Package manager (optional)
+- [Aftman](https://github.com/LPGhatguy/aftman) - Package manager (depercated)
 
 ---
 
@@ -604,7 +595,6 @@ If you find Rivue helpful, consider supporting its development:
 
 <div align="center">
 
-<!-- This will automatically show contributor avatars -->
 <a href="https://github.com/linhisreal/Rivue/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=linhisreal/Rivue" />
 </a>
