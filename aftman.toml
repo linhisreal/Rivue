@@ -6,5 +6,5 @@
 rojo = "rojo-rbx/rojo@7.6.1"
 darklua = "seaofvoices/darklua@0.17.2"
 stylua = "JohnnyMorganz/StyLua@0.20.0"
- # lune removed - Lune testing was reverted
- # rojo = "rojo-rbx/rojo@6.2.0"
+selene = "Kampfkarren/selene@0.27.1"
+luau-lsp = "JohnnyMorganz/luau-lsp@1.56.0"

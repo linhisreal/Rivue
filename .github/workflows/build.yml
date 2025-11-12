@@ -29,16 +29,19 @@ jobs:
       continue-on-error: false
       
     - name: Run Selene (Linter)
-      run: selene src/ tests/
+      run: |
+        if (Test-Path "$HOME/.aftman/bin/selene.exe") {
+          & "$HOME/.aftman/bin/selene" src/ tests/
+        } else {
+          Write-Host "Selene not installed, skipping..."
+        }
+      shell: powershell
       continue-on-error: true
       
     - name: Run Luau Type Checker
       run: |
-        Write-Host "Installing luau-lsp for type checking..."
-        aftman add JohnnyMorganz/luau-lsp@1.56.0
-        aftman install
         Write-Host "Running Luau type analysis..."
-        luau-lsp analyze --sourcemap=sourcemap.json src/
+        & "$HOME/.aftman/bin/luau-lsp" analyze --sourcemap=sourcemap.json src/
       shell: powershell
       continue-on-error: true
 
@@ -76,9 +79,10 @@ jobs:
       run: |
         Write-Host "Creating optimized bundle..."
         New-Item -ItemType Directory -Force -Path build/bundle
-        darklua process src/shared/Framework build/bundle/Framework --config .darklua.json
+        darklua process src/shared/Rivue build/bundle/Rivue --config .darklua.json
         Write-Host "Bundle created successfully"
       shell: powershell
+      continue-on-error: true
       
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4

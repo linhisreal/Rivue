@@ -535,11 +535,7 @@ Under the conditions that you:
 
 - [Luau](https://luau-lang.org/) - The programming language
 - [Rojo](https://rojo.space/) - Project management and sync
-<<<<<<< HEAD
-- [Aftman](https://github.com/LPGhatguy/aftman) - Package manager (depercated)
-=======
-- [Aftman](https://wally.run/) - Package manager (optional)
->>>>>>> test
+- [Aftman](https://github.com/LPGhatguy/aftman) - Toolchain manager
 
 ---
 

@@ -5,8 +5,7 @@
       "rule": "remove_comments"
     },
     {
-      "rule": "remove_spaces",
-      "exclude_functions": ["workspace.Rivue"]
+      "rule": "remove_spaces"
     },
     {
       "rule": "convert_require",
