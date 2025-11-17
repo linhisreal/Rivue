@@ -122,7 +122,9 @@ end
 
 function array.sort<T>(list: { T }, comparator: ((a: T, b: T) -> boolean)?)
 	local raw = rawOf(list)
-	table.sort(raw, comparator)
+	local sorted = table.clone(raw)
+	table.sort(sorted, comparator)
+	table.move(sorted, 1, #sorted, 1, raw)
 	triggerListChange(raw, 1, #raw, false)
 end
 

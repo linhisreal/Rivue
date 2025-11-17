@@ -435,9 +435,14 @@ local function reactive<T>(target: T): T
 	local mt = {}
 	function mt.__index(_: RawTable, k: unknown): unknown
 		track(tbl, k)
-		local v = tbl[k]
-		if shouldWrap(v) then
-			return reactive(v)
+		local v: any = tbl[k]
+		if type(v) == "table" then
+			local cachedProxy = proxyCache[v]
+			if cachedProxy then
+				return cachedProxy
+			elseif not rawMarker[v] then
+				return reactive(v)
+			end
 		end
 		return v
 	end

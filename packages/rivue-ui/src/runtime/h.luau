@@ -210,7 +210,7 @@ local function expandProps(isElement: boolean, props: Props, ownModel: boolean):
 		local bindings: { { name: string, value: unknown } }? = nil
 		local bound: { string }? = nil
 		for key, value in out or props do
-			local name = if type(key) == "string" then directiveName(key) else nil
+			local name = if type(key) == "string" and string.byte(key, 1) == 118 then directiveName(key) else nil
 			if name then
 				local list = bindings or {}
 				local keys = bound or {}
@@ -239,8 +239,8 @@ local function expandProps(isElement: boolean, props: Props, ownModel: boolean):
 end
 
 local function h(type_: VNodeType, propsIn: Props?, children: Types.Children?): VNode
+	local owner = componentModule.getRenderingInstance()
 	if type(type_) == "string" then
-		local owner = componentModule.getRenderingInstance()
 		local localComponents = if owner then owner.type.components else nil
 		local resolved = if localComponents then localComponents[type_] else nil
 		if resolved then
@@ -285,9 +285,7 @@ local function h(type_: VNodeType, propsIn: Props?, children: Types.Children?): 
 		slots = slots,
 		key = props.key,
 		_uid = vnodeIdCounter,
-		_owner = if type(props.ref) == "string" or props.class ~= nil
-			then componentModule.getRenderingInstance()
-			else nil,
+		_owner = if type(props.ref) == "string" or props.class ~= nil then owner else nil,
 	}
 end
 

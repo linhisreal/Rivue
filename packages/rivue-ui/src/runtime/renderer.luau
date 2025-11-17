@@ -2162,6 +2162,11 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 		if devtools then
 			renderStart = os.clock()
 		end
+		if inst.isMounted then
+			_reactivity._untracked(function()
+				inst:runBeforeUpdate()
+			end)
+		end
 		local render = inst.render
 		local profiled = inst.appContext.config.performance == true
 		local label = if profiled then `Rivue {inst.type.__name or "Anonymous"}` else ""
@@ -2188,7 +2193,6 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 		end
 		if inst.isMounted then
 			local prevTree = inst.subTree
-			inst:runBeforeUpdate()
 			if profiled then
 				debug.profilebegin(label .. " patch")
 			end
@@ -2342,9 +2346,9 @@ local function patchElement(oldVNode: RenderVNode, newVNode: RenderVNode, poolOp
 		return
 	end
 
-	newVNode._conns = oldVNode._conns or {}
+	newVNode._conns = oldVNode._conns
 	newVNode._handlers = oldVNode._handlers
-	newVNode._dirs = oldVNode._dirs or {}
+	newVNode._dirs = oldVNode._dirs
 	newVNode._touched = oldVNode._touched
 	newVNode._sugar = oldVNode._sugar
 	newVNode._tween = oldVNode._tween
@@ -2444,6 +2448,8 @@ end
 local function patchInner(oldVNode: RenderVNode?, newVNode: RenderVNode?, container: Instance, poolOpt: PoolOptions?)
 	if newVNode == nil then
 		unmountVNode(oldVNode, poolOpt)
+		return
+	elseif oldVNode == newVNode then
 		return
 	end
 
