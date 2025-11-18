@@ -1,0 +1,14 @@
+# Project place file
+/vue.rbxlx
+
+# Roblox Studio lock files
+/*.rbxlx.lock
+/*.rbxl.lock
+
+# Built source files
+sourcemap.json
+node_modules
+.vscode
+.DS_Store
+*.zip
+.rojo
