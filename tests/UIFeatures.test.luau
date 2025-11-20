@@ -130,6 +130,44 @@ local function runTests()
 		app:unmount()
 	end
 
+	print("Test 3b: Transition mode in-out")
+	do
+		local tab = Rivue.ref("A")
+		local App = Rivue.defineComponent({
+			name = "InOutApp",
+			setup = function()
+				return function()
+					return h(Rivue.Transition, {
+						mode = "in-out",
+						tweenInfo = TweenInfo.new(0.1),
+						from = { BackgroundTransparency = 1 },
+					}, {
+						h("Frame", { key = tab.value, Name = tab.value }),
+					})
+				end
+			end,
+		})
+		local container = Instance.new("Frame")
+		local app = Rivue.createApp(h(App))
+		app:mount(container)
+		local first = container:FindFirstChild("A")
+		tab.value = "B"
+		task.wait()
+		assertTrue(container:FindFirstChild("B") ~= nil, "New child enters straight away")
+		assertTrue(container:FindFirstChild("A") == first, "Old child stays while the new one enters")
+		task.wait(0.15)
+		assertTrue(container:FindFirstChild("A") ~= nil, "Old child leaves once the enter is done")
+		task.wait(0.2)
+		assertTrue(container:FindFirstChild("A") == nil, "Old child gone after its leave")
+		assertTrue(container:FindFirstChild("B") ~= nil, "New child stays")
+		local left = {}
+		for _, c in container:GetChildren() do
+			table.insert(left, c.Name)
+		end
+		assertEquals(table.concat(left, ","), "B", "Only the new child is left")
+		app:unmount()
+	end
+
 	print("Test 4: TransitionGroup")
 	do
 		local items = Rivue.ref({ "a", "b", "c" })
@@ -157,6 +195,141 @@ local function runTests()
 		task.wait(0.2)
 		assertTrue(container:FindFirstChild("b") == nil, "Removed item destroyed after leave")
 		assertEquals(#container:GetChildren(), 2, "Remaining items kept")
+		app:unmount()
+	end
+
+	print("Test 4a: TransitionGroup animates rows built with hFor")
+	do
+		local items = Rivue.ref({ "a" })
+		local App = Rivue.defineComponent({
+			name = "GroupForApp",
+			setup = function()
+				return function()
+					return h(
+						Rivue.TransitionGroup,
+						{ tweenInfo = TweenInfo.new(0.1), from = { BackgroundTransparency = 1 } },
+						{
+							h("UIListLayout"),
+							Rivue.hFor(items.value, function(item)
+								return h("Frame", { key = item, Name = item, BackgroundTransparency = 0 })
+							end),
+						}
+					)
+				end
+			end,
+		})
+		local container = Instance.new("Frame")
+		local app = Rivue.createApp(h(App))
+		app:mount(container)
+		task.wait()
+		items.value = { "a", "b" }
+		Rivue.nextTick()
+		assertEquals((container:FindFirstChild("b") :: Frame).BackgroundTransparency, 1, "An added row enters")
+		items.value = { "b" }
+		Rivue.nextTick()
+		assertTrue(container:FindFirstChild("a") ~= nil, "A removed row leaves")
+		task.wait(0.2)
+		assertEquals(container:FindFirstChild("a"), nil, "and is gone after the leave")
+		app:unmount()
+	end
+
+	print("Test 4b: TransitionGroup moves items placed with Position")
+	do
+		local items = Rivue.ref({ "a", "b", "c" })
+		local App = Rivue.defineComponent({
+			name = "MoveApp",
+			setup = function()
+				return function()
+					local rows = {}
+					for i, item in items.value do
+						rows[i] = h("Frame", { key = item, Name = item, Position = UDim2.fromOffset(0, (i - 1) * 40) })
+					end
+					return h(Rivue.TransitionGroup, { moveInfo = TweenInfo.new(0.1) }, rows)
+				end
+			end,
+		})
+		local container = Instance.new("Frame")
+		local app = Rivue.createApp(h(App))
+		app:mount(container)
+		local c = container:FindFirstChild("c") :: Frame
+		items.value = { "c", "a", "b" }
+		Rivue.nextTick()
+		assertEquals(c.Position, UDim2.fromOffset(0, 80), "A moved item starts where it was")
+		task.wait(0.2)
+		assertEquals(c.Position, UDim2.fromOffset(0, 0), "and slides to its new place")
+		assertEquals((container:FindFirstChild("a") :: Frame).Position, UDim2.fromOffset(0, 40), "Others slide too")
+		app:unmount()
+	end
+
+	print("Test 4c: TransitionGroup moves items inside a UIListLayout")
+	if __OFFLINE then
+		local items = Rivue.ref({ "a", "b", "c" })
+		local App = Rivue.defineComponent({
+			name = "MoveListApp",
+			setup = function()
+				return function()
+					return h(
+						Rivue.TransitionGroup,
+						{ tag = "Frame", tagProps = { Name = "List" }, moveInfo = TweenInfo.new(0.1) },
+						{
+							h("UIListLayout", { Name = "Layout", Padding = UDim.new(0, 10) }),
+							Rivue.hFor(items.value, function(item)
+								return h("Frame", { key = item, Name = item })
+							end),
+						}
+					)
+				end
+			end,
+		})
+		local container = Instance.new("Frame")
+		local app = Rivue.createApp(h(App))
+		app:mount(container)
+		local list = container:FindFirstChild("List") :: Frame
+		local layout = list:FindFirstChild("Layout") :: UIListLayout
+		local a = list:FindFirstChild("a") :: Frame
+		items.value = { "c", "a", "b" }
+		Rivue.nextTick()
+		assertTrue(layout.Parent == nil, "The layout steps aside while items slide")
+		assertEquals(a.Position, UDim2.fromOffset(0, 0), "An item starts where the layout had it")
+		task.wait(0.05)
+		task.wait(0.1)
+		assertTrue(layout.Parent == list, "The layout comes back when the slide ends")
+		assertEquals(a.Position, UDim2.new(), "and the items' own positions are restored")
+		app:unmount()
+	end
+
+	print("Test 4d: TransitionGroup moves grid cells and handles a second reorder mid-slide")
+	if __OFFLINE then
+		local items = Rivue.ref({ "a", "b", "c" })
+		local App = Rivue.defineComponent({
+			name = "MoveGridApp",
+			setup = function()
+				return function()
+					return h(
+						Rivue.TransitionGroup,
+						{ tag = "Frame", tagProps = { Name = "Grid" }, moveInfo = TweenInfo.new(0.1) },
+						{
+							h("UIGridLayout", { Name = "Layout" }),
+							Rivue.hFor(items.value, function(item)
+								return h("Frame", { key = item, Name = item })
+							end),
+						}
+					)
+				end
+			end,
+		})
+		local container = Instance.new("Frame")
+		local app = Rivue.createApp(h(App))
+		app:mount(container)
+		local grid = container:FindFirstChild("Grid") :: Frame
+		local layout = grid:FindFirstChild("Layout") :: UIGridLayout
+		items.value = { "c", "b", "a" }
+		Rivue.nextTick()
+		items.value = { "b", "c", "a" }
+		Rivue.nextTick()
+		task.wait(0.15)
+		assertTrue(layout.Parent == grid, "The layout is back after the slides")
+		assertEquals(#grid:GetChildren(), 4, "No cells were lost")
 		app:unmount()
 	end
 
