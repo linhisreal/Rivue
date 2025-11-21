@@ -205,7 +205,8 @@ Runs right before the component renders for the first time.
 
 ## onBeforeUpdate()
 
-Runs right before the component re-renders, while the Instances still show the old state.
+Runs right before the component re-renders, while the Instances still show the old state. State
+changed here shows up in that same render, as in Vue.
 
 - **Example**
 
