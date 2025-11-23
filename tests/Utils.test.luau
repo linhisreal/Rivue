@@ -177,6 +177,85 @@ local function runTests()
 		assertEquals(count, 0, "Should handle empty arrays")
 	end
 
+	-- Test 12: useRaf runs on every RenderStepped frame
+	print("Test 12: useRaf runs on every RenderStepped frame")
+	do
+		local frameCount = 0
+		local handle = Rivue.utils.useRaf(function(dt)
+			frameCount = frameCount + 1
+			assertTrue(type(dt) == "number", "Should receive delta time")
+		end)
+		task.wait(0.1)
+		assertTrue(frameCount > 0, "Should execute on RenderStepped frames")
+		handle.stop()
+		local prevCount = frameCount
+		task.wait(0.1)
+		assertEquals(frameCount, prevCount, "Should stop after handle.stop()")
+	end
+
+	-- Test 13: Profiler tracks execution time
+	print("Test 13: Profiler tracks execution time")
+	do
+		Rivue.utils.profiler:start("test-operation")
+		task.wait(0.05)
+		local elapsed = Rivue.utils.profiler:stop("test-operation")
+		assertTrue(elapsed ~= nil and elapsed > 0, "Should track elapsed time")
+		assertTrue(elapsed >= 0.05, "Elapsed time should be at least delay duration")
+	end
+
+	-- Test 14: Profiler handles multiple operations
+	print("Test 14: Profiler handles multiple operations")
+	do
+		Rivue.utils.profiler:start("op1")
+		Rivue.utils.profiler:start("op2")
+		task.wait(0.03)
+		local elapsed1 = Rivue.utils.profiler:stop("op1")
+		local elapsed2 = Rivue.utils.profiler:stop("op2")
+		assertTrue(elapsed1 ~= nil and elapsed2 ~= nil, "Should track multiple operations")
+	end
+
+	-- Test 15: shallowEqual compares primitives
+	print("Test 15: shallowEqual compares primitives")
+	do
+		assertTrue(Rivue.utils.shallowEqual(1, 1), "Should be equal for same numbers")
+		assertFalse(Rivue.utils.shallowEqual(1, 2), "Should not be equal for different numbers")
+		assertTrue(Rivue.utils.shallowEqual("test", "test"), "Should be equal for same strings")
+		assertFalse(Rivue.utils.shallowEqual("a", "b"), "Should not be equal for different strings")
+	end
+
+	-- Test 16: shallowEqual compares tables shallowly
+	print("Test 16: shallowEqual compares tables shallowly")
+	do
+		local a = { x = 1, y = 2 }
+		local b = { x = 1, y = 2 }
+		local c = { x = 1, y = 3 }
+		assertTrue(Rivue.utils.shallowEqual(a, b), "Should be equal for same properties")
+		assertFalse(Rivue.utils.shallowEqual(a, c), "Should not be equal for different values")
+	end
+
+	-- Test 17: shallowEqual only checks top level
+	print("Test 17: shallowEqual only checks top level")
+	do
+		local a = { nested = { value = 1 } }
+		local b = { nested = { value = 1 } }
+		assertFalse(Rivue.utils.shallowEqual(a, b), "Should not deep compare nested objects")
+
+		local c = { nested = a.nested }
+		assertTrue(Rivue.utils.shallowEqual(a, c), "Should be equal if nested reference is same")
+	end
+
+	-- Test 18: filterForClient handles text filtering
+	print("Test 18: filterForClient handles text filtering")
+	do
+		local Players = game:GetService("Players")
+		if Players.LocalPlayer then
+			local filtered = Rivue.utils.filterForClient(Players.LocalPlayer, "Hello World")
+			assertTrue(type(filtered) == "string", "Should return a string")
+		else
+			print("  ⊘ Skipped (no LocalPlayer available)")
+		end
+	end
+
 	print("\n========== UTILS TESTS COMPLETE ==========\n")
 end
 

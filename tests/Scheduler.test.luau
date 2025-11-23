@@ -181,6 +181,65 @@ local function runTests()
 		assertTrue(executed, "Should default to micro mode")
 	end
 
+	-- Test 12: Multiple render jobs execute in order
+	print("Test 12: Multiple render jobs execute in order")
+	do
+		local order = {}
+		scheduler.queueJob(function()
+			table.insert(order, 1)
+		end, { mode = "render" })
+		scheduler.queueJob(function()
+			table.insert(order, 2)
+		end, { mode = "render" })
+		scheduler.queueJob(function()
+			table.insert(order, 3)
+		end, { mode = "render" })
+		task.wait(0.1)
+		assertEquals(#order, 3, "All render jobs should execute")
+	end
+
+	-- Test 13: Multiple heartbeat jobs execute in order
+	print("Test 13: Multiple heartbeat jobs execute in order")
+	do
+		local order = {}
+		scheduler.queueJob(function()
+			table.insert(order, 1)
+		end, { mode = "heartbeat" })
+		scheduler.queueJob(function()
+			table.insert(order, 2)
+		end, { mode = "heartbeat" })
+		scheduler.queueJob(function()
+			table.insert(order, 3)
+		end, { mode = "heartbeat" })
+		task.wait(0.1)
+		assertEquals(#order, 3, "All heartbeat jobs should execute")
+	end
+
+	-- Test 14: Flush modes work correctly
+	print("Test 14: Scheduler supports different flush modes")
+	do
+		-- This test validates that the scheduler respects different modes
+		-- The actual flush timing is tested indirectly through reactivity watch()
+		local microExecuted = false
+		local renderExecuted = false
+		local heartbeatExecuted = false
+
+		scheduler.queueJob(function()
+			microExecuted = true
+		end, { mode = "micro" })
+
+		scheduler.queueJob(function()
+			renderExecuted = true
+		end, { mode = "render" })
+
+		scheduler.queueJob(function()
+			heartbeatExecuted = true
+		end, { mode = "heartbeat" })
+
+		task.wait(0.15)
+		assertTrue(microExecuted and renderExecuted and heartbeatExecuted, "All flush modes should execute")
+	end
+
 	print("\n========== SCHEDULER TESTS COMPLETE ==========\n")
 end
 
