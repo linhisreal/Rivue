@@ -2,7 +2,7 @@
 
 # 🎨 Rivue
 
-## A Vue.js-Inspired Reactive UI Framework for Roblox
+**A Vue.js-Inspired Reactive UI Framework for Roblox**
 
 [![GPL-3.0 License](https://img.shields.io/badge/License-GPL--3.0-blue.svg?style=for-the-badge)](LICENSE)
 [![Luau](https://img.shields.io/badge/Language-Luau-00A2FF.svg?style=for-the-badge&logo=lua)](https://luau-lang.org/)
