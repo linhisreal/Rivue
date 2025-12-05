@@ -360,6 +360,7 @@ local function trigger(target: any, key: any)
 		return
 	end
 	for eff: any, _ in pairs(dep) do
+		if not eff.active then continue end
 		if eff.scheduler then
 			eff.scheduler(eff.run)
 		else
@@ -369,6 +370,8 @@ local function trigger(target: any, key: any)
 end
 
 local proxyCache: { [any]: any } = setmetatable({}, { __mode = "k" }) :: any
+local shallowProxyCache: { [any]: any } = setmetatable({}, { __mode = "k" }) :: any
+local readonlyCache: { [any]: any } = setmetatable({}, { __mode = "k" }) :: any
 
 --- Creates a deeply reactive proxy of an object.
 ---  All nested objects are automatically made reactive
@@ -446,6 +449,14 @@ end
 local function shallowReactive<T>(target: T & {}): T
 	assert(isTable(target), "shallowReactive expects a table")
 	local tbl: any = target
+	if rawMarker[tbl] then
+		return target
+	end
+	local cached = shallowProxyCache[tbl]
+	if cached then
+		return cached
+	end
+
 	local proxy = {}
 
 	-- Mark as reactive for isReactive() check
@@ -471,6 +482,7 @@ local function shallowReactive<T>(target: T & {}): T
 		return tostring(tbl)
 	end
 	setmetatable(proxy, mt)
+	shallowProxyCache[tbl] = proxy
 	return proxy :: any
 end
 
@@ -575,8 +587,10 @@ local function computed<T>(getter: () -> T): ComputedRef<T>
 	end, {
 		lazy = true,
 		scheduler = function(_: any)
-			dirty = true;
-			(scheduler :: any).queueJob(function() end)
+			if not dirty then
+				dirty = true
+				trigger(obj, "value")
+			end
 		end,
 	})
 	local obj: any = {}
@@ -617,8 +631,11 @@ local function toRef<T>(obj: any, key: any): Ref<T>
 		end,
 		__newindex = function(_: any, k: any, v: any)
 			if k == "value" then
+				local old = obj[key]
 				obj[key] = v
-				trigger(obj, key)
+				if old ~= v then
+					trigger(obj, key)
+				end
 				return
 			end
 			rawset(r, k, v)
@@ -653,8 +670,9 @@ local function _traverse(value: any, seen: { [any]: boolean }?): any
 		return value
 	end
 	seenTables[value] = true
-	for _, v in pairs(value) do
-		_traverse(v, seenTables)
+	local raw = toRaw(value)
+	for k, _ in pairs(raw) do
+		_traverse((value :: any)[k], seenTables)
 	end
 	return value
 end
@@ -737,6 +755,9 @@ local function watch(source: (() -> any) | Ref<any> | any, cb: WatchCallback, op
 		job()
 	else
 		oldValue = getter()
+		if options.deep then
+			_traverse(oldValue, nil)
+		end
 	end
 	local function stop()
 		eff:stop()
@@ -762,9 +783,10 @@ end
 --- @param _opts { flush: "pre" | "post" | "sync"? }? -- Options: flush timing (currently ignored, always deferred)
 --- @return WatchStopHandle -- Function to stop the effect
 local function watchEffect(fn: () -> (), _opts: any?): WatchStopHandle
-	-- watchEffect is just watch with the function as both source and callback
-	-- It immediately executes and tracks all reactive dependencies
-	return watch(fn, fn, { immediate = true })
+	local eff = createEffect(fn, { lazy = false })
+	return function()
+		eff:stop()
+	end
 end
 
 --- Creates a readonly reactive proxy that throws warnings on mutation attempts
@@ -781,12 +803,18 @@ local function readonly<T>(target: T): T
 		return target
 	end
 
+	local cached = readonlyCache[target :: any]
+	if cached then
+		return cached
+	end
+
 	local proxy = {}
 
 	-- Mark as readonly for isReadonly() check
 	readonlyMarker[proxy] = true
 	-- Also store original for toRaw()
 	reactiveMarker[proxy] = target
+	readonlyCache[target :: any] = proxy
 
 	setmetatable(proxy, {
 		__index = function(_: any, k: any): any

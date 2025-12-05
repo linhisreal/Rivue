@@ -398,11 +398,9 @@ local function validateProps(schema: PropSchema?, props: { [string]: any }): (bo
 
 		-- Run custom validator if provided
 		if val ~= nil and spec.validator then
-			local valid = pcall(function()
-				return spec.validator(val)
-			end)
+			local ok, result = pcall(spec.validator, val)
 
-			if not valid then
+			if not ok or result == false then
 				table.insert(errs, ("prop '%s' failed custom validation"):format(name))
 			end
 		end
@@ -624,8 +622,7 @@ local function createComponentInstance(vnode: VNode, parent: ComponentInstance?)
 		end
 	end
 
-	function instance:runUnmounted()
-		local totalCallbacks = #self.unmountedCbs + #self.cleanupCbs
+	function instance:runUnmounted()		local totalCallbacks = #self.unmountedCbs + #self.cleanupCbs
 		local effectCount = (self :: any)._effects and #(self :: any)._effects or 0
 		local jobCount = (self :: any)._schedulerJobs and #(self :: any)._schedulerJobs or 0
 		if totalCallbacks > 0 or effectCount > 0 or jobCount > 0 then
@@ -673,6 +670,23 @@ local function createComponentInstance(vnode: VNode, parent: ComponentInstance?)
 			end
 			(self :: any)._effects = {}
 		end
+	end
+
+	function instance:handleError(err: string, info: string)
+		local cur: any = self.parent
+		while cur do
+			if cur.errorCapturedCbs then
+				for _, handler in ipairs(cur.errorCapturedCbs) do
+					local ok, stop = pcall(handler, err, self, info)
+					if ok and stop == true then
+						return
+					end
+				end
+			end
+			cur = cur.parent
+		end
+		-- If no handler consumed it, log it
+		debugModule.log("Component", "Unhandled component error: " .. tostring(err), { info = info })
 	end
 
 	return instance, ctx
