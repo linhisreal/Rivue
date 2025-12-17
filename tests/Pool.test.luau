@@ -132,6 +132,20 @@ local function runTests()
 		container:Destroy()
 	end
 
+	-- Test 8: release() restores touched props to class defaults
+	print("Test 8: release() restores touched props to class defaults")
+	do
+		Pool.clear("TextLabel")
+		local label = Pool.acquire("TextLabel") :: TextLabel
+		local defaultSize = Instance.new("TextLabel").TextSize
+		label.TextSize = defaultSize + 10
+		Pool.release(label, { TextSize = true })
+		local reused = Pool.acquire("TextLabel") :: TextLabel
+		assertTrue(reused == label, "Should reuse the pooled instance")
+		assertEquals(reused.TextSize, defaultSize, "Touched prop should be restored to its default")
+		Pool.release(reused)
+	end
+
 	print("\n========== POOL TESTS COMPLETE ==========\n")
 end
 

@@ -173,17 +173,12 @@ end
 --- @return any? -- Response data if successful
 --- @return string? -- Error message if failed
 function Remote.request(actionName: string, payload: any, timeout: number?): (any?, string?)
-	local payloadSize = 0
-	if payload and type(payload) == "table" then
-		for _ in pairs(payload) do
-			payloadSize = payloadSize + 1
-		end
+	if debugModule.enabled then
+		debugModule.log("Remote", "Sending request to server", {
+			action = actionName,
+			timeoutSec = timeout or 10,
+		})
 	end
-	debugModule.log("Remote", "Sending request to server", {
-		action = actionName,
-		timeoutSec = timeout or 10,
-		payloadFields = payloadSize,
-	})
 	-- Validate action name
 	if type(actionName) ~= "string" or #actionName == 0 or #actionName > 100 then
 		return nil, "invalid_action_name"
@@ -199,32 +194,47 @@ function Remote.request(actionName: string, payload: any, timeout: number?): (an
 	local reqId = HttpService:GenerateGUID(false)
 	local reqEv = getRequestEvent()
 	local resEv = getResponseEvent()
-	local promiseResolved = false
+	local thread = coroutine.running()
+	local done = false
+	local waiting = false
 	local result: RemoteResponse? = nil
-	local conn: RBXScriptConnection?
-	local start = tick()
+	local conn: RBXScriptConnection? = nil
+	local timeoutThread: thread? = nil
 
-	conn = resEv.OnClientEvent:Connect(function(resp: RemoteResponse)
-		if resp and resp.id == reqId then
-			promiseResolved = true
-			result = resp
-
-			if conn then
-				conn:Disconnect()
-			end
+	-- Settles the request exactly once and wakes the yielded caller (no polling loop)
+	local function settle(resp: RemoteResponse?, fromTimeout: boolean)
+		if done then
+			return
 		end
-	end)
-
-	reqEv:FireServer({ action = actionName, payload = payload, id = reqId })
-
-	while not promiseResolved and (tick() - start) < timeoutValue do
-		task.wait(0.05)
-	end
-
-	if not promiseResolved then
+		done = true
+		result = resp
 		if conn then
 			conn:Disconnect()
 		end
+		if timeoutThread and not fromTimeout then
+			task.cancel(timeoutThread)
+		end
+		if waiting then
+			task.spawn(thread)
+		end
+	end
+
+	conn = resEv.OnClientEvent:Connect(function(resp: RemoteResponse)
+		if resp and resp.id == reqId then
+			settle(resp, false)
+		end
+	end)
+	timeoutThread = task.delay(timeoutValue, settle, nil, true)
+
+	reqEv:FireServer({ action = actionName, payload = payload, id = reqId })
+
+	-- The response may already have arrived synchronously; only yield if still pending
+	if not done then
+		waiting = true
+		coroutine.yield()
+	end
+
+	if result == nil then
 		debugModule.log("Remote", "Request timed out", { action = actionName, timeout = timeoutValue })
 		return nil, "timeout"
 	end

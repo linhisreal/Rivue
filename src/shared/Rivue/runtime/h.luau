@@ -52,7 +52,7 @@ local utils = require(script.Parent:WaitForChild("utils"))
 --- Normalizes children to an array format
 --- @param children any -- Child nodes (can be string, number, table, function, or nil)
 --- @return { any } -- Normalized array of children
-local function nomalizeChildren(children: any): { any }
+local function normalizeChildren(children: any): { any }
 	if children == nil then
 		return {}
 	end
@@ -80,24 +80,18 @@ local function h(type_: string | any, props: { [string]: any }?, children: any):
 	if props == nil then
 		props = {}
 	end
-	local ch = nomalizeChildren(children)
-	vnodeIdCounter = vnodeIdCounter + 1
+	local ch = normalizeChildren(children)
+	vnodeIdCounter += 1
 
-	local propCount = 0
-	if props then
-		for _ in pairs(props) do
-			propCount = propCount + 1
-		end
+	-- h() is the hottest call in the framework: never build log payloads unless debugging
+	if debugModule.enabled then
+		debugModule.log("H", "Creating VNode", {
+			type = if type(type_) == "string" then type_ elseif type(type_) == "table" then type_.__name else "function",
+			childCount = #ch,
+			hasKey = props and props.key ~= nil,
+			uid = vnodeIdCounter,
+		})
 	end
-
-	local typeStr = type(type_) == "string" and type_ or (type(type_) == "table" and type_.__name or "function")
-	debugModule.log("H", "Creating VNode", {
-		type = typeStr,
-		childCount = #ch,
-		propCount = propCount,
-		hasKey = props and props.key ~= nil,
-		uid = vnodeIdCounter,
-	})
 
 	return {
 		type = type_,
@@ -124,16 +118,20 @@ end
 --- @param mapper (any, number) -> VNode? -- Mapping function
 --- @return { VNode } -- Array of VNodes
 local function hFor<T>(list: { T }, mapper: (T, number) -> VNode?): { VNode }
-	debugModule.log("H", "Rendering list with hFor", { itemCount = #list })
+	if debugModule.enabled then
+		debugModule.log("H", "Rendering list with hFor", { itemCount = #list })
+	end
 
 	-- Profile list rendering for performance monitoring
 	if utils.profiler.active then
 		utils.profiler:start("hFor_" .. tostring(#list))
 	end
 
-	local out: { VNode } = {}
-	for i, v in ipairs(list) do
-		local node = mapper(v, i)
+	-- Numeric loop so reactive arrays work: ipairs() bypasses proxies (and their tracking) in Luau
+	local count = #list
+	local out: { VNode } = table.create(count)
+	for i = 1, count do
+		local node = mapper(list[i], i)
 		if node then
 			table.insert(out, node)
 		end
@@ -154,15 +152,19 @@ end
 --- @param keyFn function? -- Optional key function (item) -> any
 --- @return { VNode } -- Array of VNodes with __parallel marker
 local function hForParallel(items: any, mapper: any, keyFn: any?): { any }
-	debugModule.log("H", "Rendering large list with hForParallel", { itemCount = #items, hasKeyFn = keyFn ~= nil })
+	if debugModule.enabled then
+		debugModule.log("H", "Rendering large list with hForParallel", { itemCount = #items, hasKeyFn = keyFn ~= nil })
+	end
 
 	-- Profile parallel list rendering
 	if utils.profiler.active then
 		utils.profiler:start("hForParallel_" .. tostring(#items))
 	end
 
-	local out = {}
-	for i, item in ipairs(items) do
+	local count = #items
+	local out: any = table.create(count)
+	for i = 1, count do
+		local item = items[i]
 		local vnode = mapper(item, i)
 		if vnode then
 			if keyFn then

@@ -310,6 +310,7 @@ end
 local function setProp(inst, key, value, vnode)
 	vnode._conns = vnode._conns or {}
 	vnode._dirs = vnode._dirs or {}
+	vnode._touched = vnode._touched or {}
 
 	if key == "__directives" and type(value) == "table" then
 		for _, d in ipairs(value) do
@@ -369,7 +370,10 @@ local function setProp(inst, key, value, vnode)
 			inst[key] = value
 		end)
 
-		if not ok then
+		if ok then
+			-- Remembered so a pooled Instance can restore this prop to its class default
+			vnode._touched[key] = true
+		else
 			debugModule.log("Renderer", "Failed to set prop " .. tostring(key) .. ": " .. tostring(err))
 		end
 
@@ -383,7 +387,9 @@ local function setProp(inst, key, value, vnode)
 			inst[k2] = value
 		end)
 
-		if not ok then
+		if ok then
+			vnode._touched[k2] = true
+		else
 			debugModule.log("Renderer", "Failed to set prop " .. tostring(k2) .. ": " .. tostring(err))
 		end
 
@@ -514,17 +520,13 @@ local function runTransition(inst, transition, phase)
 		return
 	end
 
-	local done = Pool.acquire("BindableEvent") :: BindableEvent
-	local conn
-
-	conn = tween.Completed:Connect(function()
-		done:Fire()
-	end)
-
 	tween:Play()
-	done.Event:Wait()
-	conn:Disconnect()
-	Pool.release(done)
+
+	-- Only "leave" needs to wait (the Instance is destroyed afterwards). Waiting on "enter"
+	-- yielded the whole mount/render effect for the tween's duration.
+	if phase == "leave" then
+		tween.Completed:Wait()
+	end
 end
 
 --- Mounts a VNode as a new Instance in the DOM
@@ -700,7 +702,7 @@ local function unmountVNode(vnode, poolOpt)
 		if vnode.el and vnode.el.Destroy then
 			if poolOpt and poolOpt.usePool and vnode.el.ClassName and vnode.el.ClassName ~= "ScreenGui" then
 				clearVNodeConns(vnode)
-				Pool.release(vnode.el)
+				Pool.release(vnode.el, vnode._touched)
 			else
 				pcall(function()
 					vnode.el:Destroy()
@@ -1101,6 +1103,7 @@ function patch(oldVNode: any, newVNode: any, container: Instance, poolOpt: any)
 		-- Without this, setProp creates a new empty _conns table and can't disconnect old handlers
 		newVNode._conns = oldVNode._conns or {}
 		newVNode._dirs = oldVNode._dirs or {}
+		newVNode._touched = oldVNode._touched
 
 		-- Skip patching if props haven't changed (shallow comparison)
 		-- This is a critical performance optimization for stable props
