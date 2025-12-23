@@ -1,6 +1,5 @@
 --!strict
 --!optimize 2
---!native
 
 -- Debug & Development Utilities
 -- ==============================
@@ -71,10 +70,10 @@ type PrettyPrintOptions = {
 }
 
 -- Internal reference to toRaw function (set by main.luau to avoid circular dependency)
-debug._toRaw = nil :: ((any) -> any)?
+debug._toRaw = nil :: ((unknown) -> unknown)?
 
 -- Automatically enable debug mode in Studio, disable in published games
-debug.enabled = RunService and RunService:IsStudio() or false
+debug.enabled = RunService:IsStudio()
 
 -- =============================================================================
 -- LOGGING & PERFORMANCE
@@ -84,8 +83,8 @@ debug.enabled = RunService and RunService:IsStudio() or false
 --- Only logs when debug.enabled is true
 --- @param component string -- Component name (e.g., "Scheduler", "Reactivity")
 --- @param message string -- Debug message
---- @param data any? -- Optional additional data to log
-function debug.log(component: string, message: string, data: any?)
+--- @param data unknown? -- Optional additional data to log
+function debug.log(component: string, message: string, data: unknown?)
 	if not debug.enabled then
 		return
 	end
@@ -102,9 +101,9 @@ end
 --- Measures execution time of a function (only when debug.enabled)
 --- Logs the duration automatically
 --- @param name string -- Name for the measurement
---- @param fn () -> T -- Function to measure
---- @return ...any -- Return values of fn
-function debug.measure(name: string, fn: (...any) -> ...any): ...any
+--- @param fn () -> R... -- Function to measure
+--- @return R... -- Return values of fn (generic pack, so callers keep their types)
+function debug.measure<R...>(name: string, fn: () -> R...): R...
 	if not debug.enabled then
 		return fn()
 	end
@@ -113,103 +112,77 @@ function debug.measure(name: string, fn: (...any) -> ...any): ...any
 	local results = table.pack(fn())
 	local duration = (os.clock() - startTime) * 1000 -- Convert to milliseconds
 
-	debug.log("Performance", name .. " took " .. string.format("%.3f", duration) .. "ms")
+	debug.log("Performance", `{name} took {string.format("%.3f", duration)}ms`)
 
-	return table.unpack(results, 1, results.n)
+	-- table.pack erases the pack type; restore it at this single boundary
+	return (table.unpack :: any)(results, 1, results.n)
 end
 
 -- =============================================================================
 -- PRETTY PRINTING & INSPECTION
 -- =============================================================================
 
---- Checks if a value is a reactive proxy
---- @param value any -- Value to check
---- @return boolean -- True if value appears to be a reactive proxy
-local function isReactiveProxy(value: any): boolean
-	if type(value) ~= "table" then
-		return false
+--- Unwraps a reactive/readonly proxy to its raw table (non-proxies are returned unchanged)
+--- Previously this looked for __isReactive/__isProxy/__isRef metatable flags that reactivity never
+--- sets, so inspect()/prettyPrint() printed proxies as empty tables.
+--- @param value unknown -- Value to unwrap
+--- @return unknown -- Raw value or the original value
+local function unwrapProxy(value: unknown): unknown
+	local toRaw = debug._toRaw
+	if toRaw and type(value) == "table" then
+		return toRaw(value)
 	end
-
-	local mt = getmetatable(value)
-	if mt and (mt.__isReactive or mt.__isProxy or mt.__isRef) then
-		return true
-	end
-
-	return false
-end
-
---- Unwraps a reactive proxy to get the raw underlying value
---- @param value any -- Value to unwrap
---- @return any -- Raw value or original value if not a proxy
-local function unwrapProxy(value: any): any
-	if not isReactiveProxy(value) then
-		return value
-	end
-
-	-- Try to access raw value from metatable directly (avoid circular dependency)
-	local mt = getmetatable(value)
-	if mt and mt.__raw then
-		return mt.__raw
-	end
-
-	-- Fallback: try toRaw if available via shared state
-	-- This will be set by main.luau after initialization
-	if debug._toRaw then
-		return debug._toRaw(value)
-	end
-
 	return value
 end
 
+--- Formats a table key for display
+--- @param key unknown -- Table key
+--- @return string -- `name` for string keys, `[key]` otherwise
+local function formatKey(key: unknown): string
+	return if type(key) == "string" then key else `[{tostring(key)}]`
+end
+
+--- Formats a non-table value for display (strings quoted)
+--- @param v unknown -- Value
+--- @return string -- Display text
+local function formatScalar(v: unknown): string
+	return if type(v) == "string" then `"{v}"` else tostring(v)
+end
+
 --- Pretty-prints a value with proper formatting, unwrapping proxies
---- @param value any -- Value to print
---- @param options PrettyPrintOptions? -- Optional formatting options
-function debug.prettyPrint(value: any, options: PrettyPrintOptions?)
-	local opts: PrettyPrintOptions = options or {} :: PrettyPrintOptions
-	local indent: number = opts.indent or 0
-	local maxDepth: number = opts.maxDepth or 10
-	local unwrapProxies: boolean = opts.unwrapProxies ~= false
+--- @param value unknown -- Value to print
+--- @param options PrettyPrintOptions? -- Formatting options
+function debug.prettyPrint(value: unknown, options: PrettyPrintOptions?)
+	local opts: PrettyPrintOptions = options or {}
+	local indent = opts.indent or 0
+	local maxDepth = opts.maxDepth or 10
+	local unwrapProxies = opts.unwrapProxies ~= false
+	local visited: { [unknown]: true } = {}
 
-	local visited = {}
+	local function printValue(input: unknown, currentIndent: number, currentDepth: number)
+		local v = if unwrapProxies then unwrapProxy(input) else input
+		local pad = string.rep("  ", currentIndent)
 
-	local function printValue(v: any, currentIndent: number, currentDepth: number)
-		if unwrapProxies and isReactiveProxy(v) then
-			v = unwrapProxy(v)
-		end
-
-		local vType = type(v)
-
-		if vType ~= "table" then
-			if vType == "string" then
-				print(string.rep("  ", currentIndent) .. '"' .. tostring(v) .. '"')
-			else
-				print(string.rep("  ", currentIndent) .. tostring(v))
-			end
+		if type(v) ~= "table" then
+			print(pad .. formatScalar(v))
 			return
 		end
-
 		if visited[v] then
-			print(string.rep("  ", currentIndent) .. "<circular reference>")
+			print(pad .. "<circular reference>")
 			return
 		end
-
 		if currentDepth >= maxDepth then
-			print(string.rep("  ", currentIndent) .. "<max depth reached>")
+			print(pad .. "<max depth reached>")
 			return
 		end
 
 		visited[v] = true
-
-		print(string.rep("  ", currentIndent) .. "{")
-
-		for key, val in pairs(v) do
-			local keyStr = type(key) == "string" and key or "[" .. tostring(key) .. "]"
-			print(string.rep("  ", currentIndent + 1) .. keyStr .. " = ")
+		print(pad .. "{")
+		for key, val in v :: { [unknown]: unknown } do
+			print(`{pad}  {formatKey(key)} = `)
 			printValue(val, currentIndent + 1, currentDepth + 1)
 		end
-
-		print(string.rep("  ", currentIndent) .. "}")
-
+		print(pad .. "}")
 		visited[v] = nil
 	end
 
@@ -217,66 +190,42 @@ function debug.prettyPrint(value: any, options: PrettyPrintOptions?)
 end
 
 --- Returns a string representation of a value for debugging
---- @param value any -- Value to inspect
+--- @param value unknown -- Value to inspect
 --- @param depth number? -- Maximum depth (default: 3)
 --- @return string -- String representation
-function debug.inspect(value: any, depth: number?): string
-	depth = depth or 3
-	local visited = {}
+function debug.inspect(value: unknown, depth: number?): string
+	local maxDepth = depth or 3
+	local visited: { [unknown]: true } = {}
 
-	local function inspectValue(v: any, currentDepth: number, indent: string): string
-		if isReactiveProxy(v) then
-			v = unwrapProxy(v)
+	local function inspectValue(input: unknown, currentDepth: number, indent: string): string
+		local v = unwrapProxy(input)
+		if type(v) ~= "table" then
+			return formatScalar(v)
 		end
-
-		local vType = type(v)
-
-		if vType ~= "table" then
-			if vType == "string" then
-				return '"' .. tostring(v) .. '"'
-			else
-				return tostring(v)
-			end
-		end
-
 		if visited[v] then
 			return "<circular>"
 		end
-
-		if currentDepth >= (depth or 5) then
+		if currentDepth >= maxDepth then
 			return "<...>"
 		end
 
 		visited[v] = true
-
-		local parts = {}
 		local nextIndent = indent .. "  "
-
-		table.insert(parts, "{")
-
-		for key, val in pairs(v) do
-			local keyStr = type(key) == "string" and key or "[" .. tostring(key) .. "]"
-			local valStr = inspectValue(val, currentDepth + 1, nextIndent)
-			table.insert(parts, "\n" .. nextIndent .. keyStr .. " = " .. valStr)
+		local parts = { "{" }
+		for key, val in v :: { [unknown]: unknown } do
+			table.insert(parts, `\n{nextIndent}{formatKey(key)} = {inspectValue(val, currentDepth + 1, nextIndent)}`)
 		end
-
-		if #parts > 1 then
-			table.insert(parts, "\n" .. indent .. "}")
-		else
-			parts[1] = "{}"
-		end
-
 		visited[v] = nil
 
+		if #parts == 1 then
+			return "{}"
+		end
+		table.insert(parts, `\n{indent}}`)
 		return table.concat(parts)
 	end
 
 	return inspectValue(value, 0, "")
 end
-
--- =============================================================================
--- ASSERTIONS & ERROR FORMATTING
--- =============================================================================
 
 --- Asserts an invariant in dev mode. Throws if condition is false.
 --- Only active when debug.enabled is true.
@@ -293,7 +242,7 @@ end
 --- @param message string -- Error message
 --- @param context any? -- Optional context data
 --- @return string -- Formatted error message
-function debug.formatError(component: string, message: string, context: any?): string
+function debug.formatError(component: string, message: string, context: unknown?): string
 	local parts = { "[Rivue:" .. component .. "] " .. message }
 
 	if context then

@@ -345,6 +345,91 @@ local function runTests()
 		container:Destroy()
 	end
 
+	-- Test 16: Nested components get their parent, so inject() sees an ancestor's provide()
+	print("Test 16: inject() resolves values provided by an ancestor component")
+	do
+		local injected: any = nil
+		local Child = Rivue.defineComponent({
+			name = "InjectChild",
+			setup = function(_props, ctx)
+				injected = ctx.inject("theme")
+				return function()
+					return Rivue.h("Frame")
+				end
+			end,
+		})
+		local Provider = Rivue.defineComponent({
+			name = "Provider",
+			setup = function(_props, ctx)
+				ctx.provide("theme", "dark")
+				return function()
+					return Rivue.h("Frame", {}, { Rivue.h(Child) })
+				end
+			end,
+		})
+		local container = Instance.new("Folder")
+		local app = renderer.createApp(Rivue.h(Provider))
+		app:mount(container)
+		assertEquals(injected, "dark", "Child should inject the ancestor's provided value")
+		app:unmount()
+		container:Destroy()
+	end
+
+	-- Test 17: Directive updated hooks run when the bound value changes
+	print("Test 17: Directive updated hook runs on re-render")
+	do
+		local visible = Rivue.ref(true)
+		local Comp = Rivue.defineComponent({
+			name = "ShowDirective",
+			setup = function()
+				return function()
+					return Rivue.h("Frame", {
+						Name = "Shown",
+						__directives = { { name = "show", value = visible.value } },
+					})
+				end
+			end,
+		})
+		local container = Instance.new("Folder")
+		local app = renderer.createApp(Rivue.h(Comp))
+		app:mount(container)
+		local frame = container:FindFirstChild("Shown") :: Frame
+		assertEquals(frame.Visible, true, "Initially visible")
+		visible.value = false
+		task.wait(0.1)
+		assertEquals(frame.Visible, false, "show directive should hide the element on update")
+		app:unmount()
+		container:Destroy()
+	end
+
+	-- Test 18: Functional components update in place instead of remounting
+	print("Test 18: Functional component output is diffed, not remounted")
+	do
+		local label = Rivue.ref("a")
+		local function Label(props: any)
+			return Rivue.h("TextLabel", { Name = "FnLabel", Text = props.text })
+		end
+		local Comp = Rivue.defineComponent({
+			name = "FnHost",
+			setup = function()
+				return function()
+					return Rivue.h("Frame", { Name = "FnHostRoot" }, { Rivue.h(Label, { text = label.value }) })
+				end
+			end,
+		})
+		local container = Instance.new("Folder")
+		local app = renderer.createApp(Rivue.h(Comp))
+		app:mount(container)
+		local first = container:FindFirstChild("FnHostRoot"):FindFirstChild("FnLabel")
+		label.value = "b"
+		task.wait(0.1)
+		local second = container:FindFirstChild("FnHostRoot"):FindFirstChild("FnLabel")
+		assertTrue(first == second, "Should reuse the same Instance")
+		assertEquals(second and (second :: any).Text, "b", "Should update the text")
+		app:unmount()
+		container:Destroy()
+	end
+
 	print("\n========== RENDERER TESTS COMPLETE ==========\n")
 end
 
