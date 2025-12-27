@@ -308,7 +308,15 @@ local function evictStaleInstances(className: string): ()
 			local age = now - metadata.releasedAt
 			if age > Pool.config.defaultTTL then
 				-- Evict stale instance
-				table.remove(list, i)
+				-- Optimization: Swap-remove (O(1)) instead of table.remove (O(n))
+				local last = #list
+				if i == last then
+					table.remove(list)
+				else
+					list[i] = list[last]
+					table.remove(list)
+				end
+
 				Pool.instanceMetadata[inst] = nil
 				pcall(function()
 					inst:Destroy()
@@ -332,6 +340,7 @@ local function evictStaleInstances(className: string): ()
 						ttl = Pool.config.defaultTTL,
 					})
 				end
+				-- Don't increment i, re-check the swapped element at this index
 				continue
 			end
 		end
@@ -767,7 +776,15 @@ function Pool.validateHealth(): boolean
 			totalChecked += 1
 			local inst = list[i]
 			if not isInstanceValid(inst) then
-				table.remove(list, i)
+				-- Optimization: Swap-remove (O(1))
+				local last = #list
+				if i == last then
+					table.remove(list)
+				else
+					list[i] = list[last]
+					table.remove(list)
+				end
+
 				Pool.instanceMetadata[inst] = nil
 				removedCount += 1
 
@@ -780,6 +797,7 @@ function Pool.validateHealth(): boolean
 						Pool.eventHooks.onEvict(inst, "HEALTH_CHECK_FAILED")
 					end)
 				end
+				-- Don't increment i, re-check the swapped element
 			else
 				i += 1
 			end

@@ -806,6 +806,19 @@ local function patchChildrenParallel(items: any, renderFn: any, parent: Instance
 end
 
 --- Patches keyed children using efficient diffing algorithm
+--- This function implements the core reconciliation strategy for lists:
+--- 1. Maps old children by key for O(1) lookup
+--- 2. Iterates new children to find matches or create new nodes
+--- 3. Handles moves by updating LayoutOrder (if UILayout exists)
+--- 4. Unmounts remaining old children that weren't reused
+---
+--- Strategy:
+--- - Keyed diffing minimizes DOM operations by reusing instances where keys match.
+--- - If a key matches, we patch the existing instance (update props/children).
+--- - If no match in old VNodes, we look for an existing DOM node with that key (hydration-like).
+--- - If still no match, we mount a new node.
+--- - Finally, any old nodes not found in the new list are unmounted.
+---
 --- @param oldChildren any -- Previous VNode children
 --- @param newChildren any -- New VNode children
 --- @param parent Instance -- Parent Instance
@@ -815,6 +828,7 @@ local function patchKeyedChildren(oldChildren: any, newChildren: any, parent: In
 	oldChildren = oldChildren or {}
 	newChildren = newChildren or {}
 
+	-- Map old children by key for fast lookup
 	local oldMap = {}
 
 	for _, oc in ipairs(oldChildren) do
@@ -825,39 +839,51 @@ local function patchKeyedChildren(oldChildren: any, newChildren: any, parent: In
 		end
 	end
 
+	-- Check if we need to manage LayoutOrder
 	local useLayout = parentHasUILayout(parent)
 
+	-- Iterate new children and reconcile with old
 	for i, nc in ipairs(newChildren) do
 		local k = (type(nc) == "table" and nc.key) or nil
 
 		if k then
+			-- Keyed child: look for match in old map
 			local oc = oldMap[k]
 
 			if oc then
+				-- Found match: update existing instance
 				patch(oc, nc, parent, poolOpt)
+				-- Remove from map so we know it was used
 				oldMap[k] = nil
 			else
+				-- No VNode match: check if a DOM node exists with this key (rehydration/recovery)
 				local found = findChildByKey(parent, k)
 
 				if found then
+					-- Recover existing DOM node
 					local placeholder = { type = found.ClassName, el = found, props = {}, children = {}, key = k }
 					patch(placeholder, nc, parent, poolOpt)
 				else
+					-- New node: mount it
 					patch(nil, nc, parent, poolOpt)
 				end
 			end
 
+			-- Maintain order if using UILayout
 			if useLayout and nc.el and nc.el.LayoutOrder ~= i then
 				pcall(function()
 					nc.el.LayoutOrder = i
 				end)
 			end
 		else
+			-- Unkeyed child: fallback to index-based diffing
+			-- Note: Mixing keyed and unkeyed children can lead to unexpected behavior
 			local oc = oldChildren[i]
 			patch(oc, nc, parent, poolOpt)
 		end
 	end
 
+	-- Unmount any old children that weren't used in the new list
 	for _, v in pairs(oldMap) do
 		if v then
 			unmountVNode(v, poolOpt)
@@ -866,6 +892,10 @@ local function patchKeyedChildren(oldChildren: any, newChildren: any, parent: In
 end
 
 --- Patches properties on an Instance by diffing old and new props
+--- Optimizes updates by:
+--- 1. Handling ref changes specifically
+--- 2. Removing deleted props (checking newProps[k] == nil)
+--- 3. Updating changed props (checking oldProps[k] ~= v)
 --- @param el any -- Instance to patch
 --- @param oldProps any -- Previous props
 --- @param newProps any -- New props
@@ -879,19 +909,21 @@ local function patchProps(el, oldProps, newProps, vnode)
 	local oldRef = (oldProps :: any).ref
 	local newRef = (newProps :: any).ref
 
-	if oldRef and oldRef._is_ref and oldRef ~= newRef then
-		-- Clear old ref
-		oldRef.value = nil
+	if oldRef ~= newRef then
+		if oldRef and oldRef._is_ref then
+			oldRef.value = nil
+		end
+		if newRef and newRef._is_ref then
+			newRef.value = el
+		end
 	end
 
-	if newRef and newRef._is_ref then
-		-- Set new ref
-		newRef.value = el
-	end
-
+	-- 1. Unset props that are in oldProps but not in newProps
+	-- Optimization: Only iterate oldProps if it's not empty and we expect removals
 	for k, _ in pairs(oldProps) do
 		if newProps[k] == nil then
 			if type(k) == "string" and k:sub(1, 2) == "on" then
+				-- Disconnect event handlers
 				if vnode._conns and vnode._conns[k] and vnode._conns[k].Disconnect then
 					pcall(function()
 						vnode._conns[k]:Disconnect()
@@ -900,6 +932,7 @@ local function patchProps(el, oldProps, newProps, vnode)
 					vnode._conns[k] = nil
 				end
 			else
+				-- Reset property to nil (or default)
 				if classHasProp(el, k) then
 					pcall(function()
 						el[k] = nil
@@ -909,15 +942,31 @@ local function patchProps(el, oldProps, newProps, vnode)
 		end
 	end
 
+	-- 2. Set new or changed props
 	for k, v in pairs(newProps) do
-		-- Only update props that actually changed (event handlers no longer need special treatment)
-		if oldProps[k] ~= v and k ~= "key" and k ~= "ref" and k ~= "transition" and k ~= "__directives" then
+		-- Optimization: Skip special keys early
+		if k == "key" or k == "ref" or k == "transition" or k == "__directives" then
+			continue
+		end
+
+		-- Only update if value changed
+		if oldProps[k] ~= v then
 			setProp(el, k, v, vnode)
 		end
 	end
 end
 
 --- Main patch function that diffs and updates the DOM tree
+--- The heart of the renderer: reconciles VNode tree with the Roblox DataModel.
+---
+--- Algorithm:
+--- 1. Mount: If oldVNode is nil, mount newVNode.
+--- 2. Unmount: If newVNode is nil, unmount oldVNode.
+--- 3. Replace: If types mismatch, unmount old and mount new.
+--- 4. Update: If types match:
+---    - Components: Update props and trigger re-render if needed.
+---    - Elements: Update props (diff) and reconcile children.
+---
 --- @param oldVNode any -- Previous VNode tree
 --- @param newVNode any -- New VNode tree
 --- @param container Instance -- Parent container
