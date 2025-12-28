@@ -64,6 +64,11 @@ local RunService = game:GetService("RunService")
 -- CRITICAL: depMap uses weak keys to allow reactive objects to be collected
 -- The proxy holds a strong reference to the target (via reactiveMarker), so as long
 -- as the proxy exists, the target exists, and the dependency entry remains.
+--
+-- Q: How does trigger() work if the key is weak?
+-- A: trigger(target, key) requires the caller to hold a reference to 'target'.
+--    Since 'target' is reachable during the call, it cannot be GC'd, so depMap[target]
+--    is guaranteed to return the dependencies if they exist.
 local depMap: { [any]: { [any]: Dep } } = setmetatable({}, { __mode = "k" }) :: any
 local effectStack: { Effect } = {}
 local activeEffect: Effect? = nil
