@@ -337,6 +337,9 @@ local function setProp(inst, key, value, vnode)
 	end
 
 	if type(key) == "string" and key:sub(1, 2) == "on" and type(value) == "function" then
+		-- Optimization: Don't disconnect if handler is identical (this should be handled by caller, but safe to check here?)
+		-- Actually, patchProps handles diffing. If we are here, value changed or key is new.
+
 		if vnode._conns[key] and vnode._conns[key].Disconnect then
 			pcall(function()
 				vnode._conns[key]:Disconnect()

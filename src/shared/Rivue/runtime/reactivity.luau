@@ -61,11 +61,10 @@ local debugModule = require(script.Parent:WaitForChild("debug"))
 local utils = require(script.Parent:WaitForChild("utils"))
 local RunService = game:GetService("RunService")
 
--- CRITICAL: Do NOT use weak keys for depMap - the raw table must stay in memory
--- or trigger() won't find dependencies after garbage collection
--- CRITICAL: Do NOT use weak keys for depMap - the raw table must stay in memory
--- or trigger() won't find dependencies after garbage collection
-local depMap: { [any]: { [any]: Dep } } = {}
+-- CRITICAL: depMap uses weak keys to allow reactive objects to be collected
+-- The proxy holds a strong reference to the target (via reactiveMarker), so as long
+-- as the proxy exists, the target exists, and the dependency entry remains.
+local depMap: { [any]: { [any]: Dep } } = setmetatable({}, { __mode = "k" }) :: any
 local effectStack: { Effect } = {}
 local activeEffect: Effect? = nil
 
@@ -197,7 +196,7 @@ end
 local rawMarker: { [any]: boolean } = setmetatable({}, { __mode = "k" }) :: any
 local reactiveMarker: { [any]: any } = setmetatable({}, { __mode = "k" }) :: any
 local readonlyMarker: { [any]: boolean } = setmetatable({}, { __mode = "k" }) :: any
--- local shallowRefMarker: { [any]: boolean } = setmetatable({}, { __mode = "k" }) :: any
+local shallowReadonlyMarker: { [any]: boolean } = setmetatable({}, { __mode = "k" }) :: any
 
 --- Marks an object as raw (non-reactive)
 --- Prevents the object from being converted to a reactive proxy
@@ -241,7 +240,7 @@ local function isReadonly(value: any): boolean
 	if type(value) ~= "table" then
 		return false
 	end
-	return (readonlyMarker :: any)[value] == true
+	return (readonlyMarker :: any)[value] == true or (shallowReadonlyMarker :: any)[value] == true
 end
 
 --- Checks if a value is a proxy (reactive or readonly)
@@ -822,6 +821,48 @@ local function readonly<T>(target: T): T
 	return proxy :: any
 end
 
+--- Creates a shallow readonly reactive proxy
+--- Only top-level properties are readonly and reactive, nested objects are returned as-is
+--- @param target T -- Object to make shallow readonly
+--- @return T -- Shallow readonly reactive proxy
+local function shallowReadonly<T>(target: T): T
+	if type(target) ~= "table" then
+		return target
+	end
+
+	if rawMarker[target :: any] then
+		return target
+	end
+
+	local proxy = {}
+	shallowReadonlyMarker[proxy] = true
+	reactiveMarker[proxy] = target
+
+	setmetatable(proxy, {
+		__index = function(_: any, k: any): any
+			track(target, k)
+			return (target :: any)[k]
+		end,
+		__newindex = function(_: any, k: any, _v: any)
+			if RunService and RunService:IsStudio() then
+				debugModule.log("Reactivity", "Cannot mutate shallowReadonly object", { key = k })
+			end
+		end,
+		__len = function(_: any): number
+			track(target, "length")
+			return #(target :: any)
+		end,
+		__pairs = function(_: any)
+			return pairs(target :: any)
+		end,
+		__ipairs = function(_: any)
+			return ipairs(target :: any)
+		end,
+	})
+
+	return proxy :: any
+end
+
 --- Manually triggers effects that depend on a shallowRef
 --- Useful when you mutate the internal value of a shallowRef without replacing .value
 --- @param refObj Ref<any> -- ShallowRef to trigger
@@ -884,6 +925,7 @@ return {
 	ref = ref,
 	shallowRef = shallowRef,
 	readonly = readonly,
+	shallowReadonly = shallowReadonly,
 
 	-- Computed values
 	computed = computed,

@@ -58,6 +58,8 @@ local debugModule = require(script.Parent:WaitForChild("debug"))
 
 local scheduler: { queueJob: (fn: () -> (), opts: QueueOptions?) -> JobHandle } = {} :: any
 local microQueue: { Job } = {}
+-- Using a set for O(1) deduplication lookup
+local jobSet: { [any]: Job } = {}
 local microScheduled: boolean = false
 local isFlushingMicro: boolean = false
 local reentrancyDepth: number = 0
@@ -79,6 +81,7 @@ local function flushMicro(): ()
 	isFlushingMicro = true
 	local q = microQueue
 	microQueue = {}
+	jobSet = {}
 	microScheduled = false
 
 	debugModule.log("Scheduler", "Flushing micro queue", { jobCount = #q, reentrancyDepth = reentrancyDepth })
@@ -163,18 +166,16 @@ function scheduler.queueJob(fn: () -> (), opts: QueueOptions?): JobHandle
 			end,
 		}
 	else
-		-- Quick scan to avoid scheduling the same function twice in the
-		-- pending microQueue. This keeps behavior similar to the previous
-		-- dedupe but allows callers to re-queue after a flush/cancel.
-		for _, existing in ipairs(microQueue) do
-			if existing.fn == fn and not existing.cancelled then
-				-- already queued this function for this micro tick; noop
-				debugModule.log("Scheduler", "Deduplicated micro job (already queued)")
-				return { cancel = function() end }
-			end
+		-- Check existing job in O(1) time
+		local existing = jobSet[fn]
+		if existing and not existing.cancelled then
+			-- already queued this function for this micro tick; noop
+			debugModule.log("Scheduler", "Deduplicated micro job (already queued)")
+			return { cancel = function() end }
 		end
 
 		table.insert(microQueue, job)
+		jobSet[fn] = job
 		debugModule.log("Scheduler", "Added to micro queue", { queueSize = #microQueue })
 
 		if not microScheduled then
@@ -186,6 +187,10 @@ function scheduler.queueJob(fn: () -> (), opts: QueueOptions?): JobHandle
 		return {
 			cancel = function()
 				job.cancelled = true
+				-- We don't remove from jobSet here to allow 'existing' check to find it
+				-- and see it is cancelled, triggering a re-queue if needed.
+				-- Although re-queue logic above checks !existing.cancelled, so if we leave it here
+				-- as cancelled, next queueJob will re-add it. Correct.
 				debugModule.log("Scheduler", "Cancelled micro job")
 			end,
 		}

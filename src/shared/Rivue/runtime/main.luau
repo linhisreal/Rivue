@@ -44,6 +44,9 @@
 			Creates a readonly reactive proxy that warns on mutation attempts.
 			Useful for enforcing one-way data flow (props, injected state, public APIs).
 			
+		shallowReadonly(target: any) -> any
+			Creates a shallow readonly reactive proxy. Top-level props are readonly, but nested objects are mutable.
+
 		toRef(obj: table, key: string) -> Ref
 			Creates a ref linked to a property on a reactive object.
 			
@@ -281,6 +284,7 @@ Rivue.reactive = reactivity.reactive
 Rivue.shallowReactive = reactivity.shallowReactive
 Rivue.computed = reactivity.computed
 Rivue.readonly = reactivity.readonly
+Rivue.shallowReadonly = reactivity.shallowReadonly
 
 -- Type checking utilities
 Rivue.isRef = reactivity.isRef
