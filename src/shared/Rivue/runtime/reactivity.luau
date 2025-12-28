@@ -62,14 +62,11 @@ local utils = require(script.Parent:WaitForChild("utils"))
 local RunService = game:GetService("RunService")
 
 -- CRITICAL: depMap uses weak keys to allow reactive objects to be collected
--- The proxy holds a strong reference to the target (via reactiveMarker), so as long
--- as the proxy exists, the target exists, and the dependency entry remains.
---
--- Q: How does trigger() work if the key is weak?
--- A: trigger(target, key) requires the caller to hold a reference to 'target'.
---    Since 'target' is reachable during the call, it cannot be GC'd, so depMap[target]
---    is guaranteed to return the dependencies if they exist.
-local depMap: { [any]: { [any]: Dep } } = setmetatable({}, { __mode = "k" }) :: any
+-- CRITICAL: Do NOT use weak keys for depMap - the raw table must stay in memory
+-- or trigger() won't find dependencies after garbage collection.
+-- User testing indicates that weak keys can cause dependencies to be lost prematurely
+-- in this environment. We use strong keys and provide a 'cleanup' function for manual management.
+local depMap: { [any]: { [any]: Dep } } = {}
 local effectStack: { Effect } = {}
 local activeEffect: Effect? = nil
 
@@ -961,4 +958,10 @@ return {
 	effectScope = effectScope,
 	getCurrentScope = getCurrentScope,
 	onScopeDispose = onScopeDispose,
+
+	-- Manual memory management
+	cleanup = function(target: any)
+		local raw = toRaw(target)
+		depMap[raw] = nil
+	end,
 }

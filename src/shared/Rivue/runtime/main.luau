@@ -302,6 +302,7 @@ Rivue.markRaw = reactivity.markRaw
 -- Advanced reactivity
 Rivue.triggerRef = reactivity.triggerRef
 Rivue.customRef = reactivity.customRef
+Rivue.cleanup = reactivity.cleanup
 
 -- Effect scope system
 Rivue.effectScope = reactivity.effectScope
