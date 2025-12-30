@@ -113,7 +113,6 @@ local function attributeRef<T>(
 		end
 	end
 
-	-- Attribute values are untyped at runtime; the caller's T describes what they expect to store
 	local r: AttributeRef<T?> = reactivity.ref(initialValue :: T?) :: any
 	local isUpdatingFromAttribute = false
 	local isUpdatingFromRef = false

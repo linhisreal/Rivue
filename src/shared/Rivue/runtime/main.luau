@@ -255,7 +255,7 @@ local composables = require(runtime:WaitForChild("composables"))
 
 local RunService = game:GetService("RunService")
 
--- Public types, re-exported so consumers can write `Rivue.Ref<number>` after a static require
+-- Public types
 export type Ref<T> = Types.Ref<T>
 export type ComputedRef<T> = Types.ComputedRef<T>
 export type MaybeRef<T> = Types.MaybeRef<T>
@@ -330,9 +330,7 @@ Rivue.effectScope = reactivity.effectScope
 Rivue.getCurrentScope = reactivity.getCurrentScope
 Rivue.onScopeDispose = reactivity.onScopeDispose
 
---- Registers a stop handle/effect on the component being set up so it's stopped on unmount
---- (Effects are also collected by the component's effect scope; the stop handle additionally
---- runs a watcher's onCleanup callbacks.)
+--- Tracks a stop handle/effect on the current component for cleanup on unmount
 --- @param handle WatchStopHandle | Effect -- Handle to track
 local function trackForCleanup(handle: WatchStopHandle | Effect)
 	local currentInstance = componentAPI.getCurrentInstance()
@@ -352,7 +350,7 @@ function Rivue.watch<T>(source: WatchSource<T> | T, callback: WatchCallback<T>, 
 	return stopHandle
 end
 
---- Runs an effect immediately and re-runs it when its dependencies change (auto-cleanup in components)
+--- Runs an effect now and again when its dependencies change
 --- @param fn () -> () -- Effect function to run
 --- @param opts WatchOptions? -- flush timing
 --- @return WatchStopHandle -- Stop handle to manually stop effect
@@ -421,7 +419,7 @@ Rivue.useStyles = composables.useStyles
 -- Export scheduler
 Rivue.scheduler = schedulerModule
 
---- Queues a job (auto-cancelled on unmount when called during component setup)
+--- Queues a job (auto-cancelled on unmount when called in setup)
 --- @param fn () -> () -- Job to run
 --- @param opts QueueOptions? -- Queue mode ("micro" | "render" | "heartbeat")
 --- @return JobHandle -- Handle with cancel()

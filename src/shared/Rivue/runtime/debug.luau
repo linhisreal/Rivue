@@ -114,7 +114,6 @@ function debug.measure<R...>(name: string, fn: () -> R...): R...
 
 	debug.log("Performance", `{name} took {string.format("%.3f", duration)}ms`)
 
-	-- table.pack erases the pack type; restore it at this single boundary
 	return (table.unpack :: any)(results, 1, results.n)
 end
 
@@ -122,9 +121,7 @@ end
 -- PRETTY PRINTING & INSPECTION
 -- =============================================================================
 
---- Unwraps a reactive/readonly proxy to its raw table (non-proxies are returned unchanged)
---- Previously this looked for __isReactive/__isProxy/__isRef metatable flags that reactivity never
---- sets, so inspect()/prettyPrint() printed proxies as empty tables.
+--- Unwraps a reactive proxy to its raw table
 --- @param value unknown -- Value to unwrap
 --- @return unknown -- Raw value or the original value
 local function unwrapProxy(value: unknown): unknown
@@ -142,7 +139,7 @@ local function formatKey(key: unknown): string
 	return if type(key) == "string" then key else `[{tostring(key)}]`
 end
 
---- Formats a non-table value for display (strings quoted)
+--- Formats a non-table value for display
 --- @param v unknown -- Value
 --- @return string -- Display text
 local function formatScalar(v: unknown): string

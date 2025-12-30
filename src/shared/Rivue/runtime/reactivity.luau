@@ -9,11 +9,6 @@
 	Provides reactive state management with automatic dependency tracking.
 	Implements a Vue 3-inspired reactivity system for Roblox.
 
-	Typing notes:
-	- Public functions are generic (`ref<T>`, `computed<T>`, `watch<T>`) so callers keep their types.
-	- Internally, raw targets are `{ [unknown]: unknown }`; values read back are `unknown` and refined
-	  with `type()` before use. `any` is confined to the proxy metatables, which Luau can't model.
-
 	@module reactivity
 
 	@author Rivue
@@ -37,9 +32,8 @@ type WatchSource<T> = Types.WatchSource<T>
 type WatchStopHandle = Types.WatchStopHandle
 type CustomRefFactory<T> = Types.CustomRefFactory<T>
 
---- Any table Rivue tracks: raw objects, refs, computed runners
 type RawTable = { [unknown]: unknown }
---- Internal shape of a ref table (public type only exposes `.value`)
+-- Internal ref fields (public type only has .value)
 type RefInternal = {
 	_is_ref: true,
 	_value: unknown,
@@ -54,21 +48,18 @@ local RunService = game:GetService("RunService")
 
 const IS_STUDIO = RunService:IsStudio()
 
---- Creates a weak-keyed map: entries vanish once nothing else references the key
+--- Creates a weak-keyed table
 --- @return { [K]: V } -- Empty weak-keyed table
 local function weakKeyed<K, V>(): { [K]: V }
-	-- setmetatable's result type doesn't carry the indexer, so cast once here
 	return setmetatable({}, { __mode = "k" }) :: any
 end
 
--- Weak keys are safe here: every tracked target (raw table, ref, computed runner) is kept
--- alive by whoever can still read or write it, so an unreachable key can never be triggered again.
--- Strong keys leaked every reactive object and ref ever created.
+-- Weak keys: a target nobody references can't be triggered anymore
 local depMap: { [unknown]: { [unknown]: Dep } } = weakKeyed()
 local effectStack: { Effect } = {}
 local activeEffect: Effect? = nil
 
--- Sentinel keys for structural changes (adding/removing keys, array length)
+-- Keys for structural changes (keys added/removed, length)
 const ITERATE_KEY = newproxy(false)
 const LENGTH_KEY = "__len"
 const REF_VALUE_KEY = "value"
@@ -77,7 +68,7 @@ const COMPUTED_KEY = "computed"
 local scopeStack: { EffectScope } = {}
 local activeScope: EffectScope? = nil
 
---- Runs a function inside an effect scope so effects created in it are collected by the scope
+--- Runs fn inside the scope so its effects get collected
 --- @param self EffectScope -- Scope to activate
 --- @param fn () -> unknown -- Function to run
 --- @return unknown -- fn's result, or nil if the scope is inactive or fn errored
@@ -105,7 +96,7 @@ local function scopeRun(self: EffectScope, fn: () -> unknown): unknown
 	return result
 end
 
---- Stops a scope: child scopes, then effects, then cleanup callbacks
+--- Stops child scopes, effects, then runs cleanups
 --- @param self EffectScope -- Scope to stop
 local function scopeStop(self: EffectScope)
 	if not self.active then
@@ -139,7 +130,6 @@ end
 --- @param detached boolean? -- If true, scope won't be collected by parent scope
 --- @return EffectScope -- Effect scope object with run() and stop() methods
 local function effectScope(detached: boolean?): EffectScope
-	-- Methods are shared module-level functions, so a scope costs one table, not two extra closures
 	local scope: EffectScope = {
 		active = true,
 		effects = {},
@@ -230,7 +220,7 @@ local function isProxy(value: unknown): boolean
 	return isReactive(value) or isReadonly(value)
 end
 
---- Checks whether a value should be wrapped in a proxy when read through one
+--- Checks if a value should be wrapped in a proxy
 --- @param value unknown -- Value read from a raw table
 --- @return boolean -- True for non-raw tables
 local function shouldWrap(value: unknown): boolean
@@ -257,7 +247,7 @@ local function createEffect(fn: () -> (), opts: EffectOptions?): Effect
 			return
 		end
 
-		-- Profile effect execution for performance monitoring (name only built when profiling)
+		-- Profile effect execution for performance monitoring
 		local effectName = if utils.profiler.active then "effect_" .. tostring(effect) else nil
 		if effectName then
 			utils.profiler:start(effectName)
@@ -347,8 +337,7 @@ local function trigger(target: unknown, key: unknown)
 	if not dep then
 		return
 	end
-	-- Snapshot first: sync schedulers re-run effects, which removes and re-adds them to `dep`
-	-- while we'd still be iterating it (undefined behaviour for next()).
+	-- Copy first, sync effects modify dep while we iterate
 	local effects: { Effect } = {}
 	for eff in dep do
 		table.insert(effects, eff)
@@ -366,7 +355,7 @@ local function trigger(target: unknown, key: unknown)
 	end
 end
 
---- Triggers a key change plus structural keys when a key was added or removed
+--- Triggers a key, plus length/iteration when a key is added or removed
 --- @param target RawTable -- Raw object that changed
 --- @param key unknown -- Property key that changed
 --- @param old unknown -- Previous value
@@ -415,7 +404,7 @@ local function reactive<T>(target: T): T
 		return v
 	end
 	function mt.__newindex(_: RawTable, k: unknown, v: unknown)
-		-- Store raw values so the raw graph never contains proxies
+		-- Keep proxies out of the raw table
 		v = toRaw(v)
 		local old = tbl[k]
 		tbl[k] = v
@@ -423,9 +412,7 @@ local function reactive<T>(target: T): T
 			triggerSet(tbl, k, old, v)
 		end
 	end
-	-- Luau ignores __pairs/__ipairs; generalized iteration (`for k, v in proxy do`) uses __iter.
-	-- pairs()/ipairs() on a proxy still see an empty table - iterate the proxy directly
-	-- or use a numeric loop (`for i = 1, #proxy do`).
+	-- Luau ignores __pairs/__ipairs, use `for k, v in proxy do` or `for i = 1, #proxy do`
 	function mt.__iter(_: RawTable)
 		track(tbl, ITERATE_KEY)
 		return function(_: RawTable, k: unknown): (unknown, unknown)
@@ -443,7 +430,7 @@ local function reactive<T>(target: T): T
 		return #tbl
 	end
 	function mt.__tostring(_: RawTable): string
-		-- In Studio, hint that this is a proxy (use toRaw() or debug.inspect())
+		-- In dev mode, show a helpful representation
 		return if IS_STUDIO then "<Reactive Proxy>" else tostring(tbl)
 	end
 	setmetatable(proxy :: any, mt)
@@ -498,8 +485,7 @@ local function shallowReactive<T>(target: T): T
 	return proxy :: any
 end
 
--- One metatable shared by every ref: refs keep their value in `_value`, so no per-ref closures.
--- `value` is never a raw field, so every read/write of it goes through these metamethods.
+-- Shared metatable for all refs, value lives in _value
 local RefMT = {}
 
 function RefMT.__index(self: RefInternal, k: unknown): unknown
@@ -516,7 +502,7 @@ function RefMT.__newindex(self: RefInternal, k: unknown, v: unknown)
 		return
 	end
 	local old = self._value
-	-- Deep refs auto-wrap new table values in reactive(); shallow refs store as-is
+	-- Auto-wrap new table values in reactive() (not for shallowRef)
 	local newValue = if not self._shallow and shouldWrap(v) then reactive(v) else v
 	self._value = newValue
 	if old ~= newValue then
@@ -576,7 +562,6 @@ local function computed<T>(getter: () -> T): ComputedRef<T>
 		scheduler = function()
 			if not dirty then
 				dirty = true
-				-- Dependents track (runner, "computed") in get(), so notify that key
 				trigger(runner, COMPUTED_KEY)
 			end
 		end,
@@ -639,7 +624,7 @@ end
 --- @return { [K]: Ref<V> } -- Table of Refs for each property
 local function toRefs<K, V>(obj: { [K]: V }): { [K]: Ref<V> }
 	local res: { [K]: Ref<V> } = {}
-	-- Iterate the raw object (pairs() can't see through proxies)
+	-- Get the raw object to iterate over
 	for k in toRaw(obj) do
 		res[k] = toRef(obj, k)
 	end
@@ -660,7 +645,7 @@ local function _traverse<T>(value: T, seen: { [unknown]: true }?): T
 	end
 	seenTables[value] = true
 	local proxyOrRaw: RawTable = value :: any
-	-- Read through the proxy so every nested key gets tracked
+	-- Read through the proxy so nested keys get tracked
 	for k in toRaw(proxyOrRaw) do
 		_traverse(proxyOrRaw[k], seenTables)
 	end
@@ -706,12 +691,12 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 		table.clear(cleanups)
 	end
 
-	-- Latest getter result, captured by the effect so the getter runs once per change
+	-- Set by the effect so the getter only runs once per change
 	local currentValue: T
 
 	local function job()
 		local new = currentValue
-		-- Only skip when nothing changed; deep watchers fire on nested mutations of the same table
+		-- Deep watchers fire even if the table is the same
 		if initialized and not deep and new == oldValue then
 			return
 		end
@@ -729,10 +714,10 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 			_traverse(currentValue, nil)
 		end
 	end, {
-		-- Lazy so creation doesn't go through the scheduler and fire a spurious callback
+		-- Lazy, run manually below
 		lazy = true,
 		scheduler = function(run)
-			-- Re-run to refresh dependencies, then flush the callback per flush timing
+			-- Refresh dependencies, then run the callback based on flush mode
 			run()
 
 			if flushMode == "sync" then
@@ -746,7 +731,7 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 			end
 		end,
 	})
-	-- Collect dependencies synchronously, then record the initial value (or fire if immediate)
+	-- Collect dependencies and store the initial value
 	eff.run()
 	job()
 
@@ -782,7 +767,7 @@ local function watchEffect(fn: () -> (), opts: WatchOptions?): WatchStopHandle
 		end
 	end
 	local eff = createEffect(fn, { lazy = true, scheduler = effectScheduler })
-	-- First run is synchronous so dependencies are collected immediately
+	-- Run now so dependencies are tracked
 	eff.run()
 	return function()
 		eff:stop()
@@ -806,7 +791,7 @@ local function readonly<T>(target: T): T
 
 	local proxy: RawTable = {}
 
-	-- Mark as readonly for isReadonly() check, and store the original for toRaw()
+	-- Mark as readonly, store original for toRaw()
 	readonlyMarker[proxy] = true
 	reactiveMarker[proxy] = tbl
 	readonlyCache[tbl] = proxy
@@ -820,7 +805,7 @@ local function readonly<T>(target: T): T
 			return if shouldWrap(v) then readonly(v) else v
 		end,
 		__newindex = function(_: RawTable, k: unknown, _v: unknown)
-			-- Prevent mutations (warn in Studio)
+			-- Prevent mutations in dev mode
 			if IS_STUDIO then
 				debugModule.log("Reactivity", "Cannot mutate readonly reactive object", { key = k })
 			end
