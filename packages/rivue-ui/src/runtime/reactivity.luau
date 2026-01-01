@@ -1,7 +1,7 @@
 --!strict
 --!optimize 2
 --!native
--- Copyright (c) 2025 linhisreal (ThisisLinh)
+-- Copyright (c) 2025-2026 linhisreal (ThisisLinh)
 -- Licensed under the Rivue License, based on PolyForm Noncommercial 1.0.0. See LICENSE.
 
 local Types = require("./types")

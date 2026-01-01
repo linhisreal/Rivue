@@ -1,5 +1,5 @@
 --!nonstrict
--- Copyright (c) 2025 linhisreal (ThisisLinh)
+-- Copyright (c) 2025-2026 linhisreal (ThisisLinh)
 -- Licensed under the Rivue License, based on PolyForm Noncommercial 1.0.0. See LICENSE.
 
 -- Loads the products with useAsync and shows "Buying..." on the item being bought. The server

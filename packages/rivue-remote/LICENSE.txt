@@ -1,8 +1,8 @@
 # Rivue License
 
-Copyright (c) 2025 linhisreal (ThisisLinh)
+Copyright (c) 2025-2026 linhisreal (ThisisLinh)
 
-Required Notice: Copyright (c) 2025 linhisreal (ThisisLinh). Rivue, a UI framework for Roblox.
+Required Notice: Copyright (c) 2025-2026 linhisreal (ThisisLinh). Rivue, a UI framework for Roblox.
 
 Rivue is licensed under the PolyForm Noncommercial License 1.0.0, with one additional
 permission for games and the clarifications below. All of it is below.

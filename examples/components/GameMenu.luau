@@ -1,5 +1,5 @@
 --!nonstrict
--- Copyright (c) 2025 linhisreal (ThisisLinh)
+-- Copyright (c) 2025-2026 linhisreal (ThisisLinh)
 -- Licensed under the Rivue License, based on PolyForm Noncommercial 1.0.0. See LICENSE.
 
 -- A menu built on RivueRouter: a back button, shop tabs as child routes, and a settings screen

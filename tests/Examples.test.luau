@@ -1,5 +1,5 @@
 --!strict
--- Copyright (c) 2025 linhisreal (ThisisLinh)
+-- Copyright (c) 2025-2026 linhisreal (ThisisLinh)
 -- Licensed under the Rivue License, based on PolyForm Noncommercial 1.0.0. See LICENSE.
 
 -- Mounts every component in examples/components and uses it like a player would, so the examples in
