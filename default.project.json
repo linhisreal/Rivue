@@ -105,6 +105,9 @@
         },
         "AttributeRefEnhancements": {
           "$path": "tests/AttributeRefEnhancements.test.luau"
+        },
+        "VueFeatures": {
+          "$path": "tests/VueFeatures.test.luau"
         }
       },
       "App": {

@@ -194,4 +194,16 @@ function scheduler.queueJob(fn: () -> (), opts: QueueOptions?): JobHandle
 	end
 end
 
+--- Runs fn after pending updates, or yields the current thread until then when called without fn
+--- Component re-renders and "pre" watchers are deferred, so a defer queued now runs after them.
+--- @param fn (() -> ())? -- Callback (optional)
+function scheduler.nextTick(fn: (() -> ())?): ()
+	if fn then
+		task.defer(fn)
+		return
+	end
+	task.defer(coroutine.running())
+	coroutine.yield()
+end
+
 return scheduler

@@ -31,6 +31,11 @@ export type ComputedRef<T> = {
 	get: () -> T,
 }
 
+export type WritableComputedOptions<T> = {
+	get: () -> T,
+	set: (value: T) -> (),
+}
+
 export type MaybeRef<T> = T | Ref<T>
 
 export type EffectScheduler = (run: () -> ()) -> ()
@@ -69,6 +74,8 @@ export type WatchOptions = {
 	immediate: boolean?,
 	deep: boolean?,
 	flush: FlushMode?,
+	-- Stop after the first callback
+	once: boolean?,
 }
 
 export type OnCleanup = (fn: () -> ()) -> ()
@@ -107,7 +114,10 @@ export type Children = { Child } | Child
 
 export type FunctionalComponent = (props: Props) -> VNode?
 
-export type VNodeType = string | ComponentDef | FunctionalComponent
+-- Renders its children without a wrapper Instance
+export type FragmentType = { __fragment: true, __name: "Fragment" }
+
+export type VNodeType = string | ComponentDef | FunctionalComponent | FragmentType
 
 export type VNode = {
 	type: VNodeType,
@@ -197,6 +207,16 @@ export type Directive = {
 
 export type PoolOptions = {
 	usePool: boolean?,
+}
+
+export type AppConfig = {
+	-- Called for errors no onErrorCaptured handler stopped
+	errorHandler: ((err: string, instance: unknown, info: string) -> ())?,
+}
+
+export type AppContext = {
+	provides: { [unknown]: unknown },
+	config: AppConfig,
 }
 
 export type PoolConfig = {
