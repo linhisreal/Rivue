@@ -285,7 +285,7 @@ local function h(type_: VNodeType, propsIn: Props?, children: Types.Children?): 
 		slots = slots,
 		key = props.key,
 		_uid = vnodeIdCounter,
-		_owner = if type(props.ref) == "string" or props.class ~= nil then owner else nil,
+		_owner = if type(type_) ~= "string" or type(props.ref) == "string" or props.class ~= nil then owner else nil,
 	}
 end
 

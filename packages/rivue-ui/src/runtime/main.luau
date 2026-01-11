@@ -354,7 +354,8 @@ function Rivue.bind<T>(getter: () -> T): T
 end
 
 Rivue.createApp = renderer.createApp
-Rivue._devtools = table.freeze({ event = renderer.devtoolsEvent, route = renderer.devtoolsRoute })
+Rivue._devtools =
+	table.freeze({ event = renderer.devtoolsEvent, route = renderer.devtoolsRoute, enabled = renderer.devtoolsEnabled })
 Rivue.testing = table.freeze({
 	trigger = renderer.trigger,
 	setInteraction = renderer.setInteraction,

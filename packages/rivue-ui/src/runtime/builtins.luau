@@ -657,6 +657,7 @@ local virtualList: ComponentDef = {
 		gap = { type = "number" :: "number", default = 0 },
 	},
 	setup = function(props: Props, _context: SetupContext)
+		local self = componentModule.getCurrentInstance()
 		local scroll = ref(0)
 		local viewport = ref(0)
 		local frameRef = shallowRef(nil :: ScrollingFrame?)
@@ -754,6 +755,8 @@ local virtualList: ComponentDef = {
 			end
 
 			local rows: { Child } = table.create(math.max(last - first + 1, 0)) :: any
+			local owner = if self then (self.vnode :: any)._owner else nil
+			local previousOwner = if owner then componentModule.setRenderingInstance(owner) else nil
 			for i = first, last do
 				local item = items[i]
 				local row = render(item, i)
@@ -783,6 +786,9 @@ local virtualList: ComponentDef = {
 					row.key = if keyFn then keyFn(item, i) else i
 					table.insert(rows, row)
 				end
+			end
+			if owner then
+				componentModule.setRenderingInstance(previousOwner)
 			end
 
 			return h("ScrollingFrame", {
