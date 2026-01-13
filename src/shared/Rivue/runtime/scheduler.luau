@@ -158,6 +158,9 @@ end
 --- @return JobHandle -- Handle with cancel function
 function scheduler.queueJob(fn: () -> (), opts: QueueOptions?): JobHandle
 	local mode = if opts and opts.mode then opts.mode else "micro"
+	if mode == "micro" and microQueueSet[fn] then
+		return NOOP_HANDLE
+	end
 	local job: Job = { fn = fn, cancelled = false }
 
 	if debugModule.enabled then
@@ -172,11 +175,6 @@ function scheduler.queueJob(fn: () -> (), opts: QueueOptions?): JobHandle
 			end,
 		}
 	else
-		-- O(1) deduplication via set lookup
-		if microQueueSet[fn] then
-			return NOOP_HANDLE
-		end
-
 		microQueueSet[fn] = true
 		table.insert(microQueue, job)
 
@@ -204,6 +202,76 @@ function scheduler.nextTick(fn: (() -> ())?): ()
 	end
 	task.defer(coroutine.running())
 	coroutine.yield()
+end
+
+--- Queues fn on the micro queue without allocating a handle (used by effects)
+--- @param fn () -> () -- Job function (deduplicated)
+function scheduler.queueEffect(fn: () -> ()): ()
+	if microQueueSet[fn] then
+		return
+	end
+	microQueueSet[fn] = true
+	table.insert(microQueue, { fn = fn, cancelled = false })
+	if not microScheduled then
+		microScheduled = true
+		task.defer(flushMicro)
+	end
+end
+
+export type UpdateJob = {
+	-- Creation order, parents have lower ids than their children
+	id: number,
+	run: () -> (),
+}
+
+local updateQueue: { UpdateJob } = {}
+local updateQueued: { [UpdateJob]: true } = {}
+local updateScheduled = false
+
+local function byId(a: UpdateJob, b: UpdateJob): boolean
+	return a.id < b.id
+end
+
+--- Runs queued component updates, parents first
+local function flushUpdates(): ()
+	updateScheduled = false
+	local passes = 0
+	while #updateQueue > 0 do
+		passes += 1
+		if passes > MAX_REENTRANCY_DEPTH then
+			warn("[Rivue] Component updates kept re-queuing, possible infinite update loop")
+			table.clear(updateQueue)
+			table.clear(updateQueued)
+			return
+		end
+
+		local q = updateQueue
+		updateQueue = {}
+		table.sort(q, byId)
+		for _, job in q do
+			-- Cleared first so a parent's re-render can queue this job again if needed
+			updateQueued[job] = nil
+			local ok, err = pcall(job.run :: () -> ...unknown)
+			if not ok then
+				debugModule.log("Scheduler", "Component update error", { error = err })
+			end
+		end
+	end
+end
+
+--- Queues a component re-render. Updates are batched and run parents first, so a child
+--- re-rendered by its parent this flush doesn't render twice.
+--- @param job UpdateJob -- Update job (deduplicated)
+function scheduler.queueUpdate(job: UpdateJob): ()
+	if updateQueued[job] then
+		return
+	end
+	updateQueued[job] = true
+	table.insert(updateQueue, job)
+	if not updateScheduled then
+		updateScheduled = true
+		task.defer(flushUpdates)
+	end
 end
 
 return scheduler

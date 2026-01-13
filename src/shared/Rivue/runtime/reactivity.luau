@@ -276,6 +276,14 @@ local function createEffect(fn: () -> (), opts: EffectOptions?): Effect
 		end
 	end
 
+	-- Queued runs skip stopped effects (run() itself still works for manual calls)
+	local function job()
+		if effect.active then
+			effect.run()
+		end
+	end
+	effect.job = job
+
 	function effect.stop(self: Effect)
 		if not self.active then
 			return
@@ -297,7 +305,7 @@ local function createEffect(fn: () -> (), opts: EffectOptions?): Effect
 		if effectScheduler then
 			effectScheduler(typedEffect.run)
 		else
-			scheduler.queueJob(typedEffect.run)
+			scheduler.queueEffect(job)
 		end
 	end
 	return typedEffect
@@ -327,6 +335,9 @@ local function track(target: unknown, key: unknown)
 	end
 end
 
+local triggerScratch: { { Effect } } = {}
+local triggerDepth = 0
+
 --- Triggers all effects that depend on a property
 --- @param target unknown -- Object that changed
 --- @param key unknown -- Property key that changed
@@ -339,12 +350,22 @@ local function trigger(target: unknown, key: unknown)
 	if not dep then
 		return
 	end
-	-- Copy first, sync effects modify dep while we iterate
-	local effects: { Effect } = {}
-	for eff in dep do
-		table.insert(effects, eff)
+	-- Copy first, sync effects modify dep while we iterate. Scratch arrays are reused per
+	-- nesting depth so a write doesn't allocate.
+	triggerDepth += 1
+	local effects = triggerScratch[triggerDepth]
+	if not effects then
+		effects = {}
+		triggerScratch[triggerDepth] = effects
 	end
-	for _, eff in effects do
+	local count = 0
+	for eff in dep do
+		count += 1
+		effects[count] = eff
+	end
+	for i = 1, count do
+		local eff = effects[i]
+		effects[i] = nil
 		if not eff.active then
 			continue
 		end
@@ -352,9 +373,10 @@ local function trigger(target: unknown, key: unknown)
 		if effectScheduler then
 			effectScheduler(eff.run)
 		else
-			scheduler.queueJob(eff.run)
+			scheduler.queueEffect(eff.job)
 		end
 	end
+	triggerDepth -= 1
 end
 
 --- Triggers a key, plus length/iteration when a key is added or removed
@@ -797,7 +819,12 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 		return new ~= oldValue
 	end
 
+	local stopped = false
+
 	local function job()
+		if stopped then
+			return
+		end
 		local new = currentValue
 		if initialized and not hasChanged(new) then
 			return
@@ -839,6 +866,7 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 		end,
 	})
 	stop = function()
+		stopped = true
 		eff:stop()
 		runCleanups()
 	end
@@ -865,17 +893,18 @@ end
 --- @return WatchStopHandle -- Function to stop the effect
 local function watchEffect(fn: () -> (), opts: WatchOptions?): WatchStopHandle
 	local flushMode = if opts then opts.flush else nil
+	local eff: Effect
 	local effectScheduler: EffectScheduler? = nil
 	if flushMode == "sync" then
 		effectScheduler = function(run)
 			run()
 		end
 	elseif flushMode == "post" then
-		effectScheduler = function(run)
-			scheduler.queueJob(run, { mode = "heartbeat" })
+		effectScheduler = function()
+			scheduler.queueJob(eff.job, { mode = "heartbeat" })
 		end
 	end
-	local eff = createEffect(fn, { lazy = true, scheduler = effectScheduler })
+	eff = createEffect(fn, { lazy = true, scheduler = effectScheduler })
 	-- Run now so dependencies are tracked
 	eff.run()
 	return function()

@@ -142,6 +142,9 @@ local function hFor<T>(list: { T }, mapper: (item: T, index: number) -> VNode?):
 	return out
 end
 
+local warnedParallel = false
+
+--- @deprecated Use hFor() and set `key` in the mapper. Kept so existing code keeps working.
 --- List rendering helper that also assigns keys
 --- @param items { T } -- Array of items to render
 --- @param mapper (item: T, index: number) -> VNode? -- Map function; nil skips the item
@@ -152,6 +155,11 @@ local function hForParallel<T>(
 	mapper: (item: T, index: number) -> VNode?,
 	keyFn: ((item: T) -> unknown)?
 ): { VNode }
+	if debugModule.enabled and not warnedParallel then
+		warnedParallel = true
+		warn("[Rivue] hForParallel() is deprecated, use hFor() and set `key` in the mapper")
+	end
+
 	local count = #items
 	if debugModule.enabled then
 		debugModule.log("H", "Rendering large list with hForParallel", { itemCount = count, hasKeyFn = keyFn ~= nil })
