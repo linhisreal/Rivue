@@ -238,6 +238,9 @@ services = {
 		IsServer = function()
 			return false
 		end,
+		IsRunning = function()
+			return false
+		end,
 		Heartbeat = heartbeat,
 		RenderStepped = renderStepped,
 		Stepped = makeSignal(),
@@ -289,6 +292,9 @@ services = {
 		InputBegan = makeSignal(),
 		InputEnded = makeSignal(),
 		InputChanged = makeSignal(),
+		IsKeyDown = function(_, key)
+			return __keysDown ~= nil and __keysDown[key] == true
+		end,
 		TouchEnabled = false,
 		KeyboardEnabled = true,
 		GamepadEnabled = false,
@@ -527,6 +533,7 @@ local GUI_PROPS = {
 	Size = UDim2.new(),
 	Position = UDim2.new(),
 	AnchorPoint = Vector2.new(),
+	Rotation = 0,
 	BackgroundTransparency = 0,
 	BackgroundColor3 = Color3.new(1, 1, 1),
 	Visible = true,
@@ -978,10 +985,16 @@ do
 		end,
 	}
 	services.LogService = { MessageOut = makeSignal() }
+	local serverStorage = Instance.new("Folder")
+	serverStorage.Name = "ServerStorage"
+	services.ServerStorage = serverStorage
 	local selection = {}
+	local selectionChanged = makeSignal()
 	services.Selection = {
+		SelectionChanged = selectionChanged,
 		Set = function(_, list)
 			selection = list
+			selectionChanged:Fire()
 		end,
 		Get = function()
 			return selection

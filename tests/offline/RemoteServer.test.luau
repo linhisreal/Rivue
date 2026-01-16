@@ -23,6 +23,13 @@ local function assertEquals(actual: any, expected: any, message: string?)
 	print("✓", message or "Assertion passed")
 end
 
+local function assertTrue(condition: boolean, message: string)
+	if not condition then
+		error("Assertion failed: " .. message)
+	end
+	print("✓", message)
+end
+
 local function asServer(fn: () -> ())
 	RunService.IsServer = function()
 		return true
@@ -76,8 +83,30 @@ local function runTests()
 		app.config.devtools = true
 		app:mount(folder)
 		Remote.request("double", { n = 3 }, 1)
-		local timeline = folder:FindFirstChild("RivueDevTools"):GetAttribute("RivueTimeline")
+		local channel = folder:FindFirstChild("RivueDevTools")
+		local timeline = channel:GetAttribute("RivueTimeline")
 		assertEquals(string.find(timeline, "\trequest\t", 1, true) ~= nil, true, "a plain request is on the timeline")
+		assertTrue(string.find(timeline, "\tdouble\tok · %d+ B") ~= nil, "with its outcome and payload size")
+		Remote.fire("double", { n = 1 })
+		assertTrue(
+			string.find(channel:GetAttribute("RivueTimeline"), "\tsend\t\tdouble\t", 1, true) ~= nil,
+			"fire() shows as a send"
+		)
+		local pinged = false
+		local ping = Remote.on("timelinePing", function()
+			pinged = true
+		end)
+		asServer(function()
+			Remote.send(game:GetService("Players").LocalPlayer, "timelinePing", { a = 1 })
+		end)
+		task.wait()
+		task.wait()
+		ping:Disconnect()
+		assertTrue(pinged, "the event arrives")
+		assertTrue(
+			string.find(channel:GetAttribute("RivueTimeline"), "\tevent\t\ttimelinePing\t", 1, true) ~= nil,
+			"events from the server show as events"
+		)
 		app:unmount()
 	end
 

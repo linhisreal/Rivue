@@ -479,6 +479,38 @@ local function runTests()
 		assertEquals(root:GetAttribute("RivueProps"), nil, "and the attributes")
 		assertEquals(root:GetAttribute("RivueTrigger"), nil, "all of them")
 
+		local inventory = Rivue.ref({ gold = 5, flags = { vip = false }, items = { "Sword", "Bow" } })
+		local Bag = Rivue.defineComponent({
+			name = "DevtoolsBag",
+			setup = function()
+				return { inventory = inventory }
+			end,
+			render = function()
+				return Rivue.h("TextLabel", { Text = tostring(inventory.value.gold) })
+			end,
+		})
+		local bagContainer = Instance.new("Folder")
+		local bagApp = Rivue.createApp(Bag)
+		bagApp.config.devtools = true
+		bagApp:mount(bagContainer)
+		local bagRoot = bagContainer:FindFirstChild("DevtoolsBag") :: TextLabel
+		assertEquals(
+			bagRoot:GetAttribute("RivueState"),
+			'inventory = { flags = { vip = false }, gold = 5, items = { 1 = "Sword", 2 = "Bow" } }',
+			"tables show their fields"
+		)
+		bagRoot:SetAttribute("RivueEdit", "inventory.gold=9")
+		bagRoot:SetAttribute("RivueEdit", "inventory.flags.vip=true")
+		bagRoot:SetAttribute("RivueEdit", 'inventory.items.2="Axe"')
+		Rivue.nextTick()
+		assertEquals(inventory.value.gold, 9, "a nested number can be edited")
+		assertEquals(inventory.value.flags.vip, true, "and a nested boolean")
+		assertEquals(inventory.value.items[2], "Axe", "and a list item")
+		assertEquals(bagRoot.Text, "9", "which re-renders")
+		bagRoot:SetAttribute("RivueEdit", "inventory.missing=1")
+		assertEquals((inventory.value :: any).missing, nil, "fields that don't exist aren't created")
+		bagApp:unmount()
+
 		local plain = Instance.new("Folder")
 		local quiet = Rivue.createApp(Rivue.h(Counter))
 		quiet:mount(plain)
