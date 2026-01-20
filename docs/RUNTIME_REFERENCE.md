@@ -2478,6 +2478,47 @@ Injects a value from an ancestor. Returns `default` if not found.
 
 ---
 
+### Slots
+
+Array children passed to a component are its default slot (`ctx.slots`). Pass a table of
+functions for named or scoped slots:
+
+```lua
+local Card = Rivue.defineComponent({
+    setup = function(props, ctx)
+        return function()
+            local children = {}
+            for _, child in ctx.renderSlot("header", { title = props.title }) do
+                table.insert(children, child)
+            end
+            for _, child in ctx.renderSlot("default") do
+                table.insert(children, child)
+            end
+            -- Fallback content when the parent didn't pass a footer
+            for _, child in ctx.renderSlot("footer", nil, { h("TextLabel", { Text = "No footer" }) }) do
+                table.insert(children, child)
+            end
+            return h("Frame", {}, children)
+        end
+    end,
+})
+
+h(Card, { title = "Hello" }, {
+    header = function(scope)
+        return h("TextLabel", { Text = scope.title })
+    end,
+    default = function()
+        return { h("TextLabel", { Text = "Body" }) }
+    end,
+})
+```
+
+- `ctx.renderSlot(name, scope?, fallback?)` returns a list of children. `"default"` falls back to the array children.
+- `ctx.hasSlot(name)` checks if the parent passed a slot.
+- Slot functions run inside the child's render, so reactive reads in them re-render the child.
+- Slot functions are only read for components; element children are always a list.
+
+
 ### Prop Validation
 
 Props are validated against the schema during component instance creation. In Studio mode, validation errors are logged as warnings.
