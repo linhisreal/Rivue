@@ -105,16 +105,16 @@ function utils.useRaf(fn: (dt: number) -> ()): RafHandle
 	}
 end
 
---- Falls back to the original text if filtering fails
+--- Returns "" if filtering fails, so unfiltered text is never shown
 function utils.filterForClient(player: Player, str: string): string
 	local ok, result =
 		pcall(TextService.FilterStringAsync, TextService, str, player.UserId, Enum.TextFilterContext.PrivateChat)
 	if not ok then
-		return str
+		return ""
 	end
 	local filterResult = result :: TextFilterResult
 	local ok2, filtered = pcall(filterResult.GetNonChatStringForBroadcastAsync, filterResult)
-	return if ok2 then filtered else str
+	return if ok2 then filtered else ""
 end
 
 local profiler: Profiler = {

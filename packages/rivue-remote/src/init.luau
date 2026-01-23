@@ -105,6 +105,7 @@ export type Config = {
 	maxPayloadDepth: number?,
 	maxRequestsPerSecond: number?,
 	maxBytesPerSecond: number?,
+	maxConcurrentRequests: number?,
 }
 
 local settings = {
@@ -112,6 +113,7 @@ local settings = {
 	maxPayloadDepth = 10,
 	maxRequestsPerSecond = 60,
 	maxBytesPerSecond = 50000,
+	maxConcurrentRequests = 10,
 }
 
 --- Call it with the same values on the server and the client, from a shared module
@@ -139,6 +141,40 @@ const SAFE_DATATYPES: { [string]: boolean } = table.freeze({
 	DateTime = true,
 }) :: any
 
+local function isFinite(n: number): boolean
+	return n == n and n ~= math.huge and n ~= -math.huge
+end
+
+-- Datatypes are userdata, so NaN inside a Vector3 or CFrame would skip the number check
+local function finiteComponents(value: any, kind: string): boolean
+	local parts: { number }
+	if kind == "Vector2" then
+		parts = { value.X, value.Y }
+	elseif kind == "Vector3" then
+		parts = { value.X, value.Y, value.Z }
+	elseif kind == "CFrame" then
+		parts = { value:GetComponents() }
+	elseif kind == "Color3" then
+		parts = { value.R, value.G, value.B }
+	elseif kind == "UDim" then
+		parts = { value.Scale, value.Offset }
+	elseif kind == "UDim2" then
+		parts = { value.X.Scale, value.X.Offset, value.Y.Scale, value.Y.Offset }
+	elseif kind == "NumberRange" then
+		parts = { value.Min, value.Max }
+	elseif kind == "Rect" then
+		parts = { value.Min.X, value.Min.Y, value.Max.X, value.Max.Y }
+	else
+		return true
+	end
+	for _, n in parts do
+		if not isFinite(n) then
+			return false
+		end
+	end
+	return true
+end
+
 local function validatePayload(payload: unknown): (boolean, string?, number)
 	local size = 0
 	local reason: string? = nil
@@ -150,10 +186,16 @@ local function validatePayload(payload: unknown): (boolean, string?, number)
 			reason = "payload_too_deep"
 			return false
 		end
-		local t = type(val)
+		local t = typeof(val)
 		if t == "string" then
 			size += #(val :: string) + 2
-		elseif t == "number" or t == "boolean" or t == "nil" then
+		elseif t == "number" then
+			if not isFinite(val :: number) then
+				reason = "payload_bad_number"
+				return false
+			end
+			size += 8
+		elseif t == "boolean" or t == "nil" then
 			size += 8
 		elseif t == "table" then
 			size += 2
@@ -162,7 +204,11 @@ local function validatePayload(payload: unknown): (boolean, string?, number)
 					return false
 				end
 			end
-		elseif SAFE_DATATYPES[typeof(val)] then
+		elseif SAFE_DATATYPES[t] then
+			if not finiteComponents(val, t) then
+				reason = "payload_bad_number"
+				return false
+			end
 			size += 16
 		else
 			reason = "payload_unsafe_type"
@@ -477,12 +523,15 @@ export type RequestHandler = (player: Player, payload: unknown) -> unknown
 export type HandleOptions = {
 	maxPerSecond: number?,
 	check: ((payload: unknown) -> boolean)?,
+	exclusive: boolean?,
 }
 
 --- Return false to reject the request with "rejected"
 export type Middleware = (player: Player, action: string, payload: unknown) -> boolean?
 
 const DEFAULT_MAX_PER_SECOND = 30
+const MAX_ACTION_LENGTH = 100
+const WARN_INTERVAL = 10
 
 type Bucket = { tokens: number, last: number }
 
@@ -498,10 +547,23 @@ local handlers: { [string]: RequestHandler } = {}
 local limits: { [string]: number } = {}
 local checks: { [string]: ((payload: unknown) -> boolean)? } = {}
 local middlewares: { Middleware } = {}
+local exclusive: { [string]: { [Player]: true } } = {}
+local inFlight: { [Player]: number } = {}
+local lastWarned: { [string]: number } = {}
+
+local function warnThrottled(key: string, message: string)
+	local now = os.clock()
+	local last = lastWarned[key]
+	if last and now - last < WARN_INTERVAL then
+		return
+	end
+	lastWarned[key] = now
+	warn(message)
+end
 local buckets: { [Player]: { [unknown]: Bucket } } = {}
 local stats: { [string]: ActionStats } = {}
 
-local UNKNOWN_ACTIONS = newproxy(false)
+local REFUSALS = newproxy(false)
 local ALL_REQUESTS = newproxy(false)
 local ALL_BYTES = newproxy(false)
 
@@ -542,30 +604,28 @@ local function processRequest(player: Player, req: unknown): RemoteResponse?
 	end
 	local request = req :: { action: unknown, id: unknown, payload: unknown }
 	local action = request.action
-	if type(action) ~= "string" then
+	if type(action) ~= "string" or #action > MAX_ACTION_LENGTH then
 		return nil
 	end
 	local id = request.id
 	local function reply(ok: boolean, data: unknown?, err: string?): RemoteResponse?
-		local idType = type(id)
-		return if idType == "number" or idType == "string"
-			then { id = id :: any, ok = ok, data = data, error = err }
-			else nil
+		return if type(id) == "number" then { id = id :: any, ok = ok, data = data, error = err } else nil
+	end
+
+	-- Refusals are capped too, or a client could make the server reply as fast as it sends
+	local function refuseQuietly(err: string): RemoteResponse?
+		return if take(player, REFUSALS, DEFAULT_MAX_PER_SECOND, 1) then reply(false, nil, err) else nil
 	end
 
 	local actionHandler = handlers[action]
 	if not actionHandler then
-		-- Replies are limited too, or a client could make the server reply as fast as it sends
-		if take(player, UNKNOWN_ACTIONS, DEFAULT_MAX_PER_SECOND, 1) then
-			return reply(false, nil, "unknown_action")
-		end
-		return nil
+		return refuseQuietly("unknown_action")
 	end
 
 	local entry = statsFor(action)
 	local function refuse(err: string): RemoteResponse?
 		entry.rejected += 1
-		return reply(false, nil, err)
+		return refuseQuietly(err)
 	end
 
 	-- Totalled across actions, or spam could be spread over all of them
@@ -580,18 +640,18 @@ local function processRequest(player: Player, req: unknown): RemoteResponse?
 
 	local payload = request.payload
 	local valid, validErr, size = validatePayload(payload)
-	if not valid then
-		return refuse(validErr :: string)
-	end
 	local bytes = settings.maxBytesPerSecond
 	if bytes > 0 and not take(player, ALL_BYTES, bytes, size) then
 		return refuse("rate_limited")
+	end
+	if not valid then
+		return refuse(validErr :: string)
 	end
 
 	for _, middleware in table.clone(middlewares) do
 		local ran, allowed = pcall(middleware, player, action, payload)
 		if not ran then
-			warn(`[RivueRemote] Middleware failed on '{action}': {allowed}`)
+			warnThrottled(`middleware:{action}`, `[RivueRemote] Middleware failed on '{action}': {allowed}`)
 			entry.failed += 1
 			return reply(false, nil, "handler_error")
 		elseif allowed == false then
@@ -607,9 +667,32 @@ local function processRequest(player: Player, req: unknown): RemoteResponse?
 		end
 	end
 
+	local running = exclusive[action]
+	if running and running[player] then
+		return refuse("busy")
+	end
+	-- Handlers can yield, so without a cap one player could keep hundreds waiting on DataStores
+	local concurrent = inFlight[player] or 0
+	local maxConcurrent = settings.maxConcurrentRequests
+	if maxConcurrent > 0 and concurrent >= maxConcurrent then
+		return refuse("busy")
+	end
+	inFlight[player] = concurrent + 1
+	if running then
+		running[player] = true
+	end
 	local started = os.clock()
 	local ok, result = pcall(actionHandler, player, payload)
 	local elapsed = os.clock() - started
+	if running then
+		running[player] = nil
+	end
+	local left = (inFlight[player] or 1) - 1
+	if left > 0 then
+		inFlight[player] = left
+	else
+		inFlight[player] = nil
+	end
 	entry.calls += 1
 	entry.totalTime += elapsed
 	if elapsed > entry.maxTime then
@@ -617,7 +700,7 @@ local function processRequest(player: Player, req: unknown): RemoteResponse?
 	end
 	if not ok then
 		-- The client only learns that it failed, the error stays in the server log
-		warn(`[RivueRemote] Remote handler '{action}' failed: {result}`)
+		warnThrottled(`handler:{action}`, `[RivueRemote] Remote handler '{action}' failed: {result}`)
 		entry.failed += 1
 		return reply(false, nil, "handler_error")
 	end
@@ -639,25 +722,44 @@ end
 
 Remote._processRequest = processRequest
 
+local function ignore() end
+local listening = false
+
 function Remote.setupServer(): ()
 	assert(RunService:IsServer(), "Remote.setupServer() must be called on the server")
 	getRequestEvent()
-	getResponseEvent()
-	getEventsEvent()
-	getUnreliableEvent()
+	if listening then
+		return
+	end
+	listening = true
+	-- Fires to a remote with no server listener are queued, so exploiters could fill the queue
+	getResponseEvent().OnServerEvent:Connect(ignore)
+	getEventsEvent().OnServerEvent:Connect(ignore)
+	getUnreliableEvent().OnServerEvent:Connect(ignore)
 end
 
-function Remote.handle(actionName: string, handler: RequestHandler, opts: HandleOptions?): ()
+local function register(actionName: string, handler: RequestHandler, opts: HandleOptions?)
 	assert(RunService:IsServer(), "Remote.handle() must be called on the server")
+	assert(#actionName <= MAX_ACTION_LENGTH, `[RivueRemote] Action names are limited to {MAX_ACTION_LENGTH} characters`)
 	handlers[actionName] = handler
 	limits[actionName] = if opts and opts.maxPerSecond then opts.maxPerSecond else DEFAULT_MAX_PER_SECOND
 	checks[actionName] = if opts then opts.check else nil
+	if opts and opts.exclusive then
+		exclusive[actionName] = {}
+	else
+		exclusive[actionName] = nil
+	end
 	if serverConn then
 		return
 	end
+	Remote.setupServer()
 
 	Players.PlayerRemoving:Connect(function(player)
 		buckets[player] = nil
+		inFlight[player] = nil
+		for _, running in exclusive do
+			running[player] = nil
+		end
 	end)
 
 	local resEv = getResponseEvent()
@@ -667,6 +769,11 @@ function Remote.handle(actionName: string, handler: RequestHandler, opts: Handle
 			resEv:FireClient(player, response)
 		end
 	end)
+end
+
+function Remote.handle(actionName: string, handler: RequestHandler, opts: HandleOptions?): ()
+	assert(string.sub(actionName, 1, 7) ~= "__rivue", `[RivueRemote] '{actionName}' is reserved for RivueRemote`)
+	register(actionName, handler, opts)
 end
 
 --- Runs before every handler, after the rate limit and payload checks. Returns a remover
@@ -730,7 +837,7 @@ function Remote.state<T>(name: string, initial: T): State<T>
 	serverStates[name] = state
 
 	if not handlers[STATE_SYNC] then
-		Remote.handle(STATE_SYNC, function(player)
+		register(STATE_SYNC, function(player)
 			local snapshot = {}
 			for stateName, entry in serverStates do
 				snapshot[stateName] = { value = effectiveValue(entry, player), version = entry.version }
