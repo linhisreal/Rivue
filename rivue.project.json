@@ -1,0 +1,9 @@
+{
+  "name": "Rivue",
+  "tree": {
+    "$path": "src/shared/Rivue/Rivue.luau",
+    "runtime": {
+      "$path": "src/shared/Rivue/runtime"
+    }
+  }
+}

@@ -266,6 +266,10 @@ export type WatchOptions = Types.WatchOptions
 export type WatchCallback<T> = Types.WatchCallback<T>
 export type WatchSource<T> = Types.WatchSource<T>
 export type WatchStopHandle = Types.WatchStopHandle
+export type WatchHandle = Types.WatchHandle
+export type OnCleanup = Types.OnCleanup
+export type TransitionConfig = Types.TransitionConfig
+export type EmitsOptions = Types.EmitsOptions
 export type QueueOptions = Types.QueueOptions
 export type JobHandle = Types.JobHandle
 export type VNode = Types.VNode
@@ -334,10 +338,11 @@ Rivue.customRef = reactivity.customRef
 Rivue.effectScope = reactivity.effectScope
 Rivue.getCurrentScope = reactivity.getCurrentScope
 Rivue.onScopeDispose = reactivity.onScopeDispose
+Rivue.onWatcherCleanup = reactivity.onWatcherCleanup
 
 --- Tracks a stop handle/effect on the current component for cleanup on unmount
---- @param handle WatchStopHandle | Effect -- Handle to track
-local function trackForCleanup(handle: WatchStopHandle | Effect)
+--- @param handle WatchHandle | Effect -- Handle to track
+local function trackForCleanup(handle: WatchHandle | Effect)
 	local currentInstance = componentAPI.getCurrentInstance()
 	if currentInstance then
 		table.insert(currentInstance._effects, handle)
@@ -348,18 +353,18 @@ end
 --- @param source WatchSource<T> | T -- Getter, ref, or reactive object to watch
 --- @param callback WatchCallback<T> -- Callback to run on change
 --- @param options WatchOptions? -- immediate, deep, flush
---- @return WatchStopHandle -- Stop handle to manually stop watcher
-function Rivue.watch<T>(source: WatchSource<T> | T, callback: WatchCallback<T>, options: WatchOptions?): WatchStopHandle
+--- @return WatchHandle -- Call it (or .stop()) to stop, .pause()/.resume() to suspend
+function Rivue.watch<T>(source: WatchSource<T> | T, callback: WatchCallback<T>, options: WatchOptions?): WatchHandle
 	local stopHandle = reactivity.watch(source, callback, options)
 	trackForCleanup(stopHandle)
 	return stopHandle
 end
 
 --- Runs an effect now and again when its dependencies change
---- @param fn () -> () -- Effect function to run
+--- @param fn (onCleanup: OnCleanup) -> () -- Effect function to run
 --- @param opts WatchOptions? -- flush timing
---- @return WatchStopHandle -- Stop handle to manually stop effect
-function Rivue.watchEffect(fn: () -> (), opts: WatchOptions?): WatchStopHandle
+--- @return WatchHandle -- Stop handle with pause/resume
+function Rivue.watchEffect(fn: (onCleanup: OnCleanup) -> (), opts: WatchOptions?): WatchHandle
 	local stopHandle = reactivity.watchEffect(fn, opts)
 	trackForCleanup(stopHandle)
 	return stopHandle
@@ -376,16 +381,16 @@ function Rivue.effect(fn: () -> (), opts: Types.EffectOptions?): Effect
 end
 
 --- watchEffect() that re-runs on Heartbeat, after renders (auto-cleanup in components)
---- @param fn () -> () -- Effect function
---- @return WatchStopHandle -- Stop handle
-function Rivue.watchPostEffect(fn: () -> ()): WatchStopHandle
+--- @param fn (onCleanup: OnCleanup) -> () -- Effect function
+--- @return WatchHandle -- Stop handle
+function Rivue.watchPostEffect(fn: (onCleanup: OnCleanup) -> ()): WatchHandle
 	return Rivue.watchEffect(fn, { flush = "post" })
 end
 
 --- watchEffect() that re-runs immediately on every change (auto-cleanup in components)
---- @param fn () -> () -- Effect function
---- @return WatchStopHandle -- Stop handle
-function Rivue.watchSyncEffect(fn: () -> ()): WatchStopHandle
+--- @param fn (onCleanup: OnCleanup) -> () -- Effect function
+--- @return WatchHandle -- Stop handle
+function Rivue.watchSyncEffect(fn: (onCleanup: OnCleanup) -> ()): WatchHandle
 	return Rivue.watchEffect(fn, { flush = "sync" })
 end
 
@@ -409,6 +414,7 @@ function Rivue.defineComponent(opts: ComponentOptions?): ComponentDef
 		setup = options.setup,
 		render = options.render,
 		props = options.props,
+		emits = options.emits,
 		inheritAttrs = options.inheritAttrs,
 	}
 end
@@ -420,6 +426,8 @@ Rivue.onBeforeUpdate = componentAPI.onBeforeUpdate
 Rivue.onUpdated = componentAPI.onUpdated
 Rivue.onBeforeUnmount = componentAPI.onBeforeUnmount
 Rivue.onUnmounted = componentAPI.onUnmounted
+Rivue.onActivated = componentAPI.onActivated
+Rivue.onDeactivated = componentAPI.onDeactivated
 Rivue.onErrorCaptured = componentAPI.onErrorCaptured
 Rivue.onTransition = componentAPI.onTransition
 
@@ -427,10 +435,18 @@ Rivue.onTransition = componentAPI.onTransition
 Rivue.provide = componentAPI.provide
 Rivue.inject = componentAPI.inject
 
+-- Instance helpers
+Rivue.getCurrentInstance = componentAPI.getCurrentInstance
+Rivue.useId = componentAPI.useId
+Rivue.useTemplateRef = componentAPI.useTemplateRef
+
 -- Built-in components
 Rivue.Teleport = componentAPI.Teleport
 Rivue.Suspense = builtins.Suspense
 Rivue.KeepAlive = builtins.KeepAlive
+Rivue.Transition = builtins.Transition
+Rivue.TransitionGroup = builtins.TransitionGroup
+Rivue.VirtualList = builtins.VirtualList
 
 -- Async component helper
 Rivue.defineAsyncComponent = builtins.defineAsyncComponent
@@ -475,6 +491,12 @@ Rivue.useTag = robloxUtils.useTag
 Rivue.onRenderStepped = robloxUtils.onRenderStepped
 Rivue.onHeartbeat = robloxUtils.onHeartbeat
 Rivue.onStepped = robloxUtils.onStepped
+Rivue.useViewportSize = robloxUtils.useViewportSize
+Rivue.useInputType = robloxUtils.useInputType
+Rivue.useSafeArea = robloxUtils.useSafeArea
+Rivue.useSelection = robloxUtils.useSelection
+Rivue.useTween = robloxUtils.useTween
+Rivue.useSpring = robloxUtils.useSpring
 
 -- createApp
 Rivue.createApp = renderer.createApp

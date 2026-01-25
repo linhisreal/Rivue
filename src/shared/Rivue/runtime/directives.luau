@@ -43,6 +43,7 @@
     --------------------
 
 		focus - Auto-focuses an element when mounted
+		select - Gives a GuiObject gamepad selection while the value is truthy
 		click-outside - Triggers callback when clicking outside element
 ]]
 
@@ -52,6 +53,7 @@ type DirectiveHooks = Types.Directive
 type Ref<T> = Types.Ref<T>
 
 local UserInputService = game:GetService("UserInputService")
+local GuiService = game:GetService("GuiService")
 local reactivity = require(script.Parent:WaitForChild("reactivity"))
 local debugModule = require(script.Parent:WaitForChild("debug"))
 
@@ -98,6 +100,32 @@ directives.register("focus", {
 			el:CaptureFocus()
 		end
 		return nil
+	end,
+})
+
+--- v-select: gamepad selection follows the value (true selects, false clears if selected)
+directives.register("select", {
+	mounted = function(el, val)
+		if val and el:IsA("GuiObject") then
+			GuiService.SelectedObject = el
+		end
+		return nil
+	end,
+	updated = function(el, val)
+		if not el:IsA("GuiObject") then
+			return nil
+		end
+		if val then
+			GuiService.SelectedObject = el
+		elseif GuiService.SelectedObject == el then
+			GuiService.SelectedObject = nil
+		end
+		return nil
+	end,
+	unmounted = function(el)
+		if GuiService.SelectedObject == el then
+			GuiService.SelectedObject = nil
+		end
 	end,
 })
 
