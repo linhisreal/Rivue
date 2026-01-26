@@ -8,6 +8,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService") :: any
 local Remote = require(ReplicatedStorage:WaitForChild("RivueRemote"))
+local DEFAULT_REPLIES = 30
 
 local function assertEquals(actual: any, expected: any, message: string?)
 	if actual ~= expected then
@@ -158,8 +159,7 @@ local function runTests()
 
 	print("Test 6: Roblox datatypes are allowed in payloads")
 	do
-		local position = newproxy(true)
-		getmetatable(position).__rbxtype = "Vector3"
+		local position = Vector3.new(1, 2, 3)
 		local result, err = Remote.request("echoType", { position = position }, 1)
 		assertEquals(err, nil, "Vector3 payload isn't rejected")
 		assertEquals(result, "Vector3", "Server receives it")
@@ -488,6 +488,184 @@ local function runTests()
 		task.wait()
 		assertEquals(failing.error.value, "handler_error", "errors land in error")
 		app:unmount()
+	end
+
+	print("Test 18: exploit-shaped requests are refused cheaply")
+	do
+		local folder = ReplicatedStorage:WaitForChild("RemoteEvents")
+		local requestEvent = folder:WaitForChild("Request") :: RemoteEvent
+		local responseEvent = folder:WaitForChild("Response") :: RemoteEvent
+		local replies: { any } = {}
+		local conn = responseEvent.OnClientEvent:Connect(function(reply)
+			table.insert(replies, reply)
+		end)
+		local function raw(request: any): any?
+			table.clear(replies)
+			requestEvent:FireServer(request)
+			task.wait()
+			return replies[1]
+		end
+		task.wait(1)
+
+		local nan = raw({ action = "double", id = 1, payload = { n = 0 / 0 } })
+		assertEquals(nan and nan.error, "payload_bad_number", "NaN is refused")
+		local inf = raw({ action = "double", id = 2, payload = { n = math.huge } })
+		assertEquals(inf and inf.error, "payload_bad_number", "and so is infinity")
+		local fine = raw({ action = "double", id = 3, payload = { n = 4 } })
+		assertEquals(fine and fine.data, 8, "ordinary numbers still work")
+
+		assertEquals(
+			raw({ action = "double", id = string.rep("x", 5000), payload = { n = 1 } }),
+			nil,
+			"a string id gets no reply"
+		)
+		assertEquals(
+			raw({ action = string.rep("a", 5000), id = 4, payload = {} }),
+			nil,
+			"an oversized action name is dropped"
+		)
+
+		local overridden = pcall(function()
+			asServer(function()
+				Remote.handle("__rivueStateSync", function()
+					return nil
+				end)
+			end)
+		end)
+		assertEquals(overridden, false, "Rivue's internal actions can't be replaced")
+
+		local active, most = 0, 0
+		asServer(function()
+			Remote.handle("withdraw", function()
+				active += 1
+				most = math.max(most, active)
+				task.wait(0.05)
+				active -= 1
+				return true
+			end, { exclusive = true })
+		end)
+		table.clear(replies)
+		task.spawn(requestEvent.FireServer, requestEvent, { action = "withdraw", id = 10, payload = {} })
+		task.spawn(requestEvent.FireServer, requestEvent, { action = "withdraw", id = 11, payload = {} })
+		task.wait(0.2)
+		assertEquals(most, 1, "an exclusive handler runs one call per player at a time")
+		local busy = false
+		for _, reply in replies do
+			if reply.error == "busy" then
+				busy = true
+			end
+		end
+		assertTrue(busy, "and refuses overlapping calls instead of queueing them")
+
+		asServer(function()
+			Remote.handle("crash", function()
+				error("nope")
+			end)
+		end)
+		local warnings = 0
+		local logConn = game:GetService("LogService").MessageOut:Connect(function(message)
+			if string.find(message, "Remote handler 'crash' failed", 1, true) then
+				warnings += 1
+			end
+		end)
+		for i = 1, 5 do
+			raw({ action = "crash", id = 100 + i, payload = {} })
+		end
+		logConn:Disconnect()
+		assertEquals(warnings, 1, "a failing handler can't flood the output")
+		conn:Disconnect()
+	end
+
+	print("Test 19: a flooding client can't make the server work or reply for free")
+	do
+		local folder = ReplicatedStorage:WaitForChild("RemoteEvents")
+		local requestEvent = folder:WaitForChild("Request") :: RemoteEvent
+		local responseEvent = folder:WaitForChild("Response") :: RemoteEvent
+		local replies: { any } = {}
+		local conn = responseEvent.OnClientEvent:Connect(function(reply)
+			table.insert(replies, reply)
+		end)
+
+		task.wait(1.1)
+		for i = 1, 500 do
+			requestEvent:FireServer({ action = "double", id = 1000 + i, payload = { n = 1 } })
+		end
+		task.wait()
+		local refused = 0
+		for _, reply in replies do
+			if reply.error == "rate_limited" then
+				refused += 1
+			end
+		end
+		assertTrue(refused <= DEFAULT_REPLIES, `refusals are answered at a capped rate (got {refused})`)
+
+		task.wait(1.1)
+		local junk = { string.rep("x", 19000), 0 / 0 }
+		for i = 1, 10 do
+			requestEvent:FireServer({ action = "double", id = 2000 + i, payload = junk })
+		end
+		table.clear(replies)
+		requestEvent:FireServer({ action = "double", id = 3000, payload = { n = 1, note = string.rep("x", 15000) } })
+		task.wait()
+		assertEquals(
+			replies[1] and replies[1].error,
+			"rate_limited",
+			`payloads that fail validation still use up the byte budget`
+		)
+		conn:Disconnect()
+
+		for _, name in { "Response", "Events", "UnreliableEvents" } do
+			local event = folder:FindFirstChild(name) :: any
+			assertTrue(
+				event ~= nil and #event.OnServerEvent._conns > 0,
+				`{name} has a server listener, so client fires are dropped instead of queued`
+			)
+		end
+	end
+
+	print("Test 20: datatypes can't smuggle NaN, and one player can't park endless handlers")
+	do
+		task.wait(1.1)
+		local smuggled = {
+			Vector3.new(0 / 0, 0, 0),
+			Vector2.new(math.huge, 0),
+			UDim2.new(0, -math.huge, 0, 0),
+			Color3.new(0 / 0, 0, 0),
+		}
+		for _, value in smuggled do
+			local response = Remote._processRequest(
+				game:GetService("Players").LocalPlayer,
+				{ action = "double", id = 1, payload = { at = value } }
+			)
+			assertEquals(
+				response and response.error,
+				"payload_bad_number",
+				`a {typeof(value)} holding NaN or infinity is refused`
+			)
+		end
+		local plain = Remote._processRequest(
+			game:GetService("Players").LocalPlayer,
+			{ action = "double", id = 2, payload = { n = 2, at = Vector3.new(1, 2, 3) } }
+		)
+		assertEquals(plain and plain.data, 4, "ordinary datatypes still pass")
+
+		local inFlight, most = 0, 0
+		asServer(function()
+			Remote.handle("slowSave", function()
+				inFlight += 1
+				most = math.max(most, inFlight)
+				task.wait(0.3)
+				inFlight -= 1
+				return true
+			end, { maxPerSecond = 0 })
+		end)
+		local folder = ReplicatedStorage:WaitForChild("RemoteEvents")
+		local requestEvent = folder:WaitForChild("Request") :: RemoteEvent
+		for i = 1, 40 do
+			task.spawn(requestEvent.FireServer, requestEvent, { action = "slowSave", id = 4000 + i, payload = {} })
+		end
+		task.wait(0.5)
+		assertTrue(most <= 10, `a player can only have a few handlers running at once (got {most})`)
 	end
 
 	print("\n========== REMOTE SERVER TESTS COMPLETE ==========\n")

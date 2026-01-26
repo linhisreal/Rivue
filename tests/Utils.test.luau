@@ -234,6 +234,19 @@ local function runTests()
 		end
 	end
 
+	print("Test 19: filterForClient hides text when filtering fails")
+	if __OFFLINE then
+		local TextService = game:GetService("TextService") :: any
+		local real = TextService.FilterStringAsync
+		TextService.FilterStringAsync = function()
+			error("filter unavailable")
+		end
+		local Players = game:GetService("Players")
+		local result = Rivue.utils.filterForClient(Players.LocalPlayer, "unfiltered words")
+		TextService.FilterStringAsync = real
+		assertEquals(result, "", "the original text never comes back unfiltered")
+	end
+
 	print("\n========== UTILS TESTS COMPLETE ==========\n")
 end
 
