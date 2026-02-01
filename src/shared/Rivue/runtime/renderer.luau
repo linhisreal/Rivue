@@ -201,6 +201,9 @@ export type App = {
 	use: (self: App, plugin: Plugin, ...any) -> App,
 	directive: (self: App, name: string, hooks: Types.Directive) -> App,
 	component: (self: App, name: string, def: ComponentDef) -> App,
+	onUnmount: (self: App, fn: () -> ()) -> App,
+	runWithContext: <T>(self: App, fn: () -> T) -> T,
+	printTree: (self: App) -> string,
 	mount: (self: App, container: Instance) -> MountedState,
 	unmount: (self: App) -> (),
 	rerender: (self: App, newRoot: VNode?) -> MountedState,
@@ -217,6 +220,7 @@ export type MountedState = {
 }
 
 -- Forward declared, defined below
+local formatTree: (vnode: VNode?) -> string
 local patch: (oldVNode: RenderVNode?, newVNode: RenderVNode?, container: Instance, poolOpt: PoolOptions?) -> ()
 
 -- Component currently rendering, used as parent for nested components
@@ -254,7 +258,14 @@ local warnedOnce: { [string]: true } = {}
 local function devWarn(message: string)
 	if IS_STUDIO and not warnedOnce[message] then
 		warnedOnce[message] = true
-		warn(`[Rivue] {message}`)
+		local appContext = if currentRenderingInstance then currentRenderingInstance.appContext else currentAppContext
+		local warnHandler = if appContext then appContext.config.warnHandler else nil
+		local trace = componentAPI.formatComponentTrace(currentRenderingInstance)
+		if warnHandler then
+			warnHandler(message, currentRenderingInstance, trace)
+		else
+			warn(`[Rivue] {message} (in {trace})`)
+		end
 	end
 end
 
@@ -800,6 +811,51 @@ end
 -- Props handled by the renderer, not set on the Instance
 const RESERVED_PROPS = table.freeze({ __directives = true, key = true, ref = true, transition = true, memo = true })
 
+const LAYOUT_CLASSES =
+	table.freeze({ UIListLayout = true, UIGridLayout = true, UIPageLayout = true, UITableLayout = true })
+
+--- True if a children list renders a layout object
+--- @param children { Child } -- Children
+--- @return boolean -- Has a UI*Layout child
+local function hasLayoutChild(children: { Child }): boolean
+	for _, child in children do
+		if type(child) == "table" and LAYOUT_CLASSES[child.type :: any] then
+			return true
+		end
+	end
+	return false
+end
+
+--- Gives children LayoutOrder = their position, so a layout shows them in list order.
+--- Fragments (nested lists) are counted through. A child that sets LayoutOrder keeps it.
+--- @param children { Child } -- Mounted children
+--- @param start number? -- Position before the first child
+--- @return number -- Position of the last child
+local function syncLayoutOrder(children: { Child }, start: number?): number
+	local order = start or 0
+	for i = 1, table.maxn(children) do
+		local child = children[i]
+		if type(child) ~= "table" then
+			continue
+		end
+		if child.type == Fragment then
+			order = syncLayoutOrder(child.children, order)
+			continue
+		end
+		order += 1
+		local props = child.props
+		if props and props.LayoutOrder ~= nil then
+			continue
+		end
+		local inst = child._instance :: ComponentInstance?
+		local el = child.el or (if inst then inst.el else nil)
+		if el and el:IsA("GuiObject") and el.LayoutOrder ~= order then
+			el.LayoutOrder = order
+		end
+	end
+	return order
+end
+
 --- Mounts a VNode as a new Instance in the DOM
 --- @param vnode RenderVNode -- Element VNode (type is a ClassName)
 --- @param container Instance -- Parent Instance
@@ -898,6 +954,10 @@ local function mountElement(vnode: RenderVNode, container: Instance, poolOpt: Po
 		elseif type(child) == "table" then
 			patch(nil, child, inst, poolOpt)
 		end
+	end
+
+	if hasLayoutChild(children) then
+		syncLayoutOrder(children)
 	end
 
 	-- Parent last so the engine lays out the finished subtree once
@@ -1005,6 +1065,7 @@ local function unmountVNode(vnode: RenderVNode?, poolOpt: PoolOptions?, doRemove
 
 	if def then
 		if def == componentAPI.Teleport then
+			vnode._deferred = nil
 			-- Teleported children live elsewhere, always remove them
 			for _, child in vnode.children do
 				if type(child) == "table" then
@@ -1110,22 +1171,6 @@ local function indexChildrenByKey(parent: Instance): { [unknown]: Instance }
 	return byKey
 end
 
---- Checks if parent has a UILayout component (affects manual positioning)
---- @param parent Instance? -- Parent Instance to check
---- @return boolean -- True if UILayout found
-local function parentHasUILayout(parent: Instance?): boolean
-	if not parent then
-		return false
-	end
-	for _, c in ipairs(parent:GetChildren()) do
-		if c:IsA("UIListLayout") or c:IsA("UIGridLayout") then
-			return true
-		end
-	end
-
-	return false
-end
-
 --- Renders a large list of items into a parent
 --- @deprecated Renders synchronously, use hFor() children instead
 --- @param items any -- Array of items to render
@@ -1169,13 +1214,13 @@ local function patchKeyedChildren(
 		end
 	end
 
-	local useLayout = parentHasUILayout(parent)
-
 	-- Built only when needed
 	local existingByKey: { [unknown]: Instance }? = nil
 	local seenKeys: { [unknown]: true }? = if IS_STUDIO then {} else nil
+	local reusedUnkeyed: { [number]: true } = {}
 
-	for i, nc in newList do
+	for i = 1, table.maxn(newList) do
+		local nc = newList[i]
 		if type(nc) ~= "table" then
 			continue
 		end
@@ -1205,14 +1250,15 @@ local function patchKeyedChildren(
 					patch(nil, nc, parent, poolOpt)
 				end
 			end
-
-			local el = nc.el
-			if useLayout and el and el:IsA("GuiObject") and el.LayoutOrder ~= i then
-				el.LayoutOrder = i
-			end
 		else
+			-- Unkeyed children match by position, never a keyed old child (the key map owns those)
 			local oc = oldList[i]
-			patch(if type(oc) == "table" then oc else nil, nc, parent, poolOpt)
+			if type(oc) == "table" and oc.key == nil then
+				reusedUnkeyed[i] = true
+				patch(oc, nc, parent, poolOpt)
+			else
+				patch(nil, nc, parent, poolOpt)
+			end
 		end
 	end
 
@@ -1220,10 +1266,10 @@ local function patchKeyedChildren(
 		unmountVNode(v, poolOpt)
 	end
 
-	-- Unmount leftover unkeyed children
-	for i = #newList + 1, #oldList do
+	-- Unmount old unkeyed children nothing reused
+	for i = 1, table.maxn(oldList) do
 		local oc = oldList[i]
-		if type(oc) == "table" and oc.key == nil then
+		if type(oc) == "table" and oc.key == nil and not reusedUnkeyed[i] then
 			unmountVNode(oc, poolOpt)
 		end
 	end
@@ -1370,7 +1416,19 @@ end
 --- @param vnode RenderVNode -- Teleport vnode
 --- @param container Instance -- Where the Teleport itself sits
 --- @param poolOpt PoolOptions? -- Pool options
-local function mountTeleport(vnode: RenderVNode, container: Instance, poolOpt: PoolOptions?)
+local function mountTeleport(vnode: RenderVNode, container: Instance, poolOpt: PoolOptions?, now: boolean?)
+	local props = vnode.props
+	if props and props.defer and not now then
+		-- defer: wait until the rest of the tree is mounted, so the target can be part of it
+		vnode._deferred = true
+		queuePost(function()
+			if vnode._deferred then
+				vnode._deferred = nil
+				mountTeleport(vnode, container, poolOpt, true)
+			end
+		end)
+		return
+	end
 	local target = resolveTeleportTarget(vnode, container)
 	vnode._teleportTarget = target
 	if not target then
@@ -1389,6 +1447,8 @@ end
 --- @param container Instance -- Where the Teleport itself sits
 --- @param poolOpt PoolOptions? -- Pool options
 local function patchTeleport(oldVNode: RenderVNode, newVNode: RenderVNode, container: Instance, poolOpt: PoolOptions?)
+	-- Still waiting to mount, start over with the new vnode
+	oldVNode._deferred = nil
 	local target = resolveTeleportTarget(newVNode, container)
 	local oldTarget = oldVNode._teleportTarget
 	if target and target == oldTarget then
@@ -1463,7 +1523,20 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 		withRenderingInstance(inst, function()
 			patch(prevTree, nextTree, inst.container or container, poolOpt)
 		end)
-		inst.el = if nextTree then nextTree.el else nil
+
+		local el = if nextTree then nextTree.el else nil
+		local name = inst.type.__name
+		-- Name the root after the component so the Explorer reads like the component tree
+		if el and el ~= inst.el and name and nextTree and type(nextTree.type) == "string" then
+			local rootProps = nextTree.props
+			if rootProps == nil or rootProps.Name == nil then
+				el.Name = name
+				local touched: { [string]: boolean } = nextTree._touched or {}
+				nextTree._touched = touched
+				touched.Name = true
+			end
+		end
+		inst.el = el
 	end
 
 	local function renderAsync(result: AsyncRenderResult)
@@ -1578,6 +1651,21 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 			-- Batched with other components, parents first
 			scheduler.queueUpdate(updateJob)
 		end,
+		-- Only hooked up when the component asked for them
+		onTrack = if #inst.renderTrackedCbs > 0
+			then function(event: Types.DebuggerEvent)
+				for _, fn in inst.renderTrackedCbs do
+					pcall(fn, event)
+				end
+			end
+			else nil,
+		onTrigger = if #inst.renderTriggeredCbs > 0
+			then function(event: Types.DebuggerEvent)
+				for _, fn in inst.renderTriggeredCbs do
+					pcall(fn, event)
+				end
+			end
+			else nil,
 	})
 
 	-- First render now so dependencies are tracked
@@ -1665,6 +1753,13 @@ local function patchElement(oldVNode: RenderVNode, newVNode: RenderVNode, poolOp
 	local propsChanged = not _utils.shallowEqual(oldVNode.props, newVNode.props)
 	local childrenChanged = oldVNode.children ~= newVNode.children
 	if not propsChanged and not childrenChanged then
+		-- A controlled TextBox still follows its Text prop if the player typed over it
+		if newProps and newProps.onTextChanged ~= nil and newProps.Text ~= nil and el:IsA("TextBox") then
+			local box = el :: TextBox
+			if box.Text ~= newProps.Text then
+				box.Text = newProps.Text
+			end
+		end
 		return
 	end
 
@@ -1674,13 +1769,22 @@ local function patchElement(oldVNode: RenderVNode, newVNode: RenderVNode, poolOp
 		end
 		if childrenChanged and not trySetOnlyText(el, newVNode.children) then
 			patchKeyedChildren(oldVNode.children, newVNode.children, el, poolOpt)
+			if hasLayoutChild(newVNode.children) then
+				syncLayoutOrder(newVNode.children)
+			end
 		end
 	end
 
 	if el:IsA("TextBox") then
 		local oldText = if oldVNode.props then oldVNode.props.Text else nil
-		local newText = if newVNode.props then newVNode.props.Text else nil
-		withPreservedTextState(el, update, newText ~= oldText)
+		local newProps = newVNode.props
+		local newText = if newProps then newProps.Text else nil
+		-- With onTextChanged (or model) the state owns Text, otherwise only a new Text prop wins
+		local controlled = newProps ~= nil and newProps.onTextChanged ~= nil and newText ~= nil
+		withPreservedTextState(el, update, controlled or newText ~= oldText)
+		if controlled and (el :: TextBox).Text ~= newText then
+			(el :: TextBox).Text = newText
+		end
 	else
 		update()
 	end
@@ -1734,6 +1838,13 @@ local function patchInner(oldVNode: RenderVNode?, newVNode: RenderVNode?, contai
 		end
 	end
 	local def = asComponent(newType)
+	if not def and type(newType) == "table" and newType ~= Fragment then
+		local raw = newType :: any
+		if raw.setup or raw.render then
+			error("[Rivue] h() got a table with setup/render, wrap it in Rivue.defineComponent({ ... })", 0)
+		end
+		error("[Rivue] h() got a table that isn't a component, use a ClassName, a component or a function", 0)
+	end
 
 	if oldVNode == nil then
 		if newType == Fragment then
@@ -1826,11 +1937,86 @@ function patch(oldVNode: RenderVNode?, newVNode: RenderVNode?, container: Instan
 	end
 end
 
+--- Describes a value for printTree: short and on one line
+--- @param value unknown -- Prop value
+--- @return string -- Description
+local function describeValue(value: unknown): string
+	local t = typeof(value)
+	if t == "string" then
+		local text = value :: string
+		return if #text > 24 then `"{string.sub(text, 1, 21)}..."` else `"{text}"`
+	elseif t == "number" or t == "boolean" or t == "EnumItem" then
+		return tostring(value)
+	elseif t == "Instance" then
+		return (value :: Instance).Name
+	end
+	return t
+end
+
+--- Builds a readable outline of a mounted tree: components in <>, elements by ClassName
+--- @param vnode VNode? -- Mounted root
+--- @return string -- Multi-line outline
+function formatTree(vnode: VNode?): string
+	local lines: { string } = {}
+	local function walk(node: VNode?, depth: number)
+		if node == nil then
+			return
+		end
+		local indent = string.rep("  ", depth)
+		local def = asComponent(node.type)
+		if def then
+			local inst = node._instance :: ComponentInstance?
+			local parts: { string } = {}
+			if inst then
+				for key, value in _reactivity.toRaw(inst.props) do
+					table.insert(parts, `{key}={describeValue(value)}`)
+				end
+			end
+			table.sort(parts)
+			local suffix = if #parts > 0 then " " .. table.concat(parts, " ") else ""
+			if def == componentAPI.Teleport then
+				local target = node._teleportTarget
+				table.insert(lines, `{indent}<Teleport -> {if target then target:GetFullName() else "nowhere"}>`)
+				for _, child in node.children do
+					if type(child) == "table" then
+						walk(child, depth + 1)
+					end
+				end
+				return
+			end
+			local state = if inst and inst.isDeactivated then " (cached)" else ""
+			table.insert(lines, `{indent}<{def.__name or "Anonymous"}{suffix}>{state}`)
+			walk(if inst then inst.subTree else nil, depth + 1)
+		elseif node.type == Fragment then
+			for _, child in node.children do
+				if type(child) == "table" then
+					walk(child, depth)
+				end
+			end
+		elseif type(node.type) == "function" then
+			walk(node._fnTree, depth)
+		else
+			local el = node.el
+			local key = if node.key ~= nil then ` key={describeValue(node.key)}` else ""
+			table.insert(lines, `{indent}{node.type} "{if el then el.Name else "?"}"{key}`)
+			for _, child in node.children do
+				if type(child) == "table" then
+					walk(child, depth + 1)
+				end
+			end
+		end
+	end
+	walk(vnode, 0)
+	return table.concat(lines, "\n")
+end
+
 --- Creates an application instance with mount/unmount API
 --- @param rootVNode VNode -- Root VNode or component
 --- @param opts AppOptions? -- App options (pooling)
 --- @return App -- App API with mount/unmount methods
-local function createApp(rootVNode: VNode, opts: AppOptions?): App
+local function createApp(root: VNode | ComponentDef, opts: AppOptions?): App
+	-- Accept a component as well as a vnode: createApp(App)
+	local rootVNode: VNode = if asComponent(root) then hModule.h(root :: ComponentDef) else root :: VNode
 	local options: AppOptions = opts or {}
 	local usePool = options.usePool == true
 	local poolOpt: PoolOptions = { usePool = usePool }
@@ -1928,10 +2114,36 @@ local function createApp(rootVNode: VNode, opts: AppOptions?): App
 		return mounted
 	end
 
+	local unmountCallbacks: { () -> () } = {}
+
+	--- Runs fn when the app unmounts (cleanup for plugins)
+	function api.onUnmount(self: App, fn: () -> ()): App
+		table.insert(unmountCallbacks, fn)
+		return self
+	end
+
+	--- Runs fn with this app's provides available to inject()
+	function api.runWithContext<T>(_self: App, fn: () -> T): T
+		return componentAPI.runWithInjectionContext(appContext, fn)
+	end
+
+	--- Prints (and returns) the mounted component/element tree
+	function api.printTree(_self: App): string
+		local tree = formatTree(mounted.vnode)
+		print(tree)
+		return tree
+	end
+
 	function api.unmount(_self: App)
 		if mounted.vnode then
 			unmountVNode(mounted.vnode, poolOpt)
 			mounted.vnode = nil
+			for _, fn in unmountCallbacks do
+				local ok, err = pcall(fn :: () -> ...unknown)
+				if not ok then
+					warn(`[Rivue] app:onUnmount callback failed: {err}`)
+				end
+			end
 		end
 		mounted.container = nil
 	end
@@ -1980,6 +2192,7 @@ end
 return {
 	createApp = createApp,
 	patch = patch,
+	formatTree = formatTree,
 	unmountVNode = unmountVNode,
 	patchChildrenParallel = patchChildrenParallel,
 }
