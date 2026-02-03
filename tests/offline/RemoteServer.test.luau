@@ -668,6 +668,126 @@ local function runTests()
 		assertTrue(most <= 10, `a player can only have a few handlers running at once (got {most})`)
 	end
 
+	print("Test 21: allow, schema, onSuspicious and trap")
+	do
+		local player = game:GetService("Players").LocalPlayer
+		local function call(action: string, payload: any): any
+			return Remote._processRequest(player, { action = action, id = 1, payload = payload })
+		end
+		task.wait(1.1)
+
+		local reports: { { reason: string, count: number } } = {}
+		local stopWatching: () -> () = function() end
+		asServer(function()
+			stopWatching = Remote.onSuspicious(function(who, reason, count)
+				assertEquals(who, player, "reports name the player")
+				table.insert(reports, { reason = reason, count = count })
+			end)
+		end)
+		local function reported(reason: string): boolean
+			task.wait()
+			for _, report in reports do
+				if report.reason == reason then
+					return true
+				end
+			end
+			return false
+		end
+
+		local adminRan = false
+		asServer(function()
+			Remote.handle("admin:give", function()
+				adminRan = true
+				return true
+			end, {
+				allow = function(who)
+					return who:GetAttribute("Admin") == true
+				end,
+			})
+		end)
+		local denied = call("admin:give", {})
+		assertEquals(denied and denied.error, "rejected", "allow can refuse by player")
+		assertEquals(adminRan, false, "and the handler doesn't run")
+		assertTrue(reported("forbidden"), "a refused allow is reported")
+		player:SetAttribute("Admin", true)
+		assertEquals(call("admin:give", {}).data, true, "allowed players get through")
+		player:SetAttribute("Admin", nil)
+
+		local check = Remote.schema({
+			id = "string 1..20",
+			amount = "integer 1..99",
+			note = "string?",
+			at = "Vector3?",
+			tags = { "string ..8" },
+		})
+		assertTrue(check({ id = "sword", amount = 3, tags = {} }), "a matching payload passes")
+		assertTrue(
+			check({ id = "sword", amount = 3, note = "hi", at = Vector3.new(), tags = { "a" } }),
+			"with optional fields"
+		)
+		assertEquals(check({ id = "sword", amount = 3.5, tags = {} }), false, "integers must be whole")
+		assertEquals(check({ id = "sword", amount = 100, tags = {} }), false, "and in range")
+		assertEquals(check({ id = "", amount = 1, tags = {} }), false, "string length is checked")
+		assertEquals(check({ id = "sword", tags = {} }), false, "required fields must be there")
+		assertEquals(check({ id = "sword", amount = 1, tags = {}, extra = 1 }), false, "unknown fields are refused")
+		assertEquals(check({ id = "sword", amount = 1, tags = { "toolongtag" } }), false, "array items are checked")
+		assertEquals(check({ id = "sword", amount = 1, tags = { [2] = "a" } }), false, "arrays can't have holes")
+		assertEquals(check({ id = "sword", amount = 1, tags = { x = "a" } }), false, "or string keys")
+		assertEquals(check({ id = "sword", amount = 1, at = 5, tags = {} }), false, "datatypes are checked")
+		assertEquals(check("sword"), false, "non-tables are refused")
+		local partCheck = Remote.schema({ target = "BasePart" })
+		assertTrue(partCheck({ target = Instance.new("Part") }), "class names use IsA")
+		assertEquals(partCheck({ target = Instance.new("Folder") }), false, "and refuse other classes")
+		assertEquals(pcall(Remote.schema, { n = "integer 5..x" }), false, "a bad spec errors when it's made")
+
+		asServer(function()
+			Remote.handle("buy", function(_who, payload: any)
+				return payload.amount
+			end, { check = Remote.schema({ amount = "integer 1..10" }) })
+		end)
+		assertEquals(call("buy", { amount = 2 }).data, 2, "schemas plug into check")
+		assertEquals(call("buy", { amount = 50 }).error, "invalid_payload", "and refuse bad payloads")
+		assertTrue(reported("invalid_payload"), "which is reported")
+
+		call("doesNotExist", {})
+		assertTrue(reported("unknown_action"), "unknown actions are reported")
+
+		asServer(function()
+			Remote.trap("admin:setCoins")
+		end)
+		local trapped = call("admin:setCoins", { coins = 1e9 })
+		assertEquals(trapped and trapped.error, "unknown_action", "a trap looks like a missing action")
+		assertTrue(reported("trap"), "and reports whoever called it")
+		assertEquals(
+			pcall(function()
+				asServer(function()
+					Remote.trap("__rivueStateSync")
+				end)
+			end),
+			false,
+			"traps can't use reserved names"
+		)
+
+		table.clear(reports)
+		for _ = 1, 20 do
+			call("doesNotExist", {})
+		end
+		task.wait()
+		assertTrue(#reports <= 1, `reports are throttled per reason (got {#reports})`)
+		task.wait(1.1)
+		call("doesNotExist", {})
+		task.wait()
+		local last = reports[#reports]
+		assertTrue(last ~= nil and last.count >= 20, "and the next report counts what was held back")
+
+		stopWatching()
+		table.clear(reports)
+		task.wait(1.1)
+		call("doesNotExist", {})
+		task.wait()
+		assertEquals(#reports, 0, "onSuspicious returns a remover")
+	end
+
 	print("\n========== REMOTE SERVER TESTS COMPLETE ==========\n")
 end
 
