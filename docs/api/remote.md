@@ -4,9 +4,8 @@
 
 **Learn it:** [Guide 8: Sharing state and the server](../guide/08-state-and-server.md)
 
-Request/response and events between client and server over RemoteEvents, with payload validation
-and per-player rate limits. It's a separate package from Rivue, which only does UI: put
-`RivueRemote` next to `RivueUI` in ReplicatedStorage. All examples assume
+Requests, events and replicated state between client and server, with payload checks and
+per-player limits. Put `RivueRemote` next to `RivueUI` in ReplicatedStorage. Examples assume
 `local Remote = require(game.ReplicatedStorage.RivueRemote)`.
 
 - [Remote.setupServer()](#remotesetupserver)
@@ -16,6 +15,8 @@ and per-player rate limits. It's a separate package from Rivue, which only does 
 - [Remote.on()](#remoteon)
 - [Remote.send() and Remote.sendAll()](#remotesend-and-remotesendall)
 - [Remote.use()](#remoteuse)
+- [Remote.schema()](#remoteschema)
+- [Remote.onSuspicious() and Remote.trap()](#remoteonsuspicious-and-remotetrap)
 - [Remote.action()](#remoteaction)
 - [Remote.state()](#remotestate)
 - [Remote.useState(), getState() and onState()](#remoteusestate-getstate-and-onstate)
@@ -28,22 +29,15 @@ and per-player rate limits. It's a separate package from Rivue, which only does 
 
 ## Remote.setupServer()
 
-Creates the RemoteEvents RivueRemote uses. Call it once in a server script at startup, so clients
-never wait for them.
+Creates the remotes in `ReplicatedStorage.RemoteEvents`. Call it once at server startup; clients
+wait up to 5 seconds for them.
 
 - **Example**
 
   <!-- server -->
   ```lua
-  -- ServerScriptService/Main.server.luau
   Remote.setupServer()
   ```
-
-- **Details**
-
-  The events live in `ReplicatedStorage.RemoteEvents`: two for requests and replies, and two that
-  carry everything `send()` and `sendAll()` push, however many event names the game uses. Clients
-  wait up to 5 seconds for them, and warn if the server never created them.
 
 - **Type**
 
@@ -55,50 +49,43 @@ never wait for them.
 
 ## Remote.handle()
 
-Defines what the server does when a client sends an action, like `"shop:buy"`. Whatever your handler
-returns is sent back as the response.
+Handles an action on the server. The return value is the reply.
 
 - **Example**
 
   <!-- server -->
   ```lua
-  local Players = game:GetService("Players")
   local PRICES = { sword = 100, shield = 75 }
-
-  Remote.setupServer()
 
   Remote.handle("shop:buy", function(player, payload)
   	local price = PRICES[payload.id]
   	local coins = player:GetAttribute("Coins") or 0
   	if not price or coins < price then
-  		return { ok = false, reason = "not_enough_coins" }
+  		return false
   	end
   	player:SetAttribute("Coins", coins - price)
-  	return { ok = true }
+  	return true
   end, {
-  	maxPerSecond = 5,
-  	check = function(payload)
-  		return type(payload) == "table" and type(payload.id) == "string"
-  	end,
+  	check = Remote.schema({ id = "string 1..32" }),
+  	exclusive = true,
   })
   ```
 
+- **Options**
+
+  - `maxPerSecond`: calls per player per second (default 30, `0` for no limit).
+  - `check`: gets the payload; anything but `true` refuses it with `"invalid_payload"`. See
+    [`schema()`](#remoteschema).
+  - `allow`: gets the player and runs before the payload is read; anything but `true` refuses
+    with `"rejected"`. For admin and dev actions.
+  - `exclusive`: a player's second call while the first is running gets `"busy"`. For handlers
+    that yield between reading and writing, like purchases and trades.
+
 - **Details**
 
-  - **Errors.** If the handler errors, the error is logged on the server and the client gets
-    `"handler_error"`, so internal details never leak to clients.
-  - **Rate limits.** Each player can call each action `maxPerSecond` times per second (default
-    30, `0` disables it). On top of that, each player has a budget across all actions, set with
-    [`configure()`](#remoteconfigure). Calls over either limit get `"rate_limited"`.
-  - **Payloads come from the client.** Never trust them. `check` gets the payload before the
-    handler does; if it returns anything but `true` (or errors), the client gets
-    `"invalid_payload"` and the handler doesn't run. `check` doesn't get the player, so put
-    permission checks in [`use()`](#remoteuse) or the handler. An Instance in a payload can be any
-    Instance the client sees, so check the player owns it.
-  - **One at a time.** With `exclusive = true`, a player's second call to the action while the
-    first is still running gets `"busy"`. Use it for handlers that yield between reading and
-    writing data, like trades and purchases.
-  - **Logs.** Handler and middleware errors are warned at most once every 10 seconds per action.
+  - A handler error is logged (at most once per 10 seconds per action) and the client only gets
+    `"handler_error"`.
+  - An Instance in a payload can be anything the client can see. Check the player owns it.
   - Names starting with `__rivue` are reserved.
 
 - **Type**
@@ -110,6 +97,7 @@ returns is sent back as the response.
   	options: {
   		maxPerSecond: number?,
   		check: ((payload: unknown) -> boolean)?,
+  		allow: ((player: Player) -> boolean)?,
   		exclusive: boolean?,
   	}?
   )
@@ -119,53 +107,19 @@ returns is sent back as the response.
 
 ## Remote.request()
 
-Asks the server something and waits for the answer, like a function call across the network. It
-yields, so call it from `task.spawn` or a watcher, never from render.
+Sends an action and yields for the reply. Returns `(data, nil)` or `(nil, err)`. `timeout` is in
+seconds (default 10). In components, [`useRequest()`](#remoteuserequest) is usually simpler.
 
 - **Example**
 
-  A buy button with a pending state and an error message:
-
   ```lua
-  local BuyButton = Rivue.defineComponent({
-  	name = "BuyButton",
-  	props = { itemId = { type = "string", required = true } },
-  	setup = function(props)
-  		local pending = Rivue.ref(false)
-  		local message = Rivue.ref("")
-  		return {
-  			pending = pending,
-  			message = message,
-  			buy = function()
-  				pending.value = true
-  				task.spawn(function() -- request yields, so never call it from render
-  					local result, err = Remote.request("shop:buy", { id = props.itemId })
-  					pending.value = false
-  					if err then
-  						message.value = `Error: {err}`
-  					elseif (result :: any).ok then
-  						message.value = "Bought!"
-  					else
-  						message.value = `Can't buy: {(result :: any).reason}`
-  					end
-  				end)
-  			end,
-  		}
-  	end,
-  	render = function(ctx)
-  		return h("TextButton", {
-  			Text = if ctx.pending then "Buying..." else `Buy {ctx.message}`,
-  			Active = not ctx.pending,
-  			onClick = ctx.buy,
-  		})
-  	end,
-  })
+  task.spawn(function()
+  	local bought, err = Remote.request("shop:buy", { id = "sword" })
+  	if err then
+  		warn("buy failed:", err)
+  	end
+  end)
   ```
-
-- **Details**
-
-  Returns `(data, nil)` on success or `(nil, err)` on failure. `timeout` is in seconds (default
-  10).
 
 - **Type**
 
@@ -177,29 +131,14 @@ yields, so call it from `task.spawn` or a watcher, never from render.
 
 ## Remote.fire()
 
-Tells the server something without waiting for a reply, like "the player opened the shop".
+Sends an action without waiting. The handler's return value is dropped. Returns the reason if the
+payload can't be sent.
 
 - **Example**
 
   ```lua
-  -- Client
   Remote.fire("settings:save", { music = 0.5, sfx = 1 })
   ```
-
-  <!-- server -->
-  ```lua
-  -- Server
-  Remote.handle("settings:save", function(player, payload)
-  	print(player.Name, "saved settings", payload)
-  	return nil
-  end)
-  ```
-
-- **Details**
-
-  The server's [`handle()`](#remotehandle) runs as usual, and its return value is discarded.
-  The payload is checked the same way `request()` checks it. If it can't be sent, `fire()` warns
-  and returns the reason, such as `"payload_unsafe_type"`, instead of sending it.
 
 - **Type**
 
@@ -211,30 +150,18 @@ Tells the server something without waiting for a reply, like "the player opened 
 
 ## Remote.on()
 
-Listens on the client for events the server sends, like a new message or a price update.
+Listens on the client for events from [`send()` and `sendAll()`](#remotesend-and-remotesendall).
+Inside `setup()` it disconnects on unmount.
 
 - **Example**
 
   ```lua
-  -- Client: show announcements
   local announcement = Rivue.ref("")
 
-  local conn = Remote.on("Announcement", function(text)
+  Remote.on("Announcement", function(text)
   	announcement.value = text
   end)
-
-  -- Server
-  -- Remote.sendAll("Announcement", "Double coins for 10 minutes!")
   ```
-
-- **Details**
-
-  The server sends with [`send()` or `sendAll()`](#remotesend-and-remotesendall). Each callback
-  runs in its own thread, as with a RemoteEvent.
-
-  Called inside a component's `setup()` (or an effect scope), the listener disconnects when the
-  component unmounts, like a Vue composable. RivueRemote finds the game's RivueUI for this the
-  same way RivueRouter does. Anywhere else, call `Disconnect()` when you're done.
 
 - **Type**
 
@@ -248,37 +175,25 @@ Listens on the client for events the server sends, like a new message or a price
 
 ## Remote.send() and Remote.sendAll()
 
-Sends something from the server to one player, or to everyone, without waiting for a reply.
-Clients receive it with [`Remote.on()`](#remoteon).
+Sends an event from the server to one player or everyone.
 
 - **Example**
 
   <!-- server -->
   ```lua
-  local Players = game:GetService("Players")
-
-  Remote.setupServer()
-
-  -- One player: their inventory changed
-  local function giveItem(player: Player, id: string)
-  	Remote.send(player, "inventory:added", id)
-  end
-
-  -- Everyone: a server-wide announcement
+  game.Players.PlayerAdded:Connect(function(player)
+  	Remote.send(player, "welcome", "Hi!")
+  end)
   Remote.sendAll("Announcement", "Double coins for 10 minutes!")
-
-  -- Many times a second: the round timer, where a dropped update doesn't matter
   Remote.sendAll("round:time", 90, { unreliable = true })
   ```
 
 - **Details**
 
-  - Sends wait until the end of the frame, and everything one player is sent in a frame goes as
-    one network message, in the order it was sent. `Remote.flush()` sends the queue straight away.
-  - The payload is checked like a request's. If it can't be sent, it warns and returns the reason.
-  - `unreliable = true` sends at once through an `UnreliableRemoteEvent`, outside the batch.
-    Updates can be dropped or arrive out of order, and Roblox drops unreliable payloads over about
-    900 bytes, but they cost less. Use it for values that change many times a second.
+  - Sends are batched per player until the end of the frame, in order. `Remote.flush()` sends now.
+  - `unreliable = true` goes straight out on an `UnreliableRemoteEvent`. It can drop or reorder,
+    and Roblox drops payloads over about 900 bytes.
+  - Returns the reason if the payload can't be sent.
 
 - **Type**
 
@@ -292,8 +207,8 @@ Clients receive it with [`Remote.on()`](#remoteon).
 
 ## Remote.use()
 
-Runs a function on the server before every handler, for checks every action shares: banned
-players, data that hasn't loaded yet, logging.
+Middleware that runs before every handler, after the rate limits and payload checks and before
+`check`. Return `false` to refuse with `"rejected"`. Returns a remover.
 
 - **Example**
 
@@ -301,19 +216,10 @@ players, data that hasn't loaded yet, logging.
   ```lua
   local loaded: { [Player]: boolean } = {}
 
-  Remote.use(function(player, action, _payload)
-  	if not loaded[player] then
-  		return false -- the client gets "rejected"
-  	end
-  	return true
+  Remote.use(function(player, _action, _payload)
+  	return loaded[player] == true
   end)
   ```
-
-- **Details**
-
-  It runs after the rate limit and the payload checks, and before the action's `check`. Returning
-  `false` rejects the request with `"rejected"`. An error is logged and the client gets
-  `"handler_error"`. It returns a function that removes it.
 
 - **Type**
 
@@ -323,34 +229,94 @@ players, data that hasn't loaded yet, logging.
 
 ---
 
-## Remote.action()
+## Remote.schema()
 
-One action that both sides share, so the client's request and the server's handler agree on its
-name and its types. Put it in a ModuleScript in ReplicatedStorage and require it from both.
+Builds a `check` function. The spec is compiled once and a bad spec errors straight away.
 
 - **Example**
 
+  <!-- server -->
   ```lua
-  -- ReplicatedStorage/Actions.luau
-  local Actions = {
-  	buy = Remote.action("shop:buy") :: Remote.Action<{ id: string }, boolean>,
-  }
+  local check = Remote.schema({
+  	id = "string 1..32",
+  	amount = "integer 1..99",
+  	gift = "Player?",
+  	tags = { "string ..16" },
+  })
+  ```
 
-  -- Client
-  task.spawn(function()
-  	local bought, err = Actions.buy.request({ id = "sword" })
+- **Specs**
+
+  | Spec | Matches |
+  |---|---|
+  | `"string"`, `"number"`, `"integer"`, `"boolean"`, `"any"` | that type (`"any"` is anything but `nil`) |
+  | `"number 0..1"`, `"string 1..32"` | a range, or a length for strings; either end can be left out |
+  | `"Vector3"`, `"CFrame"`, ... | that datatype |
+  | `"Player"`, `"BasePart"`, ... | an Instance that `IsA` that class |
+  | `"string?"` | also allows `nil` |
+  | `{ field = spec }` | a table with exactly these fields |
+  | `{ spec }` | an array without holes |
+  | a function | your own check |
+
+- **Type**
+
+  ```lua
+  function Remote.schema(spec: any): (payload: unknown) -> boolean
+  ```
+
+---
+
+## Remote.onSuspicious() and Remote.trap()
+
+`onSuspicious` reports players who send what a normal client wouldn't. `trap` registers an action
+your game never calls; calling it reports `"trap"` and replies `"unknown_action"`.
+
+- **Example**
+
+  <!-- server -->
+  ```lua
+  Remote.trap("admin:giveCoins")
+
+  Remote.onSuspicious(function(player, reason, count)
+  	if reason == "trap" then
+  		player:Kick()
+  	end
   end)
-
-  -- Server
-  -- Actions.buy.handle(function(player, payload)
-  -- 	return payload.id == "sword"
-  -- end)
   ```
 
 - **Details**
 
-  `request`, `fire` and `handle` work like `Remote.request`, `Remote.fire` and `Remote.handle`,
-  with the action's name filled in and its payload and result typed.
+  - Reasons: `"malformed"`, `"unknown_action"`, `"rate_limited"`, `"forbidden"`,
+    `"invalid_payload"`, `"trap"` and the payload errors.
+  - Called at most once a second per player and reason; `count` is how many happened since the
+    last call.
+  - Lag can cause the odd `"rate_limited"`, so act on counts. Traps are never hit by accident.
+  - `onSuspicious` returns a remover.
+
+- **Type**
+
+  ```lua
+  function Remote.onSuspicious(listener: (player: Player, reason: string, count: number) -> ()): () -> ()
+  function Remote.trap(action: string)
+  ```
+
+---
+
+## Remote.action()
+
+A typed action shared by both sides. Put it in a ModuleScript in ReplicatedStorage.
+
+- **Example**
+
+  ```lua
+  local Actions = {
+  	buy = Remote.action("shop:buy") :: Remote.Action<{ id: string }, boolean>,
+  }
+
+  task.spawn(function()
+  	local bought, err = Actions.buy.request({ id = "sword" })
+  end)
+  ```
 
 - **Type**
 
@@ -369,31 +335,27 @@ name and its types. Put it in a ModuleScript in ReplicatedStorage and require it
 
 ## Remote.state()
 
-A value on the server that every client can read and follow, like the round phase, a timer or a
-player's coins. Changes reach clients with the frame's other sends.
+A server value that clients can read, shared or per player.
 
 - **Example**
 
   <!-- server -->
   ```lua
-  local round = Remote.state("round", { phase = "lobby", endsAt = 0 })
+  local round = Remote.state("round", { phase = "lobby" })
   local coins = Remote.state("coins", 0)
 
-  round.set({ phase = "playing", endsAt = os.time() + 120 })
-
-  Players.PlayerAdded:Connect(function(player)
-  	coins.setFor(player, 100) -- this player's own value
+  round.set({ phase = "playing" })
+  game.Players.PlayerAdded:Connect(function(player)
+  	coins.setFor(player, 100)
   end)
   ```
 
 - **Details**
 
-  - `set(value)` changes the value for everyone who doesn't have their own.
-  - `setFor(player, value)` gives one player their own value. `setFor(player, nil)` goes back to
-    the shared one. It's forgotten when the player leaves.
-  - `get(player?)` reads it on the server.
-  - Values are checked like payloads. `set` and `setFor` return the reason when one can't be sent.
-  - A player who joins later loads the current values when their client first reads state.
+  - `set` changes the shared value; `setFor(player, value)` overrides it for one player, and
+    `nil` removes the override.
+  - Values are checked like payloads; `set` and `setFor` return the reason if one can't be sent.
+  - Late joiners get the current values.
 
 - **Type**
 
@@ -411,8 +373,7 @@ player's coins. Changes reach clients with the frame's other sends.
 
 ## Remote.useState(), getState() and onState()
 
-Read a [`Remote.state()`](#remotestate) on the client. `useState` gives a read-only ref, so a
-component re-renders when the server changes the value.
+Read a [`Remote.state()`](#remotestate) on the client.
 
 - **Example**
 
@@ -430,11 +391,9 @@ component re-renders when the server changes the value.
 
 - **Details**
 
-  - `useState(name, default)` returns a read-only ref. It starts at `default` until the value has
-    loaded, so it never yields in `setup()`. It needs RivueUI.
-  - `getState(name)` returns the current value. The first call yields while the values load.
-  - `onState(name, callback)` calls back with each new value. In `setup()` it disconnects when
-    the component unmounts.
+  - `useState` returns a read-only ref that holds `default` until the value loads. Needs RivueUI.
+  - `getState` yields on first use while values load.
+  - `onState` calls back on each change, and disconnects on unmount inside `setup()`.
 
 - **Type**
 
@@ -448,8 +407,8 @@ component re-renders when the server changes the value.
 
 ## Remote.useRequest()
 
-[`useAsync()`](component.md#useasync) around [`Remote.request()`](#remoterequest): the result,
-`loading` and `error` as refs, and an answer to an old request never overwrites a newer one.
+[`useAsync()`](component.md#useasync) around [`Remote.request()`](#remoterequest). Request errors
+end up in `error`. Needs RivueUI.
 
 - **Example**
 
@@ -458,20 +417,13 @@ component re-renders when the server changes the value.
   	name = "Inventory",
   	setup = function()
   		local items = Remote.useRequest("inventory:list", { initial = {} })
-  		return { items = items.data, loading = items.loading, reload = items.refresh }
+  		return { items = items.data, loading = items.loading }
   	end,
   	render = function(ctx)
   		return h("TextLabel", { Text = if ctx.loading then "Loading..." else `{#ctx.items} items` })
   	end,
   })
   ```
-
-- **Details**
-
-  It sends straight away unless `immediate = false`, with `payload` if you give one. `run(payload)`
-  sends again with a new payload and `refresh()` repeats the last one. A request error such as
-  `"rate_limited"` or `"timeout"` ends up in `error`. Like `useAsync`, it holds a surrounding
-  Suspense while loading unless `suspense = false`. It needs RivueUI.
 
 - **Type**
 
@@ -487,36 +439,31 @@ component re-renders when the server changes the value.
   function Remote.useRequest(name: string, options: RequestOptions?): AsyncState
   ```
 
+  `run(payload)` sends again with a new payload, `refresh()` repeats the last one.
+
 ---
 
 ## Remote.configure()
 
-Changes RivueRemote's limits. Call it from a ModuleScript both sides require, so the client checks
-payloads against the same limits the server does.
+Changes the limits. Call it from a module both sides require.
 
 - **Example**
 
   ```lua
-  -- ReplicatedStorage/RemoteConfig.luau, required by a server script and a client script
-  Remote.configure({
-  	maxPayloadSize = 4000, -- this game never sends more
-  	maxRequestsPerSecond = 40,
-  })
+  Remote.configure({ maxPayloadSize = 4000, maxRequestsPerSecond = 40 })
   ```
 
-- **Details**
+- **Settings**
 
-  | Setting | Default | |
+  | Setting | Default | Per player |
   |---|---|---|
-  | `maxPayloadSize` | 20000 | largest payload, in bytes, roughly as the network sends it |
-  | `maxPayloadDepth` | 10 | how deep tables can nest |
-  | `maxRequestsPerSecond` | 60 | requests one player can send per second, all actions together |
-  | `maxBytesPerSecond` | 50000 | payload bytes one player can send per second, all actions together |
-  | `maxConcurrentRequests` | 10 | handlers one player can have running at once; more get `"busy"` |
+  | `maxPayloadSize` | 20000 | bytes in one payload |
+  | `maxPayloadDepth` | 10 | table nesting |
+  | `maxRequestsPerSecond` | 60 | requests per second, all actions |
+  | `maxBytesPerSecond` | 50000 | payload bytes per second, all actions |
+  | `maxConcurrentRequests` | 10 | handlers running at once; more get `"busy"` |
 
-  `0` turns off `maxRequestsPerSecond`, `maxBytesPerSecond` or `maxConcurrentRequests`. Without the totals, a client could
-  spread its spam across every action and stay under each action's own `maxPerSecond`. An unknown
-  setting errors.
+  `0` turns off the last three. Unknown settings error.
 
 - **Type**
 
@@ -534,34 +481,23 @@ payloads against the same limits the server does.
 
 ## Remote.stats()
 
-Counts per action on the server, for finding slow or failing handlers in a live game.
+Per-action counts on the server. They add up until `resetStats()`.
 
 - **Example**
 
   <!-- server -->
   ```lua
-  task.spawn(function()
-  	while task.wait(60) do
-  		for action, s in Remote.stats() do
-  			if s.calls > 0 then
-  				print(action, s.calls, "calls,", s.failed, "failed,", s.rejected, "refused,",
-  					math.round(s.totalTime / s.calls * 1000), "ms on average")
-  			end
-  		end
-  		Remote.resetStats()
-  	end
-  end)
+  for action, s in Remote.stats() do
+  	print(action, s.calls, s.failed, s.rejected, s.maxTime)
+  end
+  Remote.resetStats()
   ```
 
 - **Details**
 
-  - `calls` counts handler runs, and `failed` the ones that errored (a `use()` function that
-    errored counts too).
-  - `rejected` counts requests refused before the handler: rate limits, payload checks, `check`
-    and `use()`.
-  - `totalTime` and `maxTime` are the handler's time in seconds, including any time it spent
-    yielding, for example on a DataStore call.
-  - The counts add up until `resetStats()`. `stats()` returns a copy.
+  - `failed` counts handler and middleware errors; `rejected` counts requests refused before the
+    handler.
+  - Times are in seconds and include yields.
 
 - **Type**
 
@@ -576,46 +512,26 @@ Counts per action on the server, for finding slow or failing handlers in a live 
 
 ## Payloads and errors
 
-- **Example**
+- **Payloads** can hold strings, finite numbers, booleans, tables, Instances and datatypes like
+  Vector3 and CFrame (also finite). Functions and threads are refused before sending.
 
-  ```lua
-  local data, err = Remote.request("inventory:get", nil, 5)
-  if err == "timeout" then
-  	warn("server didn't answer")
-  elseif err then
-  	warn("request failed:", err)
-  else
-  	print("inventory", data)
-  end
-  ```
+- **Limits.** Refused requests get at most 30 replies a second per player; the rest get none.
+  Refused payloads still count toward the byte budget.
 
-- **Payloads** can contain:
-  - strings, numbers (not NaN or infinity) and booleans,
-  - tables up to 10 levels deep, and about 20 KB in total (both can be changed with
-    [`configure()`](#remoteconfigure)),
-  - Instances,
-  - Roblox datatypes such as Vector3, CFrame, Color3, UDim2 and EnumItem, also without NaN or
-    infinity.
-
-  Functions and threads are rejected before anything is sent.
-
-  The server answers at most 30 refused requests a second per player, and the rest get no reply.
-  A refused payload still counts toward the byte budget.
-
-- **Errors** returned by `request()`:
+- **Errors** from `request()`:
 
   | Error | Meaning |
   |-------|---------|
-  | `"timeout"` | No response in time |
-  | `"unknown_action"` | No `handle()` for that action on the server |
-  | `"rate_limited"` | Over the action's `maxPerSecond`, or the player's total request or byte budget |
-  | `"rejected"` | A [`use()`](#remoteuse) function returned `false` |
-  | `"invalid_payload"` | The action's `check` didn't return `true` |
-  | `"handler_error"` | The server handler errored |
-  | `"busy"` | The action is `exclusive` and this player's last call hasn't finished, or the player has `maxConcurrentRequests` handlers running |
-  | `"payload_bad_number"` | The payload contains NaN or infinity, including inside a datatype |
-  | `"invalid_action_name"` | Not a non-empty string of at most 100 characters |
-  | `"payload_unsafe_type"` | The payload contains something RemoteEvents can't send |
+  | `"timeout"` | No reply in time |
+  | `"unknown_action"` | No handler for that action |
+  | `"rate_limited"` | Over `maxPerSecond` or a per-player budget |
+  | `"rejected"` | Refused by `allow` or `use()` |
+  | `"invalid_payload"` | Refused by `check` |
+  | `"busy"` | `exclusive` call still running, or `maxConcurrentRequests` reached |
+  | `"handler_error"` | The handler errored |
+  | `"invalid_action_name"` | Empty, not a string, or over 100 characters |
+  | `"payload_bad_number"` | NaN or infinity, including inside a datatype |
+  | `"payload_unsafe_type"` | Something RemoteEvents can't send |
   | `"payload_too_large"` / `"payload_too_deep"` | Over the size or nesting limit |
 
 ---
