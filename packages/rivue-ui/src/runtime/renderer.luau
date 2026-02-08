@@ -1916,11 +1916,19 @@ end
 const DESCRIBE_DEPTH = 2
 const DESCRIBE_FIELDS = 8
 
+const ESCAPES: { [string]: string } =
+	table.freeze({ ["\\"] = "\\\\", ['"'] = '\\"', ["\n"] = "\\n", ["\t"] = "\\t", ["\r"] = "\\r" }) :: any
+const UNESCAPES: { [string]: string } = table.freeze({ n = "\n", t = "\t", r = "\r" }) :: any
+
+local function escapeText(text: string): string
+	return (string.gsub(text, '[\\"\n\t\r]', ESCAPES))
+end
+
 local function describeValue(value: unknown, depth: number?): string
 	local t = typeof(value)
 	if t == "string" then
 		local text = value :: string
-		return if #text > 24 then `"{string.sub(text, 1, 21)}..."` else `"{text}"`
+		return if #text > 24 then `"{escapeText(string.sub(text, 1, 21))}..."` else `"{escapeText(text)}"`
 	elseif t == "number" or t == "boolean" or t == "EnumItem" then
 		return tostring(value)
 	elseif t == "Instance" then
@@ -2046,7 +2054,12 @@ local function applyDevtoolsEdit(inst: ComponentInstance, el: Instance)
 	elseif type(current) == "boolean" then
 		value = if text == "true" then true elseif text == "false" then false else nil
 	elseif type(current) == "string" then
-		value = string.match(text, '^"(.*)"$') or text
+		local quoted = string.match(text, '^"(.*)"$')
+		value = if quoted
+			then string.gsub(quoted, "\\(.)", function(c: string)
+				return UNESCAPES[c] or c
+			end)
+			else text
 	end
 	if value ~= nil then
 		holder[field] = value

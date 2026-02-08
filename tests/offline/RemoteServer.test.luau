@@ -346,6 +346,29 @@ local function runTests()
 		assertEquals(next(Remote.stats()), nil, "resetStats clears them")
 	end
 
+	print("Test 14b: getState waits for a load that's already running")
+	do
+		local removeDelay: () -> () = function() end
+		asServer(function()
+			Remote.state("early", 7)
+			removeDelay = Remote.use(function(_player, action)
+				if action == "__rivueStateSync" then
+					task.wait(0.1)
+				end
+				return true
+			end)
+		end)
+		local first: any = nil
+		task.spawn(function()
+			first = Remote.getState("early")
+		end)
+		local second = Remote.getState("early")
+		removeDelay()
+		assertEquals(second, 7, "a second caller waits for the first load instead of getting nil")
+		task.wait(0.2)
+		assertEquals(first, 7, "and so does the first")
+	end
+
 	print("Test 15: replicated state")
 	do
 		local Rivue = require(game:GetService("ReplicatedStorage"):WaitForChild("RivueUI"))
@@ -356,7 +379,8 @@ local function runTests()
 			coins = Remote.state("coins", 0)
 			coins.setFor(me, 25)
 		end)
-		assertEquals(Remote.getState("round").phase, "lobby", "a late joiner gets the current value")
+		task.wait()
+		assertEquals(Remote.getState("round").phase, "lobby", "clients get the current value")
 		assertEquals(Remote.getState("coins"), 25, "and its own per-player value")
 		local heard = {}
 		local conn = Remote.onState("round", function(value)
