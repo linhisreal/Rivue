@@ -2,7 +2,7 @@
 
 # Architecture
 
-This page is for people changing Rivue itself. To use it, read the [API reference](API.md).
+For people changing Rivue itself. To use it, see the [API reference](API.md).
 
 ## Packages
 
@@ -10,55 +10,49 @@ This page is for people changing Rivue itself. To use it, read the [API referenc
 |---|---|---|
 | RivueUI | `packages/rivue-ui/src` | nothing |
 | RivueRemote | `packages/rivue-remote/src/init.luau` | nothing |
-| RivueRouter | `packages/rivue-router/src/init.luau` | the RivueUI the game already has |
-| RivueDevTools | `packages/rivue-devtools/src` | reads attributes RivueUI writes |
-
-Most of this page is about RivueUI. RivueRemote and RivueRouter each get a short section at the
-end.
+| RivueRouter | `packages/rivue-router/src/init.luau` | the game's RivueUI |
+| RivueDevTools | `packages/rivue-devtools/src` | attributes RivueUI writes |
 
 ## Modules
 
-RivueUI's entry point, `src/init.luau`, returns `runtime/main`. The rest is in `runtime/`:
+`src/init.luau` returns `runtime/main`:
 
 ```
-main.luau           the public API; wraps watch/effect so they stop with their component
-types.luau          shared exported types
-reactivity.luau     proxies, refs, computed, effects, watch, effect scopes
+main.luau           public API; ties watch/effect to their component
+types.luau          exported types
+reactivity.luau     proxies, refs, computed, effects, watch, scopes
 scheduler.luau      micro queue, frame queues, component update queue
-array.luau          Rivue.array: list edits that notify readers
-h.luau              vnodes, slot splitting, hFor/hIf, Fragment
-component.luau      component instances, props/attrs, emits, hooks, provide/inject, errors
+array.luau          Rivue.array
+h.luau              vnodes, slots, hFor/hIf, Fragment
+component.luau      instances, props/attrs, emits, hooks, provide/inject, errors
 renderer.luau       mount/patch/unmount, events, props, transitions, KeepAlive, Teleport, createApp
 builtins.luau       Suspense, KeepAlive, Transition, TransitionGroup, VirtualList, ViewportModel
 ui.luau             ErrorBoundary, Dialog, Row, Column, Spacer
-transitions.luau    the fade, slide and pop presets
-directives.luau     directive registry, the built-in directives, model helpers
+transitions.luau    fade, slide and pop presets
+directives.luau     directives and model helpers
 composables.luau    useAttrs, useSlots, defineModel, useTheme, useStyles, useAsync
 roblox.luau         attributeRef, useTag, RunService hooks, viewport/input/selection/tween/spring
 pool.luau           Instance pool
-testing.luau        Rivue.testing: render, click, typeInto
-utils.luau          debounce, throttle and small helpers
+testing.luau        Rivue.testing
+utils.luau          debounce, throttle, helpers
 debug.luau          logging, inspect, invariants
 ```
 
-Requires only go one way. In the picture an arrow points from a module to the ones that require
-it, so the leaves are at the bottom. `debug` and `types` are left out because almost everything
-uses them, and an edge is left out when it already follows from others (`renderer` requires
-`reactivity` directly, but also through `h`).
+Requires go one way. Arrows point from a module to the ones that require it; `debug`, `types` and
+implied edges are left out.
 
 ![RivueUI's modules and which ones require which](assets/diagrams/module-graph.webp)
 
-`builtins` never requires `renderer`. When KeepAlive needs to unmount something, it calls a
-function the renderer stores on the component instance, `_keepAliveRenderer`.
+`builtins` never requires `renderer`; KeepAlive unmounts through `_keepAliveRenderer`, which the
+renderer stores on the instance.
 
 ## Reactivity
 
-`reactive(t)` returns an empty table whose metatable forwards to the raw table. `__index` tracks
-reads and `__newindex` triggers on writes. `__iter` and `__len` track the table's shape, so a loop
-over it runs again when keys are added or removed. Raw tables, proxies and markers are kept in
-weak-keyed maps: each table has one cached proxy, and both are collected together.
+`reactive(t)` returns an empty proxy whose metatable forwards to the raw table. `__index` tracks,
+`__newindex` triggers, and `__iter`/`__len` track shape. Raw tables and proxies are cached in
+weak-keyed maps, one proxy per table.
 
-Dependencies are stored in a two-level map, `depMap[target][key]`:
+Dependencies live in `depMap[target][key]`:
 
 ```mermaid
 sequenceDiagram
@@ -72,59 +66,39 @@ sequenceDiagram
     D-->>E: trigger: run E, or hand it to its scheduler
 ```
 
-Adding or removing a key also triggers `ITERATE_KEY`, and a change in array length triggers
-`LENGTH_KEY`. A `ref` keeps its own dep set instead of using the map, like Vue's `RefImpl`, so
-`.value` costs one lookup instead of two.
-
-An effect drops its dependencies and collects them again on every run. Writing state it also
-reads doesn't make it run again, except for component render effects (`allowRecurse`), since a
-child can change its parent's state while it mounts. If the effect has a scheduler, `trigger`
-calls `scheduler(run)`. If not, the effect goes on the micro queue once. The queued entry point,
-`effect.job`, skips an effect that was stopped in the meantime.
-
-Computeds are lazy. A trigger marks one dirty and tells its own dependents; the getter runs the
-next time something reads `.value`, and it gets the value it returned last time. Getters run
-inside a `pcall` up to 16 computeds deep and without one past that. Luau allows about 200 nested
-C calls, and a `pcall` at every level broke chains at about 100 computeds. An error in a getter
-reaches whoever read the value, as in Vue.
-
-`watch` is an effect whose scheduler refreshes the watched value and queues the callback by
-`flush`: `"pre"` on the micro queue, `"post"` on Heartbeat, `"sync"` straight away. A sync
-callback that errors is caught, so it can't break the write that triggered it. Pausing a watcher
-only records that something changed, and resuming replays it once.
-
-`effectScope` collects the effects created while it runs. Each component runs `setup` in a
-detached scope of its own, stopped when the component unmounts, or at once if `setup` errors.
+- Adding or removing a key triggers `ITERATE_KEY`; array length changes trigger `LENGTH_KEY`.
+- A `ref` has its own dep set, like Vue's `RefImpl`.
+- Effects re-collect deps every run and don't re-trigger themselves, except render effects
+  (`allowRecurse`), since a child can change parent state while mounting.
+- Without a scheduler an effect is queued once on the micro queue. `effect.job` skips stopped
+  effects.
+- Computeds are lazy: a trigger marks them dirty and the getter runs on the next read. Getters run
+  in `pcall` only up to 16 computeds deep, because Luau's ~200 C-call limit broke long chains.
+- `watch` flushes by `"pre"` (micro queue), `"post"` (Heartbeat) or `"sync"`. Sync callback errors
+  are caught. Paused watchers replay once on resume.
+- Each component's `setup` runs in its own detached scope, stopped on unmount or if `setup` errors.
 
 ## Errors
 
-Errors from components go to `handleError` on the component they belong to. It walks up the
-parents, calling each `onErrorCaptured` hook until one returns `false`, then calls
-`app.config.errorHandler`, and warns if there's neither.
+`handleError` walks up the parents calling `onErrorCaptured` until one returns `false`, then
+`app.config.errorHandler`, then warns.
 
 ![Where render, event handler and watcher errors go](assets/diagrams/error-flow.webp)
 
-The renderer remembers which component patched each element with an event handler, and a
-watcher remembers the component that was running `setup` when it was created. `component.luau`
-gives `reactivity.luau` a way to report to that component, since reactivity can't require it.
-A watcher created outside any component keeps the old behaviour and only warns.
+Event handlers remember the component that patched them, and watchers the component whose `setup`
+created them. `component.luau` gives `reactivity.luau` a reporter, since reactivity can't require
+it. Watchers outside components only warn.
 
 ## Scheduler
 
-There are three kinds of queue.
+- **Micro queue:** `queueJob`/`queueEffect`, deduped, flushed on `task.defer`. Jobs queued during
+  a flush wait for the next.
+- **Frame queues:** `"render"` (RenderStepped, Heartbeat on the server) and `"heartbeat"`, deduped,
+  connected only while non-empty.
+- **Update queue:** `queueUpdate({ id, run })`, deduped and sorted by uid so parents render first.
+  A loop guard stops self-requeuing updates.
 
-The micro queue holds `queueJob(fn)` and `queueEffect(fn)`. It skips a function that's already
-queued and flushes on `task.defer`. Jobs queued during a flush wait for the next one.
-
-The frame queues are `"render"` (RenderStepped, or Heartbeat on the server) and `"heartbeat"`.
-They skip duplicates too. Each has one connection, which only exists while something is queued.
-
-Component updates go through `queueUpdate({ id, run })`. The queue drops duplicates and sorts by
-component uid before it flushes. Parents are created before their children, so parents render
-first, and a queued child whose parent passes it new props still renders once. A loop guard stops
-updates that keep queuing themselves.
-
-`nextTick` waits until all of that has run.
+`nextTick` waits for all of it.
 
 ```mermaid
 flowchart LR
@@ -135,40 +109,33 @@ flowchart LR
     U -.-> H["next Heartbeat<br/>post watchers, frame jobs"]
 ```
 
-Roblox refuses a `task.defer` nested more than 80 deferred threads deep, and it only logs that,
-so `pcall` can't see it. A loop of `nextTick()` calls reaches that depth quickly. The scheduler
-counts its own depth and moves work to the next Heartbeat past 60, or a dropped flush would leave
-the update queue stuck.
+Roblox silently drops `task.defer` past 80 nested levels, which `pcall` can't catch. The
+scheduler counts its depth and moves work to the next Heartbeat past 60.
 
 ## Rendering
 
 ### Vnodes
 
-`h()` returns a plain table:
-
 ```lua
 { type, props, children, slots?, key, _uid, _owner? }
 ```
 
-While the vnode is mounted, the renderer adds its own fields:
+Fields the renderer adds while mounted, moved to the new vnode on patch:
 
 | Field | Holds |
 |-------|-------|
-| `el` | The Instance |
-| `_instance` | The component instance |
-| `_conns` | Event connections |
-| `_handlers` | The current handler for each event |
-| `_bindings` | Properties bound to a ref or `Rivue.bind()` |
-| `_dirs` | Directive state |
-| `_touched` | Props written, so the pool can reset them |
-| `_sugar` | Generated UICorner and similar children |
-| `_tween` | The running enter tween |
-| `_fnTree` | A function component's output |
-| `_teleportTarget` | Where a Teleport rendered |
+| `el` | the Instance |
+| `_instance` | the component instance |
+| `_conns`, `_handlers` | event connections and current handlers |
+| `_bindings` | properties bound to a ref or `Rivue.bind()` |
+| `_dirs` | directive state |
+| `_touched` | props written, for pool resets |
+| `_sugar` | generated UICorner etc. |
+| `_tween` | running enter tween |
+| `_fnTree` | function component output |
+| `_teleportTarget` | Teleport target |
 | `_keepAlive`, `_kept` | KeepAlive bookkeeping |
-| `_transition` | The transition config |
-
-When an element is patched, these move from the old vnode to the new one.
+| `_transition` | transition config |
 
 ### patch(old, new, container)
 
@@ -183,175 +150,100 @@ flowchart TD
     C -- yes --> UP["update in place"]
 ```
 
-Names are swapped for components in two places: `h()` handles a component's local `components`,
-and `patch` handles names registered with `app:component()`. A mount checks the kinds in the order
-above.
-
-How an update in place works depends on the vnode. A Fragment patches its children as a list. A
-Teleport patches inside its target, or mounts again if the target changed. A component gets new
-props and slots, and its render effect does the rest (unless its `memo` deps match). A function
-component diffs its output, and an element goes to `patchElement`.
-
-An element's props are set and its children mounted while its Instance is still detached, and
-`Parent` is set last, so the engine lays out the finished subtree once. Anything that needs the
-tree in the DataModel waits for the outermost `patch` to return: `onMounted`, directive `mounted`,
-component template refs, `onActivated` and enter tweens. They run children first.
+- `h()` resolves local `components`; `patch` resolves `app:component()` names.
+- Elements get props and children while detached and `Parent` last, so layout runs once.
+  `onMounted`, directive `mounted`, template refs, `onActivated` and enter tweens wait for the
+  outermost `patch`, children first.
 
 ### Elements
 
-`setProp` checks each prop in this order:
+`setProp` order:
 
-1. `__directives`.
-2. `on*` keys: an alias first (`onClick`), then an event with that name, then the property's
-   changed signal, which passes the new value. The lookup is cached per ClassName and prop.
-3. Modifier props on GuiObjects (`SUGAR_PROPS`) such as `cornerRadius`, `padding`, `stroke`,
-   `aspectRatio`, `layout` and `flex`. Each owns one generated UI* child, which is replaced when a
-   value needs a different class (`layout` going from list to grid).
-4. Instance properties, by exact name and then in PascalCase, cached per ClassName.
-5. Anything else gets a Studio warning.
+1. `__directives`
+2. `on*`: alias (`onClick`), event, then property changed signal. Cached per ClassName.
+3. `SUGAR_PROPS` (`cornerRadius`, `padding`, `stroke`, `layout`, `flex`, ...), each owning one
+   generated child.
+4. Properties, exact then PascalCase, cached per ClassName.
+5. Otherwise a Studio warning.
 
-Each event is connected once. The connection calls the handler stored in `vnode._handlers`, so a
-render with a fresh closure only swaps a function in a table.
-
-`class` is resolved before diffing. `applyClasses` puts the named styles (the component's
-`styles`, then the app's) under the element's own props, so classes go through the same shallow
-diff as everything else.
-
-`patchElement` does nothing when `memo` deps match. Otherwise it moves template refs if `ref`
-changed and diffs props shallowly. A new handler counts as unchanged because it's swapped in
-place, and removed props are reset with `Pool.restoreDefaults`. Children are patched unless both
-lists are the same table or both are empty. A TextBox keeps what the player typed unless the new
-props change `Text`.
-
-`patchKeyedChildren` matches keyed children by key, looking only at the old vnodes. It never
-searches the parent Instance, because another list in the same parent may own a row with that key.
-Unkeyed children match by position, never against a keyed old child. Whatever is left over is
-unmounted.
+- Events connect once and call `vnode._handlers`, so new closures are a table write.
+- `class` merges component then app styles under the element's props before the shallow diff.
+- `patchElement` skips on matching `memo`, resets removed props with `Pool.restoreDefaults`, and
+  leaves a TextBox's typed text unless `Text` changes.
+- `patchKeyedChildren` matches keys against old vnodes only, never the parent Instance, since
+  another list may share it. Unkeyed children match by position.
 
 ![Removing the middle row of a keyed list keeps the other rows' Instances](assets/diagrams/keyed-list.webp)
 
 #### LayoutOrder
 
-When an element with a `layout` prop, or with a UI*Layout child, has patched its children,
-`syncLayoutOrder` puts them in render order.
+After children patch under a `layout` prop or UI*Layout, `syncLayoutOrder` keeps the longest
+increasing run and fills gaps for the rest. Values start 64 apart and renumber only when a gap
+runs out, so single moves write one value.
 
 ![Removing B and inserting X after C writes one LayoutOrder value](assets/diagrams/layout-order.webp)
 
-It finds the longest run of children whose `LayoutOrder` already increases and leaves them alone.
-The others get values in the gaps between their neighbours. Values start 64 apart, so an insert
-almost always fits; when a gap runs out, the list is renumbered once. Removing, appending,
-prepending or moving one row writes one value, and the values are cached per Instance, so rows
-that didn't move cost nothing.
-
-The point of all this is fewer engine calls (Instance reads, writes and `IsA`), which cost far
-more than Luau code. For the same reason the renderer passes the vnode's ClassName around instead
-of reading `inst.ClassName`, and caches class checks. `tests/offline/Performance.test.luau` counts
-engine calls for common updates and fails if the count goes up.
+Engine calls cost far more than Luau, so the renderer avoids reads, writes and `IsA` where it can.
+`tests/offline/Performance.test.luau` fails if the engine call count goes up.
 
 ### Unmounting
 
-`unmountVNode(vnode, poolOpt, doRemove)` treats components and elements differently.
-
-A component stops its render effect, runs its unmount hooks and cleanups, then unmounts its
-subtree. If a live KeepAlive has it cached, it's deactivated instead: its root Instances are
-detached and `onDeactivated` runs.
-
-An element first clears its connections and directives. Without the pool, its children are
-unmounted with `doRemove = false`, so their hooks run and their Instances go with the root's
-`Destroy()`. With the pool, each Instance is released on its own. An element with a leave
-transition keeps its Instance until the tween ends, and nothing waits for it.
+- Components stop their render effect, run unmount hooks, then unmount the subtree. If a live
+  KeepAlive caches them they're deactivated instead.
+- Elements clear connections and directives. Without the pool, children unmount with
+  `doRemove = false` and go with the root's `Destroy()`; with the pool each Instance is released.
+  Leave transitions keep the Instance until the tween ends.
 
 ### Components
 
-`mountComponent` creates the instance and runs `setup()` in its scope with the current instance
-set. If setup returns a table and the component has a `render` option, the table becomes the setup
-state and `render` gets a render context. That context is a proxy that looks a name up in the
-setup state (through `proxyRefs`), then props, then the setup context.
-
-Next it creates a lazy render effect. Each run renders with `currentRenderingInstance` set, so
-string refs know their owner. An array result is wrapped in a Fragment, fallthrough attrs and the
-Transition config are applied to the root, and the result is patched into `inst.container`. The
-effect's scheduler queues an update job keyed by the instance uid. While the component is
-deactivated, those jobs only mark it dirty, and it catches up when it's activated.
-
-Props and attrs are `shallowReactive` tables. When a parent re-renders, `propsUnchanged` compares
-the old and new props shallowly first, like Vue's `shouldUpdateComponent`. A fresh closure for a
-declared listener counts as unchanged, because `emit` reads listeners from the current vnode. Only
-when something changed does `updateComponentProps` write through the proxies, so only effects that
-read a changed prop run again. Slots aren't reactive, so `updateComponentSlots` reports whether
-there was slot content and the renderer queues the re-render itself.
+- `setup` runs in the instance's scope. With a `render` option, its table becomes setup state and
+  `render` gets a context proxy: setup state (via `proxyRefs`), then props, then the setup context.
+- The render effect is lazy and schedules an update job by uid. Deactivated components only mark
+  dirty and catch up on activation.
+- Props and attrs are `shallowReactive`. `propsUnchanged` compares shallowly first (new listener
+  closures count as unchanged), and only changes are written through.
+- Slots aren't reactive, so the renderer queues a re-render when slot content exists.
 
 ## RivueRemote
 
-A client sends `{ action, id, payload }` on one RemoteEvent and the server answers on another,
-only to that player. `fire()` sends no id and gets no reply. The server runs each request through
-these steps, and the first one that fails sends back its reason:
+Requests are `{ action, id, payload }` on one RemoteEvent, replies go to that player on another.
+`fire()` has no id.
 
 ![The checks a request goes through on the server, and the error each one returns](assets/diagrams/remote-request.webp)
 
-`Remote.stats()` counts calls, failures, rejections and handler time per action. Server-to-client
-events from `send` and `sendAll` all travel on two shared RemoteEvents, one reliable and one
-unreliable, and a frame's sends to one player go out as one message.
-
-`Remote.state` rides on the same batched events. Each state has a version that goes up on every
-`set` or `setFor`, and each message carries it, so a client keeps the newest value whatever
-order the snapshot and the updates arrive in. The snapshot is a request to a reserved action,
-made the first time a client reads state. The server answers with each state's value for that
-player.
-
-RivueRemote doesn't require RivueUI. The first time it needs it (a listener inside `setup()`,
-`useState`, `useRequest`), it looks for the game's copy the way the router does, and keeps
-working without one.
+- `send`/`sendAll` share one reliable and one unreliable RemoteEvent; a frame's sends to a player
+  go as one message.
+- `Remote.state` uses the same batches. Each state has a version, so clients keep the newest value
+  whatever order the snapshot and updates arrive in. The snapshot is a reserved request.
+- RivueUI is found lazily, the way the router does it, and is optional.
 
 ## RivueRouter
 
-RivueRouter requires the RivueUI the game already has, from the same Packages folder or from
-ReplicatedStorage. A second copy would track state separately, and the router's components
-couldn't see the app's.
-
-Routes have names instead of paths. `push` and `replace` resolve `redirect` first, and a push to
-the route that's already open with the same params returns a `duplicated` failure. A navigation
-then runs the guards in Vue Router's order:
+Requires the game's RivueUI; a second copy would track state separately.
 
 ![The navigation guards in order, and what each return value does](assets/diagrams/router-guard.webp)
 
-Each navigation takes a number. If another one starts while a guard yields, the older navigation
-returns `cancelled` when its guard resumes. A guard that redirects starts a new navigation; during
-`back()` or `go()` that becomes a push, because history hasn't moved yet. After the guards pass,
-the router updates its history list, sets `currentRoute`, runs `afterEach` and restores the
-scroll position.
-
-Lazy route components load between the `beforeEnter` guards and `beforeResolve`, as in Vue Router.
-The loaded component replaces the `Router.lazy()` marker in the record, so it loads once.
+- `redirect` resolves before guards.
+- Each navigation takes a number; an older one returns `cancelled` when its guard resumes.
+- A redirect during `back()`/`go()` becomes a push, since history hasn't moved yet.
+- After guards: history, `currentRoute`, `afterEach`, scroll restore.
+- Lazy components load between `beforeEnter` and `beforeResolve` and replace their marker.
 
 ## DevTools channel
 
-With `app.config.devtools` on, `app:mount()` puts a `Configuration` named `RivueDevTools`, tagged
-`RivueDevToolsChannel`, in the container. `Rivue._devtools.event()` adds a line to its
-`RivueTimeline` attribute (the last 50, each with a sequence number so the plugin can tell which
-ones it already has), and `Rivue._devtools.route()` sets `RivueRoute`. The renderer adds renders
-and emits, the router adds navigations and the current route, and RivueRemote adds requests.
-When no app has devtools on, both calls return straight away.
+With `app.config.devtools`, `app:mount()` adds a `RivueDevTools` Configuration tagged
+`RivueDevToolsChannel`. `Rivue._devtools.event()` appends to its `RivueTimeline` attribute (last 50,
+with sequence numbers), and `route()` sets `RivueRoute`. Both return immediately when no app has
+devtools on.
 
 ## Tests
 
-Suites live in `tests/*.test.luau`, and each returns a function (or a table with `runAllTests`).
-They run in three places:
+| Where | How |
+|---|---|
+| Studio | `dev/client/TestRunner.client.luau` |
+| Lune | `lune run test` |
+| Roblox server | `lune run cloud-test` ([setup](RELEASING.md#tests-in-roblox)) |
 
-| Where | How | Good for |
-|---|---|---|
-| Studio | `dev/client/TestRunner.client.luau` | a real client with a LocalPlayer |
-| Lune | `lune run test` | speed; no Studio, runs on every push |
-| A Roblox server | `lune run cloud-test`, through Open Cloud | the real engine, on every push that touches code |
-
-The Lune run bundles each suite with `tests/offline/prelude.luau` and runs it in its own
-environment (`.lune/lib/bundle.luau`, `.lune/lib/run.luau`). The prelude fakes enough of Roblox
-for the suites: stub Instances (userdata with property signals), a virtual clock that `task.wait`
-and frame signals move forward, and stand-ins for TweenService, GuiService, Players and
-CollectionService. It also enforces the 80-level `task.defer` limit. If a test needs more of the
-engine, extend the prelude.
-
-A Roblox server has no local player and physics is off, so suites skip what needs either. The
-setup is in [Releasing](RELEASING.md#tests-in-roblox).
-
-When you fix a bug, add a test that fails without the fix first.
+Lune bundles each suite with `tests/offline/prelude.luau`, a fake Roblox: stub Instances, a
+virtual clock, service stand-ins and the 80-level `task.defer` limit. Extend it when a test needs
+more. Bug fixes start with a failing test.
