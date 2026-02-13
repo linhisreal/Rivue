@@ -1,5 +1,3 @@
-# The pesde workspace: each member is published on its own. Wally has no workspaces, so each
-# package also has a wally.toml.
 name = "linhisreal/rivue_workspace"
 version = "0.0.0"
 private = true

@@ -1,6 +1,3 @@
-# StyLua Configuration
-# Code formatting rules for Luau/Lua code
-
 column_width = 120
 line_endings = "Unix"
 indent_type = "Tabs"
