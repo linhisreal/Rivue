@@ -1053,7 +1053,8 @@ in refs.
     with new arguments, `refresh()` with the last ones.
   - Only the newest run's result lands. A slow answer to an old request never overwrites a
     newer one.
-  - An error goes into `error` as a string, and `data` keeps its last good value.
+  - Whatever `fn` throws goes into `error` as is, and `data` keeps its last good value. In Studio
+    it's also warned, unless `silent = true`.
   - Called in `setup()`, results that arrive after the component unmounts are dropped.
   - Inside a [Suspense](builtins.md#suspense), the Suspense shows its fallback until every
     `useAsync` under it has its first result, so one loading screen covers a whole panel.
@@ -1067,10 +1068,11 @@ in refs.
   	args: { any }?,
   	initial: T?,
   	suspense: boolean?, -- default true
+  	silent: boolean?,
   }?): {
   	data: Ref<T?>,
   	loading: Ref<boolean>,
-  	error: Ref<string?>,
+  	error: Ref<any>,
   	run: (...any) -> (),
   	refresh: () -> (),
   }

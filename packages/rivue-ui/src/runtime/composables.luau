@@ -3,6 +3,7 @@
 -- Copyright (c) 2025-2026 linhisreal (ThisisLinh)
 -- Licensed under the Rivue License, based on PolyForm Noncommercial 1.0.0. See LICENSE.
 
+local RunService = game:GetService("RunService")
 local Types = require("./types")
 local componentModule = require("./component")
 local reactivity = require("./reactivity")
@@ -102,12 +103,14 @@ export type AsyncOptions<T> = {
 	initial: T?,
 	--- Hold a surrounding Suspense on its fallback while loading (default true)
 	suspense: boolean?,
+	--- Don't warn in Studio when `fn` errors
+	silent: boolean?,
 }
 
 export type AsyncState<T> = {
 	data: Ref<T?>,
 	loading: Ref<boolean>,
-	error: Ref<string?>,
+	error: Ref<any>,
 	run: (...any) -> (),
 	refresh: () -> (),
 }
@@ -116,7 +119,7 @@ function composables.useAsync<T>(fn: (...any) -> T, options: AsyncOptions<T>?): 
 	local opts: AsyncOptions<T> = options or {}
 	local data = reactivity.shallowRef(opts.initial :: T?)
 	local loading = reactivity.ref(false)
-	local err = reactivity.ref(nil :: string?)
+	local err = reactivity.shallowRef(nil :: any)
 	local latest = 0
 	local lastArgs = table.pack(table.unpack(opts.args or {}))
 	local disposed = false
@@ -151,7 +154,10 @@ function composables.useAsync<T>(fn: (...any) -> T, options: AsyncOptions<T>?): 
 			if ok then
 				data.value = result
 			else
-				err.value = tostring(result)
+				err.value = result
+				if not opts.silent and RunService:IsStudio() then
+					warn(`[Rivue] useAsync failed: {result}`)
+				end
 			end
 			loading.value = false
 			releaseSuspense()
