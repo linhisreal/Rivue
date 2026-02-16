@@ -116,7 +116,7 @@ local function runTests()
 	print("Test 8: Payload validation rejects unsafe types")
 	do
 		local unsafePayload = {
-			instance = Instance.new("Part"), -- Instances not allowed
+			thread = coroutine.create(function() end), -- RemoteEvents can't carry threads
 		}
 		local data, err = Remote.request("unsafePayload", unsafePayload, 0.1)
 		assertTrue(data == nil, "Should reject unsafe types")

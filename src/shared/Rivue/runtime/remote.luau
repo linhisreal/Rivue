@@ -136,44 +136,85 @@ end
 const MAX_PAYLOAD_SIZE = 20000 -- 20KB limit
 const MAX_PAYLOAD_DEPTH = 10
 
+-- Roblox types RemoteEvents can carry
+const SAFE_DATATYPES = table.freeze({
+	Vector2 = true,
+	Vector3 = true,
+	CFrame = true,
+	Color3 = true,
+	UDim = true,
+	UDim2 = true,
+	EnumItem = true,
+	Instance = true,
+	BrickColor = true,
+	NumberRange = true,
+	Rect = true,
+	DateTime = true,
+})
+
+--- Checks types, depth and approximate size in one pass (no JSON encoding)
+--- @param payload unknown -- Data to send
+--- @return boolean -- True if it can be sent
+--- @return string? -- Reason when it can't
 local function validatePayload(payload: unknown): (boolean, string?)
-	-- Size check via JSON serialization
-	local ok, jsonStr = pcall(function()
-		return HttpService:JSONEncode(payload)
-	end)
+	local size = 0
+	local reason: string? = nil
 
-	if not ok then
-		return false, "payload_not_serializable"
-	end
-
-	if #jsonStr > MAX_PAYLOAD_SIZE then
-		return false, "payload_too_large"
-	end
-
-	-- Type validation - only allow safe types
-	local function isSafeType(val: unknown, depth: number): boolean
+	local function visit(val: unknown, depth: number): boolean
 		if depth > MAX_PAYLOAD_DEPTH then
+			reason = "payload_too_deep"
 			return false
-		end -- prevent deep nesting
+		end
 		local t = type(val)
-		if t == "string" or t == "number" or t == "boolean" or t == "nil" then
-			return true
+		if t == "string" then
+			size += #(val :: string) + 2
+		elseif t == "number" or t == "boolean" or t == "nil" then
+			size += 8
 		elseif t == "table" then
+			size += 2
 			for k, v in val :: { [unknown]: unknown } do
-				if not isSafeType(k, depth + 1) or not isSafeType(v, depth + 1) then
+				if not visit(k, depth + 1) or not visit(v, depth + 1) then
 					return false
 				end
 			end
-			return true
+		elseif SAFE_DATATYPES[typeof(val)] then
+			size += 16
+		else
+			reason = "payload_unsafe_type"
+			return false
 		end
-		return false
+		if size > MAX_PAYLOAD_SIZE then
+			reason = "payload_too_large"
+			return false
+		end
+		return true
 	end
 
-	if not isSafeType(payload, 0) then
-		return false, "payload_unsafe_type"
+	if not visit(payload, 0) then
+		return false, reason
 	end
-
 	return true, nil
+end
+
+-- One response listener shared by every pending request: id -> settle
+local pendingRequests: { [string]: (resp: RemoteResponse) -> () } = {}
+local responseConn: RBXScriptConnection? = nil
+
+--- Connects the shared response listener once
+local function listenForResponses()
+	if responseConn then
+		return
+	end
+	responseConn = getResponseEvent().OnClientEvent:Connect(function(resp: unknown)
+		if type(resp) ~= "table" then
+			return
+		end
+		local id = (resp :: RemoteResponse).id
+		local settle = if type(id) == "string" then pendingRequests[id] else nil
+		if settle then
+			settle(resp :: RemoteResponse)
+		end
+	end)
 end
 
 --- Sends a request to server and waits for response with timeout
@@ -203,12 +244,11 @@ function Remote.request(actionName: string, payload: unknown, timeout: number?):
 	local timeoutValue = timeout or 10
 	local reqId = HttpService:GenerateGUID(false)
 	local reqEv = getRequestEvent()
-	local resEv = getResponseEvent()
+	listenForResponses()
 	local thread = coroutine.running()
 	local done = false
 	local waiting = false
 	local result: RemoteResponse? = nil
-	local conn: RBXScriptConnection? = nil
 	local timeoutThread: thread? = nil
 
 	-- Resolves once and resumes the waiting thread
@@ -218,9 +258,7 @@ function Remote.request(actionName: string, payload: unknown, timeout: number?):
 		end
 		done = true
 		result = resp
-		if conn then
-			conn:Disconnect()
-		end
+		pendingRequests[reqId] = nil
 		if timeoutThread and not fromTimeout then
 			task.cancel(timeoutThread)
 		end
@@ -229,11 +267,9 @@ function Remote.request(actionName: string, payload: unknown, timeout: number?):
 		end
 	end
 
-	conn = resEv.OnClientEvent:Connect(function(resp: RemoteResponse)
-		if resp and resp.id == reqId then
-			settle(resp, false)
-		end
-	end)
+	pendingRequests[reqId] = function(resp: RemoteResponse)
+		settle(resp, false)
+	end
 	timeoutThread = task.delay(timeoutValue, settle, nil, true)
 
 	reqEv:FireServer({ action = actionName, payload = payload, id = reqId })

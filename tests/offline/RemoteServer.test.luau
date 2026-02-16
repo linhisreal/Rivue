@@ -56,6 +56,13 @@ local function runTests()
 		Remote.handle("limited", function()
 			return true
 		end, { maxPerSecond = 2 })
+		Remote.handle("slow", function(_player, payload: any)
+			task.wait(payload.delay)
+			return payload.n
+		end)
+		Remote.handle("echoType", function(_player, payload: any)
+			return typeof(payload.position)
+		end)
 	end)
 
 	print("Test 1: Handler result is returned to the client")
@@ -88,6 +95,31 @@ local function runTests()
 		assertEquals(errors[1], "ok", "First request allowed")
 		assertEquals(errors[2], "ok", "Second request allowed")
 		assertEquals(errors[3], "rate_limited", "Third request rate limited")
+	end
+
+	print("Test 5: Concurrent requests each get their own response")
+	do
+		local results = {}
+		task.spawn(function()
+			results.a = Remote.request("slow", { delay = 0.2, n = 1 }, 2)
+		end)
+		task.spawn(function()
+			results.b = Remote.request("slow", { delay = 0.05, n = 2 }, 2)
+		end)
+		task.wait(0.4)
+		assertEquals(results.a, 1, "Slow request gets its own answer")
+		assertEquals(results.b, 2, "Fast request gets its own answer")
+	end
+
+	print("Test 6: Roblox datatypes are allowed in payloads")
+	do
+		local position = newproxy(true)
+		getmetatable(position).__rbxtype = "Vector3"
+		local result, err = Remote.request("echoType", { position = position }, 1)
+		assertEquals(err, nil, "Vector3 payload isn't rejected")
+		assertEquals(result, "Vector3", "Server receives it")
+		local _, badErr = Remote.request("echoType", { fn = function() end }, 1)
+		assertEquals(badErr, "payload_unsafe_type", "Functions are still rejected")
 	end
 
 	print("\n========== REMOTE SERVER TESTS COMPLETE ==========\n")

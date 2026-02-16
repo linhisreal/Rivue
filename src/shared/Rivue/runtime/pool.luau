@@ -429,8 +429,8 @@ local function resetInstance(inst: Instance, touched: { [string]: boolean }?): (
 			guiObj.BackgroundTransparency = 0
 		end
 
-		-- Reset name
-		inst.Name = "Pooled" .. inst.ClassName
+		-- Back to the default name, a reused Instance shouldn't show up as "PooledFrame"
+		inst.Name = inst.ClassName
 
 		-- Clear all attributes (synchronous for immediate cleanup)
 		if inst.GetAttributes then

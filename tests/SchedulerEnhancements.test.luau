@@ -86,10 +86,9 @@ local function runTests()
 			task.wait(0.2) -- Wait longer for all updates to settle
 		end)
 
-		-- The current implementation uses deduplication to prevent true infinite loops
-		-- The effect will run multiple times but eventually stabilize
-		-- Verify it reaches the limit (200) which proves it ran but didn't hang
-		assertTrue(maxReached or count.value >= 200, "Should prevent infinite loops via deduplication")
+		-- Like Vue, an effect writing state it reads doesn't re-trigger itself: it runs once on
+		-- creation and once for the outside write, then settles
+		assertTrue(not maxReached and count.value <= 2, "Effect writing its own dependencies doesn't loop")
 		print("  Final count:", count.value, "- Effect executed and terminated properly")
 	end
 

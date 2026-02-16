@@ -120,6 +120,9 @@
         },
         "Examples": {
           "$path": "tests/Examples.test.luau"
+        },
+        "Regressions": {
+          "$path": "tests/Regressions.test.luau"
         }
       },
       "App": {

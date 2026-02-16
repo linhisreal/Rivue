@@ -72,6 +72,9 @@ jobs:
     - name: Run test suites
       run: scripts/test-offline.sh
 
+    - name: Check docs (links, and every API example runs)
+      run: python3 scripts/check-docs.py
+
   build:
     name: Build Distributable
     runs-on: windows-latest

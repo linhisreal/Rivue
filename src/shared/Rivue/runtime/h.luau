@@ -401,7 +401,7 @@ local function hForParallel<T>(
 	mapper: (item: T, index: number) -> VNode?,
 	keyFn: ((item: T) -> unknown)?
 ): { VNode }
-	if debugModule.enabled and not warnedParallel then
+	if IS_STUDIO and not warnedParallel then
 		warnedParallel = true
 		warn("[Rivue] hForParallel() is deprecated, use hFor() and set `key` in the mapper")
 	end
