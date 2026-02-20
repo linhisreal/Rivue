@@ -122,7 +122,7 @@ end
 
 --- Types into a TextBox and presses Enter, then waits for the re-render
 local function typeInto(box: Instance, text: string)
-	assert(box:IsA("TextBox"), "typeInto expects a TextBox")
+	assert(box:IsA("TextBox"), "[Rivue] testing.typeInto() expects a TextBox")
 	local textBox = box :: TextBox
 	textBox.Text = text
 	if renderer.hasHandler(box, "onFocusLost") then
