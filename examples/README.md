@@ -3,13 +3,18 @@
 Small, complete components that show how Rivue is meant to be used. Every one is mounted and
 clicked through by `tests/Examples.test.luau`, so they stay working.
 
+They all follow the [Style Guide](../docs/STYLE_GUIDE.md): state and functions in `setup()`,
+markup in `render(ctx)`, visuals in a `styles` table applied with `class`, and `layout` instead of
+absolute positions. For a multi-file app (views, components, app-wide styles), see
+[src/shared/Demo](../src/shared/Demo).
+
 | Example | Shows |
 |---------|-------|
 | [Counter](components/Counter.luau) | `ref`, `computed`, props with defaults, events |
-| [TodoList](components/TodoList.luau) | `model` on a TextBox, keyed lists, child components with `emits`, computed filters |
+| [TodoList](components/TodoList.luau) | `model = "draft"`, keyed lists, local `components` with `emits`, `Rivue.array`, `flex` |
 | [Inventory](components/Inventory.luau) | `VirtualList` for long lists, selection state, row components |
 | [Modal](components/Modal.luau) | Named slots, `Teleport`, `Transition`, `vClickOutside` |
-| [Tabs](components/Tabs.luau) | `KeepAlive` so tabs keep their state, slots per tab, `style` |
+| [Tabs](components/Tabs.luau) | `KeepAlive` so tabs keep their state, slots per tab, `class` maps for the active tab |
 | [Shop](components/Shop.luau) | Loading from the server with `Remote`, loading/error/pending states, a swappable API for tests |
 | [Hud](components/Hud.luau) | `attributeRef`, `useSpring`, `useInputType`/`useViewportSize` for responsive layout |
 

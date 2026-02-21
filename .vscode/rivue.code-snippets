@@ -1,0 +1,127 @@
+{
+	"Rivue component": {
+		"scope": "luau,lua",
+		"prefix": "rcomponent",
+		"description": "Component with setup state and a render(ctx) function",
+		"body": [
+			"--!nonstrict",
+			"local ReplicatedStorage = game:GetService(\"ReplicatedStorage\")",
+			"local Rivue = require(ReplicatedStorage.Rivue)",
+			"local h = Rivue.h",
+			"",
+			"type Props = {",
+			"\t${2:label}: ${3:string},",
+			"}",
+			"",
+			"return Rivue.defineComponent({",
+			"\tname = \"${1:${TM_FILENAME_BASE}}\",",
+			"\tprops = {",
+			"\t\t${2:label} = { type = \"${3:string}\", required = true },",
+			"\t},",
+			"\temits = {},",
+			"",
+			"\tsetup = function(props: Props, ctx)",
+			"\t\t$0",
+			"\t\treturn {}",
+			"\tend,",
+			"",
+			"\trender = function(ctx)",
+			"\t\treturn h(\"Frame\", { class = \"${1/(.*)/${1:/downcase}/}\" }, {",
+			"\t\t})",
+			"\tend,",
+			"})",
+			""
+		]
+	},
+	"Rivue view": {
+		"scope": "luau,lua",
+		"prefix": "rview",
+		"description": "Screen-level component that lays out child components",
+		"body": [
+			"--!nonstrict",
+			"local ReplicatedStorage = game:GetService(\"ReplicatedStorage\")",
+			"local Rivue = require(ReplicatedStorage.Rivue)",
+			"local h = Rivue.h",
+			"",
+			"local ${2:Header} = require(script.Parent.Parent.components.${2:Header})",
+			"",
+			"return Rivue.defineComponent({",
+			"\tname = \"${1:${TM_FILENAME_BASE}}\",",
+			"\tcomponents = { ${2:Header} = ${2:Header} },",
+			"",
+			"\trender = function(ctx)",
+			"\t\treturn h(\"Frame\", { class = \"screen\", layout = \"vertical\" }, {",
+			"\t\t\th(\"${2:Header}\"),",
+			"\t\t\t$0",
+			"\t\t})",
+			"\tend,",
+			"})",
+			""
+		]
+	},
+	"Rivue composable": {
+		"scope": "luau,lua",
+		"prefix": "rcomposable",
+		"description": "Reusable stateful logic (use* function)",
+		"body": [
+			"--!strict",
+			"local ReplicatedStorage = game:GetService(\"ReplicatedStorage\")",
+			"local Rivue = require(ReplicatedStorage.Rivue)",
+			"",
+			"local function ${1:use${TM_FILENAME_BASE/^use//}}()",
+			"\tlocal ${2:value} = Rivue.ref(${3:0})",
+			"",
+			"\t$0",
+			"",
+			"\tRivue.onScopeDispose(function()",
+			"\t\t-- disconnect anything created above",
+			"\tend)",
+			"",
+			"\treturn {",
+			"\t\t${2:value} = ${2:value},",
+			"\t}",
+			"end",
+			"",
+			"return ${1}",
+			""
+		]
+	},
+	"Rivue styles": {
+		"scope": "luau,lua",
+		"prefix": "rstyles",
+		"description": "Shared styles module for app:styles()",
+		"body": [
+			"--!strict",
+			"-- Registered with app:styles(require(path.to.styles)), used with the class prop",
+			"return {",
+			"\t${1:card} = {",
+			"\t\tBackgroundColor3 = Color3.fromRGB(30, 30, 30),",
+			"\t\tcornerRadius = 8,",
+			"\t\tpadding = 12,",
+			"\t},",
+			"\t$0",
+			"}",
+			""
+		]
+	},
+	"Rivue watch": {
+		"scope": "luau,lua",
+		"prefix": "rwatch",
+		"description": "watch() a source",
+		"body": [
+			"Rivue.watch(${1:source}, function(${2:value}, ${3:previous})",
+			"\t$0",
+			"end)"
+		]
+	},
+	"Rivue computed": {
+		"scope": "luau,lua",
+		"prefix": "rcomputed",
+		"description": "computed() value",
+		"body": [
+			"local ${1:name} = Rivue.computed(function()",
+			"\treturn $0",
+			"end)"
+		]
+	}
+}

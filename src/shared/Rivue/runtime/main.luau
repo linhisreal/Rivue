@@ -252,6 +252,7 @@ local schedulerModule = require(runtime:WaitForChild("scheduler"))
 local poolModule = require(runtime:WaitForChild("pool"))
 local builtins = require(runtime:WaitForChild("builtins"))
 local composables = require(runtime:WaitForChild("composables"))
+local array = require(runtime:WaitForChild("array"))
 
 local RunService = game:GetService("RunService")
 
@@ -261,6 +262,7 @@ export type ComputedRef<T> = Types.ComputedRef<T>
 export type MaybeRef<T> = Types.MaybeRef<T>
 export type MaybeRefOrGetter<T> = Types.MaybeRefOrGetter<T>
 export type DebuggerEvent = Types.DebuggerEvent
+export type RenderContext = Types.RenderContext
 export type Effect = Types.Effect
 export type EffectScope = Types.EffectScope
 export type FlushMode = Types.FlushMode
@@ -329,6 +331,10 @@ Rivue.toRef = reactivity.toRef
 Rivue.toRefs = reactivity.toRefs
 Rivue.unref = reactivity.unref
 Rivue.toValue = reactivity.toValue
+Rivue.proxyRefs = reactivity.proxyRefs
+
+-- Array helpers that work on reactive arrays (table.insert/remove don't)
+Rivue.array = array
 Rivue.toRaw = reactivity.toRaw
 Rivue.markRaw = reactivity.markRaw
 
@@ -416,7 +422,8 @@ function Rivue.resolveComponent(name: string): ComponentDef?
 	if not inst then
 		error("resolveComponent() must be called in setup() or a render function", 2)
 	end
-	local def = inst.appContext.components[name]
+	local localComponents = inst.type.components
+	local def = (if localComponents then localComponents[name] else nil) or inst.appContext.components[name]
 	if not def and Rivue.dev then
 		warn(`[Rivue] Component '{name}' isn't registered, use app:component("{name}", Component)`)
 	end
@@ -457,6 +464,8 @@ function Rivue.defineComponent(opts: ComponentOptions | SetupFunction, extra: Co
 		render = options.render,
 		props = options.props,
 		emits = options.emits,
+		components = options.components,
+		styles = options.styles,
 		inheritAttrs = options.inheritAttrs,
 	}
 end

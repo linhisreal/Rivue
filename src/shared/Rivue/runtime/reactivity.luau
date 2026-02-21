@@ -1189,7 +1189,59 @@ local function customRef<T>(factory: CustomRefFactory<T>): Ref<T>
 	}) :: any
 end
 
+--- Returns a proxy that reads and writes refs inside a table without .value (Vue's proxyRefs)
+--- @param object T -- Table whose values may be refs
+--- @return T -- Proxy: reading a ref key gives its value, writing it sets the ref
+local function proxyRefs<T>(object: T): T
+	local target = object :: any
+	return setmetatable({}, {
+		__index = function(_: unknown, key: unknown): unknown
+			local value = target[key]
+			if isRef(value) then
+				return (value :: Ref<unknown>).value
+			end
+			return value
+		end,
+		__newindex = function(_: unknown, key: unknown, value: unknown)
+			local current = target[key]
+			if isRef(current) and not isRef(value) then
+				(current :: Ref<unknown>).value = value
+			else
+				target[key] = value
+			end
+		end,
+		__iter = function(_: unknown)
+			local function iterate(_: unknown, key: unknown): (unknown, unknown)
+				local nextKey, value = next(target, key)
+				if isRef(value) then
+					value = (value :: Ref<unknown>).value
+				end
+				return nextKey, value
+			end
+			return iterate, nil, nil
+		end,
+	}) :: any
+end
+
+--- Notifies that a raw array changed in place from index `first` to `last` (array helpers)
+--- @param raw RawTable -- Raw array behind a proxy
+--- @param first number -- First index that may have changed
+--- @param last number -- Last index that may have changed
+--- @param lengthChanged boolean -- Whether #raw changed
+local function triggerListChange(raw: RawTable, first: number, last: number, lengthChanged: boolean)
+	for i = first, last do
+		trigger(raw, i)
+	end
+	trigger(raw, ITERATE_KEY)
+	if lengthChanged then
+		trigger(raw, LENGTH_KEY)
+	end
+end
+
 return {
+	-- Used by the array helpers
+	_triggerListChange = triggerListChange,
+
 	-- Core reactive primitives
 	reactive = reactive,
 	shallowReactive = shallowReactive,
@@ -1217,6 +1269,7 @@ return {
 	isShallow = isShallow,
 
 	-- Conversion utilities
+	proxyRefs = proxyRefs,
 	unref = unref,
 	toValue = toValue,
 	toRef = toRef,

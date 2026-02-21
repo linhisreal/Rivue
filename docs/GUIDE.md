@@ -4,7 +4,8 @@ This guide walks through building Roblox UI with Rivue, from the first component
 real screen. Each section builds on the last. For exact signatures, see [API.md](API.md). For
 working code, see [examples/](../examples).
 
-If you know Vue, skim [VUE.md](VUE.md) first. Most of what you know carries over.
+If you know Vue, skim [VUE.md](VUE.md) first. Most of what you know carries over. Once you're
+building real screens, read the [Style Guide](STYLE_GUIDE.md) for how to organise them.
 
 1. [The idea](#1-the-idea)
 2. [Your first component](#2-your-first-component)
@@ -83,6 +84,37 @@ A component has two parts:
 `createApp(Counter):mountToPlayerGui(player)` creates a ScreenGui in the player's PlayerGui and
 renders the component into it. Use `app:mount(instance)` to render into any other Instance.
 
+### Splitting state from markup
+
+As a component grows, a render function inside `setup` gets deep and full of `.value`. Instead,
+return the state from `setup` and write a separate `render(ctx)`:
+
+```lua
+local Counter = Rivue.defineComponent({
+	name = "Counter",
+	setup = function()
+		local count = Rivue.ref(0)
+		return {
+			count = count,
+			increment = function()
+				count.value += 1
+			end,
+		}
+	end,
+	render = function(ctx)
+		return h("TextButton", {
+			Size = UDim2.fromOffset(200, 50),
+			Text = `Clicked {ctx.count} times`,
+			onClick = ctx.increment,
+		})
+	end,
+})
+```
+
+`ctx` reads what `setup` returned (refs without `.value`), then props, then helpers like
+`ctx.emit` and `ctx.renderSlot`. This is the form the rest of the guide and the examples use for
+anything bigger than a few lines.
+
 ## 3. State
 
 ### ref
@@ -160,6 +192,8 @@ h("Frame", {
 - **Property changes**: `onSizeChanged = function(newSize) end`, or `onTextChanged` for text.
 - **Modifier shorthands**: `cornerRadius = 8`, `padding = 12`, `stroke = Color3.new(1, 1, 1)`,
   `aspectRatio = 1` create the UICorner/UIPadding/UIStroke/UIAspectRatioConstraint for you.
+  `layout` and `flex` do the same for layouts, see [Styling and layout](#10-styling-and-layout).
+- **`class`** applies named styles, also covered in section 10.
 
 **Children** can be:
 - a list,
@@ -186,8 +220,7 @@ toggle visibility with `vShow = condition`.
 Lists use `Rivue.hFor`, and you can put the result straight into a children list:
 
 ```lua
-return h("ScrollingFrame", nil, {
-	h("UIListLayout"),
+return h("ScrollingFrame", { layout = "vertical" }, {
 	Rivue.hFor(items.value, function(item)
 		return h("TextLabel", { key = item.id, Text = item.name })
 	end),
@@ -196,8 +229,27 @@ return h("ScrollingFrame", nil, {
 
 **Always give list items a `key`** that identifies the item, such as an id rather than its
 position. Then, when the list is reordered or filtered, Rivue moves the existing Instances instead
-of rewriting each row. With a `UIListLayout`, Rivue also keeps each child's `LayoutOrder` in list
-order.
+of rewriting each row. With a layout, Rivue also keeps each child's `LayoutOrder` in list order.
+
+### Changing lists
+
+`table.insert`, `table.remove` and `table.sort` skip reactive proxies, so nothing updates. Use
+`Rivue.array`, which has the same operations and notifies the UI:
+
+```lua
+local array = Rivue.array
+local items = Rivue.ref({})
+
+array.push(items.value, { id = 1, name = "Sword" })
+array.removeWhere(items.value, function(item)
+	return item.id == 1
+end)
+array.sort(items.value, function(a, b)
+	return a.name < b.name
+end)
+```
+
+See [Array helpers](api/array.md) for `insert`, `splice`, `move`, `find`, `filter` and the rest.
 
 ## 6. Components, props and events
 
@@ -212,25 +264,37 @@ local ItemRow = Rivue.defineComponent({
 		selected = { type = "boolean", default = false },
 	},
 	emits = { "select" },
-	setup = function(props, ctx)
-		return function()
-			return h("TextButton", {
-				Text = props.item.name,
-				BackgroundColor3 = if props.selected then Color3.fromRGB(60, 120, 220) else Color3.fromRGB(40, 40, 40),
-				onClick = function()
-					ctx.emit("select", props.item.id)
-				end,
-			})
-		end
+	render = function(ctx)
+		return h("TextButton", {
+			Text = ctx.item.name,
+			BackgroundColor3 = if ctx.selected then Color3.fromRGB(60, 120, 220) else Color3.fromRGB(40, 40, 40),
+			onClick = function()
+				ctx.emit("select", ctx.item.id)
+			end,
+		})
 	end,
 })
 
--- In the parent's render
-h(ItemRow, {
-	item = item,
-	selected = selectedId.value == item.id,
-	onSelect = function(id)
-		selectedId.value = id
+-- The parent registers it and uses it by name
+local Inventory = Rivue.defineComponent({
+	name = "Inventory",
+	components = { ItemRow = ItemRow },
+	setup = function()
+		return { selectedId = Rivue.ref(nil) }
+	end,
+	render = function(ctx)
+		return h("Frame", { layout = "vertical" }, {
+			Rivue.hFor(ctx.items, function(item)
+				return h("ItemRow", {
+					key = item.id,
+					item = item,
+					selected = ctx.selectedId == item.id,
+					onSelect = function(id)
+						ctx.selectedId = id
+					end,
+				})
+			end),
+		})
 	end,
 })
 ```
@@ -242,8 +306,12 @@ h(ItemRow, {
   parent passes a new value.
 - **Props flow down, events flow up.** A child never changes its props. It emits an event, and
   the parent changes its own state. `ctx.emit("select", id)` calls the parent's `onSelect(id)`.
-- Props you didn't declare (like `Position`) are passed on to the component's root element, so
-  `h(ItemRow, { item = item, LayoutOrder = 3 })` just works.
+- Props you didn't declare (like `Position`, or `class`) are passed on to the component's root
+  element, so `h(ItemRow, { item = item, LayoutOrder = 3 })` just works.
+- `components = { ItemRow = ItemRow }` lets the render function write `h("ItemRow")`. Passing
+  the component itself, `h(ItemRow, ...)`, works too.
+- Annotate setup's `props` parameter (`setup = function(props: Props, ctx)`) to get autocomplete
+  and type errors on typos.
 
 ## 7. Slots: passing UI into a component
 
@@ -325,6 +393,17 @@ end, { name = "Toggle" })
 h(Toggle, { model = musicEnabled })
 ```
 
+With a separate `render(ctx)`, refs come out unwrapped, so pass the ref's **name** instead:
+
+```lua
+setup = function()
+	return { draft = Rivue.ref("") }
+end,
+render = function(ctx)
+	return h("TextBox", { model = "draft", PlaceholderText = "New item" })
+end,
+```
+
 Directives add behaviour to an element with `v` props: `vFocus = true` focuses a TextBox,
 `vClickOutside = close` closes popups, and `vSelect = true` gives gamepad selection.
 
@@ -371,24 +450,53 @@ end
 
 ## 10. Styling and layout
 
-Shared looks are plain tables. Pass them with `style`. Later entries win, and the element's own
-props win over all of them:
+### Classes
+
+Inline colors, fonts and sizes bury a render function's structure. Name them once as **style
+classes** and refer to them with `class`, like CSS:
 
 ```lua
-local Styles = {
+-- UI/styles.luau
+return {
 	panel = { BackgroundColor3 = Color3.fromRGB(25, 25, 25), cornerRadius = 8, padding = 12 },
+	button = { Size = UDim2.fromOffset(120, 36), TextSize = 16, cornerRadius = 6 },
 	active = { BackgroundColor3 = Color3.fromRGB(60, 120, 220) },
 }
 
-h("TextButton", {
-	style = { Styles.panel, isActive and Styles.active },
-	Text = "Play",
+-- UI.client.luau
+Rivue.createApp(App):styles(require(UI.styles)):mountToPlayerGui(player)
+
+-- In any render
+h("TextButton", { class = { "button", isActive and "active" }, Text = "Play" })
+```
+
+- `class` takes a name, a list (later wins), or a map `{ active = isActive }`.
+- Styles used by one component only go in its `styles = { ... }` option, which wins over app
+  styles.
+- The element's own props always win, so state-driven values can stay inline.
+- `style = table` still works for passing a prop table directly.
+
+### Layout
+
+`layout` creates the layout object for you, and `flex` sizes a child within it:
+
+```lua
+h("Frame", { class = "panel", layout = { gap = 8 } }, { -- vertical list, 8px apart
+	h("TextLabel", { Text = "Settings" }),
+	h("Frame", { layout = { direction = "horizontal", justify = "space-between", align = "center" } }, {
+		h("TextLabel", { Text = "Music", flex = "fill" }),
+		h("TextButton", { class = "button", Text = "On" }),
+	}),
 })
 ```
 
-For layout, use Roblox's own layout objects as children (`UIListLayout`, `UIGridLayout`,
-`UIFlexItem`, ...). Rivue keeps `LayoutOrder` in render order for you. Set `LayoutOrder`
-yourself when you want a different order.
+- `layout = "vertical" | "horizontal" | "grid"`, or a table with `direction`, `gap`, `align`
+  (cross axis), `justify` (main axis), `wrap`, or `grid = cellSize`.
+- `flex = "fill" | "grow" | "shrink"`, or a number for a grow ratio.
+- Rivue keeps `LayoutOrder` in render order. Set `LayoutOrder` yourself to override it.
+
+You can still add `UIListLayout`, `UIGridLayout` and the rest as children when you need a
+property `layout` doesn't cover.
 
 ## 11. Different devices
 
@@ -551,8 +659,9 @@ Rivue is fast by default. These cover the cases where it isn't:
 | Symptom | Cause | Fix |
 |---------|-------|-----|
 | UI doesn't update | The value was read in `setup`, not in render | Read `x.value` / `props.x` inside the render function |
-| UI doesn't update after `table.insert(list, x)` | `table.*` functions bypass reactive proxies | `list[#list + 1] = x`, or assign a new table to the ref |
+| UI doesn't update after `table.insert(list, x)` | `table.*` functions bypass reactive proxies | `Rivue.array.push(list, x)` (see [Array helpers](api/array.md)) |
 | `ipairs`/`pairs` over reactive state finds nothing | Luau has no `__pairs` | `for k, v in state do` or `for i = 1, #list do` |
+| `model = ctx.draft` doesn't bind | `ctx` unwraps refs, so it passes the string | `model = "draft"` |
 | Destructured prop never changes | `local name = props.name` copies the value | Read `props.name` in render, or `Rivue.toRef(props, "name")` |
 | `onMounted must be called inside a component's setup()` | Hook called in render or later | Call hooks at the top of `setup` |
 | Whole list re-renders on every change | Missing `key` | Give every list item a stable key |
@@ -561,4 +670,5 @@ Rivue is fast by default. These cover the cases where it isn't:
 
 ---
 
-Next: browse [examples/](../examples), then keep [API.md](API.md) open while you build.
+Next: browse [examples/](../examples), read the [Style Guide](STYLE_GUIDE.md), then keep
+[API.md](API.md) open while you build.

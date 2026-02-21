@@ -223,12 +223,15 @@ export type ComponentInstance = typeof(setmetatable({} :: InstanceData, Componen
 const IS_STUDIO = RunService:IsStudio()
 
 local currentInstance: ComponentInstance? = nil
+-- Defined below, used by setupComponent
+local createRenderContext: (self: ComponentInstance) -> { [string]: any }
 -- Component whose render() is running, owner of the vnodes it creates
 local currentRenderingInstance: ComponentInstance? = nil
 local uidCounter = 0
 
 -- Used when a component is mounted outside createApp (e.g. renderer.patch directly)
-const EMPTY_APP_CONTEXT: AppContext = { provides = {}, config = { globalProperties = {} }, components = {} }
+const EMPTY_APP_CONTEXT: AppContext =
+	{ provides = {}, config = { globalProperties = {} }, components = {}, styles = {} }
 
 --- Sets the current active component instance for lifecycle hook registration
 --- @param i ComponentInstance? -- Instance to set as current (or nil)
@@ -456,7 +459,7 @@ end
 local function separatePropsAndAttrs(def: ComponentDef, allProps: Props): (Props, Props)
 	local schema = def.props
 	local emitKeys = getEmitKeys(def)
-	if not schema and not emitKeys then
+	if not schema and not emitKeys and allProps.class == nil then
 		return allProps, {}
 	end
 
@@ -467,8 +470,11 @@ local function separatePropsAndAttrs(def: ComponentDef, allProps: Props): (Props
 		if emitKeys and emitKeys[key] then
 			continue
 		end
-		-- Without a schema every prop is declared
-		if not schema or schema[key] then
+		-- Like Vue, class goes to the root element unless the component declares it
+		if key == "class" and not (schema and schema.class) then
+			attrs[key] = value
+		-- Without a schema every other prop is declared
+		elseif not schema or schema[key] then
 			props[key] = value
 		else
 			attrs[key] = value
@@ -547,6 +553,42 @@ local function runCallbacks(self: ComponentInstance, callbacks: { () -> () }, in
 	end
 end
 
+--- Builds what render(ctx) receives: setup's state with refs unwrapped, then props, then the
+--- setup context (emit, slots, attrs, renderSlot, hasSlot, globals)
+--- @param self ComponentInstance -- Component
+--- @return { [string]: any } -- Render context
+function createRenderContext(self: ComponentInstance): { [string]: any }
+	local state = self.setupState
+	local stateView: { [string]: any }? = if state then _reactivity.proxyRefs(state) else nil
+	local props = self.props
+	local ctx = self.ctx :: any
+	return setmetatable({}, {
+		__index = function(_: unknown, key: string): any
+			if stateView then
+				local value = stateView[key]
+				if value ~= nil then
+					return value
+				end
+			end
+			local prop = props[key]
+			if prop ~= nil then
+				return prop
+			end
+			return ctx[key]
+		end,
+		__newindex = function(_: unknown, key: string, value: any)
+			if stateView and (state :: any)[key] ~= nil then
+				-- Writing a ref key sets the ref, like Vue's template refs unwrapping
+				stateView[key] = value
+			elseif IS_STUDIO then
+				warn(
+					`[Rivue] Can't set '{key}' in render of {formatComponentTrace(self)}, it isn't returned by setup()`
+				)
+			end
+		end,
+	}) :: any
+end
+
 --- Runs setup() and resolves the render function
 function ComponentInstance.setupComponent(self: ComponentInstance)
 	-- Restored after, setup can mount other components
@@ -599,10 +641,20 @@ function ComponentInstance.setupComponent(self: ComponentInstance)
 		self.render = state.render
 		self.setupState = state
 	elseif def.render then
+		-- render(ctx): setup's state (refs unwrapped), then props, then the setup context
 		local render = def.render
-		self.render = function()
-			return render(self.props)
+		if type(setupResult) == "table" then
+			self.setupState = setupResult :: any
 		end
+		local renderContext = createRenderContext(self)
+		self.render = function()
+			return render(renderContext)
+		end
+	elseif setup then
+		error(
+			`[Rivue] setup() of {formatComponentTrace(self)} must return a render function, or state plus a render option`,
+			0
+		)
 	else
 		error(`[Rivue] {formatComponentTrace(self)} has no setup() or render()`, 0)
 	end

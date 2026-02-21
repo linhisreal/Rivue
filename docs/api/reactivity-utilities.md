@@ -7,6 +7,7 @@ All examples assume `local Rivue = require(game.ReplicatedStorage.Rivue)`.
 - [toRef()](#toref)
 - [toValue()](#tovalue)
 - [toRefs()](#torefs)
+- [proxyRefs()](#proxyrefs)
 - [isProxy()](#isproxy)
 - [isReactive()](#isreactive)
 - [isReadonly()](#isreadonly)
@@ -158,6 +159,35 @@ Converts a reactive table into a plain table where each key is a ref linked to t
 
   local position = usePosition()
   position.x.value = 10 -- still reactive
+  ```
+
+---
+
+## proxyRefs()
+
+Wraps a table so its refs read and write without `.value`.
+
+- **Type**
+
+  ```lua
+  function proxyRefs<T>(object: T): T
+  ```
+
+- **Details**
+
+  Reading a key that holds a ref returns the ref's value. Assigning to it sets the ref. Other
+  keys pass through. The [`render(ctx)`](component.md#render) context uses this for what
+  `setup()` returns.
+
+- **Example**
+
+  ```lua
+  local count = Rivue.ref(1)
+  local state = Rivue.proxyRefs({ count = count, label = "Coins" })
+
+  print(state.count) -- 1
+  state.count = 5
+  print(count.value) -- 5
   ```
 
 ---

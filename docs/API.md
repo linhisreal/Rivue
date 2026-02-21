@@ -2,7 +2,7 @@
 
 Everything on the module returned by `require(game.ReplicatedStorage.Rivue)`. Each entry has its
 type, details and an example. New to Rivue? Start with the [Guide](GUIDE.md). Coming from Vue?
-See [Rivue for Vue developers](VUE.md).
+See [Rivue for Vue developers](VUE.md). For conventions, see the [Style Guide](STYLE_GUIDE.md).
 
 ## Reactivity
 
@@ -23,9 +23,24 @@ See [Rivue for Vue developers](VUE.md).
 [toRef()](api/reactivity-utilities.md#toref) ·
 [toValue()](api/reactivity-utilities.md#tovalue) ·
 [toRefs()](api/reactivity-utilities.md#torefs) ·
+[proxyRefs()](api/reactivity-utilities.md#proxyrefs) ·
 [isProxy()](api/reactivity-utilities.md#isproxy) ·
 [isReactive()](api/reactivity-utilities.md#isreactive) ·
 [isReadonly()](api/reactivity-utilities.md#isreadonly)
+
+**[Array Helpers](api/array.md)**
+[push()](api/array.md#arraypush) ·
+[insert()](api/array.md#arrayinsert) ·
+[remove()](api/array.md#arrayremove) ·
+[removeValue()](api/array.md#arrayremovevalue) ·
+[removeWhere()](api/array.md#arrayremovewhere) ·
+[splice()](api/array.md#arraysplice) ·
+[move()](api/array.md#arraymove) ·
+[sort()](api/array.md#arraysort) ·
+[clear()](api/array.md#arrayclear) ·
+[indexOf()](api/array.md#arrayindexof) ·
+[find()](api/array.md#arrayfind) ·
+[filter() / map() / count()](api/array.md#arrayfilter--arraymap--arraycount)
 
 **[Advanced](api/reactivity-advanced.md)**
 [shallowRef()](api/reactivity-advanced.md#shallowref) ·
@@ -60,6 +75,9 @@ See [Rivue for Vue developers](VUE.md).
 [props](api/component.md#props) ·
 [emits](api/component.md#emits) ·
 [setup()](api/component.md#setup) ·
+[render()](api/component.md#render) ·
+[components](api/component.md#components) ·
+[styles](api/component.md#styles) ·
 [Setup context](api/component.md#setup-context) ·
 [Slots](api/component.md#slots) ·
 [provide()](api/component.md#provide) ·
@@ -117,6 +135,7 @@ See [Rivue for Vue developers](VUE.md).
 [app:unmount()](api/application.md#appunmount) ·
 [app:onUnmount()](api/application.md#apponunmount) ·
 [app:component()](api/application.md#appcomponent) ·
+[app:styles()](api/application.md#appstyles) ·
 [app:directive()](api/application.md#appdirective) ·
 [app:use()](api/application.md#appuse) ·
 [app:provide()](api/application.md#appprovide) ·

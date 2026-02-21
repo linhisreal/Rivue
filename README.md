@@ -17,20 +17,23 @@ local Counter = Rivue.defineComponent({
 	name = "Counter",
 	setup = function()
 		local count = Rivue.ref(0)
-		local doubled = Rivue.computed(function()
-			return count.value * 2
-		end)
-
-		return function()
-			return h("TextButton", {
-				Size = UDim2.fromOffset(200, 50),
-				Text = `Clicked {count.value} times ({doubled.value})`,
-				cornerRadius = 8,
-				onClick = function()
-					count.value += 1
-				end,
-			})
-		end
+		return {
+			count = count,
+			doubled = Rivue.computed(function()
+				return count.value * 2
+			end),
+			increment = function()
+				count.value += 1
+			end,
+		}
+	end,
+	render = function(ctx)
+		return h("TextButton", {
+			Size = UDim2.fromOffset(200, 50),
+			Text = `Clicked {ctx.count} times ({ctx.doubled})`,
+			cornerRadius = 8,
+			onClick = ctx.increment,
+		})
 	end,
 })
 
@@ -41,8 +44,11 @@ Rivue.createApp(Counter):mountToPlayerGui(game.Players.LocalPlayer)
 
 - **Reactivity**: `ref`, `reactive`, `computed`, `watch`, `watchEffect`, effect scopes, readonly
   and shallow variants. It works the same way as Vue's reactivity system.
-- **Components**: `setup()` with props validation, emits, attrs fallthrough, named and scoped
-  slots, provide/inject, `expose`, and the full set of lifecycle hooks.
+- **Components**: `setup()` plus `render(ctx)`, props validation, emits, local `components`,
+  attrs fallthrough, named and scoped slots, provide/inject, `expose`, and the full set of
+  lifecycle hooks.
+- **Styling and layout**: named style classes (`class = "card"`) registered app-wide or per
+  component, and `layout`/`flex` props that build list, grid and flex layouts.
 - **Rendering**: keyed diffing, batched updates (parents before children), fragments, and
   memoized subtrees. Elements are parented only after their children are built.
 - **Built-in components**: `Transition`, `TransitionGroup`, `KeepAlive`, `Teleport`, `Suspense`,
@@ -50,7 +56,7 @@ Rivue.createApp(Counter):mountToPlayerGui(game.Players.LocalPlayer)
 - **Roblox-specific APIs**: TweenService transitions, `useTween`/`useSpring`, `useViewportSize`,
   `useInputType`, gamepad selection, attribute refs, CollectionService tags. Props like
   `cornerRadius`, `padding` and `stroke` create the matching `UICorner`/`UIPadding`/`UIStroke`.
-- **Extras**: Instance pooling, a client/server `Remote` helper with rate limiting, directives,
+- **Extras**: reactive array helpers (`Rivue.array.push`, `removeWhere`, ...), Instance pooling, a client/server `Remote` helper with rate limiting, directives,
   and Studio-only dev warnings.
 - **Typed**: strict Luau throughout, with exported types (`Rivue.Ref<T>`, `Rivue.VNode`, ...).
 
@@ -87,6 +93,8 @@ local Rivue = require(game.ReplicatedStorage.Rivue)
 - **[Examples](examples)**: complete components (todo list, inventory, modal, tabs, shop, HUD).
   They run in their own place with `rojo serve examples.project.json` and are covered by the
   test suite.
+- **[Style Guide](docs/STYLE_GUIDE.md)**: project structure and conventions that keep UI code
+  flat and readable as a game grows.
 - **[Coming from Vue](docs/VUE.md)**: a template-to-Luau cheat sheet and the differences.
 - **[API reference](docs/API.md)**: every function, prop and component.
 - **[Architecture](docs/ARCHITECTURE.md)**: how it works inside, for contributors.
@@ -94,39 +102,44 @@ local Rivue = require(game.ReplicatedStorage.Rivue)
 ## A quick tour
 
 ```lua
+local array = Rivue.array
+
 local TodoList = Rivue.defineComponent({
 	name = "TodoList",
+	styles = {
+		panel = { Size = UDim2.fromOffset(300, 400), padding = 8, cornerRadius = 8 },
+	},
 	setup = function()
 		local todos = Rivue.ref({})
 		local draft = Rivue.ref("")
-
 		local nextId = 0
-		local function add()
-			nextId += 1
-			local list = table.clone(Rivue.toRaw(todos.value))
-			table.insert(list, { id = nextId, text = draft.value })
-			todos.value = list
-			draft.value = ""
-		end
 
-		return function()
-			return h("Frame", { Size = UDim2.fromOffset(300, 400), padding = 8, cornerRadius = 8 }, {
-				h("UIListLayout"),
-				h("TextBox", {
-					model = draft, -- two-way binding
-					vFocus = true, -- directive
-					onFocusLost = function(enter)
-						if enter then
-							add()
-						end
-					end,
-				}),
-				Rivue.hIf(#todos.value == 0, h("TextLabel", { Text = "Nothing yet" })),
-				Rivue.hFor(todos.value, function(todo)
-					return h("TextLabel", { key = todo.id, Text = todo.text })
-				end),
-			})
-		end
+		return {
+			todos = todos,
+			draft = draft,
+			add = function()
+				nextId += 1
+				array.push(todos.value, { id = nextId, text = draft.value })
+				draft.value = ""
+			end,
+		}
+	end,
+	render = function(ctx)
+		return h("Frame", { class = "panel", layout = { gap = 6 } }, {
+			h("TextBox", {
+				model = "draft", -- two-way binding to the draft ref
+				vFocus = true, -- directive
+				onFocusLost = function(enter)
+					if enter then
+						ctx.add()
+					end
+				end,
+			}),
+			Rivue.hIf(#ctx.todos == 0, h("TextLabel", { Text = "Nothing yet" })),
+			Rivue.hFor(ctx.todos, function(todo)
+				return h("TextLabel", { key = todo.id, Text = todo.text })
+			end),
+		})
 	end,
 })
 ```
@@ -135,8 +148,10 @@ local TodoList = Rivue.defineComponent({
   `onSizeChanged`), and `v*` props apply directives (`vShow`, `vFocus`, `vClickOutside`).
 - **Children** can mix single elements, `nil` from `hIf`, and lists from `hFor`. Keyed list items
   keep their Instances when the list changes, and `LayoutOrder` follows the render order.
-- **Modifier props** `cornerRadius`, `padding`, `stroke` and `aspectRatio` manage the matching
-  UI objects for you, and `style` merges shared prop tables.
+- **Modifier props** `cornerRadius`, `padding`, `stroke`, `aspectRatio`, `layout` and `flex`
+  manage the matching UI objects for you. `class` applies named styles.
+- **`render(ctx)`** reads what `setup()` returned without `.value`, then props, then `ctx.emit`
+  and friends. `Rivue.array` edits reactive lists.
 - **Components** take typed `props`, emit events (`emits`), receive slots, and can be animated
   with `Transition`, cached with `KeepAlive`, or virtualized with `VirtualList`.
 
@@ -170,7 +185,9 @@ push.
 
 ```
 src/shared/Rivue/          the library (Rivue.luau + runtime/)
-src/client, src/server     test place scripts
+src/shared/Demo/           demo app, laid out as the Style Guide recommends
+src/client, src/server     test place scripts (Demo, TestRunner, opt-in stress test)
+.vscode/                   snippets: rcomponent, rview, rcomposable, rstyles, ...
 examples/                  example components and the examples place
 tests/                     test suites (*.test.luau), tests/offline has the CLI harness
 docs/                      guide, API reference, Vue cheat sheet, architecture

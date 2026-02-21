@@ -1,25 +1,22 @@
--- stress.client.lua (LocalScript)
--- Stress test for mount/unmount and leak detection
+-- stress.client.luau (LocalScript)
+-- Mounts and unmounts the demo app 300 times and reports leaked UI Instances.
+-- Opt in: set the attribute RivueStressTest = true on Workspace before playing.
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+if not workspace:GetAttribute("RivueStressTest") then
+	return
+end
+
 local player = Players.LocalPlayer
 local playerGui = player:WaitForChild("PlayerGui")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
-local App = require(ReplicatedStorage:WaitForChild("TestApp"))
+local Demo = ReplicatedStorage:WaitForChild("Demo")
+local App = require(Demo:WaitForChild("App"))
+local styles = require(Demo:WaitForChild("styles"))
 
-local h = Rivue.h
-local vnode = h(App)
-local app = Rivue.createApp(vnode, { usePool = true })
-
--- Clear PlayerGui to avoid interference from other scripts (like main.client.luau)
-for _, gui in ipairs(playerGui:GetChildren()) do
-	if gui:IsA("ScreenGui") then
-		gui:Destroy()
-	end
-end
-task.wait(0.1) -- Wait for cleanup
+local app = Rivue.createApp(App, { usePool = true }):styles(styles)
 
 local screenGui = Instance.new("ScreenGui")
 screenGui.ResetOnSpawn = false
