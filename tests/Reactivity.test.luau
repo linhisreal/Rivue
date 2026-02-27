@@ -1,10 +1,5 @@
 --!strict
---[[
-	Reactivity Unit Tests
-	=====================
-	
-	Tests for toRefs, iterArray integration, and reactive proxy edge cases
-]]
+-- Tests for toRefs, iterArray integration, and reactive proxy edge cases
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))

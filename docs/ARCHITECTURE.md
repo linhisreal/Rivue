@@ -206,8 +206,9 @@ Test suites live in `tests/*.test.luau`. Each one returns a function, or a table
 `runAllTests`.
 
 - **Studio**: `src/client/TestRunner.client.luau` runs every suite.
-- **Offline**: `scripts/test-offline.sh` bundles each suite with `tests/offline/prelude.luau` and
-  runs it with the Luau CLI. The prelude provides:
+- **Offline**: `lune run test` bundles each suite with `tests/offline/prelude.luau` and runs it
+  in its own Lune environment (`.lune/lib/bundle.luau`, `.lune/lib/run.luau`). The prelude
+  provides:
   - stub Instances (userdata with property signals),
   - virtual time, where `task.wait` and frame signals advance a fake clock,
   - TweenService, GuiService, Players and CollectionService.

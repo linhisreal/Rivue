@@ -1,6 +1,5 @@
 --!strict
--- Comprehensive API Validation Test Suite
--- Tests that all documented API functions work as described
+-- Checks that the documented API exists and behaves as described
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
@@ -234,42 +233,14 @@ local function runTests()
 			age = 25,
 		})
 
-		-- Debug: Test if pairs works on reactive proxy
-		print("  [DEBUG] Testing pairs() on reactive proxy:")
-		for k, v in pairs(state) do
-			print("    ", k, "=", v)
-		end
-
 		local refs = Rivue.toRefs(state)
 
-		-- Debug: Check what toRefs actually returned
-		print("  [DEBUG] Testing pairs() on refs table:")
-		for k, v in pairs(refs) do
-			print("    ", k, "=", v, "type:", type(v))
-		end
+		assertTrue(refs.count ~= nil, "toRefs creates a ref for 'count'")
+		assertEquals(refs.count.value, 0, "toRefs creates refs for each property")
 
-		print("  [DEBUG] refs type:", type(refs))
-		print("  [DEBUG] refs.count:", refs.count)
-		print("  [DEBUG] refs.name:", refs.name)
-		print("  [DEBUG] refs.age:", refs.age)
-
-		-- Check if refs.count exists before accessing .value
-		if refs.count then
-			assertEquals(refs.count.value, 0, "toRefs creates refs for each property")
-		else
-			error("toRefs did not create ref for 'count' property")
-		end
-
-		if refs.name then
-			assertEquals(refs.name.value, "Alice", "toRefs preserves values")
-		else
-			error("toRefs did not create ref for 'name' property")
-		end
-
-		if refs.count then
-			refs.count.value = 10
-			assertEquals(state.count, 10, "toRefs refs are linked to original state")
-		end
+		assertEquals(refs.name.value, "Alice", "toRefs preserves values")
+		refs.count.value = 10
+		assertEquals(state.count, 10, "toRefs refs are linked to original state")
 	end
 
 	-- Test 12: isRef()
@@ -880,7 +851,7 @@ local function runTests()
 			end,
 		})
 
-		-- Note: inject only works when properly mounted in hierarchy
+		-- inject() needs a mounted parent that provides the key
 		-- For now, test that APIs exist
 		assertTrue(type(Rivue.defineComponent) == "function", "provide/inject APIs available")
 	end
@@ -896,8 +867,6 @@ local function runTests()
 		assertTrue(Rivue.directives.get("focus") ~= nil, "focus directive registered")
 		assertTrue(Rivue.directives.get("show") ~= nil, "show directive registered")
 		assertTrue(Rivue.directives.get("preload") ~= nil, "preload directive registered")
-		assertTrue(Rivue.directives.get("once") ~= nil, "once directive registered")
-		assertTrue(Rivue.directives.get("memo") ~= nil, "memo directive registered")
 		assertTrue(Rivue.directives.get("drag") ~= nil, "drag directive registered")
 		assertTrue(Rivue.directives.get("click-outside") ~= nil, "click-outside directive registered")
 		assertTrue(Rivue.directives.get("fade-in") ~= nil, "fade-in directive registered")

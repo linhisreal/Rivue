@@ -43,7 +43,7 @@
 			"local Rivue = require(ReplicatedStorage.Rivue)",
 			"local h = Rivue.h",
 			"",
-			"local ${2:Header} = require(script.Parent.Parent.components.${2:Header})",
+			"local ${2:Header} = require(\"../components/${2:Header}\")",
 			"",
 			"return Rivue.defineComponent({",
 			"\tname = \"${1:${TM_FILENAME_BASE}}\",",

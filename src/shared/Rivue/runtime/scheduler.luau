@@ -2,45 +2,10 @@
 --!optimize 2
 --!native
 
---[[
-	Scheduler
-    =========
-	
-	Job scheduling system for deferred and batched execution.
-	
-	@module scheduler
+-- Update scheduler. Jobs queued in a frame run once, in uid order (parents before children),
+-- followed by post-flush callbacks. nextTick resolves after the next flush.
 
-	@author Rivue
-
-	@version 1.0.0
-
-	Type Definitions:
-    -----------------
-
-		type QueueOptions = {
-			mode: "micro" | "render" | "heartbeat"?
-		}
-		
-		type JobHandle = {
-			cancel: () -> ()
-		}
-		
-		type Job = {
-			fn: () -> (),
-			cancelled: boolean
-		}
-	
-	Public API:
-    -----------
-    
-		queueJob(fn: () -> (), options?: QueueOptions) -> JobHandle
-			--- Queues a job for execution with different scheduling modes:
-			---   "micro" (default): Deferred via task.defer with deduplication
-			---   "render": Next RenderStepped frame
-			---   "heartbeat": Next Heartbeat frame
-]]
-
-local Types = require(script.Parent:WaitForChild("types"))
+local Types = require("./types")
 
 type QueueOptions = Types.QueueOptions
 type JobHandle = Types.JobHandle
@@ -51,7 +16,7 @@ type Job = {
 }
 
 local RS = game:GetService("RunService")
-local debugModule = require(script.Parent:WaitForChild("debug"))
+local debugModule = require("./debug")
 
 local scheduler = {}
 local microQueue: { Job } = {}
@@ -70,7 +35,6 @@ local frameQueues: { [FrameMode]: { Job } } = { render = {}, heartbeat = {} }
 local frameConns: { [FrameMode]: RBXScriptConnection? } = {}
 
 --- Runs queued jobs for a frame mode
---- @param mode FrameMode -- Which frame queue to flush
 local function flushFrame(mode: FrameMode): ()
 	local conn = frameConns[mode]
 	if conn then
@@ -93,8 +57,6 @@ local function flushFrame(mode: FrameMode): ()
 end
 
 --- Queues a job onto the next RenderStepped/Heartbeat frame
---- @param mode FrameMode -- Frame mode
---- @param job Job -- Job to run
 local function queueFrameJob(mode: FrameMode, job: Job): ()
 	table.insert(frameQueues[mode], job)
 	if not frameConns[mode] then
@@ -154,9 +116,6 @@ local function flushMicro(): ()
 end
 
 --- Queues a job for execution
---- @param fn () -> () -- Job function to execute
---- @param opts QueueOptions? -- Queue options (mode: "micro" | "render" | "heartbeat")
---- @return JobHandle -- Handle with cancel function
 function scheduler.queueJob(fn: () -> (), opts: QueueOptions?): JobHandle
 	local mode = if opts and opts.mode then opts.mode else "micro"
 	if mode == "micro" and microQueueSet[fn] then
@@ -195,7 +154,6 @@ end
 
 --- Runs fn after pending updates, or yields the current thread until then when called without fn
 --- Component re-renders and "pre" watchers are deferred, so a defer queued now runs after them.
---- @param fn (() -> ())? -- Callback (optional)
 function scheduler.nextTick(fn: (() -> ())?): ()
 	if fn then
 		task.defer(fn)
@@ -206,7 +164,6 @@ function scheduler.nextTick(fn: (() -> ())?): ()
 end
 
 --- Queues fn on the micro queue without allocating a handle (used by effects)
---- @param fn () -> () -- Job function (deduplicated)
 function scheduler.queueEffect(fn: () -> ()): ()
 	if microQueueSet[fn] then
 		return
@@ -262,7 +219,6 @@ end
 
 --- Queues a component re-render. Updates are batched and run parents first, so a child
 --- re-rendered by its parent this flush doesn't render twice.
---- @param job UpdateJob -- Update job (deduplicated)
 function scheduler.queueUpdate(job: UpdateJob): ()
 	if updateQueued[job] then
 		return

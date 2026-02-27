@@ -1,25 +1,11 @@
 --!strict
 --!optimize 2
 
---[[
-	array.luau
-	==========
+-- Rivue.array: table.insert/remove/sort-style helpers for reactive arrays. Luau's table library
+-- reads and writes the raw table behind a proxy, so it neither tracks nor triggers. These edit the
+-- raw array and notify everything that read it.
 
-	Array helpers that work on reactive arrays. Luau's table.insert/remove/sort read and write
-	the raw table, so on a proxy they do nothing (or the wrong thing). These change the array
-	behind the proxy and notify everything that read it, like Vue's array methods.
-
-	Usage:
-	------
-
-		local array = Rivue.array
-		array.push(state.todos, { id = 1, text = "Milk" })
-		array.removeWhere(state.todos, function(todo) return todo.done end)
-
-	@module array
-]]
-
-local reactivity = require(script.Parent:WaitForChild("reactivity"))
+local reactivity = require("./reactivity")
 
 local toRaw = reactivity.toRaw
 local triggerListChange = reactivity._triggerListChange
@@ -27,8 +13,6 @@ local triggerListChange = reactivity._triggerListChange
 local array = {}
 
 --- Gets the raw array to edit, refusing readonly proxies
---- @param list { T } -- Plain array or reactive proxy
---- @return { T } -- Raw array
 local function rawOf<T>(list: { T }): { T }
 	if reactivity.isReadonly(list) then
 		error("[Rivue] Can't change a readonly array", 3)
@@ -37,9 +21,6 @@ local function rawOf<T>(list: { T }): { T }
 end
 
 --- Adds values to the end
---- @param list { T } -- Array (plain or reactive)
---- @param ... T -- Values to add
---- @return number -- New length
 function array.push<T>(list: { T }, ...: T): number
 	local raw = rawOf(list)
 	local first = #raw + 1
@@ -51,9 +32,6 @@ function array.push<T>(list: { T }, ...: T): number
 end
 
 --- Inserts a value at a position, shifting the rest up
---- @param list { T } -- Array
---- @param index number -- Position (1 to #list + 1)
---- @param value T -- Value
 function array.insert<T>(list: { T }, index: number, value: T)
 	local raw = rawOf(list)
 	table.insert(raw, index, toRaw(value))
@@ -61,9 +39,6 @@ function array.insert<T>(list: { T }, index: number, value: T)
 end
 
 --- Removes the value at a position (the last one by default), shifting the rest down
---- @param list { T } -- Array
---- @param index number? -- Position, default #list
---- @return T? -- Removed value
 function array.remove<T>(list: { T }, index: number?): T?
 	local raw = rawOf(list)
 	local count = #raw
@@ -77,9 +52,7 @@ function array.remove<T>(list: { T }, index: number?): T?
 end
 
 --- Removes the first occurrence of a value
---- @param list { T } -- Array
---- @param value T -- Value to remove (proxies match their raw table)
---- @return boolean -- True if it was found
+--- `value`: value to remove (proxies match their raw table)
 function array.removeValue<T>(list: { T }, value: T): boolean
 	local raw = rawOf(list)
 	local index = table.find(raw, toRaw(value))
@@ -91,9 +64,6 @@ function array.removeValue<T>(list: { T }, value: T): boolean
 end
 
 --- Removes every item the predicate returns true for, in one update
---- @param list { T } -- Array
---- @param predicate (item: T, index: number) -> boolean -- Called with reactive items
---- @return number -- How many were removed
 function array.removeWhere<T>(list: { T }, predicate: (item: T, index: number) -> boolean): number
 	local raw = rawOf(list)
 	local count = #raw
@@ -117,11 +87,7 @@ function array.removeWhere<T>(list: { T }, predicate: (item: T, index: number) -
 end
 
 --- Removes `deleteCount` items at `start` and inserts the given values there (like JavaScript's splice)
---- @param list { T } -- Array
---- @param start number -- First position
---- @param deleteCount number? -- How many to remove (default: everything from start)
---- @param ... T -- Values to insert
---- @return { T } -- Removed values
+--- `deleteCount`: how many to remove (default: everything from start)
 function array.splice<T>(list: { T }, start: number, deleteCount: number?, ...: T): { T }
 	local raw = rawOf(list)
 	local count = #raw
@@ -141,9 +107,6 @@ function array.splice<T>(list: { T }, start: number, deleteCount: number?, ...: 
 end
 
 --- Moves an item from one position to another
---- @param list { T } -- Array
---- @param from number -- Current position
---- @param to number -- New position
 function array.move<T>(list: { T }, from: number, to: number)
 	if from == to then
 		return
@@ -155,8 +118,6 @@ function array.move<T>(list: { T }, from: number, to: number)
 end
 
 --- Sorts in place
---- @param list { T } -- Array
---- @param comparator ((a: T, b: T) -> boolean)? -- Like table.sort's
 function array.sort<T>(list: { T }, comparator: ((a: T, b: T) -> boolean)?)
 	local raw = rawOf(list)
 	table.sort(raw, comparator)
@@ -164,7 +125,6 @@ function array.sort<T>(list: { T }, comparator: ((a: T, b: T) -> boolean)?)
 end
 
 --- Removes everything
---- @param list { T } -- Array
 function array.clear<T>(list: { T })
 	local raw = rawOf(list)
 	local count = #raw
@@ -176,9 +136,6 @@ function array.clear<T>(list: { T })
 end
 
 --- Position of a value, or nil (table.find doesn't work on proxies)
---- @param list { T } -- Array
---- @param value T -- Value (proxies match their raw table)
---- @return number? -- Index
 function array.indexOf<T>(list: { T }, value: T): number?
 	-- Reading the length tracks it, so this re-runs when items are added or removed
 	local _ = #list
@@ -186,10 +143,6 @@ function array.indexOf<T>(list: { T }, value: T): number?
 end
 
 --- First item the predicate returns true for, as its reactive version
---- @param list { T } -- Array
---- @param predicate (item: T, index: number) -> boolean -- Test
---- @return T? -- Item
---- @return number? -- Its index
 function array.find<T>(list: { T }, predicate: (item: T, index: number) -> boolean): (T?, number?)
 	for i = 1, #list do
 		local item = list[i]
@@ -201,9 +154,6 @@ function array.find<T>(list: { T }, predicate: (item: T, index: number) -> boole
 end
 
 --- Items the predicate returns true for, as a new plain array
---- @param list { T } -- Array
---- @param predicate (item: T, index: number) -> boolean -- Test
---- @return { T } -- Matching items
 function array.filter<T>(list: { T }, predicate: (item: T, index: number) -> boolean): { T }
 	local out = {}
 	for i = 1, #list do
@@ -216,9 +166,6 @@ function array.filter<T>(list: { T }, predicate: (item: T, index: number) -> boo
 end
 
 --- Maps every item to a new plain array
---- @param list { T } -- Array
---- @param mapper (item: T, index: number) -> U -- Transform
---- @return { U } -- Results
 function array.map<T, U>(list: { T }, mapper: (item: T, index: number) -> U): { U }
 	local out = table.create(#list)
 	for i = 1, #list do
@@ -228,9 +175,6 @@ function array.map<T, U>(list: { T }, mapper: (item: T, index: number) -> U): { 
 end
 
 --- Counts the items the predicate returns true for (all items without one)
---- @param list { T } -- Array
---- @param predicate ((item: T, index: number) -> boolean)? -- Test
---- @return number -- Count
 function array.count<T>(list: { T }, predicate: ((item: T, index: number) -> boolean)?): number
 	if not predicate then
 		return #list

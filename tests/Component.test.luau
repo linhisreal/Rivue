@@ -1,14 +1,8 @@
 --!strict
---[[
-	Component Unit Tests
-	====================
-	
-	Tests for component.luau - Component instance lifecycle and prop validation
-]]
+-- Tests for component.luau - Component instance lifecycle and prop validation
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
--- local component_module = require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("component"))
 
 local function assertEquals(actual: any, expected: any, message: string?)
 	if actual ~= expected then

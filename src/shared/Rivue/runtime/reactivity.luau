@@ -2,21 +2,10 @@
 --!optimize 2
 --!native
 
---[[
-	Reactivity.luau
-    ===============
+-- Reactivity: refs, reactive proxies, computed, effects, watchers and effect scopes. Follows
+-- Vue 3's model: reads inside an effect are tracked, writes trigger the effects that read them.
 
-	Provides reactive state management with automatic dependency tracking.
-	Implements a Vue 3-inspired reactivity system for Roblox.
-
-	@module reactivity
-
-	@author Rivue
-
-	@version 1.0.0
-]]
-
-local Types = require(script.Parent:WaitForChild("types"))
+local Types = require("./types")
 
 type Ref<T> = Types.Ref<T>
 type ComputedRef<T> = Types.ComputedRef<T>
@@ -42,16 +31,14 @@ type RefInternal = {
 	_shallow: boolean?,
 }
 
--- Module imports
-local scheduler = require(script.Parent:WaitForChild("scheduler"))
-local debugModule = require(script.Parent:WaitForChild("debug"))
-local utils = require(script.Parent:WaitForChild("utils"))
+local scheduler = require("./scheduler")
+local debugModule = require("./debug")
+local utils = require("./utils")
 local RunService = game:GetService("RunService")
 
 const IS_STUDIO = RunService:IsStudio()
 
 --- Creates a weak-keyed table
---- @return { [K]: V } -- Empty weak-keyed table
 local function weakKeyed<K, V>(): { [K]: V }
 	return setmetatable({}, { __mode = "k" }) :: any
 end
@@ -71,22 +58,18 @@ local scopeStack: { EffectScope } = {}
 local activeScope: EffectScope? = nil
 
 --- Runs fn inside the scope so its effects get collected
---- @param self EffectScope -- Scope to activate
---- @param fn () -> unknown -- Function to run
---- @return unknown -- fn's result, or nil if the scope is inactive or fn errored
+--- Returns fn's result, or nil if the scope is inactive or fn errored
 local function scopeRun(self: EffectScope, fn: () -> unknown): unknown
 	if not self.active then
 		debugModule.log("Reactivity", "Cannot run() on inactive effect scope")
 		return nil
 	end
 
-	-- Push this scope onto the stack
 	table.insert(scopeStack, self)
 	activeScope = self
 
 	local ok, result = pcall(fn)
 
-	-- Pop the scope
 	table.remove(scopeStack)
 	activeScope = scopeStack[#scopeStack]
 
@@ -99,7 +82,6 @@ local function scopeRun(self: EffectScope, fn: () -> unknown): unknown
 end
 
 --- Stops child scopes, effects, then runs cleanups
---- @param self EffectScope -- Scope to stop
 local function scopeStop(self: EffectScope)
 	if not self.active then
 		return
@@ -107,17 +89,14 @@ local function scopeStop(self: EffectScope)
 
 	self.active = false
 
-	-- Stop all child scopes first
 	for _, childScope in self.scopes do
 		childScope:stop()
 	end
 
-	-- Stop all effects in this scope
 	for _, eff in self.effects do
 		eff:stop()
 	end
 
-	-- Run all cleanup callbacks
 	for _, cleanup in self.cleanups do
 		pcall(cleanup)
 	end
@@ -128,9 +107,7 @@ local function scopeStop(self: EffectScope)
 end
 
 --- Creates an effect scope for grouping effects and enabling batch cleanup
---- Useful for plugin systems, composable lifecycle management
---- @param detached boolean? -- If true, scope won't be collected by parent scope
---- @return EffectScope -- Effect scope object with run() and stop() methods
+--- `detached`: if true, scope won't be collected by parent scope
 local function effectScope(detached: boolean?): EffectScope
 	local scope: EffectScope = {
 		active = true,
@@ -142,7 +119,6 @@ local function effectScope(detached: boolean?): EffectScope
 		stop = scopeStop,
 	}
 
-	-- Register with parent scope if not detached
 	local parent = scope.parent
 	if parent then
 		table.insert(parent.scopes, scope)
@@ -152,15 +128,13 @@ local function effectScope(detached: boolean?): EffectScope
 end
 
 --- Returns the currently active effect scope (or nil if none)
---- @return EffectScope? -- Current scope or nil
 local function getCurrentScope(): EffectScope?
 	return activeScope
 end
 
 --- Registers a cleanup callback on the current active effect scope
 --- Called when the scope is stopped (e.g., component unmount)
---- @param fn () -> () -- Cleanup callback
---- @param failSilently boolean? -- If true, don't warn when no active scope (default: false)
+--- `failSilently`: if true, don't warn when no active scope (default: false)
 local function onScopeDispose(fn: () -> (), failSilently: boolean?)
 	if not activeScope then
 		if not failSilently and IS_STUDIO then
@@ -180,8 +154,6 @@ local shallowMarker: { [unknown]: true } = weakKeyed()
 
 --- Marks an object as raw (non-reactive)
 --- Prevents the object from being converted to a reactive proxy
---- @param obj T -- Object to mark as raw
---- @return T -- The same object, now marked as raw
 local function markRaw<T>(obj: T): T
 	if type(obj) == "table" then
 		rawMarker[obj] = true
@@ -190,21 +162,15 @@ local function markRaw<T>(obj: T): T
 end
 
 --- Unwraps a proxy to get the original object
---- Returns the original non-proxy object from reactive/readonly/shallow proxies
---- @param obj T -- Proxy or raw object
---- @return T -- Original object (non-proxy)
 local function toRaw<T>(obj: T): T
 	local original = reactiveMarker[obj]
 	if original then
 		return original :: any
 	end
-	-- Otherwise return as-is (already raw or primitive)
 	return obj
 end
 
 --- Checks if a value is a reactive proxy (created by reactive or shallowReactive)
---- @param value unknown -- Value to check
---- @return boolean -- True if value is a reactive proxy
 local function isReactive(value: unknown): boolean
 	if type(value) ~= "table" then
 		return false
@@ -221,30 +187,21 @@ local function isReactive(value: unknown): boolean
 end
 
 --- Checks if a value is a readonly proxy
---- @param value unknown -- Value to check
---- @return boolean -- True if value is readonly
 local function isReadonly(value: unknown): boolean
 	return type(value) == "table" and readonlyMarker[value] == true
 end
 
 --- Checks if a value is a proxy (reactive or readonly)
---- @param value unknown -- Value to check
---- @return boolean -- True if value is any kind of proxy
 local function isProxy(value: unknown): boolean
 	return isReactive(value) or isReadonly(value)
 end
 
 --- Checks if a value should be wrapped in a proxy
---- @param value unknown -- Value read from a raw table
---- @return boolean -- True for non-raw tables
 local function shouldWrap(value: unknown): boolean
 	return type(value) == "table" and not rawMarker[value]
 end
 
 --- Creates a reactive effect that tracks dependencies and re-runs on changes
---- @param fn () -> () -- Effect function to execute
---- @param opts EffectOptions? -- Optional scheduler and lazy execution settings
---- @return Effect -- Effect object with run and stop methods
 local function createEffect(fn: () -> (), opts: EffectOptions?): Effect
 	local options: EffectOptions = opts or {}
 	local effect = {
@@ -264,13 +221,12 @@ local function createEffect(fn: () -> (), opts: EffectOptions?): Effect
 			return
 		end
 
-		-- Profile effect execution for performance monitoring
 		local effectName = if utils.profiler.active then "effect_" .. tostring(effect) else nil
 		if effectName then
 			utils.profiler:start(effectName)
 		end
 
-		-- This ensures fresh dependency tracking on each execution (Vue 3 pattern)
+		-- Drop old dependencies, this run collects the current ones
 		for _, dep in effect.deps do
 			dep[typedEffect] = nil
 		end
@@ -311,7 +267,6 @@ local function createEffect(fn: () -> (), opts: EffectOptions?): Effect
 		table.clear(self.deps)
 	end
 
-	-- Register effect with current scope (if any)
 	if activeScope then
 		table.insert(activeScope.effects, typedEffect)
 	end
@@ -328,8 +283,6 @@ local function createEffect(fn: () -> (), opts: EffectOptions?): Effect
 end
 
 --- Tracks access to a property for reactive dependency collection
---- @param target unknown -- Object being accessed
---- @param key unknown -- Property key being accessed
 local function track(target: unknown, key: unknown)
 	local current = activeEffect
 	if not current then
@@ -359,8 +312,6 @@ local triggerScratch: { { Effect } } = {}
 local triggerDepth = 0
 
 --- Triggers all effects that depend on a property
---- @param target unknown -- Object that changed
---- @param key unknown -- Property key that changed
 local function trigger(target: unknown, key: unknown)
 	local deps = depMap[target]
 	if not deps then
@@ -405,10 +356,6 @@ local function trigger(target: unknown, key: unknown)
 end
 
 --- Triggers a key, plus length/iteration when a key is added or removed
---- @param target RawTable -- Raw object that changed
---- @param key unknown -- Property key that changed
---- @param old unknown -- Previous value
---- @param new unknown -- New value
 local function triggerSet(target: RawTable, key: unknown, old: unknown, new: unknown)
 	trigger(target, key)
 	if old == nil or new == nil then
@@ -424,10 +371,7 @@ local shallowProxyCache: { [RawTable]: RawTable } = weakKeyed()
 local readonlyCache: { [RawTable]: RawTable } = weakKeyed()
 local shallowReadonlyCache: { [RawTable]: RawTable } = weakKeyed()
 
---- Creates a deeply reactive proxy of an object.
----  All nested objects are automatically made reactive
---- @param target T -- Table to make reactive
---- @return T -- Reactive proxy of the table
+--- Creates a deeply reactive proxy of an object (nested tables become reactive on access)
 local function reactive<T>(target: T): T
 	assert(type(target) == "table", "reactive expects a table")
 	local tbl: RawTable = target :: any
@@ -442,7 +386,6 @@ local function reactive<T>(target: T): T
 
 	local proxy: RawTable = {}
 
-	-- Store reference to original object for toRaw()
 	reactiveMarker[proxy] = tbl
 
 	local mt = {}
@@ -481,7 +424,6 @@ local function reactive<T>(target: T): T
 		return #tbl
 	end
 	function mt.__tostring(_: RawTable): string
-		-- In dev mode, show a helpful representation
 		return if IS_STUDIO then "<Reactive Proxy>" else tostring(tbl)
 	end
 	setmetatable(proxy :: any, mt)
@@ -490,8 +432,6 @@ local function reactive<T>(target: T): T
 end
 
 --- Creates a shallow reactive proxy (only top-level properties are reactive)
---- @param target T -- Table to make shallow reactive
---- @return T -- Shallow reactive proxy
 local function shallowReactive<T>(target: T): T
 	assert(type(target) == "table", "shallowReactive expects a table")
 	local tbl: RawTable = target :: any
@@ -505,7 +445,6 @@ local function shallowReactive<T>(target: T): T
 
 	local proxy: RawTable = {}
 
-	-- Mark as reactive for isReactive() check
 	reactiveMarker[proxy] = tbl
 	shallowMarker[proxy] = true
 
@@ -569,8 +508,6 @@ end
 table.freeze(RefMT)
 
 --- Creates a reactive reference to a value
---- @param initial T -- Initial value
---- @return Ref<T> -- Reactive reference with .value property
 local function ref<T>(initial: T): Ref<T>
 	local wrapped: unknown = if shouldWrap(initial) then reactive(initial) else initial
 	local r: RefInternal = { _is_ref = true, _value = wrapped }
@@ -578,31 +515,23 @@ local function ref<T>(initial: T): Ref<T>
 end
 
 --- Creates a shallow reactive reference (doesn't auto-wrap objects)
---- @param initial T -- Initial value
---- @return Ref<T> -- Shallow reactive reference with .value property
 local function shallowRef<T>(initial: T): Ref<T>
 	local r: RefInternal = { _is_ref = true, _value = initial, _shallow = true }
 	return setmetatable(r :: any, RefMT)
 end
 
 --- Checks if a value is a Ref
---- @param r unknown -- Value to check
---- @return boolean -- True if value is a Ref
 local function isRef(r: unknown): boolean
 	return type(r) == "table" and (r :: any)._is_ref == true
 end
 
 --- Unwraps a Ref to get its value, or returns the value as-is
---- @param r MaybeRef<T> -- Ref or plain value
---- @return T -- Unwrapped value
 local function unref<T>(r: MaybeRef<T>): T
 	return if isRef(r) then (r :: Ref<T>).value else r :: T
 end
 
 --- Creates a computed value that caches the result and only re-computes when dependencies change
 --- Pass { get, set } for a writable computed.
---- @param getterOrOptions (() -> T) | WritableComputedOptions<T> -- Getter, or get/set pair
---- @return ComputedRef<T> -- Computed reference with cached .value property
 local function computed<T>(getterOrOptions: (() -> T) | WritableComputedOptions<T>): ComputedRef<T>
 	local getter: () -> T
 	local setter: ((T) -> ())? = nil
@@ -663,9 +592,6 @@ local function computed<T>(getterOrOptions: (() -> T) | WritableComputedOptions<
 end
 
 --- Creates a Ref that's linked to a property on a reactive object
---- @param obj { [K]: V } -- Source reactive object
---- @param key K -- Property key to link
---- @return Ref<V> -- Ref linked to the property
 local function toRef<K, V>(obj: { [K]: V }, key: K): Ref<V>
 	local r = { _is_ref = true }
 	setmetatable(r, {
@@ -692,11 +618,8 @@ local function toRef<K, V>(obj: { [K]: V }, key: K): Ref<V>
 end
 
 --- Converts all properties of a reactive object to Refs
---- @param obj { [K]: V } -- Reactive object to convert
---- @return { [K]: Ref<V> } -- Table of Refs for each property
 local function toRefs<K, V>(obj: { [K]: V }): { [K]: Ref<V> }
 	local res: { [K]: Ref<V> } = {}
-	-- Get the raw object to iterate over
 	for k in toRaw(obj) do
 		res[k] = toRef(obj, k)
 	end
@@ -704,9 +627,6 @@ local function toRefs<K, V>(obj: { [K]: V }): { [K]: Ref<V> }
 end
 
 --- Deeply traverses an object to trigger all reactive dependencies (for deep watching)
---- @param value T -- Value to traverse
---- @param seen { [unknown]: true }? -- Set of already-seen tables to prevent infinite loops
---- @return T -- The traversed value
 local function _traverse<T>(value: T, seen: { [unknown]: true }?, depth: number?): T
 	local remaining = depth or math.huge
 	if type(value) ~= "table" or remaining <= 0 then
@@ -726,8 +646,6 @@ local function _traverse<T>(value: T, seen: { [unknown]: true }?, depth: number?
 end
 
 --- Reads a single watch source (ref, getter, or reactive object)
---- @param item unknown -- Source
---- @return unknown -- Current value
 local function readSource(item: unknown): unknown
 	if isRef(item) then
 		return (item :: Ref<unknown>).value
@@ -740,8 +658,6 @@ local function readSource(item: unknown): unknown
 end
 
 --- Checks if a table is a list of watch sources (refs, getters, reactive objects)
---- @param list { [unknown]: unknown } -- Candidate
---- @return boolean -- True for a non-empty array of sources
 local function isMultiSourceList(list: { [unknown]: unknown }): boolean
 	local count = #list
 	if count == 0 then
@@ -757,9 +673,6 @@ local function isMultiSourceList(list: { [unknown]: unknown }): boolean
 end
 
 --- Compares two arrays element by element
---- @param a { unknown }? -- First array
---- @param b { unknown }? -- Second array
---- @return boolean -- True if same length and elements
 local function arrayShallowEqual(a: { unknown }?, b: { unknown }?): boolean
 	if a == nil or b == nil then
 		return a == b
@@ -783,10 +696,7 @@ local WatchHandleMT = {
 }
 
 --- Builds the handle watch()/watchEffect() return
---- @param stop () -> () -- Stops for good
---- @param pause () -> () -- Ignores changes until resume
---- @param resume () -> () -- Runs once if something changed while paused
---- @return WatchHandle -- Callable handle with stop/pause/resume
+--- `resume`: runs once if something changed while paused
 local function createWatchHandle(stop: () -> (), pause: () -> (), resume: () -> ()): WatchHandle
 	return setmetatable({
 		stop = function(_: any?)
@@ -801,8 +711,6 @@ end
 local activeWatcherCleanup: OnCleanup? = nil
 
 --- Registers a cleanup for the running watch callback or watchEffect
---- @param fn () -> () -- Runs before the next run and on stop
---- @param failSilently boolean? -- Don't warn outside a watcher
 local function onWatcherCleanup(fn: () -> (), failSilently: boolean?)
 	local register = activeWatcherCleanup
 	if register then
@@ -813,10 +721,6 @@ local function onWatcherCleanup(fn: () -> (), failSilently: boolean?)
 end
 
 --- Watches a reactive source and executes callback when it changes
---- @param source WatchSource<T> -- Reactive source to watch (getter function, Ref, or reactive object)
---- @param cb WatchCallback<T> -- Callback (newValue, oldValue, onCleanup) => void
---- @param opts WatchOptions? -- Options: immediate (run immediately), deep (traverse nested objects), flush
---- @return WatchHandle -- Callable stop handle with pause/resume
 local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: WatchOptions?): WatchHandle
 	local options: WatchOptions = opts or {}
 	local deepOption = options.deep
@@ -928,10 +832,8 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 		if flushMode == "sync" then
 			job()
 		elseif flushMode == "post" then
-			-- Execute after render (heartbeat mode)
 			scheduler.queueJob(job, { mode = "heartbeat" })
 		else
-			-- Execute before render (default - micro mode)
 			scheduler.queueJob(job, { mode = "micro" })
 		end
 	end
@@ -968,18 +870,12 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 end
 
 --- Creates and runs a reactive effect
---- @param fn () -> () -- Effect function to execute
---- @param opts EffectOptions? -- Options: scheduler (custom scheduler), lazy (don't run immediately)
---- @return Effect -- Effect object with stop method
 local function effect(fn: () -> (), opts: EffectOptions?): Effect
 	return createEffect(fn, opts)
 end
 
 --- Runs a reactive effect with automatic dependency tracking and immediate execution
---- Simpler alternative to watch() when you don't need the old/new value comparison
---- @param fn (onCleanup: OnCleanup) -> () -- Effect function to execute (dependencies are auto-tracked)
---- @param opts WatchOptions? -- flush: "pre" (default, deferred), "post" (Heartbeat), "sync"
---- @return WatchHandle -- Callable stop handle with pause/resume
+--- `opts.flush`: "pre" (default, deferred), "post" (Heartbeat), "sync"
 local function watchEffect(fn: (onCleanup: OnCleanup) -> (), opts: WatchOptions?): WatchHandle
 	local flushMode = if opts then opts.flush else nil
 	local cleanups: { () -> () } = {}
@@ -1034,23 +930,16 @@ local function watchEffect(fn: (onCleanup: OnCleanup) -> (), opts: WatchOptions?
 end
 
 --- watchEffect() that re-runs on Heartbeat (after renders)
---- @param fn () -> () -- Effect function
---- @return WatchHandle -- Stop handle
 local function watchPostEffect(fn: (onCleanup: OnCleanup) -> ()): WatchHandle
 	return watchEffect(fn, { flush = "post" })
 end
 
 --- watchEffect() that re-runs immediately on every change
---- @param fn () -> () -- Effect function
---- @return WatchHandle -- Stop handle
 local function watchSyncEffect(fn: (onCleanup: OnCleanup) -> ()): WatchHandle
 	return watchEffect(fn, { flush = "sync" })
 end
 
 --- Creates a readonly proxy (nested tables are readonly too unless shallow)
---- @param target T -- Object to wrap
---- @param shallow boolean -- Only the top level is readonly
---- @return T -- Readonly proxy
 local function createReadonly<T>(target: T, shallow: boolean): T
 	if type(target) ~= "table" or rawMarker[target] or readonlyMarker[target] then
 		return target
@@ -1065,7 +954,6 @@ local function createReadonly<T>(target: T, shallow: boolean): T
 
 	local proxy: RawTable = {}
 
-	-- Mark as readonly, store original for toRaw()
 	readonlyMarker[proxy] = true
 	reactiveMarker[proxy] = tbl
 	if shallow then
@@ -1083,7 +971,6 @@ local function createReadonly<T>(target: T, shallow: boolean): T
 			return wrap(tbl[k])
 		end,
 		__newindex = function(_: RawTable, k: unknown, _v: unknown)
-			-- Prevent mutations in dev mode
 			if IS_STUDIO then
 				debugModule.log("Reactivity", "Cannot mutate readonly reactive object", { key = k })
 			end
@@ -1107,23 +994,17 @@ local function createReadonly<T>(target: T, shallow: boolean): T
 end
 
 --- Creates a readonly reactive proxy that warns on mutation attempts
---- Useful for enforcing one-way data flow (props, injected state, public APIs)
---- @param target T -- Object to make readonly
---- @return T -- Readonly reactive proxy
 local function readonly<T>(target: T): T
 	return createReadonly(target, false)
 end
 
 --- Like readonly(), but nested tables stay as they are
---- @param target T -- Object to make readonly
---- @return T -- Shallow readonly proxy
 local function shallowReadonly<T>(target: T): T
 	return createReadonly(target, true)
 end
 
 --- Checks if a value is a shallow ref or shallow proxy
---- @param value unknown -- Value to check
---- @return boolean -- True for shallowRef/shallowReactive/shallowReadonly
+--- Returns true for shallowRef/shallowReactive/shallowReadonly
 local function isShallow(value: unknown): boolean
 	if type(value) ~= "table" then
 		return false
@@ -1132,8 +1013,6 @@ local function isShallow(value: unknown): boolean
 end
 
 --- Normalizes a ref, getter, or plain value to a value
---- @param source MaybeRef<T> | () -> T -- Ref, getter, or value
---- @return T -- Value
 local function toValue<T>(source: MaybeRef<T> | () -> T): T
 	if type(source) == "function" then
 		return (source :: () -> T)()
@@ -1142,8 +1021,7 @@ local function toValue<T>(source: MaybeRef<T> | () -> T): T
 end
 
 --- Manually triggers effects that depend on a shallowRef
---- Useful when you mutate the internal value of a shallowRef without replacing .value
---- @param refObj Ref<T> -- ShallowRef to trigger
+--- For when you change what a shallowRef holds without replacing .value
 local function triggerRef<T>(refObj: Ref<T>)
 	if not isRef(refObj) then
 		if IS_STUDIO then
@@ -1156,9 +1034,7 @@ local function triggerRef<T>(refObj: Ref<T>)
 end
 
 --- Creates a customized ref with explicit control over dependency tracking and updates
---- Useful for debounced inputs, validation, custom state sync, etc.
---- @param factory CustomRefFactory<T> -- Receives track/trigger, returns { get, set }
---- @return Ref<T> -- Custom ref with manual tracking control
+--- `factory`: receives track/trigger, returns { get, set }
 local function customRef<T>(factory: CustomRefFactory<T>): Ref<T>
 	local refTable = { _is_ref = true }
 
@@ -1189,9 +1065,7 @@ local function customRef<T>(factory: CustomRefFactory<T>): Ref<T>
 	}) :: any
 end
 
---- Returns a proxy that reads and writes refs inside a table without .value (Vue's proxyRefs)
---- @param object T -- Table whose values may be refs
---- @return T -- Proxy: reading a ref key gives its value, writing it sets the ref
+--- Wraps a table so its refs read and write without .value (Vue's proxyRefs)
 local function proxyRefs<T>(object: T): T
 	local target = object :: any
 	return setmetatable({}, {
@@ -1224,10 +1098,6 @@ local function proxyRefs<T>(object: T): T
 end
 
 --- Notifies that a raw array changed in place from index `first` to `last` (array helpers)
---- @param raw RawTable -- Raw array behind a proxy
---- @param first number -- First index that may have changed
---- @param last number -- Last index that may have changed
---- @param lengthChanged boolean -- Whether #raw changed
 local function triggerListChange(raw: RawTable, first: number, last: number, lengthChanged: boolean)
 	for i = first, last do
 		trigger(raw, i)

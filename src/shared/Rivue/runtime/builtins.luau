@@ -1,29 +1,19 @@
 --!strict
 --!optimize 2
 
---[[
-	builtins.luau
-	=============
-	
-	Built-in components: Suspense, KeepAlive, Transition, TransitionGroup, VirtualList,
-	and the async component loader.
-	Provides Vue 3-compatible async handling and component caching.
-	
-	@module builtins
-	@author Rivue
-	@version 1.0.0
-]]
+-- Built-in components (Transition, TransitionGroup, KeepAlive, Suspense, VirtualList) and
+-- defineAsyncComponent. Teleport lives in the renderer.
 
-local componentModule = require(script.Parent:WaitForChild("component"))
-local hModule = require(script.Parent:WaitForChild("h"))
-local reactivity = require(script.Parent:WaitForChild("reactivity"))
+local componentModule = require("./component")
+local hModule = require("./h")
+local reactivity = require("./reactivity")
 
 local h = hModule.h
 local Fragment = hModule.Fragment
 local ref = reactivity.ref
 local shallowRef = reactivity.shallowRef
 
-local Types = require(script.Parent:WaitForChild("types"))
+local Types = require("./types")
 
 type VNode = Types.VNode
 type Child = Types.Child
@@ -36,25 +26,8 @@ type SuspenseContext = Types.SuspenseContext
 
 local builtins = {}
 
---[=[
-	Suspense Component
-	==================
-	
-	Handles async component loading with fallback UI.
-	Tracks pending async operations and shows loading/error states.
-	
-	Props:
-		fallback: VNode?  -- UI to show while loading
-		timeout: number?  -- Timeout in milliseconds
-	
-	Usage:
-		h(Rivue.Suspense, {
-			fallback = h("TextLabel", { Text = "Loading..." })
-		}, {
-			h(AsyncComponent)
-		})
-]=]
-builtins.Suspense = nil :: ComponentDef? -- Forward declaration
+-- Suspense: shows `fallback` until async components inside have loaded (docs/api/builtins.md)
+builtins.Suspense = nil :: ComponentDef?
 
 local function createSuspense(): ComponentDef
 	return {
@@ -153,36 +126,15 @@ end
 
 builtins.Suspense = createSuspense()
 
---[=[
-	KeepAlive Component
-	===================
-	
-	Caches component instances to preserve state when toggling visibility.
-	Implements LRU cache with configurable size limits.
-	
-	Props:
-		include: { string }?  -- Component names to cache
-		exclude: { string }?  -- Component names NOT to cache
-		max: number?          -- Maximum cached instances
-	
-	Usage:
-		h(Rivue.KeepAlive, { max = 10 }, {
-			currentTab.value == "tab1" and h(Tab1) or h(Tab2)
-		})
-]=]
+-- KeepAlive: keeps switched-out children mounted but detached, LRU-capped by `max`
 builtins.KeepAlive = nil :: ComponentDef?
 
 --- Checks if a name is in an include/exclude list
---- @param list unknown -- Prop value ({ string } expected)
---- @param name string -- Component name
---- @return boolean -- True when listed
 local function listContains(list: unknown, name: string): boolean
 	return type(list) == "table" and table.find(list :: { string }, name) ~= nil
 end
 
 --- Returns the first vnode in a children list
---- @param list { Child } -- Children
---- @return VNode? -- First table child
 local function firstVNode(list: { Child }): VNode?
 	for _, child in list do
 		if type(child) == "table" then
@@ -286,10 +238,7 @@ end
 builtins.KeepAlive = createKeepAlive()
 
 --- Builds the transition config <Transition>/<TransitionGroup> hands to the renderer
---- @param props Props -- Component props
---- @param mounted boolean -- Whether the first render already happened (appear)
---- @param afterLeave ((el: Instance) -> ())? -- Extra after-leave callback
---- @return TransitionConfig -- Config for the children
+--- `mounted`: whether the first render already happened (appear)
 local function transitionConfig(props: Props, mounted: boolean, afterLeave: ((el: Instance) -> ())?): TransitionConfig
 	local onAfterLeave = props.onAfterLeave
 	return {
@@ -319,35 +268,12 @@ local function transitionConfig(props: Props, mounted: boolean, afterLeave: ((el
 end
 
 --- True if the vnode put an Instance on screen
---- @param vnode VNode -- Mounted vnode
---- @return boolean -- Has an element
 local function hasElement(vnode: VNode): boolean
 	local inst = vnode._instance :: any
 	return vnode.el ~= nil or (inst ~= nil and inst.el ~= nil)
 end
 
---[=[
-	Transition Component
-	====================
-
-	Tweens its child in when it appears and out before it's destroyed.
-
-	Props:
-		tweenInfo: TweenInfo        -- Used for enter and leave (enterInfo/leaveInfo override)
-		from: { [string]: any }?    -- Hidden state: applied before enter, tweened to on leave
-		enterGoals/leaveGoals: { [string]: any }?  -- Explicit targets
-		appear: boolean?            -- Also animate the first render
-		mode: "out-in"?             -- Wait for the old child to leave before showing the new one
-		onBeforeEnter/onAfterEnter/onBeforeLeave/onAfterLeave: ((el: Instance) -> ())?
-
-	Usage:
-		h(Rivue.Transition, {
-			tweenInfo = TweenInfo.new(0.2),
-			from = { BackgroundTransparency = 1 },
-		}, {
-			Rivue.hIf(open.value, h("Frame", { BackgroundTransparency = 0.2 })),
-		})
-]=]
+-- Transition: tweens its child in on appear and out before it's destroyed
 builtins.Transition = table.freeze({
 	__is_component = true :: true,
 	__name = "Transition",
@@ -392,19 +318,7 @@ builtins.Transition = table.freeze({
 	end,
 }) :: ComponentDef
 
---[=[
-	TransitionGroup Component
-	=========================
-
-	Transition for lists: keyed children tween in when added and out when removed.
-	Takes the same props as Transition (no mode), plus:
-		tag: string?          -- Wrap the children in this element (default: no wrapper)
-		tagProps: Props?      -- Props for the wrapper
-
-	Usage:
-		h(Rivue.TransitionGroup, { tweenInfo = TweenInfo.new(0.15), from = { Size = UDim2.new() } },
-			Rivue.hFor(items.value, function(item) return h("TextLabel", { key = item.id, Text = item.name }) end))
-]=]
+-- TransitionGroup: Transition for keyed lists, optionally wrapped in a `tag` element
 builtins.TransitionGroup = table.freeze({
 	__is_component = true :: true,
 	__name = "TransitionGroup",
@@ -432,30 +346,7 @@ builtins.TransitionGroup = table.freeze({
 	end,
 }) :: ComponentDef
 
---[=[
-	VirtualList Component
-	=====================
-
-	A ScrollingFrame that only renders the rows in view. Rows have a fixed size.
-	Undeclared props (Size, Position, ...) go to the ScrollingFrame.
-
-	Props:
-		items: { T }                          -- Plain or reactive array
-		itemSize: number                      -- Row height (or width when horizontal), in pixels
-		render: (item: T, index: number) -> VNode
-		key: ((item: T, index: number) -> unknown)?  -- Defaults to the index
-		overscan: number?                     -- Extra rows above and below (default 2)
-		horizontal: boolean?
-
-	Usage:
-		h(Rivue.VirtualList, {
-			Size = UDim2.fromScale(1, 1),
-			items = inventory,
-			itemSize = 40,
-			key = function(item) return item.id end,
-			render = function(item) return h(ItemRow, { item = item }) end,
-		})
-]=]
+-- VirtualList: a ScrollingFrame that only renders the fixed-size rows in view
 local virtualList: ComponentDef = {
 	__is_component = true :: true,
 	__name = "VirtualList",
@@ -536,32 +427,8 @@ local virtualList: ComponentDef = {
 }
 builtins.VirtualList = table.freeze(virtualList)
 
---[=[
-	defineAsyncComponent
-	====================
-	
-	Creates an async component that loads lazily with loading/error states.
-	
-	Parameters:
-		loader: () -> ComponentDef  -- Async function that returns component
-		options: {
-			loadingComponent: VNode?,
-			errorComponent: VNode?,
-			delay: number?,      -- Delay before showing loading (ms)
-			timeout: number?     -- Timeout for loading (ms)
-		}?
-	
-	Usage:
-		local AsyncComponent = Rivue.defineAsyncComponent(function()
-			task.wait(2)  -- Simulate async loading
-			return MyComponent
-		end, {
-			loadingComponent = h("TextLabel", { Text = "Loading..." }),
-			errorComponent = h("TextLabel", { Text = "Failed!" }),
-			delay = 200,
-			timeout = 5000
-		})
-]=]
+-- A component that loads its definition with `loader`, with loading/error states, delay and
+-- timeout (ms). Registers with an enclosing Suspense.
 function builtins.defineAsyncComponent(loader: () -> ComponentDef, opts: AsyncComponentOptions?): ComponentDef
 	local options: AsyncComponentOptions = opts or {}
 
@@ -575,10 +442,8 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, opts: AsyncCo
 			local error = ref(nil :: string?)
 			local showLoading = ref(false)
 
-			-- Get suspense context if available
 			local suspense = context.inject("suspense") :: SuspenseContext?
 
-			-- Delay before showing loading component
 			local delayTimer
 			if options.delay and options.delay > 0 then
 				delayTimer = task.delay(options.delay / 1000, function()
@@ -590,7 +455,6 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, opts: AsyncCo
 				showLoading.value = true
 			end
 
-			-- Timeout for loading
 			local timeoutTimer
 			if options.timeout and options.timeout > 0 then
 				timeoutTimer = task.delay(options.timeout / 1000, function()
@@ -605,12 +469,10 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, opts: AsyncCo
 				end)
 			end
 
-			-- Register with suspense
 			if suspense then
 				suspense.register()
 			end
 
-			-- Start loading
 			loading.value = true
 			task.spawn(function()
 				local success, result = pcall(loader)
@@ -634,7 +496,6 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, opts: AsyncCo
 					end
 				end
 
-				-- Cancel timers
 				if delayTimer then
 					task.cancel(delayTimer)
 				end
@@ -643,7 +504,6 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, opts: AsyncCo
 				end
 			end)
 
-			-- Cleanup on unmount
 			componentModule.onUnmounted(function()
 				if delayTimer then
 					task.cancel(delayTimer)
@@ -654,7 +514,6 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, opts: AsyncCo
 			end)
 
 			return function()
-				-- Error state
 				if error.value then
 					if options.errorComponent then
 						return options.errorComponent
@@ -667,7 +526,6 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, opts: AsyncCo
 					})
 				end
 
-				-- Loading state
 				if loading.value and showLoading.value then
 					if options.loadingComponent then
 						return options.loadingComponent
@@ -680,12 +538,10 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, opts: AsyncCo
 					})
 				end
 
-				-- Loaded state
 				if component.value then
 					return h(component.value, props)
 				end
 
-				-- Initial state (before delay)
 				return nil
 			end
 		end,

@@ -1,11 +1,6 @@
 --!strict
---[[
-	Readability Feature Tests
-	=========================
-
-	Tests for array helpers, proxyRefs, the render(ctx) option, local components, the class
-	prop with app/component styles, and the layout/flex props
-]]
+-- Tests for array helpers, proxyRefs, the render(ctx) option, local components, the class prop with
+-- app/component styles, and the layout/flex props
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))

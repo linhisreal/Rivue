@@ -1,69 +1,23 @@
 --!strict
 --!optimize 2
 
---[[
-	Directives.luau
-    ===============
-	
-	Directive system for custom element behaviors and v-model helpers.
-	
-	@module directives
+-- Directive registry and the built-in directives (vShow, vFocus, vSelect, vClickOutside, vDrag,
+-- vPreload, vFadeIn), plus the vModelText/vModelProp helpers.
 
-	@author Rivue
-
-	@version 1.0.0
-	
-	Type Definitions:
-    -----------------
-
-		type DirectiveHooks = {
-			mounted: ((el: Instance, value: any) -> any)?,
-			updated: ((el: Instance, value: any, cleanup: any) -> any)?,
-			unmounted: ((el: Instance, cleanup: any) -> ())?
-		}
-		
-		type Ref<T> = { value: T, _is_ref: true }
-	
-	Public API:
-    -----------
-
-		register(name: string, hooks: DirectiveHooks)
-			'Registers a custom directive'
-			
-		get(name: string) -> DirectiveHooks?
-			'Gets a registered directives hooks'
-			
-		vModelText(ref: Ref<string>) -> { Text: string, onTextChanged: function }
-			'Two-way binding helper for text inputs'
-			
-		vModelProp(ref: Ref<any>, propName: string, eventName?: string) -> table
-			'Generic two-way binding helper'
-	
-	Built-in Directives:
-    --------------------
-
-		focus - Auto-focuses an element when mounted
-		select - Gives a GuiObject gamepad selection while the value is truthy
-		click-outside - Triggers callback when clicking outside element
-]]
-
-local Types = require(script.Parent:WaitForChild("types"))
+local Types = require("./types")
 
 type DirectiveHooks = Types.Directive
 type Ref<T> = Types.Ref<T>
 
 local UserInputService = game:GetService("UserInputService")
 local GuiService = game:GetService("GuiService")
-local reactivity = require(script.Parent:WaitForChild("reactivity"))
-local debugModule = require(script.Parent:WaitForChild("debug"))
+local reactivity = require("./reactivity")
+local debugModule = require("./debug")
 
 local directives = {}
 local registry: { [string]: DirectiveHooks } = {}
 
 --- Registers a custom directive with lifecycle hooks
---- @param name string -- Directive name (without 'v-' prefix)
---- @param hooks DirectiveHooks -- Object with mounted/updated/unmounted hooks
---- @return
 function directives.register(name: string, hooks: DirectiveHooks): ()
 	local hookCount = 0
 	if hooks.mounted then
@@ -80,8 +34,6 @@ function directives.register(name: string, hooks: DirectiveHooks): ()
 end
 
 --- Gets a registered directive's hooks by name
---- @param name string -- Directive name
---- @return DirectiveHooks? -- Directive hooks or nil if not found
 function directives.get(name: string): DirectiveHooks?
 	debugModule.log("Directives", "Getting directive", { name = name, found = registry[name] ~= nil })
 	return registry[name]
@@ -183,8 +135,6 @@ directives.register("click-outside", {
 type DragState = { RBXScriptConnection }
 
 --- Starts dragging a GuiObject with mouse or touch
---- @param el GuiObject -- Element to drag
---- @return DragState -- Connections to disconnect
 local function startDrag(el: GuiObject): DragState
 	local dragging = false
 	local dragInput: InputObject?
@@ -234,7 +184,6 @@ local function startDrag(el: GuiObject): DragState
 end
 
 --- Disconnects a drag
---- @param state DragState? -- Connections from startDrag
 local function stopDrag(state: DragState?)
 	if state then
 		for _, conn in state do
@@ -291,7 +240,6 @@ directives.register("preload", {
 		local ContentProvider = game:GetService("ContentProvider")
 		local assets = {}
 
-		-- Convert single ID or array of IDs to array of asset strings
 		if type(assetIds) == "number" or type(assetIds) == "string" then
 			table.insert(assets, "rbxassetid://" .. tostring(assetIds))
 		elseif type(assetIds) == "table" then
@@ -300,7 +248,6 @@ directives.register("preload", {
 			end
 		end
 
-		-- Preload assets asynchronously
 		if #assets > 0 then
 			task.spawn(function()
 				ContentProvider:PreloadAsync(assets)
@@ -323,21 +270,18 @@ directives.register("fade-in", {
 		local waitForLoad = type(opts) == "table" and opts.waitForLoad or false
 		local renderWait = type(opts) == "table" and opts.renderWait or 0.5
 
-		-- Maps to store original transparency values for all descendants
 		local transparencyMap: { [Instance]: number } = {}
 		local textTransparencyMap: { [Instance]: number } = {}
 		local imageTransparencyMap: { [Instance]: number } = {}
 		local strokeTransparencyMap: { [Instance]: number } = {}
 		local canvasGroupMap: { [Instance]: number } = {}
 
-		-- Recursively store original transparency and set to 1 (invisible)
+		-- Remember each descendant's transparency and hide it, then tween back to it
 		local function storeAndHide(obj: Instance)
 			if obj:IsA("GuiObject") then
-				-- Store and hide background transparency
 				transparencyMap[obj] = obj.BackgroundTransparency
 				obj.BackgroundTransparency = 1
 
-				-- Handle text transparency for text elements
 				if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
 					-- Cast for the type checker, all three have TextTransparency
 					local textObj = obj :: TextLabel
@@ -345,7 +289,6 @@ directives.register("fade-in", {
 					textObj.TextTransparency = 1
 				end
 
-				-- Handle image transparency for image elements
 				if obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
 					local imageObj = obj :: ImageLabel
 					imageTransparencyMap[obj] = imageObj.ImageTransparency
@@ -353,30 +296,25 @@ directives.register("fade-in", {
 				end
 			end
 
-			-- Handle CanvasGroup for performance optimization
 			if obj:IsA("CanvasGroup") then
 				canvasGroupMap[obj] = obj.GroupTransparency
 				obj.GroupTransparency = 1
 			end
 
-			-- Handle UIStroke transparency
 			if obj:IsA("UIStroke") then
 				strokeTransparencyMap[obj] = obj.Transparency
 				obj.Transparency = 1
 			end
 
-			-- Recursively process all children
 			for _, child in ipairs(obj:GetChildren()) do
 				storeAndHide(child)
 			end
 		end
 
-		-- Recursively create and play fade-in tweens for all elements
 		local function fadeIn(obj: Instance, tweens: { Tween })
 			if obj:IsA("GuiObject") then
 				local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
-				-- Tween background transparency
 				if transparencyMap[obj] then
 					local tween = TweenService:Create(obj, tweenInfo, {
 						BackgroundTransparency = transparencyMap[obj],
@@ -388,7 +326,6 @@ directives.register("fade-in", {
 					tween:Play()
 				end
 
-				-- Tween text transparency
 				if textTransparencyMap[obj] then
 					local textTween = TweenService:Create(obj, tweenInfo, {
 						TextTransparency = textTransparencyMap[obj],
@@ -400,7 +337,6 @@ directives.register("fade-in", {
 					textTween:Play()
 				end
 
-				-- Tween image transparency
 				if imageTransparencyMap[obj] then
 					local imageTween = TweenService:Create(obj, tweenInfo, {
 						ImageTransparency = imageTransparencyMap[obj],
@@ -413,7 +349,6 @@ directives.register("fade-in", {
 				end
 			end
 
-			-- Tween CanvasGroup for better performance
 			if obj:IsA("CanvasGroup") and canvasGroupMap[obj] then
 				local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 				local canvasTween = TweenService:Create(obj, tweenInfo, {
@@ -426,7 +361,6 @@ directives.register("fade-in", {
 				canvasTween:Play()
 			end
 
-			-- Tween UIStroke transparency
 			if obj:IsA("UIStroke") and strokeTransparencyMap[obj] then
 				local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 				local strokeTween = TweenService:Create(obj, tweenInfo, {
@@ -439,42 +373,33 @@ directives.register("fade-in", {
 				strokeTween:Play()
 			end
 
-			-- Recursively process all children
 			for _, child in ipairs(obj:GetChildren()) do
 				fadeIn(child, tweens)
 			end
 		end
 
-		-- Create array to store all tweens for cleanup
 		local allTweens: { Tween } = {}
 
-		-- Start fade-in animation
 		task.spawn(function()
-			-- Wait for game to load if requested
 			if waitForLoad and not game:IsLoaded() then
 				game.Loaded:Wait()
 			end
 
-			-- Wait for initial render to complete (children to be added)
-			-- Configurable wait time to ensure reactive components are fully mounted
+			-- Give child components time to mount before hiding everything
 			task.wait(renderWait)
 
-			-- Store original values and hide all elements recursively
 			storeAndHide(el)
 
-			-- Apply delay
 			if delay > 0 then
 				task.wait(delay)
 			end
 
-			-- Recursively fade in all elements
 			fadeIn(el, allTweens)
 		end)
 
 		return allTweens
 	end,
 	unmounted = function(_el, cleanup)
-		-- Clean up all tweens
 		if cleanup and type(cleanup) == "table" then
 			for _, tween in ipairs(cleanup) do
 				if tween then
@@ -485,79 +410,8 @@ directives.register("fade-in", {
 	end,
 })
 
---- v-once directive: Renders element and children only once
---- Useful for static content that never changes
-directives.register("once", {
-	mounted = function(el, _val)
-		debugModule.log("Directives", "v-once applied", { elementName = el.Name })
-		-- Mark element as static (for renderer optimization)
-		-- The actual "only render once" logic is handled by renderer
-		-- This directive mainly serves as a marker
-		return { isStatic = true }
-	end,
-})
-
---- v-memo directive: Memoizes rendering based on dependency array
---- Only re-renders when dependencies change (shallow comparison)
---- @param deps any[] -- Array of dependencies to watch
-directives.register("memo", {
-	mounted = function(el, deps)
-		if type(deps) ~= "table" then
-			debugModule.log("Directives", "v-memo expects an array of dependencies (warning)")
-			return
-		end
-
-		debugModule.log("Directives", "v-memo applied", {
-			elementName = el.Name,
-			depCount = #deps,
-		})
-
-		-- Store the dependency snapshot
-		local snapshot = table.clone(deps)
-
-		return { deps = snapshot }
-	end,
-	updated = function(el, deps, cleanup)
-		if type(deps) ~= "table" or not cleanup or type(cleanup.deps) ~= "table" then
-			return cleanup
-		end
-
-		-- Shallow compare dependencies
-		local hasChanged = false
-		if #deps ~= #cleanup.deps then
-			hasChanged = true
-		else
-			for i, dep in ipairs(deps) do
-				if dep ~= cleanup.deps[i] then
-					hasChanged = true
-					break
-				end
-			end
-		end
-
-		if hasChanged then
-			debugModule.log("Directives", "v-memo dependencies changed", {
-				elementName = el.Name,
-			})
-
-			-- Update snapshot
-			local newSnapshot = table.clone(deps)
-
-			return { deps = newSnapshot }
-		else
-			debugModule.log("Directives", "v-memo skipped update (no changes)", {
-				elementName = el.Name,
-			})
-		end
-
-		return cleanup
-	end,
-})
-
 --- Two-way binding helper for TextBox.Text property with optional debounce
---- @param r Ref<string> -- Reactive ref to bind
---- @param opts { debounce: number? }? -- Optional config with debounce delay in ms
---- @return { Text: string, onTextChanged: (new: string) -> () } -- Props object for text binding
+--- `opts.debounce`: delay in ms before the ref is written
 function directives.vModelText(
 	r: Ref<string>,
 	opts: { debounce: number? }?
@@ -569,8 +423,7 @@ function directives.vModelText(
 	local debounceMs = opts and opts.debounce or 0
 
 	if debounceMs > 0 then
-		-- Load utils for debounce
-		local utils = require(script.Parent:WaitForChild("utils"))
+		local utils = require("./utils")
 		local debouncedUpdate = utils.debounce(function(new: string)
 			r.value = new
 		end, debounceMs)
@@ -592,10 +445,7 @@ function directives.vModelText(
 end
 
 --- Generic two-way binding helper for any property
---- @param r Ref<T> -- Reactive ref to bind
---- @param propName string -- Property name to bind
---- @param eventName string? -- Optional event name (defaults to 'on' + capitalized propName)
---- @return Props -- Props object with property and event handler
+--- `eventName`: optional event name (defaults to 'on' + capitalized propName)
 function directives.vModelProp<T>(r: Ref<T>, propName: string, eventName: string?): Types.Props
 	if not reactivity.isRef(r) then
 		error("vModelProp expects a ref")

@@ -1,12 +1,6 @@
 --!strict
---!optimize 2
 
---[[
-	SchedulerEnhancements.test.luau
-	================================
-	
-	Tests for scheduler reentrancy protection and improvements.
-]]
+-- Scheduler: reentrancy limits and job ordering
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage.Rivue)

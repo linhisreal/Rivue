@@ -1,10 +1,5 @@
 --!strict
---[[
-	H (Hyperscript) Unit Tests
-	===========================
-	
-	Tests for h.luau - Virtual DOM node creation
-]]
+-- Tests for h.luau - Virtual DOM node creation
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local h_module = require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("h"))
