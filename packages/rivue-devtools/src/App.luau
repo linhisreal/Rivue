@@ -1,7 +1,9 @@
 --!nonstrict
+--!optimize 2
 -- Copyright (c) 2025-2026 linhisreal (ThisisLinh)
 -- Licensed under the Rivue License, based on PolyForm Noncommercial 1.0.0. See LICENSE.
 
+local Selection = game:GetService("Selection")
 local UserInputService = game:GetService("UserInputService")
 local Rivue = require(script.Parent:WaitForChild("RivueUI"))
 local Store = require(script.Parent:WaitForChild("Store"))
@@ -32,7 +34,7 @@ local function moveSelection(step: number)
 	end
 	local nextEntry = visible[math.clamp(index + step, 1, #visible)]
 	Store.selected.value = nextEntry.instance
-	game:GetService("Selection"):Set({ nextEntry.instance })
+	Selection:Set({ nextEntry.instance })
 end
 
 local function openSelected()

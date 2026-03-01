@@ -1,7 +1,9 @@
 --!nonstrict
+--!optimize 2
 -- Copyright (c) 2025-2026 linhisreal (ThisisLinh)
 -- Licensed under the Rivue License, based on PolyForm Noncommercial 1.0.0. See LICENSE.
 
+local Selection = game:GetService("Selection")
 local Root = script.Parent.Parent
 local Rivue = require(Root:WaitForChild("RivueUI"))
 local Highlight = require(Root:WaitForChild("Highlight"))
@@ -137,7 +139,7 @@ local function componentRow(entry: Entry, tree: boolean, selected: Instance?, co
 		padding = { left = 6 + (if tree then Widgets.INDENT * entry.depth else 0), right = 6 },
 		onClick = function()
 			Store.selected.value = entry.instance
-			game:GetService("Selection"):Set({ entry.instance })
+			Selection:Set({ entry.instance })
 		end,
 		onMouseEnter = function()
 			Highlight.show(entry.instance)
