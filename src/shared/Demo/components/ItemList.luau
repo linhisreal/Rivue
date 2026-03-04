@@ -1,5 +1,4 @@
 --!nonstrict
--- A list you can add to and remove from
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))

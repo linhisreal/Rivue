@@ -1,9 +1,6 @@
 --!strict
 --!optimize 2
 
--- Rivue.Remote: request/response and fire-and-forget messaging over one RemoteFunction and
--- one RemoteEvent, with per-player rate limiting on the server.
-
 export type RemoteRequest = {
 	action: string,
 	payload: unknown,
@@ -53,25 +50,21 @@ local function findOrCreate(parent: Instance, className: string, name: string): 
 	return created
 end
 
---- Gets the RemoteEvents folder in ReplicatedStorage
 local function getFolder(): Folder
 	return findOrCreate(ReplicatedStorage, "Folder", "RemoteEvents") :: Folder
 end
 
---- Gets the Request RemoteEvent
 local function getRequestEvent(): RemoteEvent
 	return findOrCreate(getFolder(), "RemoteEvent", "Request") :: RemoteEvent
 end
 
---- Gets the Response RemoteEvent
 local function getResponseEvent(): RemoteEvent
 	return findOrCreate(getFolder(), "RemoteEvent", "Response") :: RemoteEvent
 end
 
-const MAX_PAYLOAD_SIZE = 20000 -- 20KB limit
+const MAX_PAYLOAD_SIZE = 20000
 const MAX_PAYLOAD_DEPTH = 10
 
--- Roblox types RemoteEvents can carry
 const SAFE_DATATYPES = table.freeze({
 	Vector2 = true,
 	Vector3 = true,
@@ -87,7 +80,6 @@ const SAFE_DATATYPES = table.freeze({
 	DateTime = true,
 })
 
---- Checks types, depth and approximate size in one pass (no JSON encoding)
 local function validatePayload(payload: unknown): (boolean, string?)
 	local size = 0
 	local reason: string? = nil
@@ -128,11 +120,9 @@ local function validatePayload(payload: unknown): (boolean, string?)
 	return true, nil
 end
 
--- One response listener shared by every pending request: id -> settle
 local pendingRequests: { [string]: (resp: RemoteResponse) -> () } = {}
 local responseConn: RBXScriptConnection? = nil
 
---- Connects the shared response listener once
 local function listenForResponses()
 	if responseConn then
 		return
@@ -149,8 +139,6 @@ local function listenForResponses()
 	end)
 end
 
---- Sends a request to server and waits for response with timeout
---- `timeout`: optional timeout in seconds (default: 10)
 --- Returns the response data, unchecked: refine it before use
 function Remote.request(actionName: string, payload: unknown, timeout: number?): (unknown?, string?)
 	if debugModule.enabled then
@@ -178,7 +166,6 @@ function Remote.request(actionName: string, payload: unknown, timeout: number?):
 	local result: RemoteResponse? = nil
 	local timeoutThread: thread? = nil
 
-	-- Resolves once and resumes the waiting thread
 	local function settle(resp: RemoteResponse?, fromTimeout: boolean)
 		if done then
 			return
@@ -201,7 +188,6 @@ function Remote.request(actionName: string, payload: unknown, timeout: number?):
 
 	reqEv:FireServer({ action = actionName, payload = payload, id = reqId })
 
-	-- Response may already be here
 	if not done then
 		waiting = true
 		coroutine.yield()
@@ -225,14 +211,12 @@ function Remote.request(actionName: string, payload: unknown, timeout: number?):
 	end
 end
 
---- Fires a one-way event to server (no response expected)
 function Remote.fire(actionName: string, payload: unknown): ()
 	debugModule.log("Remote", "Firing one-way event to server", { action = actionName })
 	local reqEv = getRequestEvent()
 	reqEv:FireServer({ action = actionName, payload = payload })
 end
 
---- Listens for server events on a named RemoteEvent
 function Remote.on(name: string, fn: (...any) -> ()): RBXScriptConnection
 	debugModule.log("Remote", "Registering server event listener", { eventName = name })
 	local ev = findOrCreate(getFolder(), "RemoteEvent", name) :: RemoteEvent
@@ -254,7 +238,6 @@ local handlers: { [string]: RequestHandler } = {}
 local limits: { [string]: number } = {}
 local buckets: { [Player]: { [string]: Bucket } } = {}
 
---- Token bucket check, refills at `rate` tokens per second up to `rate`
 local function takeToken(player: Player, action: string, rate: number): boolean
 	local playerBuckets = buckets[player]
 	if not playerBuckets then
@@ -285,8 +268,6 @@ function Remote.setupServer(): ()
 	getResponseEvent()
 end
 
---- Registers a server handler for an action sent with Remote.request/fire
---- The handler's return value is sent back as the response data.
 function Remote.handle(actionName: string, handler: RequestHandler, opts: HandleOptions?): ()
 	assert(RunService:IsServer(), "Remote.handle() must be called on the server")
 	handlers[actionName] = handler

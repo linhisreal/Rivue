@@ -2,9 +2,6 @@
 --!optimize 2
 --!native
 
--- Update scheduler. Jobs queued in a frame run once, in uid order (parents before children),
--- followed by post-flush callbacks. nextTick resolves after the next flush.
-
 local Types = require("./types")
 
 type QueueOptions = Types.QueueOptions
@@ -24,9 +21,8 @@ local microQueueSet: { [() -> ()]: true } = {}
 local microScheduled: boolean = false
 local isFlushingMicro: boolean = false
 local reentrancyDepth = 0
-const MAX_REENTRANCY_DEPTH = 100 -- Prevent infinite loops
+const MAX_REENTRANCY_DEPTH = 100
 
--- Returned for deduplicated jobs
 local NOOP_HANDLE: JobHandle = table.freeze({ cancel = function() end })
 
 -- One connection per mode, not per job
@@ -34,7 +30,6 @@ type FrameMode = "render" | "heartbeat"
 local frameQueues: { [FrameMode]: { Job } } = { render = {}, heartbeat = {} }
 local frameConns: { [FrameMode]: RBXScriptConnection? } = {}
 
---- Runs queued jobs for a frame mode
 local function flushFrame(mode: FrameMode): ()
 	local conn = frameConns[mode]
 	if conn then
@@ -56,7 +51,6 @@ local function flushFrame(mode: FrameMode): ()
 	end
 end
 
---- Queues a job onto the next RenderStepped/Heartbeat frame
 local function queueFrameJob(mode: FrameMode, job: Job): ()
 	table.insert(frameQueues[mode], job)
 	if not frameConns[mode] then
@@ -67,7 +61,6 @@ local function queueFrameJob(mode: FrameMode, job: Job): ()
 	end
 end
 
---- Flushes all queued micro jobs
 local function flushMicro(): ()
 	if isFlushingMicro then
 		debugModule.log("Scheduler", "Already flushing micro queue, deferring")
@@ -107,7 +100,6 @@ local function flushMicro(): ()
 		debugModule.log("Scheduler", "Micro queue flush complete", { executed = #q, reentrancyDepth = reentrancyDepth })
 	end
 
-	-- If new jobs were added during flush, schedule another flush
 	if #microQueue > 0 and not microScheduled then
 		microScheduled = true
 		debugModule.log("Scheduler", "New jobs added during flush, scheduling another flush")
@@ -115,7 +107,6 @@ local function flushMicro(): ()
 	end
 end
 
---- Queues a job for execution
 function scheduler.queueJob(fn: () -> (), opts: QueueOptions?): JobHandle
 	local mode = if opts and opts.mode then opts.mode else "micro"
 	if mode == "micro" and microQueueSet[fn] then
@@ -163,7 +154,6 @@ function scheduler.nextTick(fn: (() -> ())?): ()
 	coroutine.yield()
 end
 
---- Queues fn on the micro queue without allocating a handle (used by effects)
 function scheduler.queueEffect(fn: () -> ()): ()
 	if microQueueSet[fn] then
 		return
@@ -190,7 +180,6 @@ local function byId(a: UpdateJob, b: UpdateJob): boolean
 	return a.id < b.id
 end
 
---- Runs queued component updates, parents first
 local function flushUpdates(): ()
 	updateScheduled = false
 	local passes = 0

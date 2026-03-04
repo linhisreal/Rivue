@@ -1,5 +1,4 @@
 --!nonstrict
--- A counter with a derived value
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))

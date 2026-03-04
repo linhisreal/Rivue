@@ -1,9 +1,6 @@
 --!strict
 --!optimize 2
 
--- Roblox composables: viewport, input type, safe area, selection, tweens and springs,
--- attribute refs, CollectionService tags and frame callbacks.
-
 local Types = require("./types")
 local reactivity = require("./reactivity")
 local componentAPI = require("./component")
@@ -32,8 +29,6 @@ export type SpringOptions = {
 --- A ref synced with an Instance attribute. Outside a component, call `_cleanup()` to disconnect.
 export type AttributeRef<T> = Types.Ref<T> & { _cleanup: (() -> ())? }
 
---- A ref that reads and writes an Instance attribute, both ways
---- `opts.throttle`: minimum ms between updates for attributes that change often
 local function attributeRef<T>(
 	instance: Instance,
 	attributeName: string,
@@ -66,7 +61,7 @@ local function attributeRef<T>(
 
 	local updateFromAttribute = function()
 		if isUpdatingFromRef then
-			return -- Prevent circular update
+			return
 		end
 
 		local newValue = instance:GetAttribute(attributeName) :: T?
@@ -85,7 +80,7 @@ local function attributeRef<T>(
 
 	local stopWatch = reactivity.watch(r, function(newValue)
 		if isUpdatingFromAttribute then
-			return -- Prevent circular update
+			return
 		end
 
 		local currentAttr = instance:GetAttribute(attributeName)
@@ -101,15 +96,13 @@ local function attributeRef<T>(
 		conn:Disconnect()
 		stopWatch()
 	end
-	-- Manual cleanup always works, and it runs with the component or effect scope
 	r._cleanup = cleanup
 	reactivity.onScopeDispose(cleanup, true)
 
 	return r
 end
 
---- Registers callbacks for instances with a CollectionService tag
---- `onAdded`: callback when instance is tagged (returns optional cleanup)
+--- onAdded may return a cleanup, which runs when the tag is removed
 local function useTag(tagName: string, onAdded: (instance: Instance) -> (() -> ())?): ()
 	if not onAdded then
 		return
@@ -145,7 +138,6 @@ local function useTag(tagName: string, onAdded: (instance: Instance) -> (() -> (
 		end
 	end
 
-	-- Cleans up with the component or effect scope
 	reactivity.onScopeDispose(function()
 		addedConn:Disconnect()
 		removedConn:Disconnect()
@@ -156,7 +148,6 @@ local function useTag(tagName: string, onAdded: (instance: Instance) -> (() -> (
 	end, true)
 end
 
---- Registers a callback for RunService.RenderStepped
 local function onRenderStepped(callback: (deltaTime: number) -> ()): ()
 	debugModule.log("Roblox", "Registering RenderStepped callback")
 	local currentInstance = componentAPI.getCurrentInstance()
@@ -171,7 +162,6 @@ local function onRenderStepped(callback: (deltaTime: number) -> ()): ()
 	end)
 end
 
---- Registers a callback for RunService.Heartbeat
 local function onHeartbeat(callback: (deltaTime: number) -> ()): ()
 	debugModule.log("Roblox", "Registering Heartbeat callback")
 	local currentInstance = componentAPI.getCurrentInstance()
@@ -186,7 +176,6 @@ local function onHeartbeat(callback: (deltaTime: number) -> ()): ()
 	end)
 end
 
---- Registers a callback for RunService.Stepped
 local function onStepped(callback: (time: number, deltaTime: number) -> ()): ()
 	debugModule.log("Roblox", "Registering Stepped callback")
 	local currentInstance = componentAPI.getCurrentInstance()
@@ -207,7 +196,6 @@ local inputType: Ref<InputType>? = nil
 local safeArea: Ref<SafeArea>? = nil
 local selectedObject: Ref<GuiObject?>? = nil
 
---- Watches the current camera's ViewportSize, rebinding when the camera changes
 local function bindViewport(onChange: (size: Vector2) -> ())
 	local cameraConn: RBXScriptConnection? = nil
 	local function bindCamera()
@@ -227,7 +215,6 @@ local function bindViewport(onChange: (size: Vector2) -> ())
 	bindCamera()
 end
 
---- Screen size in pixels, updates on resize and rotation. Read only.
 local function useViewportSize(): Ref<Vector2>
 	local size = viewportSize
 	if size then
@@ -241,7 +228,6 @@ local function useViewportSize(): Ref<Vector2>
 	return created
 end
 
---- Maps a UserInputType to the input family it belongs to
 --- Returns nil for types that don't say anything (Focus, TextInput, ...)
 local function classifyInput(t: Enum.UserInputType): InputType?
 	if t == Enum.UserInputType.Touch then
@@ -258,7 +244,6 @@ local function classifyInput(t: Enum.UserInputType): InputType?
 	return nil
 end
 
---- What the player is using right now: "keyboard" (and mouse), "gamepad" or "touch". Read only.
 local function useInputType(): Ref<InputType>
 	local current = inputType
 	if current then
@@ -287,7 +272,6 @@ local function useInputType(): Ref<InputType>
 	return created
 end
 
---- Insets (pixels) taken by the top bar and device cutouts. Read only.
 local function useSafeArea(): Ref<SafeArea>
 	local current = safeArea
 	if current then
@@ -316,7 +300,6 @@ local function useSafeArea(): Ref<SafeArea>
 	return created
 end
 
---- Gamepad selection: the selected GuiObject and a setter
 local function useSelection(): (Ref<GuiObject?>, (target: GuiObject?) -> ())
 	local current = selectedObject
 	if not current then
@@ -335,7 +318,6 @@ end
 -- Per-frame signal for animations (RenderStepped only exists on the client)
 local frameSignal: RBXScriptSignal = if RunService:IsClient() then RunService.RenderStepped else RunService.Heartbeat
 
---- Reads a ref or getter
 local function toGetter<T>(source: Ref<T> | () -> T): () -> T
 	if type(source) == "function" then
 		return source
@@ -346,7 +328,6 @@ local function toGetter<T>(source: Ref<T> | () -> T): () -> T
 	end
 end
 
---- Linear interpolation for numbers and anything with :Lerp (UDim2, Color3, Vector2, CFrame, ...)
 local function lerp<T>(a: T, b: T, t: number): T
 	if type(a) == "number" then
 		return (a + ((b :: any) - a) * t) :: any
@@ -354,9 +335,7 @@ local function lerp<T>(a: T, b: T, t: number): T
 	return (a :: any):Lerp(b, t)
 end
 
---- A ref that tweens toward its source whenever the source changes
---- `source`: target value (number, UDim2, Color3, Vector2, CFrame, ...)
---- `info`: time, EasingStyle and EasingDirection are used
+--- Works for numbers and anything with :Lerp. Only info's time, style and direction are used
 local function useTween<T>(source: Ref<T> | () -> T, info: TweenInfo): Ref<T>
 	local getter = toGetter(source)
 	local out = reactivity.ref(getter())
@@ -400,12 +379,10 @@ local function useTween<T>(source: Ref<T> | () -> T, info: TweenInfo): Ref<T>
 	return out
 end
 
---- Distance left for a spring value
 local function magnitude(v: unknown): number
 	return if type(v) == "number" then math.abs(v) else (v :: Vector3).Magnitude
 end
 
---- A ref that springs toward its source (number, Vector2 or Vector3)
 local function useSpring<T>(source: Ref<T> | () -> T, opts: SpringOptions?): Ref<T>
 	local options: SpringOptions = opts or {}
 	local speed = options.speed or 12
