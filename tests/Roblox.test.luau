@@ -6,26 +6,9 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
 local CollectionService = game:GetService("CollectionService")
 
-local function assertEquals(actual: any, expected: any, message: string?)
-	if actual ~= expected then
-		error(
-			string.format(
-				"Assertion failed: %s\nExpected: %s\nActual: %s",
-				message or "values not equal",
-				tostring(expected),
-				tostring(actual)
-			)
-		)
-	end
-	print("✓", message or "Assertion passed")
-end
-
-local function assertTrue(condition: boolean, message: string?)
-	if not condition then
-		error("Assertion failed: " .. (message or "condition is false"))
-	end
-	print("✓", message or "Assertion passed")
-end
+local TestSupport = require(game:GetService("ReplicatedStorage"):WaitForChild("TestSupport"))
+local assertEquals = TestSupport.assertEquals
+local assertTrue = TestSupport.assertTrue
 
 local function runTests()
 	print("\n========== ROBLOX UTILS TEST SUITE ==========\n")
@@ -209,7 +192,7 @@ local function runTests()
 			name = "RenderSteppedTest",
 			setup = function()
 				Rivue.onRenderStepped(function()
-					frameCount = frameCount + 1
+					frameCount += 1
 				end)
 				return function()
 					return Rivue.h("Frame", {})
@@ -238,7 +221,7 @@ local function runTests()
 			name = "HeartbeatTest",
 			setup = function()
 				Rivue.onHeartbeat(function()
-					heartbeatCount = heartbeatCount + 1
+					heartbeatCount += 1
 				end)
 				return function()
 					return Rivue.h("Frame", {})
@@ -271,7 +254,7 @@ local function runTests()
 			name = "SteppedTest",
 			setup = function()
 				Rivue.onStepped(function(time, dt)
-					steppedCount = steppedCount + 1
+					steppedCount += 1
 					if type(time) == "number" and type(dt) == "number" then
 						receivedTime = true
 					end
@@ -304,7 +287,7 @@ local function runTests()
 			name = "AutoDisconnectTest",
 			setup = function()
 				Rivue.onHeartbeat(function()
-					heartbeatCount = heartbeatCount + 1
+					heartbeatCount += 1
 				end)
 				return function()
 					return Rivue.h("Frame", {})
