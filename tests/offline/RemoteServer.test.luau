@@ -10,26 +10,9 @@ local RunService = game:GetService("RunService") :: any
 local Remote = require(ReplicatedStorage:WaitForChild("RivueRemote"))
 local DEFAULT_REPLIES = 30
 
-local function assertEquals(actual: any, expected: any, message: string?)
-	if actual ~= expected then
-		error(
-			string.format(
-				"Assertion failed: %s\nExpected: %s\nActual: %s",
-				message or "values not equal",
-				tostring(expected),
-				tostring(actual)
-			)
-		)
-	end
-	print("✓", message or "Assertion passed")
-end
-
-local function assertTrue(condition: boolean, message: string)
-	if not condition then
-		error("Assertion failed: " .. message)
-	end
-	print("✓", message)
-end
+local TestSupport = require(game:GetService("ReplicatedStorage"):WaitForChild("TestSupport"))
+local assertEquals = TestSupport.assertEquals
+local assertTrue = TestSupport.assertTrue
 
 local function asServer(fn: () -> ())
 	RunService.IsServer = function()

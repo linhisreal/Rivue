@@ -14,26 +14,10 @@ local Highlight = require(ReplicatedStorage:WaitForChild("RivueDevTools"):WaitFo
 local Theme = require(ReplicatedStorage:WaitForChild("RivueDevTools"):WaitForChild("Theme"))
 local h = Rivue.h
 
-local function assertEquals(actual: any, expected: any, message: string)
-	if actual ~= expected then
-		error(`Assertion failed: {message}\nExpected: {tostring(expected)}\nActual: {tostring(actual)}`)
-	end
-end
-
-local function assertTrue(condition: boolean, message: string)
-	if not condition then
-		error("Assertion failed: " .. message)
-	end
-end
-
-local function find(root: Instance, name: string): any
-	for _, child in root:GetDescendants() do
-		if child.Name == name then
-			return child
-		end
-	end
-	return nil
-end
+local TestSupport = require(game:GetService("ReplicatedStorage"):WaitForChild("TestSupport"))
+local assertEquals = TestSupport.assertEquals
+local assertTrue = TestSupport.assertTrue
+local find = TestSupport.find
 
 local function rows(root: Instance, listName: string?): { TextButton }
 	local list = {}
