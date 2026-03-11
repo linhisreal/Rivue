@@ -1,4 +1,8 @@
+[Docs](../README.md) › [API](../API.md) › **Array Helpers**
+
 # Array Helpers
+
+**Learn it:** [Guide 2: State](../guide/02-state.md)
 
 `table.insert`, `table.remove`, `table.sort` and `table.find` work on a table's raw contents, so
 on a reactive array they do nothing, or read nothing. `Rivue.array` has the same operations for
@@ -29,7 +33,7 @@ local array = Rivue.array
 
 ## array.push()
 
-Adds values to the end.
+Adds one or more items to the end of a list, like `table.insert(list, value)`.
 
 - **Type**
 
@@ -50,7 +54,7 @@ Adds values to the end.
 
 ## array.insert()
 
-Inserts a value at a position, shifting the rest up.
+Adds an item at a position and moves the rest down, like `table.insert(list, index, value)`.
 
 - **Type**
 
@@ -69,7 +73,8 @@ Inserts a value at a position, shifting the rest up.
 
 ## array.remove()
 
-Removes the value at a position (the last one by default) and returns it.
+Takes an item out by position and gives it back. Without a position it takes the last one, like
+`table.remove`.
 
 - **Type**
 
@@ -89,7 +94,8 @@ Removes the value at a position (the last one by default) and returns it.
 
 ## array.removeValue()
 
-Removes the first occurrence of a value. Returns `true` if it was found.
+Takes out the first item equal to the one you pass, when you have the item but not its index.
+Returns `true` if it was there.
 
 - **Type**
 
@@ -113,7 +119,8 @@ Removes the first occurrence of a value. Returns `true` if it was found.
 
 ## array.removeWhere()
 
-Removes every item the predicate returns `true` for, in one update. Returns how many were removed.
+Takes out every item matching a test, like "every finished todo". The UI updates once, not once per
+item. Returns how many were removed.
 
 - **Type**
 
@@ -138,8 +145,8 @@ Removes every item the predicate returns `true` for, in one update. Returns how 
 
 ## array.splice()
 
-Removes items at a position and inserts new ones there, like JavaScript's `splice`. Returns the
-removed items.
+The all-in-one edit, like JavaScript's `splice`: remove some items at a position and insert new ones
+in their place. Returns what was removed.
 
 - **Type**
 
@@ -162,7 +169,7 @@ removed items.
 
 ## array.move()
 
-Moves an item from one position to another.
+Moves an item to a new position, for reordering things like hotbar slots or a queue.
 
 - **Type**
 
@@ -181,7 +188,7 @@ Moves an item from one position to another.
 
 ## array.sort()
 
-Sorts in place.
+Sorts a list in place, like `table.sort`, and updates everything that shows it.
 
 - **Type**
 
@@ -203,7 +210,7 @@ Sorts in place.
 
 ## array.clear()
 
-Removes everything.
+Empties a list.
 
 - **Type**
 
@@ -222,8 +229,8 @@ Removes everything.
 
 ## array.indexOf()
 
-Returns the position of a value, or `nil`. It tracks the array, so a computed using it updates
-when items are added or removed.
+Finds where an item is, or `nil` if it isn't there. Unlike `table.find`, it works on reactive lists,
+and a computed that uses it updates when items come and go.
 
 - **Type**
 
@@ -242,8 +249,8 @@ when items are added or removed.
 
 ## array.find()
 
-Returns the first item the predicate returns `true` for, and its index. The item is the reactive
-version, so changing its fields updates the UI.
+Gives you the first item matching a test, and its index. You get the reactive item, so changing its
+fields updates the UI.
 
 - **Type**
 
@@ -268,7 +275,8 @@ version, so changing its fields updates the UI.
 
 ## array.filter() / array.map() / array.count()
 
-Read-only helpers that return new plain values, and track the array like a numeric loop.
+Read-only helpers for building something new from a list: a filtered copy, a transformed copy, or a
+count. They're tracked, so they work inside computeds and render.
 
 - **Type**
 
@@ -299,3 +307,7 @@ Read-only helpers that return new plain values, and track the array like a numer
   	return t.text
   end)
   ```
+
+---
+
+[← Reactivity: Utilities](reactivity-utilities.md) · [API reference](../API.md) · [Reactivity: Advanced →](reactivity-advanced.md)

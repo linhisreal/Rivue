@@ -1,8 +1,10 @@
+[Docs](README.md) › **API reference**
+
 # API Reference
 
 Everything on the module returned by `require(game.ReplicatedStorage.Rivue)`. Each entry has its
 type, details and an example. New to Rivue? Start with the [Guide](GUIDE.md). Coming from Vue?
-See [Rivue for Vue developers](VUE.md). For conventions, see the [Style Guide](STYLE_GUIDE.md).
+See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide/11-style-rules.md).
 
 ## Reactivity
 

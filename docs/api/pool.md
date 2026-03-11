@@ -1,4 +1,8 @@
+[Docs](../README.md) › [API](../API.md) › **Instance Pool**
+
 # Instance Pool
+
+**Learn it:** [Guide 9: Performance and debugging](../guide/09-performance-and-debugging.md)
 
 Reuses Instances instead of destroying and creating them. Most apps only need the
 [pooling options](application.md#pooling-options) of `createApp`. These functions are for tuning
@@ -20,7 +24,7 @@ and for using the pool directly. All examples assume
 
 ## Pool.configure()
 
-Sets the pool's limits and options.
+Sets how big the pool can get and how long unused Instances are kept.
 
 - **Type**
 
@@ -47,7 +51,8 @@ Sets the pool's limits and options.
 
 ## Pool.warmup()
 
-Creates Instances up front, so the first use doesn't pay for creating them.
+Creates Instances ahead of time, during loading, so the first time the UI needs them there's no
+creation cost.
 
 - **Type**
 
@@ -68,7 +73,8 @@ Creates Instances up front, so the first use doesn't pay for creating them.
 
 ## Pool.acquire() / Pool.acquireMultiple()
 
-Takes Instances from the pool, creating new ones if it's empty.
+Gets ready-to-use Instances from the pool, creating new ones only when it's empty. Rivue does this
+for you when the app uses pooling.
 
 - **Type**
 
@@ -92,7 +98,7 @@ Takes Instances from the pool, creating new ones if it's empty.
 
 ## Pool.release() / Pool.releaseMultiple()
 
-Returns Instances to the pool.
+Gives Instances back to the pool. They're reset to their defaults so the next user gets a clean one.
 
 - **Type**
 
@@ -128,7 +134,8 @@ Returns Instances to the pool.
 
 ## Pool.clear()
 
-Destroys pooled Instances of one class, or of every class.
+Destroys pooled Instances of one class, or all of them, to free memory, for example when the player
+leaves a UI-heavy area.
 
 - **Type**
 
@@ -149,7 +156,8 @@ Destroys pooled Instances of one class, or of every class.
 
 ## Pool.getStatistics()
 
-Returns counts and hit rate.
+How the pool is doing: how many Instances it holds, and how often it could reuse one instead of
+creating it.
 
 - **Type**
 
@@ -175,7 +183,8 @@ Returns counts and hit rate.
 
 ## Pool.validateHealth()
 
-Removes destroyed Instances from the pool. Returns `true` if everything was healthy.
+Cleans out Instances something else destroyed while they sat in the pool. Returns `true` if it found
+none.
 
 - **Type**
 
@@ -197,7 +206,8 @@ Removes destroyed Instances from the pool. Returns `true` if everything was heal
 
 ## Pool.setResetHandler()
 
-Adds custom reset logic for a class, run when an Instance of that class is released.
+Your own clean-up for one class, run when an Instance of it goes back into the pool. Use it for
+custom attributes or children the default reset doesn't know about.
 
 - **Type**
 
@@ -221,7 +231,7 @@ Adds custom reset logic for a class, run when an Instance of that class is relea
 
 ## Pool.setEventHook()
 
-Observes pool activity.
+Lets you watch pool activity (acquire, release, clear, evict), for logging or metrics.
 
 - **Type**
 
@@ -251,7 +261,7 @@ Observes pool activity.
 
 ## Pool.createSnapshot() / Pool.restoreSnapshot()
 
-Saves which Instances are pooled, and restores that state later.
+Saves what's in the pool and puts it back later. Mostly useful in tests.
 
 - **Type**
 
@@ -269,3 +279,7 @@ Saves which Instances are pooled, and restores that state later.
   -- ... a scene that churns through Instances ...
   Pool.restoreSnapshot(snapshot)
   ```
+
+---
+
+[← Remote](remote.md) · [API reference](../API.md) · [Utilities and Debugging →](utilities.md)

@@ -1,4 +1,8 @@
+[Docs](../README.md) › [API](../API.md) › **Remote**
+
 # Remote
+
+**Learn it:** [Guide 8: Sharing state and the server](../guide/08-state-and-server.md)
 
 Request/response and events between client and server over RemoteEvents, with payload validation
 and per-player rate limits. All examples assume
@@ -15,7 +19,8 @@ and per-player rate limits. All examples assume
 
 ## Remote.setupServer()
 
-Creates the RemoteEvents Rivue uses. Call it once on the server at startup.
+Creates the RemoteEvents Rivue uses. Call it once in a server script at startup, so clients never
+wait for them.
 
 - **Type**
 
@@ -40,8 +45,8 @@ Creates the RemoteEvents Rivue uses. Call it once on the server at startup.
 
 ## Remote.handle()
 
-Registers the server handler for an action sent with [`request()`](#remoterequest) or
-[`fire()`](#remotefire).
+Defines what the server does when a client sends an action, like `"shop:buy"`. Whatever your handler
+returns is sent back as the response.
 
 - **Type**
 
@@ -89,7 +94,8 @@ Registers the server handler for an action sent with [`request()`](#remotereques
 
 ## Remote.request()
 
-Sends a request to the server and yields until the response arrives.
+Asks the server something and waits for the answer, like a function call across the network. It
+yields, so call it from `task.spawn` or a watcher, never from render.
 
 - **Type**
 
@@ -139,7 +145,7 @@ Sends a request to the server and yields until the response arrives.
 
 ## Remote.fire()
 
-Sends an action to the server without waiting for a response.
+Tells the server something without waiting for a reply, like "the player opened the shop".
 
 - **Type**
 
@@ -171,7 +177,7 @@ Sends an action to the server without waiting for a response.
 
 ## Remote.on()
 
-Listens on the client for a named RemoteEvent the server fires.
+Listens on the client for events the server sends, like a new message or a price update.
 
 - **Type**
 
@@ -237,3 +243,7 @@ Listens on the client for a named RemoteEvent the server fires.
   	print("inventory", data)
   end
   ```
+
+---
+
+[← Roblox Composables](roblox.md) · [API reference](../API.md) · [Instance Pool →](pool.md)
