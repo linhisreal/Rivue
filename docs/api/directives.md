@@ -32,12 +32,6 @@ local h = Rivue.h
 Shows or hides an element by setting `Visible`, without destroying it. Cheaper than removing and
 re-creating something you toggle often.
 
-- **Expects:** `boolean`
-
-- **Details**
-
-  The element stays mounted and keeps its state. To remove it, use `hIf` instead.
-
 - **Example**
 
   ```lua
@@ -46,19 +40,18 @@ re-creating something you toggle often.
   h("Frame", { vShow = open.value })
   ```
 
+- **Details**
+
+  The element stays mounted and keeps its state. To remove it, use `hIf` instead.
+
+- **Expects:** `boolean`
+
 ---
 
 ## vFocus
 
 Puts the cursor in a TextBox when the value turns on, like a search box that's ready to type in when
 a menu opens.
-
-- **Expects:** `boolean`
-
-- **Details**
-
-  It focuses on mount (if truthy), and again whenever the value changes from falsy to truthy.
-  Re-renders don't take focus back.
 
 - **Example**
 
@@ -68,20 +61,19 @@ a menu opens.
   h("TextBox", { PlaceholderText = "Search", vFocus = searching.value })
   ```
 
+- **Details**
+
+  It focuses on mount (if truthy), and again whenever the value changes from falsy to truthy.
+  Re-renders don't take focus back.
+
+- **Expects:** `boolean`
+
 ---
 
 ## vSelect
 
 Selects an element for gamepad navigation when the value turns on, so controller players start in
 the right place.
-
-- **Expects:** `boolean`
-
-- **Details**
-
-  It selects on mount (if truthy), and whenever the value changes from falsy to truthy. When the
-  value turns off or the element is removed, selection is cleared if it's still on this element.
-  Re-renders don't take selection back.
 
 - **Example**
 
@@ -97,19 +89,20 @@ the right place.
   })
   ```
 
+- **Details**
+
+  It selects on mount (if truthy), and whenever the value changes from falsy to truthy. When the
+  value turns off or the element is removed, selection is cleared if it's still on this element.
+  Re-renders don't take selection back.
+
+- **Expects:** `boolean`
+
 ---
 
 ## vClickOutside
 
 Calls your function when the player clicks or taps anywhere outside the element. The usual way to
 close dropdowns, popups and context menus.
-
-- **Expects:** `() -> ()`
-
-- **Details**
-
-  Checks mouse clicks and touches against the element's on-screen bounds. Clicking another button
-  counts as outside. The latest function is used, so inline closures work.
 
 - **Example**
 
@@ -125,17 +118,18 @@ close dropdowns, popups and context menus.
   })
   ```
 
+- **Details**
+
+  Checks mouse clicks and touches against the element's on-screen bounds. Clicking another button
+  counts as outside. The latest function is used, so inline closures work.
+
+- **Expects:** `() -> ()`
+
 ---
 
 ## vDrag
 
 Lets the player drag an element around with the mouse or a finger.
-
-- **Expects:** `boolean`
-
-- **Details**
-
-  Dragging updates `Position` directly. Setting the value to `false` stops dragging.
 
 - **Example**
 
@@ -145,14 +139,18 @@ Lets the player drag an element around with the mouse or a finger.
   h("Frame", { Size = UDim2.fromOffset(200, 120), vDrag = not locked.value })
   ```
 
+- **Details**
+
+  Dragging updates `Position` directly. Setting the value to `false` stops dragging.
+
+- **Expects:** `boolean`
+
 ---
 
 ## vPreload
 
 Starts loading images and sounds as soon as the element appears, so they're ready by the time
 they're shown.
-
-- **Expects:** `number | string | { number | string }`, asset ids without `rbxassetid://`
 
 - **Example**
 
@@ -162,12 +160,27 @@ they're shown.
   })
   ```
 
+- **Expects:** `number | string | { number | string }`, asset ids without `rbxassetid://`
+
 ---
 
 ## vFadeIn
 
 Fades an element and everything inside it in from fully transparent, once it's on screen. A quick
 way to soften a screen appearing.
+
+- **Example**
+
+  ```lua
+  h("Frame", { vFadeIn = { duration = 0.3, renderWait = 0 } }, {
+  	h("TextLabel", { Text = "Welcome" }),
+  })
+  ```
+
+- **Details**
+
+  This is a one-time effect on mount. For enter and leave animations that follow state, use
+  [`Transition`](builtins.md#transition).
 
 - **Expects:**
 
@@ -180,48 +193,12 @@ way to soften a screen appearing.
   }
   ```
 
-- **Details**
-
-  This is a one-time effect on mount. For enter and leave animations that follow state, use
-  [`Transition`](builtins.md#transition).
-
-- **Example**
-
-  ```lua
-  h("Frame", { vFadeIn = { duration = 0.3, renderWait = 0 } }, {
-  	h("TextLabel", { Text = "Welcome" }),
-  })
-  ```
-
 ---
 
 ## Custom directives
 
 Your own reusable behaviours. Register a directive once, then turn it on for any element with a `v`
 prop, like `vTooltip = "Buy"`.
-
-- **Type**
-
-  ```lua
-  function directives.register(name: string, directive: Directive)
-
-  type Directive = {
-  	mounted: ((el: Instance, value: any) -> any)?, -- returns state
-  	updated: ((el: Instance, value: any, state: any) -> any)?, -- returning non-nil replaces state
-  	unmounted: ((el: Instance, state: any) -> ())?,
-  }
-  ```
-
-- **Details**
-
-  - **`mounted`** runs once the element and the rest of the tree are parented. Whatever it
-    returns is the directive's state, passed to `updated` and `unmounted`.
-  - **`updated`** runs when the element re-renders.
-  - **`unmounted`** runs when the element is removed.
-
-  The name is kebab-case: `"hover-scale"` is used as `vHoverScale`. The long form
-  `__directives = { { name = "hover-scale", value = true } }` also works.
-  [`app:directive()`](application.md#appdirective) registers in the same place.
 
 - **Example**
 
@@ -248,17 +225,34 @@ prop, like `vTooltip = "Buy"`.
   h("TextButton", { Text = "Buy", vTooltip = "Costs 100 coins" })
   ```
 
+- **Details**
+
+  - **`mounted`** runs once the element and the rest of the tree are parented. Whatever it
+    returns is the directive's state, passed to `updated` and `unmounted`.
+  - **`updated`** runs when the element re-renders.
+  - **`unmounted`** runs when the element is removed.
+
+  The name is kebab-case: `"hover-scale"` is used as `vHoverScale`. The long form
+  `__directives = { { name = "hover-scale", value = true } }` also works.
+  [`app:directive()`](application.md#appdirective) registers in the same place.
+
+- **Type**
+
+  ```lua
+  function directives.register(name: string, directive: Directive)
+
+  type Directive = {
+  	mounted: ((el: Instance, value: any) -> any)?, -- returns state
+  	updated: ((el: Instance, value: any, state: any) -> any)?, -- returning non-nil replaces state
+  	unmounted: ((el: Instance, state: any) -> ())?,
+  }
+  ```
+
 ---
 
 ## directives.get()
 
 Looks up a registered directive by name.
-
-- **Type**
-
-  ```lua
-  function directives.get(name: string): Directive?
-  ```
 
 - **Example**
 
@@ -268,26 +262,18 @@ Looks up a registered directive by name.
   end
   ```
 
+- **Type**
+
+  ```lua
+  function directives.get(name: string): Directive?
+  ```
+
 ---
 
 ## vModelText()
 
 The props for binding a TextBox's `Text` to a ref, with optional debouncing. `model = ref` does the
 same thing; use this when you want the debounce.
-
-- **Type**
-
-  ```lua
-  function vModelText(ref: Ref<string>, options: { debounce: number? }?): {
-  	Text: string,
-  	onTextChanged: (text: string) -> (),
-  }
-  ```
-
-- **Details**
-
-  For a plain binding, the [`model`](render-function.md#element-props) prop is shorter. Use this
-  when you want writes to the ref debounced (milliseconds).
 
 - **Example**
 
@@ -299,23 +285,26 @@ same thing; use this when you want the debounce.
   }))
   ```
 
+- **Details**
+
+  For a plain binding, the [`model`](render-function.md#element-props) prop is shorter. Use this
+  when you want writes to the ref debounced (milliseconds).
+
+- **Type**
+
+  ```lua
+  function vModelText(ref: Ref<string>, options: { debounce: number? }?): {
+  	Text: string,
+  	onTextChanged: (text: string) -> (),
+  }
+  ```
+
 ---
 
 ## vModelProp()
 
 The props for binding any property to a ref: the value, plus a handler that writes the ref when the
 property changes.
-
-- **Type**
-
-  ```lua
-  function vModelProp<T>(ref: Ref<T>, propName: string, eventName: string?): Props
-  ```
-
-- **Details**
-
-  `eventName` defaults to `"on" .. propName`. For a property that isn't an event, that connects
-  the property's changed signal, which passes the new value.
 
 - **Example**
 
@@ -327,6 +316,17 @@ property changes.
   	Size = UDim2.fromOffset(100, 100),
   	vDrag = true,
   }))
+  ```
+
+- **Details**
+
+  `eventName` defaults to `"on" .. propName`. For a property that isn't an event, that connects
+  the property's changed signal, which passes the new value.
+
+- **Type**
+
+  ```lua
+  function vModelProp<T>(ref: Ref<T>, propName: string, eventName: string?): Props
   ```
 
 ---

@@ -289,6 +289,23 @@ end
 local triggerScratch: { { Effect } } = {}
 local triggerDepth = 0
 
+local function dispatch(eff: Effect, target: unknown, key: unknown)
+	-- An effect writing state it reads doesn't re-trigger itself (same as Vue)
+	if not eff.active or (eff == activeEffect and not eff.allowRecurse) then
+		return
+	end
+	local onTrigger = eff.onTrigger
+	if onTrigger then
+		onTrigger({ target = target, key = key })
+	end
+	local effectScheduler = eff.scheduler
+	if effectScheduler then
+		effectScheduler(eff.run)
+	else
+		scheduler.queueEffect(eff.job)
+	end
+end
+
 local function trigger(target: unknown, key: unknown)
 	local deps = depMap[target]
 	if not deps then
@@ -314,20 +331,7 @@ local function trigger(target: unknown, key: unknown)
 	for i = 1, count do
 		local eff = effects[i]
 		effects[i] = nil
-		-- An effect writing state it reads doesn't re-trigger itself (same as Vue)
-		if not eff.active or (eff == activeEffect and not eff.allowRecurse) then
-			continue
-		end
-		local onTrigger = eff.onTrigger
-		if onTrigger then
-			onTrigger({ target = target, key = key })
-		end
-		local effectScheduler = eff.scheduler
-		if effectScheduler then
-			effectScheduler(eff.run)
-		else
-			scheduler.queueEffect(eff.job)
-		end
+		dispatch(eff, target, key)
 	end
 	triggerDepth -= 1
 end
@@ -601,8 +605,13 @@ local function _traverse<T>(value: T, seen: { [unknown]: true }?, depth: number?
 	end
 	seenTables[value] = true
 	local proxyOrRaw: RawTable = value :: any
+	local raw = toRaw(proxyOrRaw)
+	if raw ~= proxyOrRaw then
+		-- Added and removed keys only trigger iteration, so a deep watcher has to track it too
+		track(raw, ITERATE_KEY)
+	end
 	-- Read through the proxy so nested keys get tracked
-	for k in toRaw(proxyOrRaw) do
+	for k in raw do
 		_traverse(proxyOrRaw[k], seenTables, remaining - 1)
 	end
 	return value
@@ -1032,12 +1041,33 @@ local function proxyRefs<T>(object: T): T
 end
 
 local function triggerListChange(raw: RawTable, first: number, last: number, lengthChanged: boolean)
-	for i = first, last do
-		trigger(raw, i)
+	local deps = depMap[raw]
+	if not deps then
+		return
 	end
-	trigger(raw, ITERATE_KEY)
+	-- One array operation is one change: an effect that read several of these keys runs once
+	local firstKey: { [Effect]: unknown } = {}
+	local order: { Effect } = {}
+	local function collect(key: unknown)
+		local dep = deps[key]
+		if dep then
+			for eff in dep do
+				if firstKey[eff] == nil then
+					firstKey[eff] = key
+					table.insert(order, eff)
+				end
+			end
+		end
+	end
+	for i = first, last do
+		collect(i)
+	end
+	collect(ITERATE_KEY)
 	if lengthChanged then
-		trigger(raw, LENGTH_KEY)
+		collect(LENGTH_KEY)
+	end
+	for _, eff in order do
+		dispatch(eff, raw, firstKey[eff])
 	end
 end
 

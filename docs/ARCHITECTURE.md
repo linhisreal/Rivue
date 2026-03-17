@@ -154,9 +154,12 @@ children before parents:
   - unmounts every old child nothing reused.
 - `syncLayoutOrder` runs after an element with a `layout` prop or a UI*Layout child patches its
   children:
-  - It keeps each child's `LayoutOrder` while the sequence still increases, and only rewrites
-    out-of-order ones, so removing a row writes nothing.
-  - Values it wrote are cached per Instance, so unchanged positions make no engine calls.
+  - It finds the longest run of children whose `LayoutOrder` is already increasing and keeps it.
+    Only the other children are written, into the gaps between their kept neighbours.
+  - Values are spaced 64 apart, so inserts usually fit in a gap. When a gap runs out, the list is
+    renumbered once.
+  - Removing, appending, prepending or moving one row writes one value. Values it wrote are cached
+    per Instance, so unchanged positions make no engine calls.
 
 Engine calls (Instance reads, writes and `IsA`) are the expensive part. The renderer passes the
 vnode's ClassName instead of reading `inst.ClassName` and caches class checks.

@@ -22,17 +22,6 @@ and per-player rate limits. All examples assume
 Creates the RemoteEvents Rivue uses. Call it once in a server script at startup, so clients never
 wait for them.
 
-- **Type**
-
-  ```lua
-  function Remote.setupServer()
-  ```
-
-- **Details**
-
-  The events live in `ReplicatedStorage.RemoteEvents`. Clients wait up to 5 seconds for them, and
-  warn if the server never created them.
-
 - **Example**
 
   <!-- server -->
@@ -41,31 +30,23 @@ wait for them.
   Rivue.Remote.setupServer()
   ```
 
+- **Details**
+
+  The events live in `ReplicatedStorage.RemoteEvents`. Clients wait up to 5 seconds for them, and
+  warn if the server never created them.
+
+- **Type**
+
+  ```lua
+  function Remote.setupServer()
+  ```
+
 ---
 
 ## Remote.handle()
 
 Defines what the server does when a client sends an action, like `"shop:buy"`. Whatever your handler
 returns is sent back as the response.
-
-- **Type**
-
-  ```lua
-  function Remote.handle(
-  	action: string,
-  	handler: (player: Player, payload: unknown) -> unknown,
-  	options: { maxPerSecond: number? }?
-  )
-  ```
-
-- **Details**
-
-  - **Responses.** What the handler returns is sent back as the response.
-  - **Errors.** If the handler errors, the error is logged on the server and the client gets
-    `"handler_error"`, so internal details never leak to clients.
-  - **Rate limits.** Each player can call each action `maxPerSecond` times per second (default
-    30, `0` disables it). Extra calls get `"rate_limited"`.
-  - **Payloads come from the client.** Validate everything before using it.
 
 - **Example**
 
@@ -90,6 +71,25 @@ returns is sent back as the response.
   end, { maxPerSecond = 5 })
   ```
 
+- **Details**
+
+  - **Responses.** What the handler returns is sent back as the response.
+  - **Errors.** If the handler errors, the error is logged on the server and the client gets
+    `"handler_error"`, so internal details never leak to clients.
+  - **Rate limits.** Each player can call each action `maxPerSecond` times per second (default
+    30, `0` disables it). Extra calls get `"rate_limited"`.
+  - **Payloads come from the client.** Validate everything before using it.
+
+- **Type**
+
+  ```lua
+  function Remote.handle(
+  	action: string,
+  	handler: (player: Player, payload: unknown) -> unknown,
+  	options: { maxPerSecond: number? }?
+  )
+  ```
+
 ---
 
 ## Remote.request()
@@ -97,10 +97,44 @@ returns is sent back as the response.
 Asks the server something and waits for the answer, like a function call across the network. It
 yields, so call it from `task.spawn` or a watcher, never from render.
 
-- **Type**
+- **Example**
+
+  A buy button with a pending state and an error message:
 
   ```lua
-  function Remote.request(action: string, payload: unknown, timeout: number?): (unknown?, string?)
+  local BuyButton = Rivue.defineComponent({
+  	name = "BuyButton",
+  	props = { itemId = { type = "string", required = true } },
+  	setup = function(props)
+  		local pending = Rivue.ref(false)
+  		local message = Rivue.ref("")
+  		return {
+  			pending = pending,
+  			message = message,
+  			buy = function()
+  				pending.value = true
+  				task.spawn(function() -- request yields, so never call it from render
+  					local result, err = Rivue.Remote.request("shop:buy", { id = props.itemId })
+  					pending.value = false
+  					if err then
+  						message.value = `Error: {err}`
+  					elseif (result :: any).ok then
+  						message.value = "Bought!"
+  					else
+  						message.value = `Can't buy: {(result :: any).reason}`
+  					end
+  				end)
+  			end,
+  		}
+  	end,
+  	render = function(ctx)
+  		return h("TextButton", {
+  			Text = if ctx.pending then "Buying..." else `Buy {ctx.message}`,
+  			Active = not ctx.pending,
+  			onClick = ctx.buy,
+  		})
+  	end,
+  })
   ```
 
 - **Details**
@@ -108,37 +142,10 @@ yields, so call it from `task.spawn` or a watcher, never from render.
   Returns `(data, nil)` on success or `(nil, err)` on failure. `timeout` is in seconds (default
   10). It yields, so call it from an event handler or `task.spawn`, never from a render function.
 
-- **Example**
+- **Type**
 
   ```lua
-  local h = Rivue.h
-
-  local BuyButton = Rivue.defineComponent(function()
-  	local pending = Rivue.ref(false)
-  	local message = Rivue.ref("")
-
-  	local function buy()
-  		pending.value = true
-  		task.spawn(function()
-  			local result, err = Rivue.Remote.request("shop:buy", { id = "sword" })
-  			pending.value = false
-  			if err then
-  				message.value = `Error: {err}`
-  			elseif result and (result :: any).ok then
-  				message.value = "Bought!"
-  			else
-  				message.value = `Can't buy: {(result :: any).reason}`
-  			end
-  		end)
-  	end
-
-  	return function()
-  		return h("TextButton", {
-  			Text = if pending.value then "Buying..." else `Buy sword {message.value}`,
-  			onClick = buy,
-  		})
-  	end
-  end, { name = "BuyButton" })
+  function Remote.request(action: string, payload: unknown, timeout: number?): (unknown?, string?)
   ```
 
 ---
@@ -146,16 +153,6 @@ yields, so call it from `task.spawn` or a watcher, never from render.
 ## Remote.fire()
 
 Tells the server something without waiting for a reply, like "the player opened the shop".
-
-- **Type**
-
-  ```lua
-  function Remote.fire(action: string, payload: unknown)
-  ```
-
-- **Details**
-
-  The server's [`handle()`](#remotehandle) runs as usual, and its return value is discarded.
 
 - **Example**
 
@@ -173,22 +170,21 @@ Tells the server something without waiting for a reply, like "the player opened 
   end)
   ```
 
+- **Details**
+
+  The server's [`handle()`](#remotehandle) runs as usual, and its return value is discarded.
+
+- **Type**
+
+  ```lua
+  function Remote.fire(action: string, payload: unknown)
+  ```
+
 ---
 
 ## Remote.on()
 
 Listens on the client for events the server sends, like a new message or a price update.
-
-- **Type**
-
-  ```lua
-  function Remote.on(name: string, callback: (...any) -> ()): RBXScriptConnection
-  ```
-
-- **Details**
-
-  The event is `ReplicatedStorage.RemoteEvents[name]`. Create it on the server, and fire it with
-  `FireClient` or `FireAllClients`.
 
 - **Example**
 
@@ -207,9 +203,33 @@ Listens on the client for events the server sends, like a new message or a price
   -- event:FireAllClients("Double coins for 10 minutes!")
   ```
 
+- **Details**
+
+  The event is `ReplicatedStorage.RemoteEvents[name]`. Create it on the server, and fire it with
+  `FireClient` or `FireAllClients`.
+
+- **Type**
+
+  ```lua
+  function Remote.on(name: string, callback: (...any) -> ()): RBXScriptConnection
+  ```
+
 ---
 
 ## Payloads and errors
+
+- **Example**
+
+  ```lua
+  local data, err = Rivue.Remote.request("inventory:get", nil, 5)
+  if err == "timeout" then
+  	warn("server didn't answer")
+  elseif err then
+  	warn("request failed:", err)
+  else
+  	print("inventory", data)
+  end
+  ```
 
 - **Payloads** can contain:
   - strings, numbers and booleans,
@@ -230,19 +250,6 @@ Listens on the client for events the server sends, like a new message or a price
   | `"invalid_action_name"` | Not a non-empty string of at most 100 characters |
   | `"payload_unsafe_type"` | The payload contains something RemoteEvents can't send |
   | `"payload_too_large"` / `"payload_too_deep"` | Over the size or nesting limit |
-
-- **Example**
-
-  ```lua
-  local data, err = Rivue.Remote.request("inventory:get", nil, 5)
-  if err == "timeout" then
-  	warn("server didn't answer")
-  elseif err then
-  	warn("request failed:", err)
-  else
-  	print("inventory", data)
-  end
-  ```
 
 ---
 

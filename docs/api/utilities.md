@@ -33,12 +33,6 @@ All examples assume `local Rivue = require(game.ReplicatedStorage.Rivue)`.
 `true` when running in Studio. Rivue's own warnings (unknown props, bad keys, invalid props, ...)
 only run when this is true.
 
-- **Type**
-
-  ```lua
-  Rivue.dev: boolean
-  ```
-
 - **Example**
 
   ```lua
@@ -47,18 +41,18 @@ only run when this is true.
   end
   ```
 
+- **Type**
+
+  ```lua
+  Rivue.dev: boolean
+  ```
+
 ---
 
 ## printTree()
 
 Prints what's on screen under a mounted element, as a tree. `app:printTree()` does the same for the
 whole app.
-
-- **Type**
-
-  ```lua
-  function printTree(vnode: VNode): string
-  ```
 
 - **Example**
 
@@ -74,23 +68,18 @@ whole app.
   ]]
   ```
 
+- **Type**
+
+  ```lua
+  function printTree(vnode: VNode): string
+  ```
+
 ---
 
 ## debug.enabled
 
 Turns on detailed logging of everything Rivue does: every element, mount, update and remote call.
 Very noisy, so it's off by default; switch it on briefly when you're hunting a bug.
-
-- **Type**
-
-  ```lua
-  Rivue.debug.enabled: boolean
-  ```
-
-- **Details**
-
-  This is very noisy and slows rendering down, so only turn it on briefly to trace a problem.
-  Studio warnings don't depend on it.
 
 - **Example**
 
@@ -100,18 +89,23 @@ Very noisy, so it's off by default; switch it on briefly when you're hunting a b
   Rivue.debug.enabled = false
   ```
 
+- **Details**
+
+  This is very noisy and slows rendering down, so only turn it on briefly to trace a problem.
+  Studio warnings don't depend on it.
+
+- **Type**
+
+  ```lua
+  Rivue.debug.enabled: boolean
+  ```
+
 ---
 
 ## inspect()
 
 Turns any value into a readable string. Reactive tables show their data instead of an empty proxy,
 which `print` would show.
-
-- **Type**
-
-  ```lua
-  function inspect(value: unknown, depth: number?): string -- depth defaults to 3
-  ```
 
 - **Example**
 
@@ -128,11 +122,24 @@ which `print` would show.
   ]]
   ```
 
+- **Type**
+
+  ```lua
+  function inspect(value: unknown, depth: number?): string -- depth defaults to 3
+  ```
+
 ---
 
 ## prettyPrint()
 
 Prints a value across several lines, nicely indented, with reactive tables unwrapped.
+
+- **Example**
+
+  ```lua
+  local state = Rivue.reactive({ player = { name = "Ada", level = 3 } })
+  Rivue.prettyPrint(state, { maxDepth = 2 })
+  ```
 
 - **Type**
 
@@ -144,25 +151,12 @@ Prints a value across several lines, nicely indented, with reactive tables unwra
   }?)
   ```
 
-- **Example**
-
-  ```lua
-  local state = Rivue.reactive({ player = { name = "Ada", level = 3 } })
-  Rivue.prettyPrint(state, { maxDepth = 2 })
-  ```
-
 ---
 
 ## assertInvariant()
 
 Checks something you expect to always be true, and errors loudly in Studio if it isn't. Costs
 nothing in live servers.
-
-- **Type**
-
-  ```lua
-  function assertInvariant(condition: boolean, message: string)
-  ```
 
 - **Example**
 
@@ -172,18 +166,18 @@ nothing in live servers.
   end
   ```
 
+- **Type**
+
+  ```lua
+  function assertInvariant(condition: boolean, message: string)
+  ```
+
 ---
 
 ## debug.measure()
 
 Times a function and logs how long it took, when `debug.enabled` is on. Returns whatever the
 function returned.
-
-- **Type**
-
-  ```lua
-  function debug.measure<R...>(name: string, fn: () -> R...): R...
-  ```
 
 - **Example**
 
@@ -197,17 +191,17 @@ function returned.
   end)
   ```
 
+- **Type**
+
+  ```lua
+  function debug.measure<R...>(name: string, fn: () -> R...): R...
+  ```
+
 ---
 
 ## debug.log()
 
 Prints a message with a category tag, only when `debug.enabled` is on.
-
-- **Type**
-
-  ```lua
-  function debug.log(category: string, message: string, data: unknown?)
-  ```
 
 - **Example**
 
@@ -216,17 +210,17 @@ Prints a message with a category tag, only when `debug.enabled` is on.
   -- prints "[Rivue:DEBUG:Shop] Opened" followed by the data
   ```
 
+- **Type**
+
+  ```lua
+  function debug.log(category: string, message: string, data: unknown?)
+  ```
+
 ---
 
 ## debug.formatError()
 
 Builds a consistent error message with a category and optional details.
-
-- **Type**
-
-  ```lua
-  function debug.formatError(category: string, message: string, context: unknown?): string
-  ```
 
 - **Example**
 
@@ -235,23 +229,18 @@ Builds a consistent error message with a category and optional details.
   warn(message)
   ```
 
+- **Type**
+
+  ```lua
+  function debug.formatError(category: string, message: string, context: unknown?): string
+  ```
+
 ---
 
 ## utils.debounce()
 
 Waits until calls stop for a moment before running. Use it for search boxes, so you search once the
 player stops typing instead of on every key.
-
-- **Type**
-
-  ```lua
-  function utils.debounce<A...>(fn: (A...) -> (), ms: number): (A...) -> { cancel: () -> () }
-  ```
-
-- **Details**
-
-  The last call's arguments are used. Values below 1 are treated as seconds. Calling the debounced
-  function returns a handle whose `cancel()` drops the pending call.
 
 - **Example**
 
@@ -265,23 +254,23 @@ player stops typing instead of on every key.
   save("Hey") -- only "Hey" is saved, 500 ms after the last call
   ```
 
+- **Details**
+
+  The last call's arguments are used. Values below 1 are treated as seconds. Calling the debounced
+  function returns a handle whose `cancel()` drops the pending call.
+
+- **Type**
+
+  ```lua
+  function utils.debounce<A...>(fn: (A...) -> (), ms: number): (A...) -> { cancel: () -> () }
+  ```
+
 ---
 
 ## utils.throttle()
 
 Runs at most once per interval, however often it's called. Use it for things that fire every frame,
 like mouse movement.
-
-- **Type**
-
-  ```lua
-  function utils.throttle<A...>(fn: (A...) -> (), ms: number): (A...) -> ()
-  ```
-
-- **Details**
-
-  The first call runs right away. Calls during the wait are collapsed into one trailing call
-  with the latest arguments.
 
 - **Example**
 
@@ -299,17 +288,22 @@ like mouse movement.
   end)
   ```
 
+- **Details**
+
+  The first call runs right away. Calls during the wait are collapsed into one trailing call
+  with the latest arguments.
+
+- **Type**
+
+  ```lua
+  function utils.throttle<A...>(fn: (A...) -> (), ms: number): (A...) -> ()
+  ```
+
 ---
 
 ## utils.nextFrame()
 
 Runs a function on the next Heartbeat.
-
-- **Type**
-
-  ```lua
-  function utils.nextFrame(fn: () -> ())
-  ```
 
 - **Example**
 
@@ -319,22 +313,17 @@ Runs a function on the next Heartbeat.
   end)
   ```
 
+- **Type**
+
+  ```lua
+  function utils.nextFrame(fn: () -> ())
+  ```
+
 ---
 
 ## utils.useRaf()
 
 Runs a function every frame until you stop it.
-
-- **Type**
-
-  ```lua
-  function utils.useRaf(fn: (deltaTime: number) -> ()): { stop: () -> () }
-  ```
-
-- **Details**
-
-  Outside components, remember to call `stop()`. Inside components,
-  [`onRenderStepped()`](roblox.md#onrenderstepped--onheartbeat--onstepped) stops on its own.
 
 - **Example**
 
@@ -349,18 +338,23 @@ Runs a function every frame until you stop it.
   end)
   ```
 
+- **Details**
+
+  Outside components, remember to call `stop()`. Inside components,
+  [`onRenderStepped()`](roblox.md#onrenderstepped--onheartbeat--onstepped) stops on its own.
+
+- **Type**
+
+  ```lua
+  function utils.useRaf(fn: (deltaTime: number) -> ()): { stop: () -> () }
+  ```
+
 ---
 
 ## utils.filterForClient()
 
 Filters text with TextService before showing it to a player. Returns the original text if
 filtering fails. It yields, and only works on the server.
-
-- **Type**
-
-  ```lua
-  function utils.filterForClient(player: Player, text: string): string
-  ```
 
 - **Example**
 
@@ -375,17 +369,17 @@ filtering fails. It yields, and only works on the server.
   end)
   ```
 
+- **Type**
+
+  ```lua
+  function utils.filterForClient(player: Player, text: string): string
+  ```
+
 ---
 
 ## utils.shallowEqual()
 
 Tells you whether two tables have the same keys and values, one level deep.
-
-- **Type**
-
-  ```lua
-  function utils.shallowEqual(a: unknown, b: unknown): boolean
-  ```
 
 - **Example**
 
@@ -394,27 +388,17 @@ Tells you whether two tables have the same keys and values, one level deep.
   print(Rivue.utils.shallowEqual({ a = {} }, { a = {} })) -- false, different inner tables
   ```
 
+- **Type**
+
+  ```lua
+  function utils.shallowEqual(a: unknown, b: unknown): boolean
+  ```
+
 ---
 
 ## utils.profiler
 
 Simple named timers for finding slow code. While it's running, effect runs are timed too.
-
-- **Type**
-
-  ```lua
-  utils.profiler: {
-  	active: boolean,
-  	records: { [string]: number },
-  	start: (self, name: string) -> (),
-  	stop: (self, name: string) -> number?, -- elapsed seconds
-  }
-  ```
-
-- **Details**
-
-  `start()` turns `active` on, which also times every effect run. Set `active = false` when
-  you're done.
 
 - **Example**
 
@@ -428,22 +412,27 @@ Simple named timers for finding slow code. While it's running, effect runs are t
   profiler.active = false
   ```
 
+- **Details**
+
+  `start()` turns `active` on, which also times every effect run. Set `active = false` when
+  you're done.
+
+- **Type**
+
+  ```lua
+  utils.profiler: {
+  	active: boolean,
+  	records: { [string]: number },
+  	start: (self, name: string) -> (),
+  	stop: (self, name: string) -> number?, -- elapsed seconds
+  }
+  ```
+
 ---
 
 ## iterArray()
 
 Loops over a reactive list like `ipairs` would, which plain `ipairs` can't do with proxies.
-
-- **Type**
-
-  ```lua
-  function iterArray<T>(array: { T }): () -> (number?, T?)
-  ```
-
-- **Details**
-
-  Same as `for i = 1, #list do`. Generalized iteration (`for i, v in list do`) also works on
-  proxies.
 
 - **Example**
 
@@ -455,18 +444,23 @@ Loops over a reactive list like `ipairs` would, which plain `ipairs` can't do wi
   end
   ```
 
+- **Details**
+
+  Same as `for i = 1, #list do`. Generalized iteration (`for i, v in list do`) also works on
+  proxies.
+
+- **Type**
+
+  ```lua
+  function iterArray<T>(array: { T }): () -> (number?, T?)
+  ```
+
 ---
 
 ## hForParallel()
 
 **Deprecated.** Use [`hFor()`](render-function.md#hfor) and set `key` in the mapper. It's still
 here so existing code keeps working, and warns once in Studio.
-
-- **Type**
-
-  ```lua
-  function hForParallel<T>(items: { T }, mapper: (item: T, index: number) -> VNode?, keyFn: ((item: T) -> unknown)?): { VNode }
-  ```
 
 - **Example**
 
@@ -485,6 +479,12 @@ here so existing code keeps working, and warns once in Studio.
   Rivue.hFor(items, function(item)
   	return h("TextLabel", { key = item.id, Text = item.name })
   end)
+  ```
+
+- **Type**
+
+  ```lua
+  function hForParallel<T>(items: { T }, mapper: (item: T, index: number) -> VNode?, keyFn: ((item: T) -> unknown)?): { VNode }
   ```
 
 ---

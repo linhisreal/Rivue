@@ -32,10 +32,24 @@ local Players = game:GetService("Players")
 The screen size in pixels, kept up to date as the window resizes or the phone rotates. Use it to
 switch layouts on small screens.
 
-- **Type**
+- **Example**
+
+  A sidebar that becomes a bottom sheet on narrow screens:
 
   ```lua
-  function useViewportSize(): Ref<Vector2>
+  local Sidebar = Rivue.defineComponent({
+  	name = "Sidebar",
+  	setup = function()
+  		return { viewport = Rivue.useViewportSize() }
+  	end,
+  	render = function(ctx)
+  		local narrow = ctx.viewport.X < 700
+  		return h("Frame", {
+  			Size = if narrow then UDim2.fromScale(1, 0.3) else UDim2.new(0, 280, 1, 0),
+  			Position = if narrow then UDim2.fromScale(0, 0.7) else UDim2.new(),
+  		}, ctx.renderSlot("default"))
+  	end,
+  })
   ```
 
 - **Details**
@@ -44,18 +58,10 @@ switch layouts on small screens.
   replaced. One connection is shared by every caller for the whole session. Treat the ref as
   read only.
 
-- **Example**
+- **Type**
 
   ```lua
-  local Sidebar = Rivue.defineComponent(function()
-  	local viewport = Rivue.useViewportSize()
-  	return function()
-  		local narrow = viewport.value.X < 700
-  		return h("Frame", {
-  			Size = if narrow then UDim2.fromScale(1, 0.3) else UDim2.new(0, 280, 1, 0),
-  		})
-  	end
-  end, { name = "Sidebar" })
+  function useViewportSize(): Ref<Vector2>
   ```
 
 ---
@@ -65,10 +71,21 @@ switch layouts on small screens.
 What the player is using right now: `"keyboard"` (with mouse), `"gamepad"` or `"touch"`. It changes
 as soon as they pick up a controller, so you can swap button prompts.
 
-- **Type**
+- **Example**
+
+  Show the right button prompt for the player's device:
 
   ```lua
-  function useInputType(): Ref<"keyboard" | "gamepad" | "touch">
+  local InteractPrompt = Rivue.defineComponent({
+  	name = "InteractPrompt",
+  	setup = function()
+  		return { input = Rivue.useInputType() }
+  	end,
+  	render = function(ctx)
+  		local hint = if ctx.input == "gamepad" then "Press X" elseif ctx.input == "touch" then "Tap" else "Press E"
+  		return h("TextLabel", { Text = `{hint} to open` })
+  	end,
+  })
   ```
 
 - **Details**
@@ -76,16 +93,10 @@ as soon as they pick up a controller, so you can swap button prompts.
   It's based on the last input, so it switches as soon as the player picks up a controller or
   touches the screen. One connection is shared for the session. Treat the ref as read only.
 
-- **Example**
+- **Type**
 
   ```lua
-  local Prompt = Rivue.defineComponent(function()
-  	local input = Rivue.useInputType()
-  	return function()
-  		local hint = if input.value == "gamepad" then "Press X" elseif input.value == "touch" then "Tap" else "Press E"
-  		return h("TextLabel", { Text = hint })
-  	end
-  end, { name = "Prompt" })
+  function useInputType(): Ref<"keyboard" | "gamepad" | "touch">
   ```
 
 ---
@@ -95,10 +106,23 @@ as soon as they pick up a controller, so you can swap button prompts.
 How much of the screen edge is covered by the top bar and phone notches, in pixels, so you can keep
 buttons out of the way.
 
-- **Type**
+- **Example**
+
+  Keep a top bar clear of the Roblox top bar and phone notches:
 
   ```lua
-  function useSafeArea(): Ref<{ top: number, left: number, bottom: number, right: number }>
+  local TopBar = Rivue.defineComponent({
+  	name = "TopBar",
+  	setup = function()
+  		return { safe = Rivue.useSafeArea() }
+  	end,
+  	render = function(ctx)
+  		return h("Frame", {
+  			Position = UDim2.fromOffset(ctx.safe.left, ctx.safe.top),
+  			Size = UDim2.new(1, -ctx.safe.left - ctx.safe.right, 0, 40),
+  		})
+  	end,
+  })
   ```
 
 - **Details**
@@ -106,18 +130,10 @@ buttons out of the way.
   The values come from `GuiService:GetGuiInset()` and update when the viewport changes, such as
   on rotation. Treat the ref as read only.
 
-- **Example**
+- **Type**
 
   ```lua
-  local TopBar = Rivue.defineComponent(function()
-  	local safeArea = Rivue.useSafeArea()
-  	return function()
-  		return h("Frame", {
-  			Position = UDim2.fromOffset(safeArea.value.left, safeArea.value.top),
-  			Size = UDim2.new(1, -safeArea.value.left - safeArea.value.right, 0, 40),
-  		})
-  	end
-  end, { name = "TopBar" })
+  function useSafeArea(): Ref<{ top: number, left: number, bottom: number, right: number }>
   ```
 
 ---
@@ -126,10 +142,29 @@ buttons out of the way.
 
 Reads and sets which element is selected for gamepad navigation.
 
-- **Type**
+- **Example**
+
+  Start controller players on the Play button, and show what's selected:
 
   ```lua
-  function useSelection(): (Ref<GuiObject?>, (target: GuiObject?) -> ())
+  local MainMenu = Rivue.defineComponent({
+  	name = "MainMenu",
+  	setup = function()
+  		local selected, select = Rivue.useSelection()
+  		local play = Rivue.useTemplateRef("play")
+  		Rivue.onMounted(function()
+  			select(play.value :: GuiObject)
+  		end)
+  		return { selected = selected }
+  	end,
+  	render = function(ctx)
+  		return h("Frame", { layout = { gap = 8 } }, {
+  			h("TextButton", { ref = "play", Name = "Play", Text = "Play" }),
+  			h("TextButton", { Name = "Settings", Text = "Settings" }),
+  			h("TextLabel", { Text = if ctx.selected then ctx.selected.Name else "" }),
+  		})
+  	end,
+  })
   ```
 
 - **Details**
@@ -138,25 +173,10 @@ Reads and sets which element is selected for gamepad navigation.
   return value selects a GuiObject, or clears the selection when given `nil`. To select an
   element when it appears, the [`vSelect`](directives.md#vselect) directive is simpler.
 
-- **Example**
+- **Type**
 
   ```lua
-  local Menu = Rivue.defineComponent(function()
-  	local selected, select = Rivue.useSelection()
-  	local play = Rivue.useTemplateRef("play")
-
-  	Rivue.onMounted(function()
-  		select(play.value :: GuiObject)
-  	end)
-
-  	return function()
-  		return h("Frame", nil, {
-  			h("UIListLayout"),
-  			h("TextButton", { ref = "play", Text = "Play" }),
-  			h("TextLabel", { Text = if selected.value then selected.value.Name else "nothing selected" }),
-  		})
-  	end
-  end, { name = "Menu" })
+  function useSelection(): (Ref<GuiObject?>, (target: GuiObject?) -> ())
   ```
 
 ---
@@ -166,10 +186,25 @@ Reads and sets which element is selected for gamepad navigation.
 A value that animates toward its target, with the TweenInfo's time and easing, every time the
 target changes. Bind it to a prop for smooth health bars, progress bars and counters.
 
-- **Type**
+- **Example**
+
+  A coin counter that counts up instead of jumping:
 
   ```lua
-  function useTween<T>(source: Ref<T> | () -> T, tweenInfo: TweenInfo): Ref<T>
+  local CoinCounter = Rivue.defineComponent({
+  	name = "CoinCounter",
+  	props = { coins = { type = "number", required = true } },
+  	setup = function(props)
+  		return {
+  			shown = Rivue.useTween(function()
+  				return props.coins
+  			end, TweenInfo.new(0.5, Enum.EasingStyle.Quad)),
+  		}
+  	end,
+  	render = function(ctx)
+  		return h("TextLabel", { Text = tostring(math.floor(ctx.shown)) })
+  	end,
+  })
   ```
 
 - **Details**
@@ -178,22 +213,10 @@ target changes. Bind it to a prop for smooth health bars, progress bars and coun
   It uses `tweenInfo.Time`, `EasingStyle` and `EasingDirection`. Bind the returned ref to a prop.
   It steps on RenderStepped only while animating, and stops when the component unmounts.
 
-- **Example**
+- **Type**
 
   ```lua
-  local CoinCounter = Rivue.defineComponent(function()
-  	local coins = Rivue.ref(0)
-  	local shown = Rivue.useTween(coins, TweenInfo.new(0.5, Enum.EasingStyle.Quad))
-
-  	return function()
-  		return h("TextButton", {
-  			Text = tostring(math.floor(shown.value)),
-  			onClick = function()
-  				coins.value += 100 -- the label counts up
-  			end,
-  		})
-  	end
-  end, { name = "CoinCounter" })
+  function useTween<T>(source: Ref<T> | () -> T, tweenInfo: TweenInfo): Ref<T>
   ```
 
 ---
@@ -202,6 +225,38 @@ target changes. Bind it to a prop for smooth health bars, progress bars and coun
 
 A value that follows its target like a spring, with a natural ease and optional bounce. It keeps
 moving smoothly even if the target changes mid-animation.
+
+- **Example**
+
+  A side drawer that springs open and closed:
+
+  ```lua
+  local Drawer = Rivue.defineComponent({
+  	name = "Drawer",
+  	setup = function()
+  		local open = Rivue.ref(false)
+  		return {
+  			open = open,
+  			x = Rivue.useSpring(function()
+  				return if open.value then 0 else -300
+  			end, { speed = 14, damping = 0.8 }),
+  			toggle = function()
+  				open.value = not open.value
+  			end,
+  		}
+  	end,
+  	render = function(ctx)
+  		return h("Frame", { Position = UDim2.fromOffset(ctx.x, 0), Size = UDim2.new(0, 300, 1, 0) }, {
+  			h("TextButton", { Text = "≡", Position = UDim2.new(1, 0, 0, 0), onClick = ctx.toggle }),
+  		})
+  	end,
+  })
+  ```
+
+- **Details**
+
+  Supports numbers, Vector2 and Vector3. Unlike a tween, a spring keeps its velocity when the
+  target changes mid-motion, so it never jumps.
 
 - **Type**
 
@@ -212,40 +267,38 @@ moving smoothly even if the target changes mid-animation.
   }?): Ref<T>
   ```
 
-- **Details**
-
-  Supports numbers, Vector2 and Vector3. Unlike a tween, a spring keeps its velocity when the
-  target changes mid-motion, so it never jumps.
-
-- **Example**
-
-  ```lua
-  local Drawer = Rivue.defineComponent(function()
-  	local open = Rivue.ref(false)
-  	local x = Rivue.useSpring(function()
-  		return if open.value then 0 else -300
-  	end, { speed = 14, damping = 0.8 })
-
-  	return function()
-  		return h("Frame", { Position = UDim2.fromOffset(x.value, 0), Size = UDim2.new(0, 300, 1, 0) }, {
-  			h("TextButton", {
-  				Text = "Toggle",
-  				Position = UDim2.new(1, 0, 0, 0),
-  				onClick = function()
-  					open.value = not open.value
-  				end,
-  			}),
-  		})
-  	end
-  end, { name = "Drawer" })
-  ```
-
 ---
 
 ## attributeRef()
 
 A ref linked to an Instance attribute, both ways. Perfect for state the server writes, like
 `player:SetAttribute("Health", 80)`, which the UI then shows.
+
+- **Example**
+
+  Show coins the server keeps on the player as an attribute:
+
+  ```lua
+  -- Server: player:SetAttribute("Coins", 250)
+  local CoinsLabel = Rivue.defineComponent({
+  	name = "CoinsLabel",
+  	setup = function()
+  		return { coins = Rivue.attributeRef(Players.LocalPlayer, "Coins", 0) }
+  	end,
+  	render = function(ctx)
+  		return h("TextLabel", { Text = `{ctx.coins} coins` })
+  	end,
+  })
+  ```
+
+- **Details**
+
+  Reading the ref gives the attribute's value, and writing it sets the attribute. If the
+  attribute doesn't exist, it's created with `default`. The sync stops with the component or
+  effect scope, or when you call `ref._cleanup()`.
+
+  This is the simplest way to show state the server writes. Attributes replicate, so the server
+  calls `player:SetAttribute("Coins", 10)` and the UI updates.
 
 - **Type**
 
@@ -258,26 +311,6 @@ A ref linked to an Instance attribute, both ways. Perfect for state the server w
   ): Ref<T?> & { _cleanup: () -> () }
   ```
 
-- **Details**
-
-  Reading the ref gives the attribute's value, and writing it sets the attribute. If the
-  attribute doesn't exist, it's created with `default`. The sync stops with the component or
-  effect scope, or when you call `ref._cleanup()`.
-
-  This is the simplest way to show state the server writes. Attributes replicate, so the server
-  calls `player:SetAttribute("Coins", 10)` and the UI updates.
-
-- **Example**
-
-  ```lua
-  local Coins = Rivue.defineComponent(function()
-  	local coins = Rivue.attributeRef(Players.LocalPlayer, "Coins", 0)
-  	return function()
-  		return h("TextLabel", { Text = `{coins.value} coins` })
-  	end
-  end, { name = "Coins" })
-  ```
-
 ---
 
 ## useTag()
@@ -285,10 +318,27 @@ A ref linked to an Instance attribute, both ways. Perfect for state the server w
 Runs your code for every Instance with a CollectionService tag, existing ones and new ones, and
 cleans up when the tag goes away. Great for world UI like nameplates or shop prompts.
 
-- **Type**
+- **Example**
+
+  Count the shops tagged "Shop" in the world, as they stream in and out:
 
   ```lua
-  function useTag(tag: string, onAdded: (instance: Instance) -> (() -> ())?)
+  local ShopCounter = Rivue.defineComponent({
+  	name = "ShopCounter",
+  	setup = function()
+  		local shops = Rivue.ref({} :: { Instance })
+  		Rivue.useTag("Shop", function(shop)
+  			Rivue.array.push(shops.value, shop)
+  			return function() -- runs when the tag is removed, or the shop streams out
+  				Rivue.array.removeValue(shops.value, shop)
+  			end
+  		end)
+  		return { shops = shops }
+  	end,
+  	render = function(ctx)
+  		return h("TextLabel", { Text = `{#ctx.shops} shops nearby` })
+  	end,
+  })
   ```
 
 - **Details**
@@ -296,30 +346,10 @@ cleans up when the tag goes away. Great for world UI like nameplates or shop pro
   If `onAdded` returns a function, it runs when the tag is removed from that Instance. Everything
   is cleaned up with the component or effect scope.
 
-- **Example**
+- **Type**
 
   ```lua
-  local ShopMarkers = Rivue.defineComponent(function()
-  	local shops = Rivue.ref({} :: { Instance })
-
-  	Rivue.useTag("Shop", function(shop)
-  		local list = table.clone(Rivue.toRaw(shops.value))
-  		table.insert(list, shop)
-  		shops.value = list
-  		return function()
-  			local remaining = table.clone(Rivue.toRaw(shops.value))
-  			local index = table.find(remaining, shop)
-  			if index then
-  				table.remove(remaining, index)
-  			end
-  			shops.value = remaining
-  		end
-  	end)
-
-  	return function()
-  		return h("TextLabel", { Text = `{#shops.value} shops nearby` })
-  	end
-  end, { name = "ShopMarkers" })
+  function useTag(tag: string, onAdded: (instance: Instance) -> (() -> ())?)
   ```
 
 ---
@@ -327,6 +357,36 @@ cleans up when the tag goes away. Great for world UI like nameplates or shop pro
 ## onRenderStepped() / onHeartbeat() / onStepped()
 
 Runs your code every frame for as long as the component is mounted, and disconnects by itself.
+
+- **Example**
+
+  An FPS counter, updated twice a second:
+
+  ```lua
+  local FpsCounter = Rivue.defineComponent({
+  	name = "FpsCounter",
+  	setup = function()
+  		local fps = Rivue.ref(60)
+  		local frames, elapsed = 0, 0
+  		Rivue.onRenderStepped(function(dt)
+  			frames += 1
+  			elapsed += dt
+  			if elapsed >= 0.5 then
+  				fps.value = math.round(frames / elapsed)
+  				frames, elapsed = 0, 0
+  			end
+  		end)
+  		return { fps = fps }
+  	end,
+  	render = function(ctx)
+  		return h("TextLabel", { Text = `{ctx.fps} FPS` })
+  	end,
+  })
+  ```
+
+- **Details**
+
+  Call them in `setup()`. The connection is closed when the component unmounts.
 
 - **Type**
 
@@ -336,54 +396,46 @@ Runs your code every frame for as long as the component is mounted, and disconne
   function onStepped(callback: (time: number, deltaTime: number) -> ())
   ```
 
-- **Details**
-
-  Call them in `setup()`. The connection is closed when the component unmounts.
-
-- **Example**
-
-  ```lua
-  local Fps = Rivue.defineComponent(function()
-  	local fps = Rivue.ref(60)
-  	Rivue.onRenderStepped(function(dt)
-  		fps.value = math.floor(1 / dt)
-  	end)
-  	return function()
-  		return h("TextLabel", { Text = `{fps.value} FPS` })
-  	end
-  end, { name = "Fps" })
-  ```
-
 ---
 
 ## useTheme()
 
 Reads the theme an ancestor provided under `"theme"`.
 
-- **Type**
-
-  ```lua
-  function useTheme<T>(): T?
-  ```
-
 - **Example**
+
+  A button that takes its colour from the app's theme:
 
   ```lua
   type Theme = { accent: Color3 }
 
-  local Button = Rivue.defineComponent(function()
-  	local theme = Rivue.useTheme() :: Theme?
-  	return function()
-  		return h("TextButton", { BackgroundColor3 = if theme then theme.accent else Color3.new(1, 1, 1) })
-  	end
-  end, { name = "Button" })
+  local ThemedButton = Rivue.defineComponent({
+  	name = "ThemedButton",
+  	setup = function()
+  		return { theme = Rivue.useTheme() :: Theme? }
+  	end,
+  	render = function(ctx)
+  		return h("TextButton", { BackgroundColor3 = if ctx.theme then ctx.theme.accent else Color3.new(1, 1, 1) })
+  	end,
+  })
 
-  local App = Rivue.defineComponent(function()
-  	Rivue.provide("theme", Rivue.reactive({ accent = Color3.fromRGB(60, 120, 220) }))
-  	return function()
-  		return h(Button)
-  	end
-  end, { name = "App" })
+  local App = Rivue.defineComponent({
+  	name = "App",
+  	components = { ThemedButton = ThemedButton },
+  	setup = function()
+  		Rivue.provide("theme", Rivue.reactive({ accent = Color3.fromRGB(60, 120, 220) }))
+  		return {}
+  	end,
+  	render = function()
+  		return h("ThemedButton")
+  	end,
+  })
+  ```
+
+- **Type**
+
+  ```lua
+  function useTheme<T>(): T?
   ```
 
 ---
@@ -393,10 +445,26 @@ Reads the theme an ancestor provided under `"theme"`.
 Builds styles from the current theme, and rebuilds them when the theme changes. Use it for
 light/dark or team-coloured UI.
 
-- **Type**
+- **Example**
+
+  A card whose colours follow a light/dark theme:
 
   ```lua
-  function useStyles<Theme, Styles>(factory: (theme: Theme) -> Styles): ComputedRef<Styles>
+  local Card = Rivue.defineComponent({
+  	name = "Card",
+  	setup = function()
+  		return {
+  			styles = Rivue.useStyles(function(theme: any)
+  				return {
+  					card = { BackgroundColor3 = theme.surface or Color3.fromRGB(30, 30, 36), cornerRadius = 8 },
+  				}
+  			end),
+  		}
+  	end,
+  	render = function(ctx)
+  		return h("Frame", { style = ctx.styles.card }, ctx.renderSlot("default"))
+  	end,
+  })
   ```
 
 - **Details**
@@ -404,19 +472,10 @@ light/dark or team-coloured UI.
   The factory gets the provided theme, or an empty table if there's none. If the theme is
   reactive, the styles update when it changes.
 
-- **Example**
+- **Type**
 
   ```lua
-  local Card = Rivue.defineComponent(function()
-  	local styles = Rivue.useStyles(function(theme: any)
-  		return {
-  			card = { BackgroundColor3 = theme.surface or Color3.new(0, 0, 0), cornerRadius = 8 },
-  		}
-  	end)
-  	return function()
-  		return h("Frame", { style = styles.value.card })
-  	end
-  end, { name = "Card" })
+  function useStyles<Theme, Styles>(factory: (theme: Theme) -> Styles): ComputedRef<Styles>
   ```
 
 ---

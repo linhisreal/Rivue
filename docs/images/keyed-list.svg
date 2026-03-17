@@ -9,9 +9,9 @@
 <text xml:space="preserve" x="316" y="226" text-anchor="start" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13" fill="#1f2328">After removing Bow</text>
 <rect x="24" y="198" width="120" height="44" rx="6" fill="#1f6feb"/><text x="84.0" y="225.0" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#fff">Sword</text><text x="84" y="260" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#59636e">key = 1</text>
 <rect x="174" y="198" width="120" height="44" rx="6" fill="#1f6feb"/><text x="234.0" y="225.0" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#fff">Potion</text><text x="234" y="260" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#59636e">key = 3</text>
-<path d="M84 114 L84 192" stroke="#59636e" stroke-width="2" fill="none" marker-end="url(#a)"/>
-<path d="M384 114 C384 160 234 150 234 192" stroke="#59636e" stroke-width="2" fill="none" marker-end="url(#a)"/>
-<text x="234" y="140" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="22" fill="#cf222e">✕</text>
+<path d="M84 124 V194" stroke="#59636e" stroke-width="2" fill="none" marker-end="url(#a)"/>
+<path d="M384 124 V160 Q384 166 378 166 H240 Q234 166 234 172 V194" stroke="#59636e" stroke-width="2" fill="none" marker-end="url(#a)"/>
+<text x="234" y="148" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="22" fill="#cf222e">✕</text>
 <text x="474" y="70" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#59636e">With keys, Rivue matches rows by key:</text>
 <text x="474" y="90" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#59636e">Sword and Potion keep their Instances,</text>
 <text x="474" y="110" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#59636e">only Bow is destroyed.</text>

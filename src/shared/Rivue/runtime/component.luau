@@ -359,11 +359,9 @@ function createRenderContext(self: ComponentInstance): { [string]: any }
 	local ctx = self.ctx :: any
 	return setmetatable({}, {
 		__index = function(_: unknown, key: string): any
-			if stateView then
-				local value = stateView[key]
-				if value ~= nil then
-					return value
-				end
+			-- A key setup() returned belongs to setup state, even while its ref holds nil
+			if stateView and (state :: any)[key] ~= nil then
+				return stateView[key]
 			end
 			local prop = props[key]
 			if prop ~= nil then
