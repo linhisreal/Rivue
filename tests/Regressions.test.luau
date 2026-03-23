@@ -75,7 +75,7 @@ local function runTests()
 		})
 		renderer.patch(v1, v2, container)
 		local button = container:FindFirstChild("B") :: TextButton
-		button.Activated:Fire()
+		Rivue.testing.trigger(button, "onClick")
 		assertEquals(hits, 1, "The new handler runs")
 		assertTrue((v2._conns :: any).onClick == conn, "Same connection")
 	end
@@ -137,7 +137,9 @@ local function runTests()
 	end
 
 	print("Directives: latest click-outside handler, no stolen focus or selection, drag can turn off")
-	do
+	if not __OFFLINE then
+		print("  skipped in Studio: needs fired input signals")
+	else
 		local n = Rivue.ref(1)
 		local got: number? = nil
 		mount(Rivue.defineComponent(function()

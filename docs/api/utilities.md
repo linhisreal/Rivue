@@ -24,6 +24,7 @@ All examples assume `local Rivue = require(game.ReplicatedStorage.Rivue)`.
 - [utils.profiler](#utilsprofiler)
 - [iterArray()](#iterarray)
 - [hForParallel()](#hforparallel)
+- [testing.trigger()](#testingtrigger)
 - [Types](#types)
 
 ---
@@ -485,6 +486,62 @@ here so existing code keeps working, and warns once in Studio.
 
   ```lua
   function hForParallel<T>(items: { T }, mapper: (item: T, index: number) -> VNode?, keyFn: ((item: T) -> unknown)?): { VNode }
+  ```
+
+---
+
+## testing.trigger()
+
+Calls an element's event handler as if the event fired. Scripts can't fire engine events like
+`Activated` or `FocusLost`, so tests use this to click buttons and submit text boxes.
+
+- **Example**
+
+  ```lua
+  local h = Rivue.h
+
+  local Counter = Rivue.defineComponent({
+  	name = "Counter",
+  	setup = function()
+  		return { count = Rivue.ref(0) }
+  	end,
+  	render = function(ctx)
+  		return h("TextButton", {
+  			Name = "Add",
+  			Text = `Clicked {ctx.count}`,
+  			onClick = function()
+  				ctx.count += 1
+  			end,
+  		})
+  	end,
+  })
+
+  local screen = Instance.new("Frame")
+  local app = Rivue.mount(Counter, screen)
+  local button = screen:FindFirstChild("Add") :: TextButton
+
+  Rivue.testing.trigger(button, "onClick")
+  Rivue.nextTick() -- re-renders are batched, wait for them
+  assert(button.Text == "Clicked 1")
+
+  app:unmount()
+  ```
+
+- **Details**
+
+  `key` is the event prop as written in `h()`: `"onClick"`, `"onFocusLost"`, `"onTextChanged"`. Extra
+  arguments are passed to the handler, so `trigger(box, "onFocusLost", true)` is pressing Enter.
+  It calls the handler the element has now, after any re-renders. It errors if the element has no
+  handler for `key`, which catches a test clicking the wrong thing.
+
+  Input that comes from `UserInputService` (`vClickOutside`, `vDrag`, the input-type composables)
+  can't be faked this way. Test the logic behind it in a composable instead, see
+  [Guide 16](../guide/16-testing-ui.md).
+
+- **Type**
+
+  ```lua
+  function testing.trigger(element: Instance, key: string, ...: any)
   ```
 
 ---

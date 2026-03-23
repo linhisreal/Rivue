@@ -345,7 +345,7 @@ local function runTests()
 		app:mount(container)
 		assertTrue(not sawAttr, "Declared listener isn't an attr")
 		local button = container:FindFirstChild("Pick") :: TextButton
-		button.Activated:Fire()
+		Rivue.testing.trigger(button, "onClick")
 		assertEquals(selected, 3, "emit calls the declared listener")
 		app:unmount()
 	end
@@ -508,17 +508,20 @@ local function runTests()
 	-- Test 15: Roblox composables
 	print("Test 15: useViewportSize / useInputType / useSelection / useTween / useSpring")
 	do
-		local size = Rivue.useViewportSize()
-		assertEquals(size.value.X, 1280, "Viewport size read from the camera")
-		local camera = workspace.CurrentCamera :: Camera
-		camera.ViewportSize = Vector2.new(800, 600)
-		assertEquals(size.value.X, 800, "Viewport size follows the camera")
+		-- The camera size and input type are read-only in Studio
+		if __OFFLINE then
+			local size = Rivue.useViewportSize()
+			assertEquals(size.value.X, 1280, "Viewport size read from the camera")
+			local camera = workspace.CurrentCamera :: Camera
+			camera.ViewportSize = Vector2.new(800, 600)
+			assertEquals(size.value.X, 800, "Viewport size follows the camera")
 
-		local inputType = Rivue.useInputType()
-		assertEquals(inputType.value, "keyboard", "Mouse counts as keyboard")
-		local UserInputService = game:GetService("UserInputService");
-		(UserInputService.LastInputTypeChanged :: any):Fire(Enum.UserInputType.Gamepad1)
-		assertEquals(inputType.value, "gamepad", "Gamepad input switches the type")
+			local inputType = Rivue.useInputType()
+			assertEquals(inputType.value, "keyboard", "Mouse counts as keyboard")
+			local UserInputService = game:GetService("UserInputService");
+			(UserInputService.LastInputTypeChanged :: any):Fire(Enum.UserInputType.Gamepad1)
+			assertEquals(inputType.value, "gamepad", "Gamepad input switches the type")
+		end
 
 		local selected, select = Rivue.useSelection()
 		local button = Instance.new("TextButton")
