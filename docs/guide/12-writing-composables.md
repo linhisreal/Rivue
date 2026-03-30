@@ -2,33 +2,73 @@
 
 # 12. Writing composables
 
-**You'll learn:** how to turn logic you've written twice into a `use*` function: what it should
-take, what it should return, and how it cleans up after itself.
+**You'll learn:** how to write `use*` functions that accept refs, clean up after themselves, and
+load server data without race conditions.
 
-A composable is a plain function, called from `setup`, that creates state, watchers and
-connections and hands back refs. Rivue's own `useSpring`, `useInputType` and `attributeRef` are
-composables. Since they run inside `setup`, everything they create is stopped when the component
-unmounts.
+## From component to composable
 
-```mermaid
-flowchart LR
-    S["Component setup()"] -- "calls" --> C["useCountdown(seconds)"]
-    C -- "creates" --> R["ref, watch, onHeartbeat"]
-    C -- "returns" --> O["the ref"]
-    U["component unmounts"] -. "stops" .-> R
-```
-
-## Take anything that holds a value
-
-Accept a plain value, a ref or a getter, and read it with `Rivue.toValue()`. Callers can then pass
-whatever they have, and the composable follows it when it's reactive.
+A round timer:
 
 ```lua
--- composables/useCountdown.luau
+local RoundTimer = Rivue.defineComponent({
+	name = "RoundTimer",
+	setup = function()
+		local left = Rivue.ref(90)
+		Rivue.onHeartbeat(function(dt)
+			left.value = math.max(0, left.value - dt)
+		end)
+		return { left = left }
+	end,
+	render = function(ctx)
+		return h("TextLabel", { Text = tostring(math.ceil(ctx.left)) })
+	end,
+})
+```
+
+A sale banner needs the same countdown, so move it into a **composable**, a `use*` function
+called from `setup`:
+
+```lua
+-- UI/composables/useCountdown.luau
+local function useCountdown(seconds: number)
+	local left = Rivue.ref(seconds)
+	Rivue.onHeartbeat(function(dt)
+		left.value = math.max(0, left.value - dt)
+	end)
+	return left
+end
+```
+
+Both components call it in `setup`:
+
+```lua
+-- RoundTimer
+setup = function()
+	return { left = useCountdown(90) }
+end,
+
+-- SaleBanner
+setup = function()
+	return { left = useCountdown(3600) }
+end,
+```
+
+![each call to a composable makes its own state](../images/composable-calls.svg)
+
+Everything a composable creates during `setup` belongs to the calling component and stops when it
+unmounts. Each call creates new state, so if two components must share the *same* state, use a
+store ([chapter 14](14-state-architecture.md)).
+
+## Accept a ref, not only a number
+
+If the round length is a ref, `useCountdown(roundLength.value)` reads it once and never sees it
+change. Accept a number, ref or getter (`MaybeRefOrGetter`) and read it with `Rivue.toValue()`:
+
+```lua
 local function useCountdown(seconds: Rivue.MaybeRefOrGetter<number>)
 	local left = Rivue.ref(Rivue.toValue(seconds))
 
-	-- Start over when the caller's value changes
+	-- When the caller's value changes, start counting from the new value
 	Rivue.watch(function()
 		return Rivue.toValue(seconds)
 	end, function(value)
@@ -41,110 +81,136 @@ local function useCountdown(seconds: Rivue.MaybeRefOrGetter<number>)
 
 	return left
 end
+```
 
--- Any of these work
-useCountdown(90)
-useCountdown(roundLength) -- a ref
-useCountdown(function()
+`toValue` unwraps a ref, calls a getter, or returns a plain value as is. Inside the `watch` source
+it also tracks the read:
+
+```lua
+useCountdown(90) -- a fixed number
+useCountdown(roundLength) -- a ref: restarts when it changes
+useCountdown(function() -- a prop: restarts when the parent passes a new one
 	return props.seconds
 end)
 ```
 
-## Return refs, not values
+## Return the ref itself
 
-Return the ref itself, so callers keep reactivity. In `render(ctx)` it's unwrapped for you:
+Return refs, not `.value`, or the caller gets a snapshot:
 
 ```lua
 setup = function()
-	return { left = useCountdown(90) } -- ✓ the ref
-	-- return { left = useCountdown(90).value } -- ✗ a number, frozen at 90
+	return { left = useCountdown(90) } -- ✓ the ref: render sees it count down
+	-- return { left = useCountdown(90).value } -- ✗ the number 90, forever
 end,
 render = function(ctx)
-	return h("TextLabel", { Text = tostring(math.ceil(ctx.left)) })
+	return h("TextLabel", { Text = tostring(math.ceil(ctx.left)) }) -- ctx.left reads the ref for you
 end,
 ```
 
-Return several values as a table of refs and functions:
-`return { data = data, loading = loading, refresh = refresh }`.
+For several values, return a table of refs and functions:
+`{ data = data, loading = loading, refresh = refresh }`.
 
-## Clean up what you start
+## Clean up your own connections
 
-Watchers, computeds and `onHeartbeat` connections made inside a composable are cleaned up with the
-component. For anything else, register cleanup with `Rivue.onScopeDispose`. Unlike
-`onUnmounted`, it also works when the composable is used outside a component, inside an
-[`effectScope`](../api/reactivity-advanced.md#effectscope).
+Watchers, computeds and `onHeartbeat` stop automatically. Your own `:Connect()` calls don't, so
+disconnect them in `Rivue.onScopeDispose`:
 
 ```lua
 local function usePartTouched(part: BasePart)
 	local touching = Rivue.ref(false)
+
 	local began = part.Touched:Connect(function()
 		touching.value = true
 	end)
 	local ended = part.TouchEnded:Connect(function()
 		touching.value = false
 	end)
+
 	Rivue.onScopeDispose(function()
 		began:Disconnect()
 		ended:Disconnect()
 	end)
+
 	return touching
 end
 ```
 
-## A value that waits: customRef
+Prefer it over `onUnmounted`, which only works in a component: `onScopeDispose` also runs when
+the composable is used in a store or test [`effectScope`](../api/reactivity-advanced.md#effectscope).
 
-`customRef` lets you decide when a ref updates. A debounced search box only searches once the
-player stops typing:
+## A debounced ref with customRef
+
+`customRef` lets you decide when a ref notifies its readers. A debounced one for a search box:
 
 ```lua
 local function useDebounced<T>(initial: T, delaySeconds: number)
 	local value = initial
 	local pending: thread? = nil
+
 	return Rivue.customRef(function(track, trigger)
 		return {
 			get = function()
-				track()
+				track() -- whoever reads it will update when it changes
 				return value
 			end,
 			set = function(new)
+				-- A new key press cancels the one before it
 				if pending then
 					task.cancel(pending)
 				end
 				pending = task.delay(delaySeconds, function()
 					value = new
 					pending = nil
-					trigger() -- now everything that read it updates
+					trigger() -- now tell everything that read it
 				end)
 			end,
 		}
 	end)
 end
-
--- setup: return { search = useDebounced("", 0.3) }
--- render: h("TextBox", { model = "search" })
 ```
 
-## Loading data, the full version
+It works anywhere a ref does, including `model`:
 
-Loading from the server needs a loading state, an error, a way to retry, and protection from
-answers that arrive out of order:
+```lua
+setup = function()
+	local search = useDebounced("", 0.3)
+	Rivue.watch(search, function(text)
+		print("searching for", text) -- once, 0.3 s after the last key press
+	end)
+	return { search = search }
+end,
+render = function()
+	return h("TextBox", { model = "search", PlaceholderText = "Search items" })
+end,
+```
+
+## Loading server data
+
+A loader returns data, loading and error refs, and a refresh function. It also has to handle
+answers arriving out of order:
+
+![an old answer arriving after a newer one](../images/stale-response.svg)
+
+Numbering requests and dropping any answer that isn't the latest fixes it:
 
 ```lua
 local function useRemoteData(action: string, payload: Rivue.MaybeRefOrGetter<any>?)
-	local data = Rivue.shallowRef(nil) -- replaced wholesale, no need for deep reactivity
+	local data = Rivue.shallowRef(nil) -- replaced as a whole, so no need to track inside it
 	local loading = Rivue.ref(false)
 	local errorText = Rivue.ref(nil :: string?)
 	local latest = 0
 
 	local function refresh()
 		latest += 1
-		local mine = latest
+		local mine = latest -- this request's number
 		loading.value = true
 		errorText.value = nil
+
 		task.spawn(function()
 			local result, err = Rivue.Remote.request(action, Rivue.toValue(payload))
 			if mine ~= latest then
-				return -- a newer request was made, ignore this answer
+				return -- a newer request was made while this one was waiting
 			end
 			loading.value = false
 			if err then
@@ -155,7 +221,7 @@ local function useRemoteData(action: string, payload: Rivue.MaybeRefOrGetter<any
 		end)
 	end
 
-	-- Load now, and again whenever the payload changes (a new page, a new filter)
+	-- Load now, and again whenever the payload changes (another page, a new filter)
 	Rivue.watch(function()
 		return Rivue.toValue(payload)
 	end, refresh, { immediate = true })
@@ -164,24 +230,23 @@ local function useRemoteData(action: string, payload: Rivue.MaybeRefOrGetter<any
 end
 ```
 
+A paged shop screen:
+
 ```lua
--- In a component
 setup = function()
 	local page = Rivue.ref(1)
 	local shop = useRemoteData("shop:list", function()
 		return { page = page.value }
 	end)
-	return { shop = shop.data, loading = shop.loading, retry = shop.refresh, page = page }
+	return {
+		page = page, -- set ctx.page = 2 and the next page loads
+		items = shop.data,
+		loading = shop.loading,
+		errorText = shop.errorText,
+		retry = shop.refresh,
+	}
 end,
 ```
-
-## Rules of thumb
-
-- **Name it `use…`**, and call it at the top of `setup`, not in render or a callback.
-- **No UI inside.** A composable returns state and functions; components decide how to show them.
-- **One job each.** `useInventory` and `useCountdown`, not `useShopScreen`.
-- **Shared state is a store, not a composable.** A composable creates fresh state per call. If two
-  components need the *same* state, see [chapter 14](14-state-architecture.md).
 
 ---
 
@@ -189,4 +254,4 @@ end,
 [customRef()](../api/reactivity-advanced.md#customref) ·
 [onScopeDispose()](../api/reactivity-advanced.md#onscopedispose) · [watch()](../api/reactivity-core.md#watch)
 
-[← 11. Style rules](11-style-rules.md) · [Guide contents](../GUIDE.md) · [13. Advanced component patterns →](13-advanced-components.md)
+[← 11. Style rules](11-style-rules.md) · [Guide contents](../GUIDE.md) · [13. Component patterns →](13-advanced-components.md)

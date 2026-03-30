@@ -2,74 +2,54 @@
 
 # 15. Performance in depth
 
-**You'll learn:** what actually costs time in Rivue UI, how to find what's re-rendering and why,
-and the fixes that matter, in the order to try them.
+**You'll learn:** where render time goes, how to find what re-renders, and the fixes beyond the
+basics in [chapter 9](09-performance-and-debugging.md#performance).
 
-## What costs time
+## Where the time goes
 
-Two things:
+A state change costs the render functions that read it, plus a diff against the Instances.
+Rivue only writes properties that changed, so engine calls stay small. What you control is
+**how often renders run and how big they are.**
 
-1. **Engine calls.** Every read or write of an Instance property, and every `IsA` or `Connect`,
-   crosses from Luau into the engine. These dominate. Rivue only writes properties that changed,
-   and caches what it can, so a re-render that changes one label's text makes one engine call.
-2. **Re-running render functions.** Building the description is plain Luau and cheap per call, but
-   a big render that runs every frame adds up.
+## Keep fast-changing reads small
 
-So the goal is: **re-render as little as possible, and only where state changed.**
+Only components whose render read a changed value re-render. Children whose props didn't change
+are skipped. So a value that changes 10 times a second should be read in the smallest component
+that shows it:
 
-## Re-renders happen per component
+![moving a fast-changing read into a small component](../images/rerender-split.svg)
 
-When state changes, Rivue re-renders only the components whose render *read* that state. Not
-their parents, and not their siblings.
+```lua
+-- Network is a store module (chapter 14) whose state.ping the client updates
+local PingLabel = Rivue.defineComponent({
+	name = "PingLabel",
+	render = function()
+		return h("TextLabel", { Text = `{Network.state.ping} ms` })
+	end,
+})
 
-```mermaid
-flowchart TB
-    App["App<br/>reads: screen"] --> Hud["Hud<br/>reads: health"]
-    App --> Shop["Shop<br/>reads: products"]
-    Hud --> Ping["PingLabel<br/>reads: ping"]
-    style Ping fill:#7ee8c0,stroke:#2fbf8f
-    X["ping changes 10× a second"] -.-> Ping
+-- In Hud's render, instead of reading ping itself:
+h(PingLabel)
 ```
 
-Only `PingLabel` re-renders. If `Hud` read `ping` itself, the whole HUD would re-render ten times a
-second. **The fix for a big component that re-renders too often is usually to move the
-fast-changing read into a small child component.**
+## Finding what re-renders
 
-## Finding out what re-renders
+On top of `onRenderTriggered` and `app:printTree()` from
+[chapter 9](09-performance-and-debugging.md#debugging):
 
-- **Why did it render?** Add a debug hook to the suspect component:
+- `Rivue.onRenderTracked(fn)` lists every value a render read, i.e. everything that can
+  re-render it.
+- `Rivue.debug.measure("label", fn)` logs how long `fn` took, when `Rivue.debug.enabled` is on.
 
-  ```lua
-  Rivue.onRenderTriggered(function(event)
-  	print("re-rendered because", event.key, "changed")
-  end)
-  ```
+## memo and throttle
 
-- **What does it depend on?** `Rivue.onRenderTracked` prints every value the render read.
-- **What's on screen?** `app:printTree()` prints the live component tree.
-- **How long does something take?** `Rivue.debug.measure("label", fn)` logs the time when
-  `Rivue.debug.enabled = true`.
-
-## The fixes, in order
-
-| Symptom | Fix |
-|---|---|
-| A big component re-renders often | move the fast-changing read into a small child component (above) |
-| A list re-patches every row on any change | give every item a stable `key` |
-| Hundreds or thousands of rows | `Rivue.VirtualList`: only the visible rows exist |
-| Rows re-render though their data didn't change | make each row a component, so it only re-renders when *its* item changes |
-| A subtree is expensive and rarely changes | `memo = { dep1, dep2 }` skips it while the deps are equal |
-| State changes every frame (mouse position, timers) | throttle what you store: update a ref a few times a second, not every frame |
-| Big data replaced wholesale | `Rivue.shallowRef` instead of `ref`: no deep proxies |
-| Many Instances created and removed (feeds, damage numbers) | `createApp(App, { usePool = true })` reuses them |
-
-`memo` in practice:
+`memo` skips an element and its subtree while the listed values are unchanged:
 
 ```lua
 Rivue.hFor(ctx.items, function(item)
 	return h("Frame", {
 		key = item.id,
-		memo = { item.id, item.version }, -- skip this row until its version changes
+		memo = { item.id, item.version }, -- only re-check this row when its version changes
 	}, {
 		h("TextLabel", { Text = item.name }),
 		h("ImageLabel", { Image = item.icon }),
@@ -77,32 +57,35 @@ Rivue.hFor(ctx.items, function(item)
 end)
 ```
 
-Throttling a value that changes every frame:
+A value missing from the list won't update the row, so list everything it renders from.
+
+For per-frame sources, throttle the writes to the ref rather than the render:
 
 ```lua
 setup = function()
 	local mouse = Rivue.ref(Vector2.zero)
+
 	local update = Rivue.utils.throttle(function(position: Vector2)
 		mouse.value = position
-	end, 50) -- at most 20 updates a second
+	end, 50)
+
 	Rivue.onRenderStepped(function()
 		update(game:GetService("UserInputService"):GetMouseLocation())
 	end)
+
 	return { mouse = mouse }
 end,
 ```
 
 ## What Rivue already does for you
 
-You don't need to optimise these:
+No need to work around these:
 
-- **Unchanged props aren't written.** A re-render where nothing changed makes no engine calls.
-- **New event handlers don't reconnect.** Inline `onClick = function() ... end` closures are
-  swapped into the existing connection.
-- **List order changes are cheap.** Adding, removing, prepending or moving a row writes one
-  `LayoutOrder`, not one per row.
-- **Updates are batched.** Changing ten values in a row re-renders each affected component once,
-  parents before children.
+- **Inline handlers.** A new `onClick` closure each render is swapped into the existing
+  connection, not reconnected.
+- **Reordering.** Adding, removing or moving a row writes one `LayoutOrder`, not one per row.
+- **Many writes in a row.** Updates are batched; each affected component renders once, parents
+  first.
 
 ---
 
@@ -110,4 +93,4 @@ You don't need to optimise these:
 [VirtualList](../api/builtins.md#virtuallist) · [Pooling options](../api/application.md#pooling-options) ·
 [utils.throttle()](../api/utilities.md#utilsthrottle) · [Element props: memo](../api/render-function.md#element-props)
 
-[← 14. State architecture](14-state-architecture.md) · [Guide contents](../GUIDE.md) · [16. Testing UI →](16-testing-ui.md)
+[← 14. Organising state](14-state-architecture.md) · [Guide contents](../GUIDE.md) · [16. Testing UI →](16-testing-ui.md)
