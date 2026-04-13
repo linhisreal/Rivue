@@ -2,8 +2,8 @@
 
 # 2. State
 
-Rivue has three kinds of reactive state. Which one you pick matters less than where you read it,
-and lists need a little care of their own.
+Rivue has three kinds of reactive state. Which one you pick matters less than where you read it.
+Lists and copied-out fields each have one catch.
 
 ## ref, reactive and computed
 
@@ -56,6 +56,17 @@ end,
 render = function(ctx)
 	return h("TextLabel", { Text = tostring(ctx.count) }) -- read in render: updates
 end,
+```
+
+The same goes for fields copied out of a `reactive` table. `local name = player.name` is a plain
+string from then on. To hand the fields around separately, turn them into linked refs first:
+
+```lua
+local player = Rivue.reactive({ name = "Ada", level = 1 })
+local fields = Rivue.toRefs(player)
+
+fields.level.value += 1
+print(player.level) -- 2
 ```
 
 ## Changing lists

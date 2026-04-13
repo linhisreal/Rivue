@@ -2,13 +2,14 @@
 
 # 13. Component patterns
 
-A grab bag of patterns that come up once a UI gets bigger: components that work as a set, a
-component with no visuals of its own, switching screens, modals, and calling into a child.
+Patterns that come up once a UI gets bigger: components that work as a set, a component with no
+visuals of its own, switching and lazy-loading screens, 3D previews, modals, error boundaries, and
+calling into a child.
 
 ## Components that share state: Tabs
 
-One `Tabs` component that owns the whole layout gets rigid fast. Three small ones that cooperate
-are easier to arrange:
+A single `Tabs` component that owns the whole layout gets rigid fast. Three small ones that work
+together are easier to arrange:
 
 ![the parts of a Tabs component](../assets/diagrams/tabs-parts.webp)
 
@@ -63,6 +64,7 @@ local Tab = Rivue.defineComponent({
 })
 ```
 
+> [!NOTE]
 > `ctx` only unwraps refs that `setup` returns directly. `active` is nested in a table, so it
 > keeps its `.value`.
 
@@ -84,7 +86,7 @@ local TabPanel = Rivue.defineComponent({
 })
 ```
 
-And the screen decides where everything goes:
+The screen decides where everything goes:
 
 ```lua
 h(Tabs, { initial = "Shop" }, {
@@ -99,8 +101,8 @@ h(Tabs, { initial = "Shop" }, {
 
 ## Render-less components
 
-Sometimes a component owns the behaviour and the caller decides how it looks, through a scoped
-slot. `Hoverable` tracks the mouse and passes `hovered` down to its slot:
+A component can own a behaviour and let the caller decide how it looks, through a scoped slot.
+`Hoverable` tracks the mouse and passes `hovered` to its slot:
 
 ```lua
 local Hoverable = Rivue.defineComponent({
@@ -141,12 +143,12 @@ h(Hoverable, nil, {
 })
 ```
 
-Only reach for this when the behaviour needs an Instance of its own, as mouse events do here.
-Otherwise a [composable](12-writing-composables.md) is simpler.
+Use this only when the behaviour needs an Instance of its own, as mouse events do here. Otherwise a
+[composable](12-writing-composables.md) is simpler.
 
 ## Switching screens
 
-Since `h()` takes a component value, switching screens is just a table lookup:
+`h()` takes a component value, so switching screens can be a table lookup:
 
 ```lua
 local screens = { lobby = Lobby, shop = Shop, settings = Settings }
@@ -168,81 +170,46 @@ local App = Rivue.defineComponent({
 })
 ```
 
-Normally, switching away unmounts a screen. `KeepAlive` keeps the ones in `include` alive instead,
-so the shop is still scrolled where the player left it.
+Switching away normally unmounts a screen. `KeepAlive` keeps the ones in `include` alive, so the
+shop is still scrolled where the player left it.
 
-Once screens need a back button, or pass each other data, use RivueRouter instead of a lookup
-table. It's a separate package, like Vue Router, so install it next to RivueUI. It keeps the history
-for you, passes params to the screen as props, and can keep screens alive the same way:
+Once screens need a back button or pass each other data, use
+[RivueRouter](17-screens-and-navigation.md) instead. It keeps the history, passes params to the
+screen as props, and can keep screens alive the same way.
+
+## Loading a screen when it's first opened
+
+A big screen the player may never open doesn't need to be required at startup.
+`Rivue.defineAsyncComponent` takes a loader and shows a placeholder until it returns:
 
 ```lua
-local Router = require(game.ReplicatedStorage.RivueRouter)
-
-local router = Router.createRouter({
-	routes = { lobby = Lobby, shop = Shop, item = Item },
-	initial = "lobby",
+local Settings = Rivue.defineAsyncComponent(function()
+	return require(game.ReplicatedStorage:WaitForChild("Settings")) :: any
+end, {
+	loadingComponent = h("TextLabel", { Text = "Loading..." }),
+	errorComponent = h("TextLabel", { Text = "Couldn't load settings" }),
 })
-
--- In App's render
-h(Router.RouterView, { keepAlive = true })
-
--- In any screen's setup
-local router = Router.useRouter()
-router.push("item", { id = 7 }) -- Item gets props.id = 7
-router.back()
 ```
 
-Install it with `app:use(router)` before mounting.
-[Chapter 17](17-screens-and-navigation.md) covers the router in full: the history, a back button,
-and stopping the player from leaving with unsaved changes.
+It can also time out and retry; see [defineAsyncComponent()](../api/component.md#defineasynccomponent).
+
+## Showing a 3D item
+
+`Rivue.ViewportModel` puts a model in the UI with a camera that fits it, for shop and inventory
+previews:
+
+```lua
+h(Rivue.ViewportModel, {
+	model = game.ReplicatedStorage.Items.Sword, -- must be Archivable; Rivue clones it
+	Size = UDim2.fromOffset(120, 120),
+	angle = 45,
+})
+```
 
 ## Modals
 
-A modal opened from deep inside the tree needs three built-ins working together:
-
-| Piece | What it does |
-|---|---|
-| `Teleport` | moves the popup's Instances to a top layer, so nothing covers or clips it |
-| `Transition` | fades it in when it appears and out when it goes |
-| `vClickOutside` | calls a function when the player clicks anywhere outside it |
-
-![Teleport moves a modal to the top layer](../assets/diagrams/teleport-modal.webp)
-
-```lua
-local Modal = Rivue.defineComponent({
-	name = "Modal",
-	props = {
-		open = { type = "boolean", required = true },
-		layer = { type = "Instance" }, -- a ScreenGui on top of the others
-	},
-	emits = { "close" },
-	render = function(ctx)
-		return h(Rivue.Teleport, { to = ctx.layer, disabled = ctx.layer == nil }, {
-			h(Rivue.Transition, { tweenInfo = TweenInfo.new(0.15), from = { BackgroundTransparency = 1 } }, {
-				Rivue.hIf(
-					ctx.open,
-					h("Frame", {
-						class = "modal",
-						vClickOutside = function()
-							ctx.emit("close")
-						end,
-					}, ctx.renderSlot("default"))
-				),
-			}),
-		})
-	end,
-})
-```
-
-The full version, with named slots for the title and the content, is in
-[examples/components/Modal.luau](../../examples/components/Modal.luau).
-
-### Or use Dialog
-
-Building a modal yourself is worth doing once to see how the parts fit. After that,
-`Rivue.Dialog` does the usual job: a backdrop, closing on a backdrop click, Escape or the
-gamepad's B button, and gamepad focus that starts on the first button and can't wander off the
-panel.
+`Rivue.Dialog` covers the usual modal: a backdrop, closing on a backdrop click, Escape or the
+gamepad's B button, and gamepad focus that starts on the first button and stays inside the panel.
 
 ![the parts of a Dialog](../assets/diagrams/dialog-anatomy.webp)
 
@@ -258,14 +225,26 @@ h(Rivue.Dialog, { open = ctx.confirming, onClose = ctx.cancel, transition = Rivu
 })
 ```
 
-The dialog doesn't close itself: `onClose` tells you the player wants out, and you set `open` to
-false. It covers its parent, so put it under a full-screen ScreenGui, or Teleport it to one.
+The dialog doesn't close itself. `onClose` says the player wants out, and you set `open` to false.
+It covers its parent, so put it under a full-screen ScreenGui, or Teleport it to one.
+
+For a popup that doesn't fit Dialog, the same parts are available on their own:
+
+| Piece | What it does |
+|---|---|
+| `Teleport` | moves the popup's Instances to a top layer, so nothing covers or clips it |
+| `Transition` | tweens it in when it appears and out when it goes |
+| `vClickOutside` | calls a function when the player clicks anywhere outside it |
+
+![Teleport moves a modal to the top layer](../assets/diagrams/teleport-modal.webp)
+
+[examples/components/Modal.luau](../../examples/components/Modal.luau) puts them together, with
+named slots for the title and the content.
 
 ## Error boundaries
 
-One broken component shouldn't blank the whole screen. Wrap a risky part, like a panel that shows
-data from the server, in `Rivue.ErrorBoundary`, and it shows a fallback when anything inside
-throws:
+Wrap a risky part, like a panel that shows server data, in `Rivue.ErrorBoundary` so an error inside
+it shows a fallback instead of breaking the whole screen:
 
 ```lua
 h(Rivue.ErrorBoundary, {
@@ -278,12 +257,13 @@ h(Rivue.ErrorBoundary, {
 ```
 
 `reset` mounts the children again. The error stops at the boundary, so it doesn't reach
-`app.config.errorHandler`; pass `onError` if you still want to log it.
+`app.config.errorHandler`. Pass `onError` if you still want to log it. To build your own boundary,
+use the `onErrorCaptured` hook it's made from.
 
 ## Calling a child with expose
 
 Props and events cover most things. For one-off actions like "reset" or "scroll to top", the
-child can expose functions instead, and the parent calls them through a template ref:
+child can expose functions, and the parent calls them through a template ref:
 
 ```lua
 local Form = Rivue.defineComponent({
@@ -326,7 +306,9 @@ local Page = Rivue.defineComponent({
 
 **Try it:** [Tabs example](../../examples/components/Tabs.luau) · [Modal example](../../examples/components/Modal.luau)
 **Reference:** [provide()](../api/component.md#provide) · [Slots](../api/component.md#slots) ·
-[KeepAlive](../api/builtins.md#keepalive) · [Teleport](../api/builtins.md#teleport) ·
+[KeepAlive](../api/builtins.md#keepalive) · [defineAsyncComponent()](../api/component.md#defineasynccomponent) ·
+[ViewportModel](../api/builtins.md#viewportmodel) · [Dialog](../api/builtins.md#dialog) ·
+[ErrorBoundary](../api/builtins.md#errorboundary) · [Teleport](../api/builtins.md#teleport) ·
 [useTemplateRef()](../api/component.md#usetemplateref)
 
 [← 12. Writing composables](12-writing-composables.md) · [Guide contents](../GUIDE.md) · [14. Organising state →](14-state-architecture.md)

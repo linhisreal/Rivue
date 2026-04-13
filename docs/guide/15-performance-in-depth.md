@@ -2,19 +2,19 @@
 
 # 15. Performance in depth
 
-[Chapter 9](09-performance-and-debugging.md#performance) covered the usual fixes. This one goes
-further: where render time actually goes, how to see what re-renders, and what to do about it.
+[Chapter 9](09-performance-and-debugging.md#performance) covered the usual fixes. This chapter
+covers where render time goes, how to see what re-renders, and what to do about it.
 
 ## Where the time goes
 
-A state change costs two things: the render functions that read it, and a diff against the
-Instances. Rivue only writes properties that changed, so the engine side stays small. What's left
-is up to you: how often renders run, and how much each one does.
+A state change costs two things: running the render functions that read it, and diffing their
+result against the Instances. Rivue writes only the properties that changed, so the engine side
+stays small. What you control is how often renders run and how much each one does.
 
 ## Keep fast-changing reads small
 
 Only components whose render read a changed value re-render, and children whose props didn't
-change are skipped. So a value that changes ten times a second, like ping, should be read in the
+change are skipped. A value that changes ten times a second, like ping, should be read in the
 smallest component that shows it:
 
 ![moving a fast-changing read into a small component](../assets/diagrams/rerender-split.webp)
@@ -34,9 +34,9 @@ h(PingLabel)
 
 ### Or bind the one property
 
-When the value only feeds one property, you can skip the extra component and bind that property
-instead. `Rivue.bind` gives the property its own small effect, so a change writes the label's
-`Text` and nothing else re-renders, not even the component that drew it:
+When the value feeds a single property, bind that property instead of adding a component.
+`Rivue.bind` gives the property its own small effect, so a change writes the label's `Text` and
+nothing re-renders, not even the component that drew it:
 
 ![a value read in render versus a bound property](../assets/diagrams/bindings.webp)
 
@@ -55,11 +55,14 @@ then, reading it in render is simpler and fast enough.
 
 ## Finding what re-renders
 
-Besides `onRenderTriggered` and `app:printTree()` from
-[chapter 9](09-performance-and-debugging.md#debugging), there are two more tools.
-`Rivue.onRenderTracked(fn)` lists every value a render read, which is everything that can make it
-re-render. And with `Rivue.debug.enabled` on, `Rivue.debug.measure("label", fn)` logs how long
-`fn` took.
+The [DevTools](../DEVTOOLS.md) Perf tab records renders while you play: which components rendered,
+how often, why, and the slowest updates. For frame-level detail, set
+`app.config.performance = true` before mounting. Each component's setup, render and patch then
+shows up in the MicroProfiler (Ctrl+F6) as `Rivue <Name> render` and so on.
+
+In code, `onRenderTriggered` and `app:printTree()` from
+[chapter 9](09-performance-and-debugging.md#debugging) still work. `Rivue.onRenderTracked(fn)`
+lists every value a render read, which is everything that can make it re-render.
 
 ## memo and throttle
 
@@ -77,11 +80,9 @@ Rivue.hFor(ctx.items, function(item)
 end)
 ```
 
-Careful, though: a value missing from the list won't update the row. List everything it renders
-from.
+A value missing from the list won't update the row, so list everything it renders from.
 
-For sources that change every frame, throttle the writes to the ref. The render then follows on
-its own:
+For sources that change every frame, throttle the writes to the ref, and the render follows:
 
 ```lua
 setup = function()
@@ -99,9 +100,38 @@ setup = function()
 end,
 ```
 
+## Long lists and many Instances
+
+`Rivue.VirtualList` creates only the rows on screen, so 5,000 items cost about as much as 20. It
+takes the items, a fixed `itemSize`, a `key` function and a `render` function per item, and
+`columns` turns it into a grid:
+
+```lua
+h(Rivue.VirtualList, {
+	Size = UDim2.fromOffset(400, 500),
+	items = ctx.items,
+	itemSize = 90,
+	columns = 4,
+	gap = 8,
+	key = function(item)
+		return item.id
+	end,
+	render = function(item)
+		return h("TextButton", { Text = item.name }) -- Size is set for you
+	end,
+})
+```
+
+For a feed that loads more as the player scrolls, `Rivue.useScroll(frameRef, { onReachEnd = fn })`
+calls `fn` near the bottom.
+
+UI that creates and removes Instances all the time, like damage numbers, can reuse them instead:
+`createApp(App, { usePool = true })` resets removed Instances and hands them out again. See
+[Pooling options](../api/application.md#pooling-options).
+
 ## What Rivue already does for you
 
-Some things look expensive but aren't, so don't work around them. A new `onClick` closure on
+Some things look expensive but aren't, so there's no need to work around them. A new `onClick` closure on
 every render is swapped into the existing connection rather than reconnected. Adding, removing or
 moving a row writes one `LayoutOrder`, however long the list. And many writes in a row are
 batched, so each affected component renders once, parents first.
@@ -110,6 +140,7 @@ batched, so each affected component renders once, parents first.
 
 **Reference:** [onRenderTriggered()](../api/lifecycle.md#onrendertriggered) ·
 [VirtualList](../api/builtins.md#virtuallist) · [Pooling options](../api/application.md#pooling-options) ·
-[utils.throttle()](../api/utilities.md#utilsthrottle) · [Element props: memo](../api/render-function.md#element-props)
+[utils.throttle()](../api/utilities.md#utilsthrottle) · [useScroll()](../api/roblox.md#usescroll) ·
+[app.config.performance](../api/application.md#appconfigperformance) · [Element props: memo](../api/render-function.md#element-props)
 
 [← 14. Organising state](14-state-architecture.md) · [Guide contents](../GUIDE.md) · [16. Testing UI →](16-testing-ui.md)
