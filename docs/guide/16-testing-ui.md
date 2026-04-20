@@ -258,10 +258,22 @@ local Grid = Rivue.defineComponent(function()
 end, { name = "Grid" })
 ```
 
+## Previewing in a storybook
+
+To look at a component in Studio without pressing Play, make a story with `Rivue.story`. It works
+with UI Labs and Hoarcekat:
+
+```lua
+-- ShopItem.story.luau
+return Rivue.story(ShopItem, {
+	controls = { name = "Iron Sword", price = 40 }, -- editable in UI Labs
+})
+```
+
 ---
 
 **Reference:** [testing.trigger()](../api/utilities.md#testingtrigger) ·
 [nextTick()](../api/scheduler.md#nexttick) · [effectScope()](../api/reactivity-advanced.md#effectscope) ·
-[mount()](../api/application.md#mount)
+[mount()](../api/application.md#mount) · [story()](../api/utilities.md#story)
 
 [← 15. Performance in depth](15-performance-in-depth.md) · [Guide contents](../GUIDE.md)

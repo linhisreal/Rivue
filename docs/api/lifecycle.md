@@ -259,7 +259,7 @@ start an exit animation.
   	setup = function()
   		local note = Rivue.ref("")
   		Rivue.onBeforeUnmount(function()
-  			Rivue.Remote.fire("notes:save", { text = note.value })
+  			Remote.fire("notes:save", { text = note.value })
   		end)
   		return { note = note }
   	end,
@@ -343,7 +343,7 @@ first time and every time it comes back. Refresh data here.
   		local items = Rivue.shallowRef({})
   		Rivue.onActivated(function()
   			task.spawn(function()
-  				items.value = Rivue.Remote.request("inventory:list", nil) or {}
+  				items.value = Remote.request("inventory:list", nil) or {}
   			end)
   		end)
   		return { items = items }

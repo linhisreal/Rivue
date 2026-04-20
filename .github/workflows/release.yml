@@ -43,3 +43,4 @@ jobs:
           files: |
             build/Rivue.rbxm
             build/Rivue.min.rbxm
+            build/RivueRemote.rbxm

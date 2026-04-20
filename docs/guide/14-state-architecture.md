@@ -84,14 +84,16 @@ local coins = Rivue.attributeRef(Players.LocalPlayer, "Coins", 0)
 
 ```lua
 -- Client, in the store
+local Remote = require(game.ReplicatedStorage.RivueRemote)
+
 task.spawn(function()
-	local items = Rivue.Remote.request("inventory:list", nil)
+	local items = Remote.request("inventory:list", nil)
 	if items then
 		state.owned = items
 	end
 end)
 
-Rivue.Remote.on("inventory:added", function(id: string)
+Remote.on("inventory:added", function(id: string)
 	Rivue.array.push(state.owned, id)
 end)
 ```
@@ -114,7 +116,7 @@ function Inventory.buy(id: string, price: number): (boolean, string?)
 	Rivue.array.push(state.owned, id)
 
 	-- Yields until the server answers
-	local result, err = Rivue.Remote.request("shop:buy", { id = id })
+	local result, err = Remote.request("shop:buy", { id = id })
 	local ok = result ~= nil and (result :: any).ok
 
 	-- Roll back on refusal

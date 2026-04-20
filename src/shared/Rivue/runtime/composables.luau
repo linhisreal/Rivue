@@ -57,6 +57,11 @@ function composables.defineModel<T>(options: ModelOptions?): (props: Props, cont
 	end
 end
 
+--- Vue's runtime useModel: a ref bound to a model prop of the component being set up
+function composables.useModel<T>(props: Props, context: SetupContext, name: string?): Ref<T>
+	return composables.defineModel({ name = name })(props, context)
+end
+
 function composables.useTheme<T>(): T?
 	local current = componentModule.getCurrentInstance()
 

@@ -56,6 +56,7 @@ local function bundle(suites: { Suite }): string
 	addFolder(out, "examples/components", "examplesFolder", "ReplicatedStorage", "Examples")
 	addFolder(out, "src/shared/Demo", "demoFolder", "ReplicatedStorage", "Demo")
 	defineModule(out, "nil", "Rivue", fs.readFile("src/shared/Rivue/Rivue.luau"))
+	defineModule(out, "ReplicatedStorage", "RivueRemote", fs.readFile("src/shared/RivueRemote.luau"))
 
 	for _, suite in suites do
 		table.insert(out, `__runTest("{suite.name}", function(script)\n{suite.source}\nend)`)

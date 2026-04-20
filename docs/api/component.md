@@ -27,6 +27,7 @@ local h = Rivue.h
 - [useAttrs()](#useattrs)
 - [useSlots()](#useslots)
 - [defineModel()](#definemodel)
+- [useModel()](#usemodel)
 - [useId()](#useid)
 - [getCurrentInstance()](#getcurrentinstance)
 - [defineAsyncComponent()](#defineasynccomponent)
@@ -816,6 +817,50 @@ the parent's value, writing it updates the parent.
 
   ```lua
   function defineModel<T>(options: { name: string?, event: string? }?): (props: Props, ctx: SetupContext) -> Ref<T>
+  ```
+
+---
+
+## useModel()
+
+The same ref as [`defineModel()`](#definemodel), in one call inside `setup()`. Matches Vue's
+`useModel`.
+
+- **Example**
+
+  A volume slider the parent binds with `model`:
+
+  ```lua
+  local VolumeSlider = Rivue.defineComponent({
+  	name = "VolumeSlider",
+  	props = { modelValue = { type = "number", default = 50 } },
+  	setup = function(props, ctx)
+  		local volume = Rivue.useModel(props, ctx)
+  		return {
+  			volume = volume,
+  			louder = function()
+  				volume.value = math.min(100, volume.value + 10)
+  			end,
+  		}
+  	end,
+  	render = function(ctx)
+  		return h("TextButton", { Text = `Volume {ctx.volume}`, onClick = ctx.louder })
+  	end,
+  })
+
+  local volume = Rivue.ref(50)
+  h(VolumeSlider, { model = volume })
+  ```
+
+- **Details**
+
+  `name` picks another model prop, for example `useModel(props, ctx, "count")` reads `count` and
+  emits `"update:count"`.
+
+- **Type**
+
+  ```lua
+  function useModel<T>(props: Props, ctx: SetupContext, name: string?): Ref<T>
   ```
 
 ---

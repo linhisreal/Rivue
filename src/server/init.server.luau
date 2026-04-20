@@ -1,5 +1,5 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
+local Remote = require(ReplicatedStorage:WaitForChild("RivueRemote"))
 
 -- Create the remotes up front so clients don't wait for them
-Rivue.Remote.setupServer()
+Remote.setupServer()

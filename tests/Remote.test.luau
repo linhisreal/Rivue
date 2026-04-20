@@ -1,8 +1,8 @@
 --!strict
--- Tests for remote.luau - request/response patterns and event handling
+-- Tests for RivueRemote: request/response patterns and event handling
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Remote = require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("remote"))
+local Remote = require(ReplicatedStorage:WaitForChild("RivueRemote"))
 
 local function assertEquals(actual: any, expected: any, message: string?)
 	if actual ~= expected then

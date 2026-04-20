@@ -1,12 +1,13 @@
-[Docs](../README.md) › [API](../API.md) › **Remote**
+[Docs](../README.md) › [API](../API.md) › **RivueRemote**
 
-# Remote
+# RivueRemote
 
 **Learn it:** [Guide 8: Sharing state and the server](../guide/08-state-and-server.md)
 
 Request/response and events between client and server over RemoteEvents, with payload validation
-and per-player rate limits. All examples assume
-`local Rivue = require(game.ReplicatedStorage.Rivue)`.
+and per-player rate limits. It's a separate package from Rivue, which only does UI: put
+`RivueRemote` next to `Rivue` in ReplicatedStorage. All examples assume
+`local Remote = require(game.ReplicatedStorage.RivueRemote)`.
 
 - [Remote.setupServer()](#remotesetupserver)
 - [Remote.handle()](#remotehandle)
@@ -19,7 +20,7 @@ and per-player rate limits. All examples assume
 
 ## Remote.setupServer()
 
-Creates the RemoteEvents Rivue uses. Call it once in a server script at startup, so clients never
+Creates the RemoteEvents RivueRemote uses. Call it once in a server script at startup, so clients never
 wait for them.
 
 - **Example**
@@ -27,7 +28,7 @@ wait for them.
   <!-- server -->
   ```lua
   -- ServerScriptService/Main.server.luau
-  Rivue.Remote.setupServer()
+  Remote.setupServer()
   ```
 
 - **Details**
@@ -55,9 +56,9 @@ returns is sent back as the response.
   local Players = game:GetService("Players")
   local PRICES = { sword = 100, shield = 75 }
 
-  Rivue.Remote.setupServer()
+  Remote.setupServer()
 
-  Rivue.Remote.handle("shop:buy", function(player, payload)
+  Remote.handle("shop:buy", function(player, payload)
   	if type(payload) ~= "table" or type(payload.id) ~= "string" then
   		return { ok = false, reason = "bad_request" }
   	end
@@ -114,7 +115,7 @@ yields, so call it from `task.spawn` or a watcher, never from render.
   			buy = function()
   				pending.value = true
   				task.spawn(function() -- request yields, so never call it from render
-  					local result, err = Rivue.Remote.request("shop:buy", { id = props.itemId })
+  					local result, err = Remote.request("shop:buy", { id = props.itemId })
   					pending.value = false
   					if err then
   						message.value = `Error: {err}`
@@ -158,13 +159,13 @@ Tells the server something without waiting for a reply, like "the player opened 
 
   ```lua
   -- Client
-  Rivue.Remote.fire("settings:save", { music = 0.5, sfx = 1 })
+  Remote.fire("settings:save", { music = 0.5, sfx = 1 })
   ```
 
   <!-- server -->
   ```lua
   -- Server
-  Rivue.Remote.handle("settings:save", function(player, payload)
+  Remote.handle("settings:save", function(player, payload)
   	print(player.Name, "saved settings", payload)
   	return nil
   end)
@@ -192,7 +193,7 @@ Listens on the client for events the server sends, like a new message or a price
   -- Client: show announcements
   local announcement = Rivue.ref("")
 
-  local conn = Rivue.Remote.on("Announcement", function(text)
+  local conn = Remote.on("Announcement", function(text)
   	announcement.value = text
   end)
 
@@ -221,7 +222,7 @@ Listens on the client for events the server sends, like a new message or a price
 - **Example**
 
   ```lua
-  local data, err = Rivue.Remote.request("inventory:get", nil, 5)
+  local data, err = Remote.request("inventory:get", nil, 5)
   if err == "timeout" then
   	warn("server didn't answer")
   elseif err then

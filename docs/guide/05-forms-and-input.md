@@ -49,6 +49,14 @@ flowchart LR
 Why a name? `ctx.draft` is the ref's *value* (a string), so `model = ctx.draft` would bind to a
 plain string. Outside `render(ctx)`, pass the ref itself: `model = draftRef`.
 
+Like Vue's `v-model.trim`, `.number` and `.lazy`, `modelModifiers` changes what gets stored:
+
+```lua
+h("TextBox", { model = "username", modelModifiers = { trim = true } }) -- "  Ada " → "Ada"
+h("TextBox", { model = "amount", modelModifiers = { number = true } }) -- "42" → 42
+h("TextBox", { model = "search", modelModifiers = { lazy = true } }) -- updates on focus lost
+```
+
 ## model on your own components
 
 A component supports `model` by reading `modelValue` and emitting `"update:modelValue"`.

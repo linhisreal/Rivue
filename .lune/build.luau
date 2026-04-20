@@ -1,7 +1,7 @@
 --[[
 	Builds the distributables into build/.
 
-	lune run build              Rivue.rbxm, the test place and the examples place
+	lune run build              Rivue.rbxm, RivueRemote.rbxm, the test place and the examples place
 	lune run build minify       also Rivue.min.rbxm: comments and whitespace stripped by darklua
 ]]
 
@@ -25,6 +25,7 @@ end
 fs.writeDir(OUT)
 
 exec("rojo", { "build", "rivue.project.json", "-o", `{OUT}/Rivue.rbxm` })
+exec("rojo", { "build", "rivue-remote.project.json", "-o", `{OUT}/RivueRemote.rbxm` })
 exec("rojo", { "build", "default.project.json", "-o", `{OUT}/RivueTestPlace.rbxl` })
 exec("rojo", { "build", "examples.project.json", "-o", `{OUT}/RivueExamples.rbxl` })
 

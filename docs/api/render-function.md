@@ -107,9 +107,12 @@ Everything you can put in an element's props table, and what Rivue does with it.
 | `ref` | A `Ref`, a function, or a string name. See [Template refs](component.md#usetemplateref) |
 | `vName = value` | A [directive](directives.md): `vShow`, `vFocus`, `vClickOutside`, `vSelect`, `vDrag`, ... |
 | `model = ref \| "name"` | Two-way `Text` binding on a TextBox. A string names a ref returned by `setup()` (for [`render(ctx)`](component.md#render)) |
+| `modelModifiers = { trim, number, lazy }` | With `model`: `trim` strips spaces, `number` stores a number when the text is one, `lazy` updates the ref when the box loses focus instead of on every key |
 | `class = "a" \| { "a", "b" } \| { a = bool }` | Applies named styles from the component's [`styles`](component.md#styles) and [`app:styles()`](application.md#appstyles). See below |
 | `style = table \| { tables }` | Prop tables merged under the element's own props. `false`/`nil` entries are skipped |
 | `memo = { deps }` | Skips patching this element and its children while every dep is `==` |
+| `disabled = true` | Applies the classes' `disabled` variants, sets `Interactable = false`, and turns hover and pressed styles off |
+| `vOnce = true` | Renders the element and its children once, then never patches them again |
 | `transition` | Enter/leave tween config, see [Transition](builtins.md#transition) |
 | `cornerRadius` | Creates a `UICorner` (number of pixels, or a UDim) |
 | `padding` | Creates a `UIPadding`: a number/UDim for all sides, `{ top, right, bottom, left }`, or `{ x, y }` |
@@ -117,6 +120,10 @@ Everything you can put in an element's props table, and what Rivue does with it.
 | `aspectRatio` | Creates a `UIAspectRatioConstraint` |
 | `layout` | Creates a `UIListLayout` or `UIGridLayout`. See below |
 | `flex` | Creates a `UIFlexItem`: `"fill"`, `"grow"`, `"shrink"`, `"none"`, a grow ratio, or a table of UIFlexItem properties |
+| `gradient` | Creates a `UIGradient`: a Color3, a ColorSequence, or `{ from, to, rotation, transparency, offset }` with the two colours first |
+| `scale` | Creates a `UIScale` with that `Scale` |
+| `sizeLimit` | Creates a `UISizeConstraint`: `{ min = Vector2, max = Vector2 }` |
+| `textSizeLimit` | Creates a `UITextSizeConstraint`: `{ min = number, max = number }`, for `TextScaled` text |
 
 - **Example**
 
