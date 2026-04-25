@@ -257,6 +257,8 @@ export type AppConfig = {
 	errorHandler: ((err: string, instance: unknown, info: string) -> ())?,
 	globalProperties: { [string]: unknown }?,
 	warnHandler: ((message: string, instance: unknown, trace: string) -> ())?,
+	-- Mirror components onto their root Instances for the DevTools plugin
+	devtools: boolean?,
 }
 
 export type AppContext = {

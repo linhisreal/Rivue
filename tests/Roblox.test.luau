@@ -376,6 +376,133 @@ local function runTests()
 		instance:Destroy()
 	end
 
+	print("ViewportModel camera fits the model")
+	do
+		local builtins =
+			require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("builtins")) :: any
+		local eye, target = builtins.viewportCamera(Vector3.new(0, 0, 0), Vector3.new(2, 2, 2), 90, 0, 0, 1)
+		assertTrue(target == Vector3.new(0, 0, 0), "the camera looks at the model's centre")
+		assertTrue(math.abs(eye.Z - math.sqrt(12) / 2) < 1e-6, "far enough back for the model to fill the view")
+		assertTrue(math.abs(eye.X) < 1e-6 and math.abs(eye.Y) < 1e-6, "angle 0, pitch 0 looks straight on")
+		local side = builtins.viewportCamera(Vector3.new(0, 0, 0), Vector3.new(2, 2, 2), 90, 90, 0, 2)
+		assertTrue(math.abs(side.X - math.sqrt(12)) < 1e-6, "angle turns the camera, distance moves it back")
+	end
+
+	if not __OFFLINE then
+		print("ViewportModel frames a part")
+		do
+			local part = Instance.new("Part")
+			part.Size = Vector3.new(4, 2, 1)
+			local container = Instance.new("Folder")
+			local app = Rivue.createApp(Rivue.h(Rivue.ViewportModel, { model = part, Name = "Preview" }))
+			app:mount(container)
+			local frame = container:FindFirstChild("Preview") :: ViewportFrame
+			assertTrue(frame:FindFirstChildOfClass("Part") ~= nil, "the model is cloned into the frame")
+			assertTrue(frame.CurrentCamera ~= nil, "the frame gets its own camera")
+			app:unmount()
+			part:Destroy()
+		end
+
+		print("Keybinds, translations and scrolling need engine input: skipped in Studio")
+	else
+		print("useKeybind")
+		do
+			local pressed = 0
+			local enabled = Rivue.ref(true)
+			local scope = Rivue.effectScope()
+			scope:run(function()
+				Rivue.useKeybind({ Enum.KeyCode.Escape, Enum.KeyCode.ButtonB }, function()
+					pressed += 1
+				end, { enabled = enabled })
+			end)
+			__pressKey(Enum.KeyCode.Escape)
+			__pressKey(Enum.KeyCode.ButtonB)
+			assertEquals(pressed, 2, "each bound key runs the callback")
+			enabled.value = false
+			Rivue.nextTick()
+			__pressKey(Enum.KeyCode.Escape)
+			assertEquals(pressed, 2, "disabled keybinds don't run")
+			enabled.value = true
+			Rivue.nextTick()
+			__pressKey(Enum.KeyCode.Escape)
+			assertEquals(pressed, 3, "enabled again")
+			scope:stop()
+			__pressKey(Enum.KeyCode.Escape)
+			assertEquals(pressed, 3, "unbound when the scope stops")
+		end
+
+		print("useLocale and useTranslator")
+		do
+			__translations["en-us"] = { greeting = "Hi {name}" }
+			__translations["fr-fr"] = { greeting = "Salut {name}" }
+			local player = game:GetService("Players").LocalPlayer :: any
+			local t = Rivue.useTranslator()
+			task.wait()
+			assertEquals(t("greeting", { name = "Ada" }), "Hi Ada", "translates once loaded")
+			assertEquals(t("missing"), "missing", "a missing key returns the key")
+			local seen = ""
+			local scope = Rivue.effectScope()
+			scope:run(function()
+				Rivue.watchEffect(function()
+					seen = t("greeting", { name = "Ada" })
+				end)
+			end)
+			player.LocaleId = "fr-fr"
+			assertEquals(Rivue.useLocale().value, "fr-fr", "useLocale follows the player's language")
+			task.wait()
+			Rivue.nextTick()
+			assertEquals(seen, "Salut Ada", "text using t() updates when the language changes")
+			player.LocaleId = "en-us"
+			task.wait()
+			scope:stop()
+		end
+
+		print("useScroll")
+		do
+			local reachedEnd = 0
+			local scroll
+			local Feed = Rivue.defineComponent({
+				name = "ScrollFeed",
+				setup = function()
+					local frame = Rivue.useTemplateRef("frame")
+					scroll = Rivue.useScroll(frame, {
+						threshold = 50,
+						onReachEnd = function()
+							reachedEnd += 1
+						end,
+					})
+					return {}
+				end,
+				render = function()
+					return Rivue.h("ScrollingFrame", { ref = "frame", Name = "Feed" })
+				end,
+			})
+			local container = Instance.new("Folder")
+			local app = Rivue.createApp(Feed)
+			app:mount(container)
+			Rivue.nextTick()
+			local frame = container:FindFirstChild("Feed") :: any
+			assertEquals(reachedEnd, 1, "an empty list is already at its end, so it asks for more")
+			reachedEnd = 0
+			frame.AbsoluteWindowSize = Vector2.new(100, 100)
+			frame.AbsoluteCanvasSize = Vector2.new(100, 1000)
+			frame.CanvasPosition = Vector2.new(0, 400)
+			assertEquals(scroll.position.value.Y, 400, "position follows the frame")
+			assertEquals(reachedEnd, 0, "not near the end yet")
+			frame.CanvasPosition = Vector2.new(0, 860)
+			assertEquals(reachedEnd, 1, "onReachEnd runs within the threshold of the end")
+			frame.CanvasPosition = Vector2.new(0, 870)
+			assertEquals(reachedEnd, 1, "and only once until the player scrolls away")
+			scroll.scrollTo(0)
+			assertEquals(frame.CanvasPosition.Y, 0, "scrollTo moves the frame")
+			assertEquals(scroll.atEnd.value, false, "no longer at the end")
+			scroll.scrollToEnd()
+			assertEquals(frame.CanvasPosition.Y, 900, "scrollToEnd goes to the bottom")
+			assertEquals(reachedEnd, 2, "reaching the end again calls onReachEnd again")
+			app:unmount()
+		end
+	end
+
 	print("\n========== ROBLOX UTILS TESTS COMPLETE ==========\n")
 end
 

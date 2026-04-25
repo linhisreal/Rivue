@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/guide-icon.svg" width="128" height="128" alt="Rivue Guide logo">
+  <img src="./assets/guide-icon.svg" width="128" height="128" alt="Rivue Guide logo">
 </p>
 
 <h1 align="center">Rivue Guide</h1>
@@ -14,6 +14,8 @@
 | **[Examples](../examples)** | Todo list, inventory, modal, tabs, shop and HUD, all tested |
 | **[API reference](API.md)** | Every function, prop and component, with an example each |
 | **[Coming from Vue](VUE.md)** | Template-to-Luau cheat sheet |
+| **[Coming from Roact, React-lua or Fusion](COMING-FROM-REACT.md)** | API map and what works differently |
+| **[DevTools](DEVTOOLS.md)** | A Studio plugin that shows the live component tree |
 | **[Architecture](ARCHITECTURE.md)** | Renderer and reactivity internals, for contributors |
 
 ## I want to…
@@ -35,6 +37,10 @@
 | load data from the server | [Guide 8](guide/08-state-and-server.md#talking-to-the-server) | [Remote](api/remote.md) | [Shop](../examples/components/Shop.luau) |
 | show a long list fast | [Guide 9](guide/09-performance-and-debugging.md), [15](guide/15-performance-in-depth.md) | [VirtualList](api/builtins.md#virtuallist) | [Inventory](../examples/components/Inventory.luau) |
 | organise files once there are many screens | [Guide 10](guide/10-organising-a-project.md) | [components](api/component.md#components) | [Demo app](../src/shared/Demo) |
+| close a menu with Escape or the B button | [Guide 5](guide/05-forms-and-input.md#keyboard-and-gamepad-shortcuts) | [useKeybind()](api/roblox.md#usekeybind) | |
+| translate text into the player's language | | [useTranslator()](api/roblox.md#usetranslator) | |
+| load more when the player scrolls to the end | | [useScroll()](api/roblox.md#usescroll) | |
+| show a 3D item in a shop or inventory | | [ViewportModel](api/builtins.md#viewportmodel) | |
 | check my code follows the conventions | [Guide 11](guide/11-style-rules.md) | | |
 | reuse logic between components | [Guide 12](guide/12-writing-composables.md) | [toValue()](api/reactivity-utilities.md#tovalue), [onScopeDispose()](api/reactivity-advanced.md#onscopedispose) | |
 | build tabs, menus or modals that fit together | [Guide 13](guide/13-advanced-components.md) | [provide()](api/component.md#provide), [Teleport](api/builtins.md#teleport) | [Tabs](../examples/components/Tabs.luau) |

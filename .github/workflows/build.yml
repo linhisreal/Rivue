@@ -24,7 +24,7 @@ jobs:
 
       - name: Type check
         run: |
-          rojo sourcemap default.project.json -o sourcemap.json
+          rojo sourcemap place.project.json -o sourcemap.json
           curl -sSfL -o globalTypes.d.luau https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/main/scripts/globalTypes.d.luau
           luau-lsp analyze --sourcemap=sourcemap.json --definitions=globalTypes.d.luau src/ examples/
           lune setup

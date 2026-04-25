@@ -9,8 +9,14 @@
 </p>
 
 <p align="center">
+  <a href="https://create.roblox.com/store/models?keyword=Rivue"><img src="docs/assets/badges/creator-store.svg" height="40" alt="Get it on the Roblox Creator Store"></a>
+  <a href="https://wally.run/package/linhisreal/rivue"><img src="docs/assets/badges/wally.svg" height="40" alt="Wally: linhisreal/rivue"></a>
+  <a href="https://luau.org"><img src="docs/assets/badges/luau.svg" height="40" alt="Written in Luau"></a>
+  <a href="https://linhisreal.github.io/Rivue/"><img src="docs/assets/badges/docs.svg" height="40" alt="Docs"></a>
+</p>
+
+<p align="center">
   <a href="https://github.com/linhisreal/Rivue/actions/workflows/build.yml"><img src="https://github.com/linhisreal/Rivue/actions/workflows/build.yml/badge.svg" alt="CI"></a>
-  <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-blue.svg" alt="License: PolyForm Noncommercial 1.0.0"></a>
 </p>
 
 Describe your UI for the current state. When state changes, Rivue re-renders only the components
@@ -76,12 +82,18 @@ package adds requests and events with rate limits.
 
 Rivue is a ModuleScript with a `runtime` folder. Put it in `ReplicatedStorage`.
 
-**With Rojo**, add this repo as a git submodule and point your project at its
-`rivue.project.json`:
+**With Wally**, add Rivue to your `wally.toml` and run `wally install`:
+
+```toml
+[dependencies]
+Rivue = "linhisreal/rivue@2.56.0"
+```
+
+**With Rojo**, add this repo as a git submodule and point your project at the folder:
 
 ```json
 "ReplicatedStorage": {
-  "Rivue": { "$path": "vendor/Rivue/rivue.project.json" }
+  "Rivue": { "$path": "vendor/Rivue" }
 }
 ```
 
@@ -92,10 +104,13 @@ calls; put it next to Rivue.
 
 ## Docs
 
-Start at the [docs home](docs/README.md), which has an "I want to…" index.
+Read them at **[linhisreal.github.io/Rivue](https://linhisreal.github.io/Rivue/)**, or start at the
+[docs home](docs/README.md) here, which has an "I want to…" index.
 
 [Guide](docs/GUIDE.md) · [Examples](examples) · [API reference](docs/API.md) ·
-[Coming from Vue](docs/VUE.md) · [Architecture](docs/ARCHITECTURE.md)
+[Coming from Vue](docs/VUE.md) ·
+[Coming from Roact, React-lua or Fusion](docs/COMING-FROM-REACT.md) · [DevTools](docs/DEVTOOLS.md) ·
+[Architecture](docs/ARCHITECTURE.md)
 
 ## Contributing
 
@@ -107,9 +122,10 @@ lune setup                        # editor types for the Lune scripts
 lune run test                     # all suites, without Studio
 lune run check-docs               # links resolve and every API example runs
 lune run build                    # Rivue.rbxm and places, into build/
+rojo serve place.project.json     # the test place in Studio
 ```
 
-CI also runs StyLua and luau-lsp.
+CI also runs StyLua and luau-lsp. Releases and Wally publishing: [docs/RELEASING.md](docs/RELEASING.md).
 
 ```
 src/shared/Rivue/    the library

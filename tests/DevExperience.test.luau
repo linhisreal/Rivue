@@ -421,6 +421,39 @@ local function runTests()
 		assertTrue(disconnected, "cleanup disconnects from the controls")
 	end
 
+	print("app.config.devtools mirrors components onto their roots")
+	do
+		local Counter = Rivue.defineComponent({
+			name = "DevtoolsCounter",
+			props = { label = { type = "string", default = "Coins" } },
+			setup = function()
+				return { count = Rivue.ref(3), unused = Rivue.ref("hidden") }
+			end,
+			render = function(ctx)
+				return Rivue.h("TextLabel", { Text = `{ctx.label}: {ctx.count}` })
+			end,
+		})
+		local container = Instance.new("Folder")
+		local app = Rivue.createApp(Rivue.h(Counter, { label = "Gems" }))
+		app.config.devtools = true
+		app:mount(container)
+		local root = container:FindFirstChild("DevtoolsCounter") :: TextLabel
+		local CollectionService = game:GetService("CollectionService")
+		assertTrue(CollectionService:HasTag(root, "RivueComponent"), "roots are tagged for the plugin")
+		assertEquals(root:GetAttribute("RivueComponent"), "DevtoolsCounter", "the component's name")
+		assertEquals(root:GetAttribute("RivueProps"), 'label = "Gems"', "its props")
+		assertEquals(root:GetAttribute("RivueState"), 'count = 3\nunused = "hidden"', "its state refs")
+		assertEquals(root:GetAttribute("RivueRenders"), 1, "how many times it rendered")
+		app:unmount()
+
+		local plain = Instance.new("Folder")
+		local quiet = Rivue.createApp(Rivue.h(Counter))
+		quiet:mount(plain)
+		local quietRoot = plain:FindFirstChild("DevtoolsCounter") :: TextLabel
+		assertEquals(quietRoot:GetAttribute("RivueComponent"), nil, "off unless enabled")
+		quiet:unmount()
+	end
+
 	print("\n========== DEVELOPER EXPERIENCE TESTS COMPLETE ==========\n")
 end
 

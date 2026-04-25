@@ -114,7 +114,8 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [KeepAlive](api/builtins.md#keepalive) ·
 [Teleport](api/builtins.md#teleport) ·
 [Suspense](api/builtins.md#suspense) ·
-[VirtualList](api/builtins.md#virtuallist)
+[VirtualList](api/builtins.md#virtuallist) ·
+[ViewportModel](api/builtins.md#viewportmodel)
 
 **[Directives](api/directives.md)**
 [vShow](api/directives.md#vshow) ·
@@ -157,6 +158,10 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 **[Roblox Composables](api/roblox.md)**
 [useViewportSize()](api/roblox.md#useviewportsize) ·
 [useDevice()](api/roblox.md#usedevice) ·
+[useKeybind()](api/roblox.md#usekeybind) ·
+[useLocale()](api/roblox.md#uselocale) ·
+[useTranslator()](api/roblox.md#usetranslator) ·
+[useScroll()](api/roblox.md#usescroll) ·
 [useInputType()](api/roblox.md#useinputtype) ·
 [useSafeArea()](api/roblox.md#usesafearea) ·
 [useSelection()](api/roblox.md#useselection) ·
