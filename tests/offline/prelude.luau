@@ -517,7 +517,16 @@ local CLASSES = {
 	},
 	TextBox = {
 		bases = { "GuiObject", "GuiBase2d" },
-		props = { GUI_PROPS, TEXT_PROPS, { PlaceholderText = "", ClearTextOnFocus = true, CursorPosition = -1 } },
+		props = {
+			GUI_PROPS,
+			TEXT_PROPS,
+			{
+				PlaceholderText = "",
+				PlaceholderColor3 = Color3.new(0.7, 0.7, 0.7),
+				ClearTextOnFocus = true,
+				CursorPosition = -1,
+			},
+		},
 		events = { "FocusLost", "Focused" },
 	},
 	ImageLabel = { bases = { "GuiObject", "GuiBase2d" }, props = { GUI_PROPS, IMAGE_PROPS } },
@@ -608,6 +617,7 @@ local COMMON_EVENTS = {
 	"MouseLeave",
 	"SelectionGained",
 	"SelectionLost",
+	"AttributeChanged",
 }
 local instanceCount = 0
 Instance = {}
@@ -699,6 +709,9 @@ function Instance.new(className, parent)
 		attrs[k] = v
 		if old ~= v and propSignals["@" .. k] then
 			propSignals["@" .. k]:Fire()
+		end
+		if old ~= v and signals.AttributeChanged then
+			signals.AttributeChanged:Fire(k)
 		end
 	end
 	function methods:GetAttribute(k)
@@ -879,6 +892,15 @@ do
 	pg.Name = "PlayerGui"
 	pg.Parent = player
 	services.Players = { LocalPlayer = player, PlayerRemoving = makeSignal(), PlayerAdded = makeSignal() }
+	local selection = {}
+	services.Selection = {
+		Set = function(_, list)
+			selection = list
+		end,
+		Get = function()
+			return selection
+		end,
+	}
 	-- Keybinds: tests press keys with __pressKey(Enum.KeyCode.X)
 	local actions = {}
 	services.ContextActionService = {

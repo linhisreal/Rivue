@@ -28,7 +28,7 @@
 | split a screen into components | [Guide 4](guide/04-components.md) | [props](api/component.md#props), [emits](api/component.md#emits) | [TodoList](../examples/components/TodoList.luau) |
 | make a panel, card or modal that takes content | [Guide 4](guide/04-components.md#slots-passing-ui-into-a-component) | [Slots](api/component.md#slots) | [Modal](../examples/components/Modal.luau) |
 | read text the player types | [Guide 5](guide/05-forms-and-input.md) | [Element props: model](api/render-function.md#element-props) | [TodoList](../examples/components/TodoList.luau) |
-| style things consistently | [Guide 6](guide/06-styling-and-layout.md#style-classes) | [app:styles()](api/application.md#appstyles) | [Demo app](../src/shared/Demo) |
+| style things consistently | [Guide 6](guide/06-styling-and-layout.md#style-classes) | [app:styles()](api/application.md#appstyles) | [Demo app](../dev/Demo) |
 | lay out rows, columns and grids | [Guide 6](guide/06-styling-and-layout.md#layout-without-positions) | [Element props: layout](api/render-function.md#element-props) | [Tabs](../examples/components/Tabs.luau) |
 | support phones and controllers | [Guide 6](guide/06-styling-and-layout.md#different-devices) | [Roblox composables](api/roblox.md) | [Hud](../examples/components/Hud.luau) |
 | run code when something changes | [Guide 7](guide/07-effects-and-animation.md) | [watch()](api/reactivity-core.md#watch) | [Hud](../examples/components/Hud.luau) |
@@ -36,7 +36,7 @@
 | share state across the game | [Guide 8](guide/08-state-and-server.md), [14](guide/14-state-architecture.md) | [provide()](api/component.md#provide), [readonly()](api/reactivity-core.md#readonly) | |
 | load data from the server | [Guide 8](guide/08-state-and-server.md#talking-to-the-server) | [Remote](api/remote.md) | [Shop](../examples/components/Shop.luau) |
 | show a long list fast | [Guide 9](guide/09-performance-and-debugging.md), [15](guide/15-performance-in-depth.md) | [VirtualList](api/builtins.md#virtuallist) | [Inventory](../examples/components/Inventory.luau) |
-| organise files once there are many screens | [Guide 10](guide/10-organising-a-project.md) | [components](api/component.md#components) | [Demo app](../src/shared/Demo) |
+| organise files once there are many screens | [Guide 10](guide/10-organising-a-project.md) | [components](api/component.md#components) | [Demo app](../dev/Demo) |
 | close a menu with Escape or the B button | [Guide 5](guide/05-forms-and-input.md#keyboard-and-gamepad-shortcuts) | [useKeybind()](api/roblox.md#usekeybind) | |
 | translate text into the player's language | | [useTranslator()](api/roblox.md#usetranslator) | |
 | load more when the player scrolls to the end | | [useScroll()](api/roblox.md#usescroll) | |

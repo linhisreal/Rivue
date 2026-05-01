@@ -138,6 +138,17 @@ local function clearStates(el: Instance)
 	end
 end
 
+-- Off unless app.config.devtools is set
+const DEVTOOLS_TAG = "RivueComponent"
+
+-- Unmounted roots leave the DevTools list, and pooled Instances don't carry old data
+local function clearDevtools(el: Instance)
+	CollectionService:RemoveTag(el, DEVTOOLS_TAG)
+	for _, name in { "RivueComponent", "RivueProps", "RivueState", "RivueRenders" } do
+		el:SetAttribute(name, nil)
+	end
+end
+
 -- IsA is an engine call. Element vnodes carry their ClassName, so these answer from it
 local guiObjectClasses: { [string]: boolean } = {}
 
@@ -1403,6 +1414,10 @@ local function unmountVNode(vnode: RenderVNode?, poolOpt: PoolOptions?, doRemove
 			inst:runBeforeUnmount()
 			inst:runUnmounted()
 
+			local root = inst.el
+			if root and inst.appContext.config.devtools then
+				clearDevtools(root)
+			end
 			unmountVNode(inst.subTree, poolOpt, doRemove)
 			vnode._instance = nil
 		end
@@ -1711,8 +1726,7 @@ local function describeValue(value: unknown): string
 	return t
 end
 
--- Off unless app.config.devtools is set: these are engine calls on every render
-const DEVTOOLS_TAG = "RivueComponent"
+-- These are engine calls on every render, which is why devtools is opt-in
 const DEVTOOLS_TEXT_LIMIT = 1000
 
 local function devtoolsText(lines: { string }): string

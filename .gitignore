@@ -19,3 +19,4 @@ globalTypes.d.luau
 node_modules/
 docs/.vitepress/dist/
 docs/.vitepress/cache/
+pesde.lock

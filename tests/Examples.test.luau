@@ -208,7 +208,7 @@ local function runTests()
 		app:unmount()
 	end
 
-	print("Demo app (src/shared/Demo)")
+	print("Demo app (dev/Demo)")
 	do
 		local Demo = ReplicatedStorage:WaitForChild("Demo")
 		local App = require(Demo:WaitForChild("App"))

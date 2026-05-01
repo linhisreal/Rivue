@@ -8,7 +8,7 @@ clicked through by `tests/Examples.test.luau`, so they stay working.
 They all follow the [style rules](../docs/guide/11-style-rules.md): state and functions in `setup()`,
 markup in `render(ctx)`, visuals in a `styles` table applied with `class`, and `layout` instead of
 absolute positions. For a multi-file app (views, components, app-wide styles), see
-[src/shared/Demo](../src/shared/Demo).
+[dev/Demo](../dev/Demo).
 
 | Example | Shows | Guide chapters |
 |---------|-------|----------------|
@@ -22,14 +22,14 @@ absolute positions. For a multi-file app (views, components, app-wide styles), s
 
 ## Running them
 
-**In a place of their own.** This needs [Rojo](https://rojo.space):
+**In the dev place.** This needs [Rojo](https://rojo.space). From the repo root:
 
 ```sh
-rojo serve examples.project.json
+rojo serve
 ```
 
-Connect from Studio and press Play.
-[place/ExamplesRunner.client.luau](place/ExamplesRunner.client.luau) mounts a few of them
+Connect from Studio, set the attribute `RivueExamples = true` on Workspace, and press Play.
+[dev/client/Examples.client.luau](../dev/client/Examples.client.luau) mounts a few of them
 together.
 
 **In your game.** Copy a file from `components/` and require it like any ModuleScript:

@@ -7,6 +7,7 @@
 All examples assume `local Rivue = require(game.ReplicatedStorage.Rivue)`.
 
 - [Rivue.dev](#rivuedev)
+- [Rivue.version](#rivueversion)
 - [printTree()](#printtree)
 - [debug.enabled](#debugenabled)
 - [inspect()](#inspect)
@@ -47,6 +48,24 @@ only run when this is true.
 
   ```lua
   Rivue.dev: boolean
+  ```
+
+---
+
+## Rivue.version
+
+The version of Rivue that's running, such as `"2.57.0"`. Every Rivue package shares one version.
+
+- **Example**
+
+  ```lua
+  print(`Running Rivue {Rivue.version}`)
+  ```
+
+- **Type**
+
+  ```lua
+  Rivue.version: string
   ```
 
 ---
