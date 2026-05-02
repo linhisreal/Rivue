@@ -197,6 +197,7 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 
 **[Utilities and Debugging](api/utilities.md)**
 [Rivue.dev](api/utilities.md#rivuedev) ·
+[Rivue.version](api/utilities.md#rivueversion) ·
 [printTree()](api/utilities.md#printtree) ·
 [debug.enabled](api/utilities.md#debugenabled) ·
 [inspect()](api/utilities.md#inspect) ·
