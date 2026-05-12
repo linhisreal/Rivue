@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue"
-import { useRoute } from "vitepress"
+import { useData, useRoute } from "vitepress"
 
 type Heading = { id: string; text: string; depth: number }
 type Point = { x: number; top: number; bottom: number }
@@ -10,6 +10,7 @@ const INSET = 6
 const PAD = 4
 
 const route = useRoute()
+const { frontmatter } = useData()
 const headings = ref<Heading[]>([])
 const points = ref<Point[]>([])
 const active = ref<number[]>([])
@@ -46,7 +47,9 @@ const thumb = computed(() => {
 })
 
 function collect() {
-	const found = [...document.querySelectorAll<HTMLElement>(".vp-doc :is(h2, h3, h4)[id]")]
+	const deepest = typeof frontmatter.value.outline === "number" ? frontmatter.value.outline : 4
+	const levels = ["h2", "h3", "h4"].slice(0, Math.max(1, deepest - 1)).join(", ")
+	const found = [...document.querySelectorAll<HTMLElement>(`.vp-doc :is(${levels})[id]`)]
 	headings.value = found.map((el) => ({
 		id: el.id,
 		text: (el.textContent ?? "").replace(/​/g, "").trim(),
