@@ -314,13 +314,17 @@ local function runTests()
 				return h("TextBox", { model = "missing" })
 			end,
 		})
+		-- Through LogService: in Roblox each module has its own globals, so replacing warn here
+		-- wouldn't catch Rivue's warn calls
 		local warnings: { string } = {}
-		local realWarn = warn
-		warn = function(...: any)
-			table.insert(warnings, table.concat({ ... }, " "))
-		end :: any
+		local conn = game:GetService("LogService").MessageOut:Connect(function(message, kind)
+			if kind == Enum.MessageType.MessageWarning then
+				table.insert(warnings, message)
+			end
+		end)
 		Rivue.createApp(Broken):mount(Instance.new("Frame"))
-		warn = realWarn
+		task.wait()
+		conn:Disconnect()
 		local mentioned = false
 		for _, line in warnings do
 			if string.find(line, "didn't return a ref named 'missing'", 1, true) then

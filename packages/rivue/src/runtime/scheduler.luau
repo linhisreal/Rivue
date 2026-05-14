@@ -25,6 +25,41 @@ const MAX_REENTRANCY_DEPTH = 100
 
 local NOOP_HANDLE: JobHandle = table.freeze({ cancel = function() end })
 
+-- Roblox drops a task.defer more than 80 deferred levels deep (a loop of nextTick() calls gets
+-- there), and it only logs, so pcall can't see it. The flush would never run and updateScheduled
+-- would stay true forever, so count our own depth and move to the next Heartbeat well before that.
+const MAX_DEFER_DEPTH = 60
+local deferDepth = 0
+local overflow: { thread | () -> () } = {}
+
+local function runOverflow(): ()
+	local items = overflow
+	overflow = {}
+	for _, item in items do
+		task.spawn(item)
+	end
+end
+
+local function defer(item: thread | () -> ()): ()
+	local depth = deferDepth + 1
+	if depth > MAX_DEFER_DEPTH then
+		table.insert(overflow, item)
+		if #overflow == 1 then
+			RS.Heartbeat:Once(runOverflow)
+		end
+		return
+	end
+	task.defer(function()
+		local previous = deferDepth
+		deferDepth = depth
+		-- A thread cancelled while it waited is dead and can't be resumed
+		if type(item) == "function" or coroutine.status(item) == "suspended" then
+			task.spawn(item)
+		end
+		deferDepth = previous
+	end)
+end
+
 -- One connection per mode, not per job
 type FrameMode = "render" | "heartbeat"
 local frameQueues: { [FrameMode]: { Job } } = { render = {}, heartbeat = {} }
@@ -103,7 +138,7 @@ local function flushMicro(): ()
 	if #microQueue > 0 and not microScheduled then
 		microScheduled = true
 		debugModule.log("Scheduler", "New jobs added during flush, scheduling another flush")
-		task.defer(flushMicro)
+		defer(flushMicro)
 	end
 end
 
@@ -131,7 +166,7 @@ function scheduler.queueJob(fn: () -> (), opts: QueueOptions?): JobHandle
 
 		if not microScheduled then
 			microScheduled = true
-			task.defer(flushMicro)
+			defer(flushMicro)
 		end
 
 		return {
@@ -147,10 +182,10 @@ end
 --- Component re-renders and "pre" watchers are deferred, so a defer queued now runs after them.
 function scheduler.nextTick(fn: (() -> ())?): ()
 	if fn then
-		task.defer(fn)
+		defer(fn)
 		return
 	end
-	task.defer(coroutine.running())
+	defer(coroutine.running())
 	coroutine.yield()
 end
 
@@ -162,7 +197,7 @@ function scheduler.queueEffect(fn: () -> ()): ()
 	table.insert(microQueue, { fn = fn, cancelled = false })
 	if not microScheduled then
 		microScheduled = true
-		task.defer(flushMicro)
+		defer(flushMicro)
 	end
 end
 
@@ -216,7 +251,7 @@ function scheduler.queueUpdate(job: UpdateJob): ()
 	table.insert(updateQueue, job)
 	if not updateScheduled then
 		updateScheduled = true
-		task.defer(flushUpdates)
+		defer(flushUpdates)
 	end
 end
 

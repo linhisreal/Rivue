@@ -428,6 +428,15 @@ local function runTests()
 		assertEquals(viewSum, 9, "same through a readonly view")
 	end
 
+	print("A component's own model prop isn't treated as v-model")
+	do
+		local part = Instance.new("Part")
+		local node = h(Rivue.ViewportModel, { model = part })
+		assertEquals(node.props.model, part, "ViewportModel gets the part")
+		assertEquals(node.props.modelValue, nil, "no v-model props are added")
+		part:Destroy()
+	end
+
 	print("\n========== REGRESSION TESTS COMPLETE ==========\n")
 end
 
