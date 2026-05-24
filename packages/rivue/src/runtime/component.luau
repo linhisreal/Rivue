@@ -207,11 +207,17 @@ local function provide(key: unknown, value: unknown): ()
 	inst.provides[key] = value
 end
 
+--- Like Vue, inject() looks above the component, so it can read a key and provide a new value for it
+local function providedAbove(inst: ComponentInstance, key: unknown): unknown
+	local parent = inst.parent
+	return if parent then parent.provides[key] else inst.appContext.provides[key]
+end
+
 local function inject<T>(key: unknown, default: T?): T?
 	local inst = currentInstance
 	local provided: unknown
 	if inst then
-		provided = inst.provides[key]
+		provided = providedAbove(inst, key)
 	elseif injectionContext then
 		provided = injectionContext.provides[key]
 	else
@@ -590,7 +596,7 @@ local function createSetupContext(instance: ComponentInstance): SetupContext
 			instance.provides[key] = val
 		end,
 		inject = function(key: string, default: unknown?): unknown?
-			local provided = instance.provides[key]
+			local provided = providedAbove(instance, key)
 			return if provided ~= nil then provided else default
 		end,
 		slots = instance.slots,

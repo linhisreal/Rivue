@@ -125,8 +125,18 @@ builtins.Suspense = createSuspense()
 
 builtins.KeepAlive = nil :: ComponentDef?
 
+-- Indexed reads, so a list from a ref (a reactive proxy) works too; table.find sees an empty table
 local function listContains(list: unknown, name: string): boolean
-	return type(list) == "table" and table.find(list :: { string }, name) ~= nil
+	if type(list) ~= "table" then
+		return false
+	end
+	local names = list :: { string }
+	for i = 1, #names do
+		if names[i] == name then
+			return true
+		end
+	end
+	return false
 end
 
 local function firstVNode(list: { Child }): VNode?
@@ -165,6 +175,12 @@ local function createKeepAlive(): ComponentDef
 				return not listContains(props.exclude, name)
 			end
 
+			-- The cache can hold an older vnode of the component on screen, so compare instances
+			local function isCurrent(cached: VNode): boolean
+				return cached == current
+					or (cached._instance ~= nil and current ~= nil and cached._instance == current._instance)
+			end
+
 			local function evict(key: unknown)
 				local cached = cache[key]
 				cache[key] = nil
@@ -172,20 +188,35 @@ local function createKeepAlive(): ComponentDef
 				if index then
 					table.remove(keys, index)
 				end
-				if cached and cached ~= current and renderer then
+				if cached and not isCurrent(cached) and renderer then
 					renderer.unmount(cached)
+				elseif cached then
+					-- Still on screen: unmount it for real when it's switched away
+					cached._keepAlive = nil
 				end
 			end
 
 			componentModule.onUnmounted(function()
 				marker.disposed = true
 				for _, cached in cache do
-					if cached ~= current and renderer then
+					if not isCurrent(cached) and renderer then
 						renderer.unmount(cached)
 					end
 				end
 				table.clear(cache)
 				table.clear(keys)
+			end)
+
+			-- Like Vue, a component that no longer matches include/exclude leaves the cache
+			reactivity.watch(function()
+				return { props.include, props.exclude }
+			end, function()
+				for key, cached in cache do
+					local def = cached.type :: ComponentDef
+					if not shouldCache(def.__name or "anonymous") then
+						evict(key)
+					end
+				end
 			end)
 
 			return function(): VNode?
