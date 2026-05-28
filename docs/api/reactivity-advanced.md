@@ -32,7 +32,7 @@ big data you swap out wholesale, like a server response or a 1,000-row table.
   ```lua
   local state = Rivue.shallowRef({ count = 1 })
 
-  state.value.count = 2 -- does NOT trigger anything
+  state.value.count = 2 -- doesn't trigger anything
   state.value = { count = 2 } -- triggers
   ```
 
@@ -81,7 +81,7 @@ without replacing `.value`.
 
 ## customRef()
 
-Builds a ref with your own rules for when it updates. The classic use is a debounced value that only
+Builds a ref with your own rules for when it updates. A common use is a debounced value that only
 updates after the player stops typing.
 
 - **Example**
@@ -279,8 +279,7 @@ it read changes. Prefer [`watchEffect()`](reactivity-core.md#watcheffect) in app
 
 - **Details**
 
-  Prefer [`watchEffect()`](reactivity-core.md#watcheffect) in app code. In a component's
-  `setup()`, the effect stops on unmount.
+  In a component's `setup()`, the effect stops on unmount.
 
   Unlike Vue's `effect()`, the first run is deferred to the next flush. With a `scheduler` it's
   passed to the scheduler right away, and with `lazy = true` nothing runs until you call
@@ -400,7 +399,7 @@ makes it the composable-friendly version of `onUnmounted`.
 
 - **Details**
 
-  This is the composable-friendly version of `onUnmounted`. It works in a component's `setup()`
+  It works in a component's `setup()`
   (the component's scope stops on unmount) and inside `effectScope():run()`. Outside a scope it
   does nothing.
 
@@ -412,4 +411,4 @@ makes it the composable-friendly version of `onUnmounted`.
 
 ---
 
-[← Array Helpers](array.md) · [API reference](../API.md) · [Render Function →](render-function.md)
+[← Array helpers](array.md) · [API reference](../API.md) · [Render function →](render-function.md)

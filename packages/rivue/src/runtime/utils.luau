@@ -34,7 +34,6 @@ function utils.debounce<A...>(fn: (A...) -> (), ms: number): (A...) -> Debounced
 	local handle: DebouncedHandle = table.freeze({ cancel = cancel })
 
 	return function(...: A...): DebouncedHandle
-		-- table.pack keeps nil arguments
 		local args = table.pack(...)
 		cancel()
 		timer = task.delay(delayMs / 1000, function()
@@ -89,7 +88,6 @@ function utils.useRaf(fn: (dt: number) -> ()): RafHandle
 	if debugModule.enabled then
 		debugModule.log("Utils", "Starting RenderStepped RAF")
 	end
-	-- RenderStepped only exists on the client
 	local signal = if RunService:IsClient() then RunService.RenderStepped else RunService.Heartbeat
 	local conn: RBXScriptConnection? = signal:Connect(function(dt: number)
 		pcall(fn, dt)

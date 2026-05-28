@@ -4,7 +4,6 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
 
--- Test utilities
 local function assertEquals(actual: any, expected: any, message: string?)
 	if actual ~= expected then
 		error(
@@ -33,7 +32,6 @@ local function assertFalse(condition: boolean, message: string?)
 	print("✓", message or "Assertion passed")
 end
 
--- Wrap all tests in a function that can be called
 -- Nil on a server, where there's no local player: the ScreenGui then stays unparented
 local function playerGui(): Instance?
 	local player = game:GetService("Players").LocalPlayer
@@ -43,7 +41,6 @@ end
 local function runTests()
 	print("\n========== API VALIDATION TEST SUITE ==========\n")
 
-	-- Test 1: ref()
 	print("Test 1: ref() - Creates a reactive reference")
 	do
 		local count = Rivue.ref(0)
@@ -59,22 +56,18 @@ local function runTests()
 		assertEquals(user.value.name, "Bob", "ref table can be replaced")
 	end
 
-	-- Test 2: shallowRef()
 	print("\nTest 2: shallowRef() - Creates a shallow reactive reference")
 	do
 		local state = Rivue.shallowRef({ count = 0, nested = { value = 10 } })
 		assertEquals(state.value.count, 0, "shallowRef initial value")
 
-		-- Shallow ref doesn't trigger on nested changes
 		state.value.count = 10
 		assertEquals(state.value.count, 10, "shallowRef allows mutations but doesn't track them")
 
-		-- Replacing entire value works
 		state.value = { count = 5, nested = { value = 20 } }
 		assertEquals(state.value.count, 5, "shallowRef tracks replacements")
 	end
 
-	-- Test 3: reactive()
 	print("\nTest 3: reactive() - Creates a deeply reactive proxy")
 	do
 		local state = Rivue.reactive({
@@ -94,7 +87,6 @@ local function runTests()
 		assertEquals(state.user.profile.age, 30, "reactive tracks deeply nested changes")
 	end
 
-	-- Test 4: shallowReactive()
 	print("\nTest 4: shallowReactive() - Creates a shallow reactive proxy")
 	do
 		local state = Rivue.shallowReactive({
@@ -112,7 +104,6 @@ local function runTests()
 		assertEquals(state.nested.value, 30, "shallowReactive tracks top-level replacements")
 	end
 
-	-- Test 5: computed()
 	print("\nTest 5: computed() - Creates a computed value")
 	do
 		local count = Rivue.ref(10)
@@ -126,7 +117,6 @@ local function runTests()
 		assertEquals(double.value, 30, "computed updates when dependency changes")
 	end
 
-	-- Test 6: watch()
 	print("\nTest 6: watch() - Watches a reactive source")
 	do
 		local count = Rivue.ref(0)
@@ -142,7 +132,7 @@ local function runTests()
 		end)
 
 		count.value = 5
-		task.wait(0.1) -- Give watch time to trigger
+		task.wait(0.1)
 
 		assertTrue(callbackCalled, "watch callback was called")
 		assertEquals(oldVal, 0, "watch provides old value")
@@ -151,7 +141,6 @@ local function runTests()
 		stop()
 	end
 
-	-- Test 7: watchEffect()
 	print("\nTest 7: watchEffect() - Runs effect with auto dependency tracking")
 	do
 		local count = Rivue.ref(0)
@@ -160,8 +149,8 @@ local function runTests()
 
 		local stop = Rivue.watchEffect(function()
 			effectRan = true
-			local _ = count.value + 0 -- Access to trigger tracking
-			local _ = name.value -- Access to trigger tracking
+			local _ = count.value + 0
+			local _ = name.value
 		end)
 
 		assertTrue(effectRan, "watchEffect runs immediately")
@@ -174,7 +163,6 @@ local function runTests()
 		stop()
 	end
 
-	-- Test 8: effect()
 	print("\nTest 8: effect() - Runs a function with reactive dependencies")
 	do
 		local count = Rivue.ref(0)
@@ -185,7 +173,6 @@ local function runTests()
 			local _ = count.value
 		end)
 
-		-- Wait for scheduler to process the effect
 		task.wait(0.1)
 		assertEquals(effectRan, 1, "effect runs after scheduler processes")
 
@@ -196,7 +183,6 @@ local function runTests()
 		eff:stop()
 	end
 
-	-- Test 9: readonly()
 	print("\nTest 9: readonly() - Creates a readonly reactive proxy")
 	do
 		local state = Rivue.reactive({ count = 0, user = { name = "Alice" } })
@@ -205,17 +191,15 @@ local function runTests()
 		assertEquals(readonlyState.count, 0, "readonly allows reading")
 		assertEquals(readonlyState.user.name, "Alice", "readonly allows deep reading")
 
-		-- Mutations should be blocked (but won't throw in production)
+		-- Ignored, not an error
 		local _success = pcall(function()
 			readonlyState.count = 10
 		end)
 
-		-- Original state can still be mutated
 		state.count = 10
 		assertEquals(readonlyState.count, 10, "readonly reflects original state changes")
 	end
 
-	-- Test 10: toRef()
 	print("\nTest 10: toRef() - Creates a ref linked to a reactive property")
 	do
 		local state = Rivue.reactive({ count = 0, name = "Alice" })
@@ -230,7 +214,6 @@ local function runTests()
 		assertEquals(countRef.value, 20, "toRef reflects state changes")
 	end
 
-	-- Test 11: toRefs()
 	print("\nTest 11: toRefs() - Converts reactive object properties to refs")
 	do
 		local state = Rivue.reactive({
@@ -249,7 +232,6 @@ local function runTests()
 		assertEquals(state.count, 10, "toRefs refs are linked to original state")
 	end
 
-	-- Test 12: isRef()
 	print("\nTest 12: isRef() - Checks if value is a ref")
 	do
 		local count = Rivue.ref(0)
@@ -259,7 +241,6 @@ local function runTests()
 		assertFalse(Rivue.isRef(obj), "isRef returns false for plain object")
 	end
 
-	-- Test 13: unref()
 	print("\nTest 13: unref() - Returns inner value of ref or value as-is")
 	do
 		local count = Rivue.ref(10)
@@ -269,7 +250,6 @@ local function runTests()
 		assertEquals(Rivue.unref(num), 20, "unref returns non-ref as-is")
 	end
 
-	-- Test 14: isReactive()
 	print("\nTest 14: isReactive() - Checks if value is reactive proxy")
 	do
 		local state = Rivue.reactive({ count = 0 })
@@ -281,7 +261,6 @@ local function runTests()
 		assertFalse(Rivue.isReactive(refVal), "isReactive returns false for ref")
 	end
 
-	-- Test 15: isReadonly()
 	print("\nTest 15: isReadonly() - Checks if value is readonly proxy")
 	do
 		local state = Rivue.reactive({ count = 0 })
@@ -291,7 +270,6 @@ local function runTests()
 		assertTrue(Rivue.isReadonly(readonlyState), "isReadonly returns true for readonly")
 	end
 
-	-- Test 16: isProxy()
 	print("\nTest 16: isProxy() - Checks if value is any kind of proxy")
 	do
 		local state = Rivue.reactive({ count = 0 })
@@ -303,7 +281,6 @@ local function runTests()
 		assertFalse(Rivue.isProxy(plainObj), "isProxy returns false for plain object")
 	end
 
-	-- Test 17: markRaw()
 	print("\nTest 17: markRaw() - Marks object to never be reactive")
 	do
 		local rawData = Rivue.markRaw({ largeDataset = {} })
@@ -316,7 +293,6 @@ local function runTests()
 		assertTrue(Rivue.isReactive(state.normal), "normal data is still reactive")
 	end
 
-	-- Test 18: toRaw()
 	print("\nTest 18: toRaw() - Returns original object from proxy")
 	do
 		local original = { count = 0, nested = { value = 10 } }
@@ -328,22 +304,18 @@ local function runTests()
 		assertTrue(raw == original, "toRaw returns original object")
 	end
 
-	-- Test 19: triggerRef()
 	print("\nTest 19: triggerRef() - Manually triggers ref updates")
 	do
 		local state = Rivue.shallowRef({ count = 0, items = {} })
 
-		-- Mutate without triggering
 		state.value.count = 10
 		table.insert(state.value.items, "new")
 
-		-- Manually trigger (this should work)
 		Rivue.triggerRef(state)
 
 		assertEquals(state.value.count, 10, "triggerRef works with mutations")
 	end
 
-	-- Test 20: customRef()
 	print("\nTest 20: customRef() - Creates custom ref with control over tracking")
 	do
 		local useDebouncedRef
@@ -375,7 +347,6 @@ local function runTests()
 		assertEquals(searchQuery.value, "test", "customRef getter works")
 	end
 
-	-- Test 21: effectScope()
 	print("\nTest 21: effectScope() - Creates a scope for managing effects")
 	do
 		local scope = Rivue.effectScope()
@@ -395,7 +366,6 @@ local function runTests()
 		assertFalse(scope.active, "effectScope can be stopped")
 	end
 
-	-- Test 22: getCurrentScope()
 	print("\nTest 22: getCurrentScope() - Returns current effect scope")
 	do
 		local scope = Rivue.effectScope()
@@ -412,7 +382,6 @@ local function runTests()
 		assertTrue(outsideScope == nil, "getCurrentScope returns nil outside scope")
 	end
 
-	-- Test 23: onScopeDispose()
 	print("\nTest 23: onScopeDispose() - Registers cleanup callback")
 	do
 		local scope = Rivue.effectScope()
@@ -431,7 +400,6 @@ local function runTests()
 		assertTrue(cleanupCalled, "onScopeDispose runs when scope stops")
 	end
 
-	-- Test 24: h() - hyperscript function
 	print("\nTest 24: h() - Creates virtual nodes")
 	do
 		local vnode = Rivue.h("TextLabel", {
@@ -445,7 +413,6 @@ local function runTests()
 			assertEquals(vnode.props.Text, "Hello", "h() sets props")
 		end
 
-		-- With children
 		local parent = Rivue.h("Frame", {}, {
 			Rivue.h("TextLabel", { Text = "Child" }),
 		})
@@ -453,7 +420,6 @@ local function runTests()
 		assertEquals(#parent.children, 1, "h() handles children")
 	end
 
-	-- Test 25: defineComponent()
 	print("\nTest 25: defineComponent() - Defines a component")
 	do
 		local MyComponent = Rivue.defineComponent({
@@ -471,7 +437,6 @@ local function runTests()
 		assertTrue(MyComponent.__is_component, "defineComponent creates component")
 	end
 
-	-- Test 26: Lifecycle hooks
 	print("\nTest 26: Lifecycle hooks - onBeforeMount, onMounted, etc.")
 	do
 		local beforeMountCalled = false
@@ -493,14 +458,13 @@ local function runTests()
 			end,
 		})
 
-		-- Create and mount app
 		local app = Rivue.createApp(Rivue.h(TestComponent))
 		local container = Instance.new("ScreenGui")
 		container.Parent = playerGui()
 
 		app:mount(container)
 
-		task.wait(0.2) -- Wait for mount
+		task.wait(0.2)
 
 		assertTrue(beforeMountCalled, "onBeforeMount was called")
 		assertTrue(mountedCalled, "onMounted was called")
@@ -509,7 +473,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 27: vModelText()
 	print("\nTest 27: vModelText() - Two-way binding for text")
 	do
 		local inputText = Rivue.ref("")
@@ -518,12 +481,10 @@ local function runTests()
 		assertEquals(props.Text, "", "vModelText sets initial Text")
 		assertTrue(type(props.onTextChanged) == "function", "vModelText provides onTextChanged")
 
-		-- Simulate text change
 		props.onTextChanged("new text")
 		assertEquals(inputText.value, "new text", "vModelText updates ref on change")
 	end
 
-	-- Test 28: iterArray()
 	print("\nTest 28: iterArray() - Iterator for reactive arrays")
 	do
 		local items = Rivue.reactive({ "apple", "banana", "cherry" })
@@ -537,17 +498,14 @@ local function runTests()
 		assertEquals(collected[1], "apple", "iterArray provides correct values")
 	end
 
-	-- Test 29: Rivue.dev
 	print("\nTest 29: Rivue.dev - Development mode flag")
 	do
 		assertTrue(type(Rivue.dev) == "boolean", "Rivue.dev is a boolean")
 		print("  Rivue.dev =", Rivue.dev)
 	end
 
-	-- Test 30: Utils - debounce, throttle, etc.
 	print("\nTest 30: Utils - debounce, throttle, nextTick, nextFrame")
 	do
-		-- Debounce
 		local debounceCalled = 0
 		local debounced = Rivue.utils.debounce(function()
 			debounceCalled = debounceCalled + 1
@@ -560,26 +518,22 @@ local function runTests()
 		task.wait(0.2)
 		assertEquals(debounceCalled, 1, "debounce only calls once after delay")
 
-		-- Throttle
 		local throttleCalled = 0
 		local throttled = Rivue.utils.throttle(function()
 			throttleCalled = throttleCalled + 1
-		end, 100) -- 100ms throttle interval
+		end, 100)
 
-		-- First call executes immediately
 		throttled()
 		assertEquals(throttleCalled, 1, "throttle executes first call immediately")
 
-		-- Subsequent calls within interval are throttled
 		throttled()
 		throttled()
 		assertEquals(throttleCalled, 1, "throttle ignores calls within interval")
 
-		-- After interval, next call should execute
 		task.wait(0.12)
 		throttled()
 		task.wait(0.05)
-		assertTrue(throttleCalled >= 1, "throttle limits call frequency") -- nextTick
+		assertTrue(throttleCalled >= 1, "throttle limits call frequency")
 		local nextTickCalled = false
 		Rivue.utils.nextTick(function()
 			nextTickCalled = true
@@ -588,7 +542,6 @@ local function runTests()
 		task.wait(0.1)
 		assertTrue(nextTickCalled, "nextTick executes callback")
 
-		-- nextFrame
 		local nextFrameCalled = false
 		Rivue.utils.nextFrame(function()
 			nextFrameCalled = true
@@ -598,7 +551,6 @@ local function runTests()
 		assertTrue(nextFrameCalled, "nextFrame executes callback")
 	end
 
-	-- Test 31: useAttrs()
 	print("\nTest 31: useAttrs() - Access non-prop attributes in setup")
 	do
 		local attrsReceived = nil
@@ -608,7 +560,6 @@ local function runTests()
 				title = { type = "string" },
 			},
 			setup = function()
-				-- Call useAttrs during setup
 				attrsReceived = Rivue.useAttrs()
 
 				return function()
@@ -617,23 +568,20 @@ local function runTests()
 			end,
 		})
 
-		-- Create and mount app with props and non-prop attributes
 		local app = Rivue.createApp(Rivue.h(TestComponent, {
-			title = "Test", -- This is a prop
-			customAttr = "value", -- This is an attr (not a prop)
-			dataId = 123, -- This is also an attr
+			title = "Test", -- declared
+			customAttr = "value", -- not declared, so it lands in attrs
+			dataId = 123,
 		}))
 		local container = Instance.new("ScreenGui")
 		container.Parent = playerGui()
 
 		app:mount(container)
-		task.wait(0.1) -- Wait for mount to complete
+		task.wait(0.1)
 
-		-- Verify useAttrs returns a table
 		assertTrue(attrsReceived ~= nil, "useAttrs returns attrs table in setup")
 		assertTrue(type(attrsReceived) == "table", "useAttrs returns a table")
 
-		-- Verify attrs contain non-prop attributes
 		if attrsReceived then
 			assertTrue(attrsReceived.customAttr == "value", "useAttrs includes non-prop attributes")
 			assertTrue(attrsReceived.dataId == 123, "useAttrs includes all non-prop attributes")
@@ -644,14 +592,12 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 32: useSlots()
 	print("\nTest 32: useSlots() - Access component slots in setup")
 	do
 		local slotsReceived = nil
 
 		local TestComponent = Rivue.defineComponent({
 			setup = function()
-				-- Call useSlots during setup
 				slotsReceived = Rivue.useSlots()
 
 				return function()
@@ -660,7 +606,6 @@ local function runTests()
 			end,
 		})
 
-		-- Create and mount app with slots (children)
 		local app = Rivue.createApp(Rivue.h(TestComponent, {}, {
 			Rivue.h("TextLabel", { Text = "Slot content 1" }),
 			Rivue.h("TextLabel", { Text = "Slot content 2" }),
@@ -669,13 +614,11 @@ local function runTests()
 		container.Parent = playerGui()
 
 		app:mount(container)
-		task.wait(0.1) -- Wait for mount to complete
+		task.wait(0.1)
 
-		-- Verify useSlots returns a table
 		assertTrue(slotsReceived ~= nil, "useSlots returns slots table in setup")
 		assertTrue(type(slotsReceived) == "table", "useSlots returns a table")
 
-		-- Verify slots contain the children
 		if slotsReceived then
 			assertTrue(#slotsReceived > 0, "useSlots contains slot children")
 		end
@@ -684,14 +627,10 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 33: defineModel()
 	print("\nTest 33: defineModel() - Two-way binding helper for components")
 	do
-		-- Just test that the API exists and returns correct type
 		assertTrue(type(Rivue.defineModel) == "function", "defineModel API exists")
 
-		-- defineModel is designed to work within component setup with proper props
-		-- Testing it in isolation would require full component mounting
 		local _InputComponent = Rivue.defineComponent({
 			props = {
 				modelValue = { type = "number", default = 42 },
@@ -709,7 +648,6 @@ local function runTests()
 		})
 	end
 
-	-- Test 34: useTheme()
 	print("\nTest 34: useTheme() - Access theme from context")
 	do
 		local themeReceived = nil
@@ -726,11 +664,9 @@ local function runTests()
 
 		local _app = Rivue.createApp(Rivue.h(TestComponent))
 
-		-- Without theme provider, should return nil
 		assertTrue(themeReceived == nil or type(themeReceived) == "table", "useTheme returns nil or theme object")
 	end
 
-	-- Test 35: useStyles()
 	print("\nTest 35: useStyles() - Generate reactive styles from theme")
 	do
 		local stylesComputed = nil
@@ -756,14 +692,12 @@ local function runTests()
 		local _app = Rivue.createApp(Rivue.h(TestComponent))
 	end
 
-	-- Test 36: Scheduler API - queueJob with modes
 	print("\nTest 36: Scheduler API - queueJob with different modes")
 	do
 		local microJobRan = false
 		local renderJobRan = false
 		local heartbeatJobRan = false
 
-		-- Queue jobs in different modes
 		Rivue.scheduler.queueJob(function()
 			microJobRan = true
 		end, { mode = "micro" })
@@ -783,7 +717,6 @@ local function runTests()
 		assertTrue(heartbeatJobRan, "heartbeat job executed")
 	end
 
-	-- Test 37: hIf() - Conditional rendering helper
 	print("\nTest 37: hIf() - Conditional rendering helper")
 	do
 		local vnode1 = Rivue.hIf(true, Rivue.h("TextLabel", { Text = "Visible" }))
@@ -793,7 +726,6 @@ local function runTests()
 		assertTrue(vnode2 == nil, "hIf returns nil when condition is false")
 	end
 
-	-- Test 38: hFor() - List rendering helper
 	print("\nTest 38: hFor() - List rendering helper")
 	do
 		local items = { "apple", "banana", "cherry" }
@@ -805,7 +737,6 @@ local function runTests()
 		assertTrue(vnodes[1].type == "TextLabel", "hFor creates correct vnode types")
 	end
 
-	-- Test 40: vModelProp() - Generic v-model helper
 	print("\nTest 40: vModelProp() - Generic v-model for any property")
 	do
 		local value = Rivue.ref(50)
@@ -814,12 +745,10 @@ local function runTests()
 		assertTrue(props.Size == 50, "vModelProp sets initial property value")
 		assertTrue(type(props.onSizeChanged) == "function", "vModelProp provides change handler")
 
-		-- Simulate property change
 		props.onSizeChanged(100)
 		assertEquals(value.value, 100, "vModelProp updates ref on change")
 	end
 
-	-- Test 41: Context - provide/inject
 	print("\nTest 41: Context - provide/inject for dependency injection")
 	do
 		local _ChildComponent = Rivue.defineComponent({
@@ -842,19 +771,15 @@ local function runTests()
 			end,
 		})
 
-		-- inject() needs a mounted parent that provides the key
-		-- For now, test that APIs exist
 		assertTrue(type(Rivue.defineComponent) == "function", "provide/inject APIs available")
 	end
 
-	-- Test 42: Directives - v-focus, v-show, v-preload
 	print("\nTest 42: Directives - Built-in directive APIs")
 	do
 		assertTrue(Rivue.directives ~= nil, "Rivue.directives module exists")
 		assertTrue(type(Rivue.directives.get) == "function", "directives.get function exists")
 		assertTrue(type(Rivue.directives.register) == "function", "directives.register function exists")
 
-		-- Test built-in directives are registered (without 'v-' prefix)
 		assertTrue(Rivue.directives.get("focus") ~= nil, "focus directive registered")
 		assertTrue(Rivue.directives.get("show") ~= nil, "show directive registered")
 		assertTrue(Rivue.directives.get("preload") ~= nil, "preload directive registered")
@@ -863,7 +788,6 @@ local function runTests()
 		assertTrue(Rivue.directives.get("fade-in") ~= nil, "fade-in directive registered")
 	end
 
-	-- Test 43: attributeRef() - Roblox instance attribute binding
 	print("\nTest 43: attributeRef() - Reactive binding to instance attributes")
 	do
 		local part = Instance.new("Part")
@@ -884,7 +808,6 @@ local function runTests()
 		part:Destroy()
 	end
 
-	-- Test 44: Roblox lifecycle hooks
 	print("\nTest 44: Roblox lifecycle hooks - onRenderStepped, onHeartbeat, onStepped")
 	do
 		local renderSteppedCalled = false
@@ -929,7 +852,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 45: Error handling - onErrorCaptured
 	print("\nTest 45: onErrorCaptured - Component error boundary")
 	do
 		local _ErrorComponent = Rivue.defineComponent({
@@ -941,7 +863,7 @@ local function runTests()
 		local _ParentComponent = Rivue.defineComponent({
 			setup = function()
 				Rivue.onErrorCaptured(function(_err, _instance, _info)
-					return true -- Prevent propagation
+					return true -- handled here, stop it going further up
 				end)
 
 				return function()
@@ -952,14 +874,12 @@ local function runTests()
 			end,
 		})
 
-		-- Errors during setup are harder to test in this context
 		assertTrue(type(Rivue.onErrorCaptured) == "function", "onErrorCaptured API exists")
 	end
 
 	print("\n========== ALL TESTS PASSED ✓ ==========\n")
 	print("Total tests: 45")
 	print("All API functions work as documented!")
-end -- End of runTests function
+end
 
--- Return the test runner function
 return runTests

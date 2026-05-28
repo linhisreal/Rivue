@@ -40,7 +40,6 @@ local function rows(root: Instance): { TextButton }
 end
 
 return function()
-	-- A game with devtools on
 	local coins = Rivue.ref(10)
 	local Wallet = Rivue.defineComponent({
 		name = "Wallet",
@@ -62,7 +61,6 @@ return function()
 	gameApp.config.devtools = true
 	gameApp:mount(game)
 
-	-- The plugin window
 	local stop = DevTools.start()
 	local widget = Instance.new("Frame")
 	local devApp = Rivue.createApp(DevTools.App)

@@ -1,6 +1,6 @@
-[Docs](../README.md) › [API](../API.md) › **Built-in Components**
+[Docs](../README.md) › [API](../API.md) › **Built-in components**
 
-# Built-in Components
+# Built-in components
 
 **Learn it:** [Guide 7: Effects and animation](../guide/07-effects-and-animation.md) · [Guide 9: Performance and debugging](../guide/09-performance-and-debugging.md)
 
@@ -125,7 +125,7 @@ element you toggle, and describe its hidden state with `from`.
 
 ## TransitionGroup
 
-Transition for lists: each keyed item animates in when it's added and out when it's removed. Good
+Transition for lists: each keyed item animates in when it's added and out when it's removed. Use it
 for notifications, chat messages and inventories.
 
 - **Example**
@@ -254,8 +254,7 @@ DisplayOrder. Use it for modals, tooltips and dropdowns that must appear above e
 
 - **Details**
 
-  Use it for modals, tooltips and toasts that must escape a parent with `ClipsDescendants`, or
-  that belong in another ScreenGui.
+  It also gets UI out from under a parent with `ClipsDescendants`.
   - Children update in place.
   - If `to` changes, the children move to the new target.
   - Children are removed when the Teleport unmounts.
@@ -389,8 +388,7 @@ about as much as one of 20.
     sets its own.
   - **Different sizes.** Pass `itemSize` as a function of the item. The sizes are worked out again
     when the items change, not while scrolling. It needs `columns = 1`.
-  - **Cost.** Scrolling re-renders only the rows coming into view, so a list of 10,000 items
-    costs about as much as the ones on screen.
+  - **Cost.** Scrolling re-renders only the rows coming into view.
 
 - **Props**
 
@@ -451,4 +449,4 @@ Shows a 3D model in the UI, framed by a camera that fits it. For shop and invent
 
 ---
 
-[← Lifecycle Hooks](lifecycle.md) · [API reference](../API.md) · [Directives →](directives.md)
+[← Lifecycle hooks](lifecycle.md) · [API reference](../API.md) · [Directives →](directives.md)

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/icon.svg" width="128" height="128" alt="Rivue logo">
+  <img src="docs/assets/icon.svg" width="128" height="128" alt="Rivue logo">
 </p>
 
 <h1 align="center">Rivue</h1>
@@ -10,17 +10,20 @@
 
 <p align="center">
   <a href="https://create.roblox.com/store/models?keyword=Rivue"><img src="docs/assets/badges/creator-store.svg" height="40" alt="Get it on the Roblox Creator Store"></a>
-  <a href="https://wally.run/package/linhisreal/rivue"><img src="docs/assets/badges/wally.svg" height="40" alt="Wally: linhisreal/rivue"></a>
+  <a href="https://wally.run/package/linhisreal/rivue"><img src="docs/assets/badges/wally.svg" height="40" alt="Install with Wally"></a>
+  <a href="https://pesde.dev/packages/linhisreal/rivue"><img src="docs/assets/badges/pesde.svg" height="40" alt="Install with pesde"></a>
+  <a href="rokit.toml"><img src="docs/assets/badges/rokit.svg" height="40" alt="Tools pinned with Rokit"></a>
   <a href="https://luau.org"><img src="docs/assets/badges/luau.svg" height="40" alt="Written in Luau"></a>
-  <a href="https://linhisreal.github.io/Rivue/"><img src="docs/assets/badges/docs.svg" height="40" alt="Docs"></a>
+  <a href="https://linhisreal.github.io/Rivue/"><img src="docs/assets/badges/docs.svg" height="40" alt="Read the docs"></a>
 </p>
 
 <p align="center">
   <a href="https://github.com/linhisreal/Rivue/actions/workflows/build.yml"><img src="https://github.com/linhisreal/Rivue/actions/workflows/build.yml/badge.svg" alt="CI"></a>
 </p>
 
-Describe your UI for the current state. When state changes, Rivue re-renders only the components
-that read it and writes only the Instance properties that changed.
+Stop writing `label.Text = ...` by hand. Write what the screen should look like for the current
+state, and Rivue keeps the Instances in sync: when a value changes, only the components that read
+it re-render, and only the properties that changed get written.
 
 ```lua
 local Rivue = require(game.ReplicatedStorage.Rivue)
@@ -49,21 +52,24 @@ local Counter = Rivue.defineComponent({
 Rivue.createApp(Counter):mountToPlayerGui(game.Players.LocalPlayer)
 ```
 
-A bigger example with a text box, a keyed list and styles:
-[TodoList](examples/components/TodoList.luau). More in [examples](examples).
+Want something bigger? [TodoList](examples/components/TodoList.luau) has a text box, a keyed list
+and styles, and there are more in [examples](examples).
 
-**Status:** Rivue is under active development and the API can still change between releases.
-It runs in LocalScripts. For client/server calls, the separate [RivueRemote](docs/api/remote.md)
-package adds requests and events with rate limits.
+Rivue is still young, so the API can change between releases. It runs in LocalScripts. When you
+need the server, there's a separate package for that, [RivueRemote](docs/api/remote.md), with
+requests, events and rate limits.
 
 ## Why Rivue
 
-- **Vue's API, in Luau.** `ref`, `computed`, `watch`, components with props, emits, slots and
-  provide/inject. If you know Vue, there's a [cheat sheet](docs/VUE.md).
-- **Fine-grained updates, with components.** Reactivity is tracked per value, so a parent
-  re-rendering doesn't re-render children whose props didn't change. No `memo` needed for that.
-- **Made for Roblox UI.** Style classes, `layout`/`flex` props instead of UIListLayout
-  boilerplate, and built-in tweens, springs, `Transition` and `VirtualList`.
+Know Vue? Then you know most of Rivue already: `ref`, `computed`, `watch`, and components with
+props, emits, slots and provide/inject. The [cheat sheet](docs/VUE.md) covers the differences.
+
+Updates are tracked per value. A parent re-rendering doesn't drag its children along unless their
+props changed, and you don't need `memo` to get that.
+
+And it was made for Roblox UI from the start. Colours and fonts live in style classes, `layout`
+and `flex` replace the usual UIListLayout boilerplate, and tweens, springs, `Transition` and
+`VirtualList` come built in.
 
 ## Features
 
@@ -80,7 +86,8 @@ package adds requests and events with rate limits.
 
 ## Installation
 
-Rivue is one ModuleScript (with a `runtime` folder inside). Put it in `ReplicatedStorage`.
+Rivue is a single ModuleScript with a `runtime` folder inside, and it goes in `ReplicatedStorage`.
+Use whichever install you already use for other packages.
 
 **With Wally**, add it to your `wally.toml` and run `wally install`:
 
@@ -102,17 +109,18 @@ RivueRemote = "linhisreal/rivue-remote@2.57.0" # optional, for client/server cal
 
 **Without Rojo**, download `Rivue.rbxm` from the latest
 [release](https://github.com/linhisreal/Rivue/releases) and drag it into `ReplicatedStorage`.
-`Rivue.min.rbxm` is the same without comments, and `RivueRemote.rbxm` is the optional client/server
-package.
+There's also `Rivue.min.rbxm` (same code, comments stripped) and `RivueRemote.rbxm`, the optional
+client/server package.
 
 ## Docs
 
-Read them at **[linhisreal.github.io/Rivue](https://linhisreal.github.io/Rivue/)**, or start at the
-[docs home](docs/README.md) here, which has an "I want to…" index.
+They're at [linhisreal.github.io/Rivue](https://linhisreal.github.io/Rivue/). If you'd rather read
+them on GitHub, the [docs home](docs/README.md) has an "I want to…" table that points you at the
+right page.
 
 [Guide](docs/GUIDE.md) · [Examples](examples) · [API reference](docs/API.md) ·
 [Coming from Vue](docs/VUE.md) ·
-[Coming from Roact, React-lua or Fusion](docs/COMING-FROM-REACT.md) · [DevTools](docs/DEVTOOLS.md) ·
+[Coming from React-lua or Fusion](docs/COMING-FROM-REACT.md) · [DevTools](docs/DEVTOOLS.md) ·
 [Architecture](docs/ARCHITECTURE.md)
 
 ## Contributing
@@ -129,8 +137,9 @@ lune run version 2.57.0           # one version for every package
 rojo serve                        # the dev place in Studio
 ```
 
-CI also runs StyLua and luau-lsp, and checks the packages for Wally and pesde. Releases and
-publishing: [docs/RELEASING.md](docs/RELEASING.md).
+CI runs StyLua and luau-lsp, checks the packages for Wally and pesde, and runs every test suite a
+second time inside a real Roblox server. How releases and publishing work is in
+[docs/RELEASING.md](docs/RELEASING.md).
 
 ```
 packages/rivue/            the UI framework                 Wally, pesde, Rivue.rbxm

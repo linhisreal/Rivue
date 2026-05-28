@@ -1,11 +1,6 @@
 --!strict
---[[
-	Remote Server Tests (offline only)
-	==================================
-	
-	Swaps RunService.IsServer/IsClient to drive both sides of Remote in one VM,
-	which isn't possible in Studio.
-]]
+-- Offline only: swaps RunService.IsServer/IsClient to run both sides of Remote in one VM, which
+-- Studio can't do
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService") :: any

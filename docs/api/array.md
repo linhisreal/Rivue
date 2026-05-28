@@ -1,6 +1,6 @@
-[Docs](../README.md) › [API](../API.md) › **Array Helpers**
+[Docs](../README.md) › [API](../API.md) › **Array helpers**
 
-# Array Helpers
+# Array helpers
 
 **Learn it:** [Guide 2: State](../guide/02-state.md)
 
@@ -145,8 +145,8 @@ item. Returns how many were removed.
 
 ## array.splice()
 
-The all-in-one edit, like JavaScript's `splice`: remove some items at a position and insert new ones
-in their place. Returns what was removed.
+Like JavaScript's `splice`: removes some items at a position and inserts new ones in their place.
+Returns what was removed.
 
 - **Example**
 

@@ -2,17 +2,18 @@
 
 # 13. Component patterns
 
-**You'll learn:** components that share state as a set, render-less components, switching
-screens with KeepAlive, modals, and calling a child's functions.
+A grab bag of patterns that come up once a UI gets bigger: components that work as a set, a
+component with no visuals of its own, switching screens, modals, and calling into a child.
 
 ## Components that share state: Tabs
 
-Instead of one `Tabs` component that owns a fixed layout, use three that cooperate:
+One `Tabs` component that owns the whole layout gets rigid fast. Three small ones that cooperate
+are easier to arrange:
 
 ![the parts of a Tabs component](../images/tabs-parts.svg)
 
-`Tabs` provides the active tab once, and every `Tab` and `TabPanel` below it injects it
-([chapter 8](08-state-and-server.md)), at any depth:
+`Tabs` provides the active tab once, and every `Tab` and `TabPanel` below it injects it, at any
+depth ([chapter 8](08-state-and-server.md)):
 
 ```lua
 local TABS = "tabs" -- the key all three components use to find the shared state
@@ -36,7 +37,7 @@ local Tabs = Rivue.defineComponent({
 })
 ```
 
-`Tab` reads the state and calls `select`:
+A `Tab` reads that state and calls `select`:
 
 ```lua
 local Tab = Rivue.defineComponent({
@@ -65,7 +66,7 @@ local Tab = Rivue.defineComponent({
 > `ctx` only unwraps refs that `setup` returns directly. `active` is nested in a table, so it
 > keeps its `.value`.
 
-`TabPanel` renders only while its tab is active:
+`TabPanel` only renders while its tab is active:
 
 ```lua
 local TabPanel = Rivue.defineComponent({
@@ -83,7 +84,7 @@ local TabPanel = Rivue.defineComponent({
 })
 ```
 
-The screen controls the layout:
+And the screen decides where everything goes:
 
 ```lua
 h(Tabs, { initial = "Shop" }, {
@@ -98,8 +99,8 @@ h(Tabs, { initial = "Shop" }, {
 
 ## Render-less components
 
-A component can own behaviour and leave the visuals to the caller through a scoped slot.
-`Hoverable` tracks the mouse and passes `hovered` to its slot:
+Sometimes a component owns the behaviour and the caller decides how it looks, through a scoped
+slot. `Hoverable` tracks the mouse and passes `hovered` down to its slot:
 
 ```lua
 local Hoverable = Rivue.defineComponent({
@@ -128,7 +129,7 @@ local Hoverable = Rivue.defineComponent({
 })
 ```
 
-The second argument to `renderSlot` is what the slot function receives:
+Whatever you pass as the second argument to `renderSlot` is what the slot function receives:
 
 ```lua
 h(Hoverable, nil, {
@@ -140,12 +141,12 @@ h(Hoverable, nil, {
 })
 ```
 
-Use this only when the behaviour needs its own Instance, as mouse events do here. Otherwise a
-[composable](12-writing-composables.md) is simpler.
+Only reach for this when the behaviour needs an Instance of its own, as mouse events do here.
+Otherwise a [composable](12-writing-composables.md) is simpler.
 
 ## Switching screens
 
-`h()` takes a component value, so a screen switch is a table lookup:
+Since `h()` takes a component value, switching screens is just a table lookup:
 
 ```lua
 local screens = { lobby = Lobby, shop = Shop, settings = Settings }
@@ -167,12 +168,12 @@ local App = Rivue.defineComponent({
 })
 ```
 
-Switching away unmounts a screen. `KeepAlive` keeps the ones in `include` mounted, so the shop
-keeps its scroll position and state.
+Normally, switching away unmounts a screen. `KeepAlive` keeps the ones in `include` alive instead,
+so the shop is still scrolled where the player left it.
 
 ## Modals
 
-A modal opened from deep in the tree combines three built-ins:
+A modal opened from deep inside the tree needs three built-ins working together:
 
 | Piece | What it does |
 |---|---|
@@ -208,13 +209,13 @@ local Modal = Rivue.defineComponent({
 })
 ```
 
-There's a full version with a backdrop and buttons in
+The full version, with a backdrop and buttons, is in
 [examples/components/Modal.luau](../../examples/components/Modal.luau).
 
 ## Calling a child with expose
 
-For one-off actions like "reset" or "scroll to top", the child exposes functions and the parent
-calls them through a template ref:
+Props and events cover most things. For one-off actions like "reset" or "scroll to top", the
+child can expose functions instead, and the parent calls them through a template ref:
 
 ```lua
 local Form = Rivue.defineComponent({

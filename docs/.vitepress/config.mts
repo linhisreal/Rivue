@@ -98,7 +98,7 @@ export default withMermaid(
 					text: "More",
 					items: [
 						{ text: "Coming from Vue", link: "/VUE" },
-						{ text: "Coming from Roact, React-lua or Fusion", link: "/COMING-FROM-REACT" },
+						{ text: "Coming from React-lua or Fusion", link: "/COMING-FROM-REACT" },
 						{ text: "DevTools", link: "/DEVTOOLS" },
 						{ text: "Architecture", link: "/ARCHITECTURE" },
 						{ text: "Releasing", link: "/RELEASING" },

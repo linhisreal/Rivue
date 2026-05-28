@@ -1,6 +1,6 @@
-[Docs](../README.md) › [API](../API.md) › **Utilities and Debugging**
+[Docs](../README.md) › [API](../API.md) › **Utilities and debugging**
 
-# Utilities and Debugging
+# Utilities and debugging
 
 **Learn it:** [Guide 9: Performance and debugging](../guide/09-performance-and-debugging.md)
 
@@ -100,7 +100,7 @@ whole app.
 ## debug.enabled
 
 Turns on detailed logging of everything Rivue does: every element, mount, update and remote call.
-Very noisy, so it's off by default; switch it on briefly when you're hunting a bug.
+Off by default.
 
 - **Example**
 
@@ -570,7 +570,8 @@ test [style class variants](application.md#appstyles), since scripts can't move 
 - **Details**
 
   `state` is `"hover"`, `"pressed"` or `"selected"`. It does nothing on elements whose classes have
-  no state variants. The change is applied straight away, no `nextTick()` needed.
+  no state variants. The change applies straight away,
+  without waiting for `nextTick()`.
 
 - **Type**
 
@@ -674,4 +675,4 @@ Exported types, available as `Rivue.<Name>` in type annotations.
 
 ---
 
-[← Instance Pool](pool.md) · [API reference](../API.md)
+[← Instance pool](pool.md) · [API reference](../API.md)

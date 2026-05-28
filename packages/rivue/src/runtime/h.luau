@@ -243,7 +243,6 @@ local function h(type_: VNodeType, propsIn: Props?, children: Types.Children?): 
 	end
 	vnodeIdCounter += 1
 
-	-- Hot path, only build the log payload when debugging
 	if debugModule.enabled then
 		debugModule.log("H", "Creating VNode", {
 			type = if type(type_) == "string" then type_ elseif type(type_) == "table" then type_.__name else "function",

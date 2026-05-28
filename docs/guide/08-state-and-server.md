@@ -2,13 +2,13 @@
 
 # 8. Sharing state and talking to the server
 
-**You'll learn:** how components far apart share state, and how to load and send data from a
-component.
+Props are fine between a parent and its child. They get tiring when the shop row five levels down
+needs the theme, or when the HUD and the shop both show the same coins. This chapter covers both
+cases, plus loading data from the server.
 
 ## Parent to descendants: provide / inject
 
-Instead of passing a prop through every level, a parent provides a value and any descendant
-injects it:
+A parent can provide a value once, and any descendant can inject it, however deep:
 
 ```mermaid
 flowchart TB
@@ -26,8 +26,8 @@ local theme = Rivue.inject("theme")
 
 ## Game-wide state: a store module
 
-A module that returns reactive state works as a store. Every component that reads it updates
-when it changes:
+For state the whole game shares, a plain module is enough. Return reactive state from it, and any
+component that reads it updates when it changes:
 
 ```lua
 -- ReplicatedStorage/Stores/PlayerData.luau
@@ -45,13 +45,13 @@ end
 return PlayerData
 ```
 
-Keep the writes in the module's functions, so there's one place to look when a value is wrong.
+Only the module's own functions write to it. When a value is wrong, that's the one place to look.
 
 ## Talking to the server
 
-[RivueRemote](../api/remote.md), a separate package you put next to Rivue, gives you
-request/response and fire-and-forget calls over RemoteEvents, with
-per-player rate limits on the server:
+Rivue itself only does UI. For the server there's [RivueRemote](../api/remote.md), a separate
+package you put next to it. It does request/response and fire-and-forget calls over RemoteEvents,
+and the server side has per-player rate limits:
 
 ```mermaid
 sequenceDiagram
@@ -72,7 +72,8 @@ Remote.handle("shop:buy", function(player, payload)
 end, { maxPerSecond = 5 })
 ```
 
-In a component, call it off the render path and keep loading and error state:
+`Remote.request` yields, so a component calls it from a spawned thread and keeps the result and
+any error in state:
 
 ```lua
 -- At the top of the component's module

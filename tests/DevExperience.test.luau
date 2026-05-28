@@ -1,7 +1,5 @@
 --!strict
--- Tests for directive props, model, nested children, style, mergeProps/cloneVNode, createApp with a
--- component, defineComponent(setup), Explorer names, printTree, render debug hooks, error
--- reporting, Teleport defer and the app context helpers
+-- Authoring helpers: v* props, model, style, mergeProps, printTree and error reporting
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
@@ -61,7 +59,6 @@ end
 local function runTests()
 	print("\n========== DEVELOPER EXPERIENCE TEST SUITE ==========\n")
 
-	-- Test 1: v* props become directives
 	print("Test 1: Directive props")
 	do
 		local container = Instance.new("Frame")
@@ -81,7 +78,6 @@ local function runTests()
 		assertEquals(plain.props.vNotADirective, 1, "Unregistered v* props are left alone")
 	end
 
-	-- Test 2: model on a TextBox
 	print("Test 2: model prop on TextBox")
 	do
 		local text = Rivue.ref("hello")
@@ -106,7 +102,6 @@ local function runTests()
 		app:unmount()
 	end
 
-	-- Test 3: model on a component with defineModel
 	print("Test 3: model prop on a component")
 	do
 		local volume = Rivue.ref(5)
@@ -141,7 +136,6 @@ local function runTests()
 		app:unmount()
 	end
 
-	-- Test 4: Nested children lists
 	print("Test 4: Nested children")
 	do
 		local items = { "a", "b" }
@@ -162,7 +156,6 @@ local function runTests()
 		assertTrue(frame:FindFirstChild("b") ~= nil and frame:FindFirstChild("Footer") ~= nil, "All children mount")
 	end
 
-	-- Test 5: style prop
 	print("Test 5: style prop")
 	do
 		local base = { BackgroundTransparency = 0.5, Size = UDim2.fromOffset(10, 10) }
@@ -176,7 +169,6 @@ local function runTests()
 		assertEquals(single.props.BackgroundTransparency, 0.5, "A single style table works")
 	end
 
-	-- Test 6: mergeProps and cloneVNode
 	print("Test 6: mergeProps / cloneVNode / isVNode")
 	do
 		local calls: { string } = {}
@@ -204,7 +196,6 @@ local function runTests()
 		assertTrue(not Rivue.isVNode({}), "isVNode rejects plain tables")
 	end
 
-	-- Test 7: Explorer names and printTree
 	print("Test 7: Component roots are named, printTree")
 	do
 		local Badge = Rivue.defineComponent({
@@ -225,7 +216,6 @@ local function runTests()
 		app:unmount()
 	end
 
-	-- Test 8: onRenderTriggered says why a component re-rendered
 	print("Test 8: onRenderTracked / onRenderTriggered")
 	do
 		local state = Rivue.reactive({ count = 0 })
@@ -254,7 +244,6 @@ local function runTests()
 		app:unmount()
 	end
 
-	-- Test 9: Errors are reported with the component trace
 	print("Test 9: Error reporting")
 	do
 		local Broken = Rivue.defineComponent({
@@ -311,7 +300,6 @@ local function runTests()
 		)
 	end
 
-	-- Test 10: Teleport defer can target something later in the same tree
 	print("Test 10: Teleport defer")
 	do
 		local overlay = Rivue.shallowRef(nil :: Instance?)
@@ -342,7 +330,6 @@ local function runTests()
 		assertEquals(#overlayEl:GetChildren(), 0, "Deferred Teleport content is removed on unmount")
 	end
 
-	-- Test 11: watch deep levels
 	print("Test 11: watch deep = number")
 	do
 		local state = Rivue.reactive({ a = { b = { c = 1 } } })
@@ -361,7 +348,6 @@ local function runTests()
 		stop()
 	end
 
-	-- Test 12: app helpers
 	print("Test 12: app:onUnmount, app:runWithContext, hasInjectionContext")
 	do
 		local app = Rivue.createApp(h("Frame"))

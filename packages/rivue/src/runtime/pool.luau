@@ -122,7 +122,6 @@ local function getTypeInfo(className: string): { isGuiObject: boolean, isText: b
 end
 
 local function isInstanceValid(inst: Instance): boolean
-	-- Destroyed instances have a locked Parent
 	return pcall(function()
 		inst.Parent = nil
 	end)
@@ -254,7 +253,6 @@ local function resetInstance(inst: Instance, touched: { [string]: boolean }?): (
 			)
 		end
 
-		-- Back to the default name, a reused Instance shouldn't show up as "PooledFrame"
 		inst.Name = inst.ClassName
 
 		if inst.GetAttributes then

@@ -205,7 +205,6 @@ local function createEffect(fn: () -> (), opts: EffectOptions?): Effect
 			utils.profiler:start(effectName)
 		end
 
-		-- Drop old dependencies, this run collects the current ones
 		for _, dep in effect.deps do
 			dep[typedEffect] = nil
 		end
@@ -222,7 +221,6 @@ local function createEffect(fn: () -> (), opts: EffectOptions?): Effect
 		end
 
 		if not ok then
-			-- Always reported, a silent effect is a nightmare to debug
 			warn(`[Rivue] Error in effect: {err}`)
 		end
 	end
@@ -315,7 +313,7 @@ local function trigger(target: unknown, key: unknown)
 	if not dep then
 		return
 	end
-	-- Copy first, sync effects modify dep while we iterate. Scratch arrays are reused per
+	-- Copy first, sync effects change dep during the loop. Scratch arrays are reused per
 	-- nesting depth so a write doesn't allocate.
 	triggerDepth += 1
 	local effects = triggerScratch[triggerDepth]
@@ -764,7 +762,6 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 	local dirty = false
 
 	local function hasChanged(new: T): boolean
-		-- Deep watchers fire even if the table is the same
 		if deep then
 			return true
 		elseif isMultiSource then

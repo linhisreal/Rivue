@@ -88,7 +88,7 @@ so it's a cheap way to batch expensive work.
     - `"micro"` (the default) runs deferred, in the same frame.
     - `"render"` runs on the next RenderStepped.
     - `"heartbeat"` runs on the next Heartbeat.
-  - **Deduplicated.** Queuing the same function twice before it runs only runs it once.
+  
   - **In components.** Jobs queued in `setup()` are cancelled when the component unmounts.
 
   `Rivue.scheduler.queueJob` is the same function without the automatic cancel.
@@ -131,4 +131,4 @@ The order in which work runs after you change state.
 
 ---
 
-[← Application](application.md) · [API reference](../API.md) · [Roblox Composables →](roblox.md)
+[← Application](application.md) · [API reference](../API.md) · [Roblox composables →](roblox.md)
