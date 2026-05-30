@@ -2,23 +2,12 @@
 
 # Instance pool
 
-**Learn it:** [Guide 9: Performance and debugging](../guide/09-performance-and-debugging.md)
+**Learn it:** [Guide 15: Performance in depth](../guide/15-performance-in-depth.md#long-lists-and-many-instances)
 
 Reuses Instances instead of destroying and creating them. Most apps only need the
-[pooling options](application.md#pooling-options) of `createApp`. These functions are for tuning
-and for using the pool directly. All examples assume
+[pooling options](application.md#pooling-options) of `createApp`; these functions are for tuning
+and for using the pool directly. Examples assume
 `local Rivue = require(game.ReplicatedStorage.RivueUI)` and `local Pool = Rivue.pool`.
-
-- [Pool.configure()](#poolconfigure)
-- [Pool.warmup()](#poolwarmup)
-- [Pool.acquire() / Pool.acquireMultiple()](#poolacquire--poolacquiremultiple)
-- [Pool.release() / Pool.releaseMultiple()](#poolrelease--poolreleasemultiple)
-- [Pool.clear()](#poolclear)
-- [Pool.getStatistics()](#poolgetstatistics)
-- [Pool.validateHealth()](#poolvalidatehealth)
-- [Pool.setResetHandler()](#poolsetresethandler)
-- [Pool.setEventHook()](#poolseteventhook)
-- [Pool.createSnapshot() / Pool.restoreSnapshot()](#poolcreatesnapshot--poolrestoresnapshot)
 
 ---
 
@@ -26,26 +15,26 @@ and for using the pool directly. All examples assume
 
 Sets how big the pool can get and how long unused Instances are kept.
 
-- **Example**
+```lua signature
+function Pool.configure(config: PoolConfig)
+```
 
-  ```lua
-  local Pool = Rivue.pool
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `config.maxPoolSize` | `number` | `50` | Instances kept per class |
+| `config.maxTotalSize` | `number` | `500` | Instances kept across all classes |
+| `config.defaultTTL` | `number?` | none | seconds an unused Instance is kept before it's destroyed |
+| `config.enableMetrics` | `boolean` | `true` | count hits, misses and evictions for `getStatistics()` |
+| `config.enableDebug` | `boolean` | `false` | print pool activity |
+| `config.enableAutoWarmup` | `boolean` | `false` | create 5 the first time a class is acquired |
 
-  Pool.configure({ maxPoolSize = 200, maxTotalSize = 1000, defaultTTL = 60 })
-  ```
+### Example
 
-- **Type**
+```lua
+local Pool = Rivue.pool
 
-  ```lua
-  function Pool.configure(config: {
-  	maxPoolSize: number?, -- per class (default 50)
-  	maxTotalSize: number?, -- across all classes (default 500)
-  	defaultTTL: number?, -- seconds an unused Instance is kept
-  	enableMetrics: boolean?,
-  	enableDebug: boolean?,
-  	enableAutoWarmup: boolean?, -- create 5 the first time a class is acquired
-  })
-  ```
+Pool.configure({ maxPoolSize = 200, maxTotalSize = 1000, defaultTTL = 60 })
+```
 
 ---
 
@@ -54,81 +43,88 @@ Sets how big the pool can get and how long unused Instances are kept.
 Creates Instances ahead of time, during loading, so the first time the UI needs them there's no
 creation cost.
 
-- **Example**
+```lua signature
+function Pool.warmup(className: string, count: number)
+```
 
-  ```lua
-  local Pool = Rivue.pool
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `className` | `string` | | the class to create |
+| `count` | `number` | | how many |
 
-  -- Before a round with lots of damage numbers
-  Pool.warmup("TextLabel", 100)
-  ```
+### Example
 
-- **Type**
+```lua
+local Pool = Rivue.pool
 
-  ```lua
-  function Pool.warmup(className: string, count: number)
-  ```
+Pool.warmup("TextLabel", 100) -- before a round with lots of damage numbers
+```
 
 ---
 
 ## Pool.acquire() / Pool.acquireMultiple()
 
-Gets ready-to-use Instances from the pool, creating new ones only when it's empty. Rivue does this
+Takes ready-to-use Instances from the pool, creating new ones only when it's empty. Rivue does this
 for you when the app uses pooling.
 
-- **Example**
+```lua signature
+function Pool.acquire(className: string): Instance
+function Pool.acquireMultiple(className: string, count: number): { Instance }
+```
 
-  ```lua
-  local Pool = Rivue.pool
-  local screen = Instance.new("ScreenGui")
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `className` | `string` | | the class you want |
+| `count` | `number` | | `acquireMultiple` only: how many |
 
-  local label = Pool.acquire("TextLabel") :: TextLabel
-  label.Text = "-25"
-  label.Parent = screen
-  ```
+> [!WARNING]
+> A class that can't be created warns and gives you a Frame instead.
 
-- **Type**
+### Example
 
-  ```lua
-  function Pool.acquire(className: string): Instance
-  function Pool.acquireMultiple(className: string, count: number): { Instance }
-  ```
+```lua
+local Pool = Rivue.pool
+local screen = Instance.new("ScreenGui")
+
+local label = Pool.acquire("TextLabel") :: TextLabel
+label.Text = "-25"
+label.Parent = screen
+```
 
 ---
 
 ## Pool.release() / Pool.releaseMultiple()
 
-Gives Instances back to the pool. They're reset to their defaults so the next user gets a clean one.
+Gives Instances back. A released Instance is unparented, and its name, attributes and common
+properties are reset, so the next user gets a clean one.
 
-- **Example**
+```lua signature
+function Pool.release(instance: Instance, touched: { [string]: boolean }?)
+function Pool.releaseMultiple(instances: { Instance })
+```
 
-  ```lua
-  local Pool = Rivue.pool
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `instance` | `Instance` | | the Instance to give back |
+| `touched` | `{ [string]: boolean }?` | | more properties you changed, reset to their defaults too |
+| `instances` | `{ Instance }` | | `releaseMultiple` only |
 
-  local label = Pool.acquire("TextLabel") :: TextLabel
-  label.Text = "-25"
-  label.TextColor3 = Color3.new(1, 0, 0)
+> [!NOTE]
+> When the pool for that class is full, the Instance is destroyed instead.
 
-  task.delay(1, function()
-  	Pool.release(label, { TextColor3 = true })
-  end)
-  ```
+### Example
 
-- **Details**
+```lua
+local Pool = Rivue.pool
 
-  A released Instance:
-  - is unparented,
-  - gets its common properties, attributes and name reset,
-  - also gets each property in `touched` reset to its default.
+local label = Pool.acquire("TextLabel") :: TextLabel
+label.Text = "-25"
+label.TextColor3 = Color3.new(1, 0, 0)
 
-  When the pool is full, it's destroyed instead.
-
-- **Type**
-
-  ```lua
-  function Pool.release(instance: Instance, touched: { [string]: boolean }?)
-  function Pool.releaseMultiple(instances: { Instance })
-  ```
+task.delay(1, function()
+	Pool.release(label, { TextColor3 = true })
+end)
+```
 
 ---
 
@@ -137,148 +133,148 @@ Gives Instances back to the pool. They're reset to their defaults so the next us
 Destroys pooled Instances of one class, or all of them, to free memory, for example when the player
 leaves a UI-heavy area.
 
-- **Example**
+```lua signature
+function Pool.clear(className: string?)
+```
 
-  ```lua
-  local Pool = Rivue.pool
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `className` | `string?` | every class | the class to clear |
 
-  Pool.clear("TextLabel") -- one class
-  Pool.clear() -- everything
-  ```
+### Example
 
-- **Type**
+```lua
+local Pool = Rivue.pool
 
-  ```lua
-  function Pool.clear(className: string?)
-  ```
+Pool.clear("TextLabel") -- one class
+Pool.clear() -- everything
+```
 
 ---
 
 ## Pool.getStatistics()
 
-How the pool is doing: how many Instances it holds, and how often it could reuse one instead of
-creating it.
+How many Instances the pool holds, and how often it reused one instead of creating it.
 
-- **Example**
+```lua signature
+function Pool.getStatistics(): PoolStatistics
+```
 
-  ```lua
-  local Pool = Rivue.pool
+**Returns** `{ totalInstances, poolsByClass, hitRate, metrics }`. `hitRate` goes from 0 to 1;
+`metrics` counts acquires, releases, creates, hits, misses, destroyed and evictions, and stays at
+zero with `enableMetrics` off.
 
-  local stats = Pool.getStatistics()
-  print(`{stats.totalInstances} pooled, hit rate {math.floor(stats.hitRate * 100)}%`)
-  ```
+### Example
 
-- **Type**
+```lua
+local Pool = Rivue.pool
 
-  ```lua
-  function Pool.getStatistics(): {
-  	totalInstances: number,
-  	poolsByClass: { [string]: number },
-  	hitRate: number, -- 0 to 1
-  	metrics: { acquires: number, releases: number, creates: number, hits: number, misses: number, destroyed: number, evictions: number },
-  }
-  ```
+local stats = Pool.getStatistics()
+print(`{stats.totalInstances} pooled, hit rate {math.floor(stats.hitRate * 100)}%`)
+```
 
 ---
 
 ## Pool.validateHealth()
 
-Cleans out Instances something else destroyed while they sat in the pool. Returns `true` if it found
-none.
+Removes Instances that something else destroyed while they sat in the pool.
 
-- **Example**
+```lua signature
+function Pool.validateHealth(): boolean
+```
 
-  ```lua
-  local Pool = Rivue.pool
+**Returns** `true` if every pooled Instance was fine.
 
-  if not Pool.validateHealth() then
-  	warn("pool had destroyed Instances, cleaned up")
-  end
-  ```
+### Example
 
-- **Type**
+```lua
+local Pool = Rivue.pool
 
-  ```lua
-  function Pool.validateHealth(): boolean
-  ```
+if not Pool.validateHealth() then
+	warn("pool had destroyed Instances, cleaned up")
+end
+```
 
 ---
 
 ## Pool.setResetHandler()
 
-Your own clean-up for one class, run when an Instance of it goes back into the pool. Use it for
-custom attributes or children the default reset doesn't know about.
+Your own cleanup for one class, run when an Instance of it goes back into the pool. Use it for
+attributes or children the default reset doesn't know about.
 
-- **Example**
+```lua signature
+function Pool.setResetHandler(className: string, handler: (instance: Instance) -> ())
+```
 
-  ```lua
-  local Pool = Rivue.pool
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `className` | `string` | | the class it applies to |
+| `handler` | `(instance) -> ()` | | runs after the default reset |
 
-  Pool.setResetHandler("ImageLabel", function(instance)
-  	local image = instance :: ImageLabel
-  	image.ImageRectOffset = Vector2.zero
-  	image.ImageRectSize = Vector2.zero
-  end)
-  ```
+### Example
 
-- **Type**
+```lua
+local Pool = Rivue.pool
 
-  ```lua
-  function Pool.setResetHandler(className: string, handler: (instance: Instance) -> ())
-  ```
+Pool.setResetHandler("ImageLabel", function(instance)
+	local image = instance :: ImageLabel
+	image.ImageRectOffset = Vector2.zero
+	image.ImageRectSize = Vector2.zero
+end)
+```
 
 ---
 
 ## Pool.setEventHook()
 
-Lets you watch pool activity (acquire, release, clear, evict), for logging or metrics.
+Watch pool activity for logging or metrics.
 
-- **Example**
+```lua signature
+function Pool.setEventHook(hook: "onAcquire" | "onRelease" | "onClear" | "onEvict", handler: (...any) -> ())
+```
 
-  ```lua
-  local Pool = Rivue.pool
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `hook` | `"onAcquire" \| "onRelease" \| "onClear" \| "onEvict"` | | which activity |
+| `handler` | `(...any) -> ()` | | gets `(instance, fromPool)`, `(instance, pooled)`, `(totalCleared)` or `(instance, reason)` |
 
-  Pool.setEventHook("onEvict", function(instance, reason)
-  	print("evicted", instance.ClassName, reason)
-  end)
-  ```
+> [!NOTE]
+> Any other hook name warns and is ignored.
 
-- **Type**
+### Example
 
-  ```lua
-  function Pool.setEventHook(
-  	hook: "onAcquire" | "onRelease" | "onClear" | "onEvict",
-  	handler: (...any) -> ()
-  )
+```lua
+local Pool = Rivue.pool
 
-  -- onAcquire(instance, fromPool: boolean)
-  -- onRelease(instance, pooled: boolean)
-  -- onClear(totalCleared: number)
-  -- onEvict(instance, reason: string)
-  ```
+Pool.setEventHook("onEvict", function(instance, reason)
+	print("evicted", instance.ClassName, reason)
+end)
+```
 
 ---
 
 ## Pool.createSnapshot() / Pool.restoreSnapshot()
 
-Saves what's in the pool and puts it back later. Mostly useful in tests.
+Saves what's in the pool and puts it back later. Mostly for tests.
 
-- **Example**
+```lua signature
+function Pool.createSnapshot(): { [string]: { Instance } }
+function Pool.restoreSnapshot(snapshot: { [string]: { Instance } })
+```
 
-  ```lua
-  local Pool = Rivue.pool
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `snapshot` | `{ [string]: { Instance } }` | | from `createSnapshot()` |
 
-  local snapshot = Pool.createSnapshot()
-  -- ... a scene that churns through Instances ...
-  Pool.restoreSnapshot(snapshot)
-  ```
+### Example
 
-- **Type**
+```lua
+local Pool = Rivue.pool
 
-  ```lua
-  function Pool.createSnapshot(): { [string]: { Instance } }
-  function Pool.restoreSnapshot(snapshot: { [string]: { Instance } })
-  ```
+local snapshot = Pool.createSnapshot()
+-- ... a scene that churns through Instances ...
+Pool.restoreSnapshot(snapshot)
+```
 
 ---
 

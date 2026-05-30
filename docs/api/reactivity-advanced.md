@@ -4,410 +4,404 @@
 
 **Learn it:** [Guide 2: State](../guide/02-state.md) · [Guide 9: Performance and debugging](../guide/09-performance-and-debugging.md)
 
-Lower-level reactivity APIs for performance and library code. All examples assume
+Lower-level reactivity for performance work and library code. Examples assume
 `local Rivue = require(game.ReplicatedStorage.RivueUI)`.
-
-- [shallowRef()](#shallowref)
-- [triggerRef()](#triggerref)
-- [customRef()](#customref)
-- [shallowReactive()](#shallowreactive)
-- [shallowReadonly()](#shallowreadonly)
-- [isShallow()](#isshallow)
-- [toRaw()](#toraw)
-- [markRaw()](#markraw)
-- [effect()](#effect)
-- [effectScope()](#effectscope)
-- [getCurrentScope()](#getcurrentscope)
-- [onScopeDispose()](#onscopedispose)
 
 ---
 
 ## shallowRef()
 
-A ref that only notices when you replace `.value`, not when you change things inside it. Use it for
-big data you swap out wholesale, like a server response or a 1,000-row table.
+A ref that only notices when `.value` is replaced, not when something inside it changes. Use it for
+big data you swap out whole, like a server response, and for values that shouldn't be proxied, like
+Instances or component definitions.
 
-- **Example**
+```lua signature
+function shallowRef<T>(value: T): Ref<T>
+```
 
-  ```lua
-  local state = Rivue.shallowRef({ count = 1 })
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `value` | `T` | | the starting value, stored as is |
 
-  state.value.count = 2 -- doesn't trigger anything
-  state.value = { count = 2 } -- triggers
-  ```
+**Returns** a [`Ref<T>`](reactivity-core.md#type-ref).
 
-- **Details**
+### Example
 
-  The value is stored as is, without wrapping it in a proxy. Use it:
-  - for large data you replace rather than edit,
-  - for values that shouldn't be proxied: Instances, component definitions, data from the
-    server.
+```lua
+local state = Rivue.shallowRef({ count = 1 })
 
-- **Type**
+state.value.count = 2 -- doesn't trigger anything
+state.value = { count = 2 } -- triggers
+```
 
-  ```lua
-  function shallowRef<T>(value: T): Ref<T>
-  ```
+### Details
 
-- **See also** [`triggerRef()`](#triggerref)
+- After changing what's inside without replacing `.value`, call [`triggerRef()`](#triggerref).
 
 ---
 
 ## triggerRef()
 
-Tells everything using a [`shallowRef`](#shallowref) to update, after you changed what's inside it
-without replacing `.value`.
+Tells everything using a [`shallowRef`](#shallowref) to update, after you changed what's inside it.
 
-- **Example**
+```lua signature
+function triggerRef<T>(ref: Ref<T>)
+```
 
-  ```lua
-  local inventory = Rivue.shallowRef({ "Sword" })
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `ref` | `Ref<T>` | | the ref whose contents changed |
 
-  Rivue.watchEffect(function()
-  	print(#inventory.value)
-  end)
+> [!NOTE]
+> Passing something that isn't a ref does nothing. It's only logged when `Rivue.debug.enabled` is
+> on.
 
-  table.insert(inventory.value, "Shield") -- not tracked
-  Rivue.triggerRef(inventory) -- prints 2
-  ```
+### Example
 
-- **Type**
+```lua
+local inventory = Rivue.shallowRef({ "Sword" })
 
-  ```lua
-  function triggerRef<T>(ref: Ref<T>)
-  ```
+Rivue.watchEffect(function()
+	print(#inventory.value)
+end)
+
+table.insert(inventory.value, "Shield") -- not tracked
+Rivue.triggerRef(inventory) -- prints 2
+```
 
 ---
 
 ## customRef()
 
-Builds a ref with your own rules for when it updates. A common use is a debounced value that only
-updates after the player stops typing.
+A ref with your own rules for when it counts as changed, such as a value that only updates after
+the player stops typing.
 
-- **Example**
+```lua signature
+function customRef<T>(factory: (track: () -> (), trigger: () -> ()) -> {
+	get: () -> T,
+	set: (value: T) -> (),
+}): Ref<T>
+```
 
-  A ref that only updates after writes stop for a while:
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `factory` | `(track, trigger) -> { get, set }` | | call `track()` in `get`, and `trigger()` when readers should update |
 
-  ```lua
-  local function useDebouncedRef<T>(value: T, delaySeconds: number)
-  	local pending: thread? = nil
-  	return Rivue.customRef(function(track, trigger)
-  		return {
-  			get = function()
-  				track()
-  				return value
-  			end,
-  			set = function(newValue)
-  				if pending then
-  					task.cancel(pending)
-  				end
-  				pending = task.delay(delaySeconds, function()
-  					value = newValue
-  					trigger()
-  				end)
-  			end,
-  		}
-  	end)
-  end
+**Returns** a `Ref<T>` that reads through `get` and writes through `set`. A factory that doesn't
+return both errors.
 
-  local search = useDebouncedRef("", 0.3)
-  ```
+### Example
 
-- **Details**
+```lua
+local function useDebouncedRef<T>(value: T, delaySeconds: number)
+	local pending: thread? = nil
+	return Rivue.customRef(function(track, trigger)
+		return {
+			get = function()
+				track()
+				return value
+			end,
+			set = function(newValue)
+				if pending then
+					task.cancel(pending)
+				end
+				pending = task.delay(delaySeconds, function()
+					value = newValue
+					trigger()
+				end)
+			end,
+		}
+	end)
+end
 
-  `factory` receives `track` and `trigger`. Call `track()` in `get` and `trigger()` when the
-  value should be considered changed.
-
-- **Type**
-
-  ```lua
-  function customRef<T>(factory: (track: () -> (), trigger: () -> ()) -> {
-  	get: () -> T,
-  	set: (value: T) -> (),
-  }): Ref<T>
-  ```
+local search = useDebouncedRef("", 0.3)
+```
 
 ---
 
 ## shallowReactive()
 
-Like [`reactive()`](reactivity-core.md#reactive), but only the top-level keys are watched. Nested
-tables are left as plain tables.
+Like [`reactive()`](reactivity-core.md#reactive), but only the top-level fields are reactive.
+Nested tables stay plain.
 
-- **Example**
+```lua signature
+function shallowReactive<T>(target: T): T
+```
 
-  ```lua
-  local state = Rivue.shallowReactive({ count = 1, nested = { bar = 2 } })
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `target` | `T` | | the table to wrap |
 
-  state.count += 1 -- reactive
-  state.nested.bar += 1 -- not reactive
-  state.nested = { bar = 10 } -- reactive (top-level key)
-  ```
+### Example
 
-- **Details**
+```lua
+local state = Rivue.shallowReactive({ count = 1, nested = { bar = 2 } })
 
-  Nested tables are returned as they are, without proxies. Component props are shallow reactive.
+state.count += 1 -- reactive
+state.nested.bar += 1 -- not reactive
+state.nested = { bar = 10 } -- reactive: a top-level field
+```
 
-- **Type**
+### Details
 
-  ```lua
-  function shallowReactive<T>(target: T): T
-  ```
+- Component props are shallow reactive.
 
 ---
 
 ## shallowReadonly()
 
-Like [`readonly()`](reactivity-core.md#readonly), but only the top-level keys are protected.
+Like [`readonly()`](reactivity-core.md#readonly), but only the top-level fields are protected.
 
-- **Example**
+```lua signature
+function shallowReadonly<T>(target: T): T
+```
 
-  ```lua
-  local state = Rivue.shallowReadonly({ count = 1, nested = { bar = 2 } })
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `target` | `T` | | the table to wrap |
 
-  state.count += 1 -- ignored
-  state.nested.bar += 1 -- works
-  ```
+### Example
 
-- **Type**
+```lua
+local state = Rivue.shallowReadonly({ count = 1, nested = { bar = 2 } })
 
-  ```lua
-  function shallowReadonly<T>(target: T): T
-  ```
+state.count += 1 -- ignored
+state.nested.bar += 1 -- works
+```
 
 ---
 
 ## isShallow()
 
-Tells you whether a table came from `shallowReactive()` or `shallowReadonly()`.
+Whether a table came from `shallowReactive()` or `shallowReadonly()`.
 
-- **Example**
+```lua signature
+function isShallow(value: unknown): boolean
+```
 
-  ```lua
-  print(Rivue.isShallow(Rivue.shallowReactive({}))) -- true
-  print(Rivue.isShallow(Rivue.reactive({}))) -- false
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `value` | `unknown` | | anything |
 
-- **Type**
+### Example
 
-  ```lua
-  function isShallow(value: unknown): boolean
-  ```
+```lua
+print(Rivue.isShallow(Rivue.shallowReactive({}))) -- true
+print(Rivue.isShallow(Rivue.reactive({}))) -- false
+```
 
 ---
 
 ## toRaw()
 
-Gets the plain table behind a reactive one. Use it to read or pass data without tracking, for
-example when sending state to the server.
+The plain table behind a reactive one. Use it to read or pass data without tracking, for example
+when sending state to the server, or to use `table.*` functions.
 
-- **Example**
+```lua signature
+function toRaw<T>(proxy: T): T
+```
 
-  ```lua
-  local original = { 3, 1, 2 }
-  local list = Rivue.reactive(original)
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `proxy` | `T` | | a reactive or read-only proxy; anything else is returned as is |
 
-  print(Rivue.toRaw(list) == original) -- true
+> [!WARNING]
+> Writes to the raw table don't trigger anything, so the UI won't update from them.
 
-  local sorted = table.clone(Rivue.toRaw(list))
-  table.sort(sorted)
-  ```
+### Example
 
-- **Details**
+```lua
+local original = { 3, 1, 2 }
+local list = Rivue.reactive(original)
 
-  Reading or writing the raw table bypasses tracking and triggering. It's also what to pass to
-  `table.*` functions, which don't work through proxies.
+print(Rivue.toRaw(list) == original) -- true
 
-- **Type**
-
-  ```lua
-  function toRaw<T>(proxy: T): T
-  ```
+local sorted = table.clone(Rivue.toRaw(list))
+table.sort(sorted)
+```
 
 ---
 
 ## markRaw()
 
-Tells Rivue to never make a table reactive. Use it for things that shouldn't be watched, like
-Instances, class objects or large static data.
+Marks a table so Rivue never makes it reactive, even when it ends up inside reactive state. Use it
+for big static data and for tables another library owns.
 
-- **Example**
+```lua signature
+function markRaw<T>(value: T): T
+```
 
-  ```lua
-  local itemDatabase = Rivue.markRaw({ sword = { damage = 10 } })
-  local state = Rivue.reactive({ items = itemDatabase })
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `value` | `T` | | the table to mark; other values pass through |
 
-  print(Rivue.isReactive(state.items)) -- false
-  ```
+**Returns** the same table.
 
-- **Details**
+### Example
 
-  Use it for big static data, or for tables owned by another library, so they aren't wrapped
-  when they end up inside reactive state.
+```lua
+local itemDatabase = Rivue.markRaw({ sword = { damage = 10 } })
+local state = Rivue.reactive({ items = itemDatabase })
 
-- **Type**
-
-  ```lua
-  function markRaw<T>(value: T): T
-  ```
+print(Rivue.isReactive(state.items)) -- false
+```
 
 ---
 
 ## effect()
 
-The low-level building block under watchers and component renders: a function that re-runs when what
-it read changes. Prefer [`watchEffect()`](reactivity-core.md#watcheffect) in app code.
+The building block under watchers and component renders: a function that runs again when what it
+read changes. In app code, use [`watchEffect()`](reactivity-core.md#watcheffect).
 
-- **Example**
+```lua signature
+function effect(fn: () -> (), options: EffectOptions?): Effect
+```
 
-  ```lua
-  local count = Rivue.ref(0)
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `fn` | `() -> ()` | | the function to run |
+| `options` | `EffectOptions?` | | |
+| `options.lazy` | `boolean` | `false` | don't run until you call `effect.run()` |
+| `options.scheduler` | `(run: () -> ()) -> ()` | | called instead of running on a change; decide when to call `run` |
+| `options.onTrack` | `(event: DebuggerEvent) -> ()` | | called for each value it starts tracking |
+| `options.onTrigger` | `(event: DebuggerEvent) -> ()` | | called with the change that made it run again |
+| `options.allowRecurse` | `boolean` | `false` | let it trigger itself by writing what it reads |
 
-  local runner = Rivue.effect(function()
-  	print("count is", count.value)
-  end, {
-  	lazy = true,
-  	onTrigger = function(event)
-  		print("changed key", event.key)
-  	end,
-  })
+**Returns** an `Effect`: `{ run: () -> (), stop: (self) -> (), active: boolean }`. A
+`DebuggerEvent` is `{ target, key }`.
 
-  runner.run() -- count is 0
-  count.value += 1 -- changed key value, then (deferred) count is 1
-  runner:stop()
-  ```
+> [!NOTE]
+> Unlike Vue's `effect()`, the first run is deferred to the next flush, not immediate. With a
+> `scheduler`, the first run goes to it straight away.
 
-- **Details**
+### Example
 
-  In a component's `setup()`, the effect stops on unmount.
+```lua
+local count = Rivue.ref(0)
 
-  Unlike Vue's `effect()`, the first run is deferred to the next flush. With a `scheduler` it's
-  passed to the scheduler right away, and with `lazy = true` nothing runs until you call
-  `effect.run()`.
+local runner = Rivue.effect(function()
+	print("count is", count.value)
+end, {
+	lazy = true,
+	onTrigger = function(event)
+		print("changed key", event.key)
+	end,
+})
 
-- **Type**
+runner.run() -- count is 0
+count.value += 1 -- changed key value, then (deferred) count is 1
+runner:stop()
+```
 
-  ```lua
-  function effect(fn: () -> (), options: EffectOptions?): Effect
+### Details
 
-  type EffectOptions = {
-  	scheduler: ((run: () -> ()) -> ())?, -- called instead of running on change
-  	lazy: boolean?, -- don't run until effect.run() is called
-  	onTrack: ((event: DebuggerEvent) -> ())?,
-  	onTrigger: ((event: DebuggerEvent) -> ())?,
-  	allowRecurse: boolean?,
-  }
-
-  type Effect = { run: () -> (), stop: (self: Effect) -> (), active: boolean }
-  type DebuggerEvent = { target: unknown, key: unknown }
-  ```
+- Made in a component's `setup()`, it stops on unmount.
 
 ---
 
 ## effectScope()
 
-A container that collects the computeds and watchers created inside it, so you can stop them all at
-once. Useful for state that lives outside components.
+Collects the computeds and watchers made inside it, so you can stop them all at once. Use it for
+state that lives outside components, and in tests.
 
-- **Example**
+```lua signature
+function effectScope(detached: boolean?): EffectScope
+```
 
-  ```lua
-  local count = Rivue.ref(0)
-  local scope = Rivue.effectScope()
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `detached` | `boolean?` | `false` | don't stop when the scope it was made in stops |
 
-  scope:run(function()
-  	local doubled = Rivue.computed(function()
-  		return count.value * 2
-  	end)
-  	Rivue.watch(doubled, function(value)
-  		print(value)
-  	end)
-  	Rivue.watchEffect(function()
-  		print("count:", count.value)
-  	end)
-  	return nil
-  end)
+**Returns** an `EffectScope`:
+`{ run: (self, fn: () -> unknown) -> unknown, stop: (self) -> (), active: boolean }`.
 
-  -- stops the computed and both watchers
-  scope:stop()
-  ```
+### Example
 
-- **Details**
+```lua
+local count = Rivue.ref(0)
+local scope = Rivue.effectScope()
 
-  A scope created inside another scope is stopped with its parent unless `detached` is true.
-  Each component's `setup()` runs in its own scope.
+scope:run(function()
+	local doubled = Rivue.computed(function()
+		return count.value * 2
+	end)
+	Rivue.watch(doubled, function(value)
+		print(value)
+	end)
+	Rivue.watchEffect(function()
+		print("count:", count.value)
+	end)
+	return nil
+end)
 
-- **Type**
+scope:stop() -- stops the computed and both watchers
+```
 
-  ```lua
-  function effectScope(detached: boolean?): EffectScope
+### Details
 
-  type EffectScope = {
-  	run: (self: EffectScope, fn: () -> unknown) -> unknown,
-  	stop: (self: EffectScope) -> (),
-  	active: boolean,
-  }
-  ```
+- Each component's `setup()` runs in its own scope.
+- A store module required first from a component's setup would otherwise belong to that component;
+  `effectScope(true)` keeps its computeds alive for the whole game.
 
 ---
 
 ## getCurrentScope()
 
-The effect scope that's active right now, if any.
+The effect scope that's active right now, if any. Composables use it to check they were called
+somewhere that cleans up.
 
-- **Example**
+```lua signature
+function getCurrentScope(): EffectScope?
+```
 
-  ```lua
-  local function useClock()
-  	if not Rivue.getCurrentScope() then
-  		warn("useClock() should be called in setup() or effectScope():run()")
-  	end
-  	local now = Rivue.ref(os.clock())
-  	local conn = game:GetService("RunService").Heartbeat:Connect(function()
-  		now.value = os.clock()
-  	end)
-  	Rivue.onScopeDispose(function()
-  		conn:Disconnect()
-  	end)
-  	return now
-  end
-  ```
+### Example
 
-- **Type**
-
-  ```lua
-  function getCurrentScope(): EffectScope?
-  ```
+```lua
+local function useClock()
+	if not Rivue.getCurrentScope() then
+		warn("useClock() should be called in setup() or effectScope():run()")
+	end
+	local now = Rivue.ref(os.clock())
+	local conn = game:GetService("RunService").Heartbeat:Connect(function()
+		now.value = os.clock()
+	end)
+	Rivue.onScopeDispose(function()
+		conn:Disconnect()
+	end)
+	return now
+end
+```
 
 ---
 
 ## onScopeDispose()
 
-Runs your clean-up when the current scope stops. Inside a component, that's when it unmounts, which
-makes it the composable-friendly version of `onUnmounted`.
+Runs cleanup when the current scope stops. In a component's `setup()` that's on unmount, which makes
+it the version of `onUnmounted` that also works in stores and tests.
 
-- **Example**
+```lua signature
+function onScopeDispose(fn: () -> (), failSilently: boolean?)
+```
 
-  ```lua
-  local function useHeartbeat(callback: (dt: number) -> ())
-  	local conn = game:GetService("RunService").Heartbeat:Connect(callback)
-  	Rivue.onScopeDispose(function()
-  		conn:Disconnect()
-  	end)
-  end
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `fn` | `() -> ()` | | the cleanup |
+| `failSilently` | `boolean?` | `false` | skip the debug log when there's no scope |
 
-- **Details**
+> [!WARNING]
+> Outside a scope it does nothing and the cleanup never runs. The only sign is a log when
+> `Rivue.debug.enabled` is on.
 
-  It works in a component's `setup()`
-  (the component's scope stops on unmount) and inside `effectScope():run()`. Outside a scope it
-  does nothing.
+### Example
 
-- **Type**
-
-  ```lua
-  function onScopeDispose(fn: () -> (), failSilently: boolean?)
-  ```
+```lua
+local function useHeartbeat(callback: (dt: number) -> ())
+	local conn = game:GetService("RunService").Heartbeat:Connect(callback)
+	Rivue.onScopeDispose(function()
+		conn:Disconnect()
+	end)
+end
+```
 
 ---
 
