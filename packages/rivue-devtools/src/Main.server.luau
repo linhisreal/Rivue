@@ -15,9 +15,13 @@ button.ClickableWhenViewportHidden = true
 
 local widget = self:CreateDockWidgetPluginGuiAsync(
 	"RivueDevTools",
-	DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, false, false, 320, 480, 240, 200)
+	DockWidgetPluginGuiInfo.new(Enum.InitialDockState.Right, false, false, 340, 520, 260, 240)
 )
 widget.Title = `Rivue DevTools {Rivue.version}`
+
+DevTools.setOpenScript(function(script, line)
+	self:OpenScript(script, line)
+end)
 
 local app = nil
 local stop: (() -> ())? = nil

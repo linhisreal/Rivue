@@ -284,6 +284,18 @@ local function track(target: unknown, key: unknown)
 	end
 end
 
+-- For engine calls made mid-render: in Immediate signal mode their handlers run right away, and
+-- whatever state those handlers read would otherwise become a dependency of the render
+local function untracked(fn: () -> ())
+	local prev = activeEffect
+	activeEffect = nil
+	local ok, err = pcall(fn :: () -> ...unknown)
+	activeEffect = prev
+	if not ok then
+		error(err, 0)
+	end
+end
+
 local triggerScratch: { { Effect } } = {}
 local triggerDepth = 0
 
@@ -1104,6 +1116,7 @@ end
 
 return {
 	_triggerListChange = triggerListChange,
+	_untracked = untracked,
 
 	reactive = reactive,
 	shallowReactive = shallowReactive,

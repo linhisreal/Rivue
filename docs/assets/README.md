@@ -55,8 +55,8 @@ SIL Open Font License.
 
 ## Badges
 
-The README's link badges in `badges/`. They share one layout (icon, small caption, bold name,
-40 px tall) and each sits on its brand's colour:
+The README's link badges in `badges/`. They share one layout (icon and name, 32 px tall, so all
+six fit on one row) and each sits on its brand's colour:
 
 | File | Icon and colour |
 |---|---|

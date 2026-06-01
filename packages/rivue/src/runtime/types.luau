@@ -217,6 +217,8 @@ export type ComponentOptions = {
 export type ComponentDef = {
 	__is_component: true,
 	__name: string?,
+	-- Where defineComponent was called, "Script.Path:line", for the DevTools' Open source
+	__source: string?,
 	props: PropSchema?,
 	emits: EmitsOptions?,
 	components: { [string]: ComponentDef }?,

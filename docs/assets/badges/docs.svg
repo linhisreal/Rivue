@@ -1,6 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="88.5" height="40" viewBox="0 0 177 80" role="img" aria-label="Read the docs">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="73.6" height="32" viewBox="0 0 184 80" role="img" aria-label="Read the docs">
 <title>Read the docs</title>
-<rect x="1" y="1" width="175" height="78" rx="15" fill="#1f6feb"/>
+<rect x="1" y="1" width="182" height="78" rx="15" fill="#1f6feb"/>
 
 <g transform="translate(10 10) scale(0.234)">
   <rect x="24" y="24" width="208" height="208" rx="48" fill="#ffffff" transform="rotate(-15 128 128)"/>
@@ -11,7 +11,6 @@
   <path d="M101.4 104 L128 150 L154.6 104" fill="none" stroke="#2fbf8f" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
 </g>
 <g font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" fill="#ffffff">
-<text x="84" y="34" font-size="18" textLength="73" lengthAdjust="spacingAndGlyphs" fill-opacity="0.85">Read the</text>
-<text x="84" y="62" font-size="28" font-weight="700" textLength="68" lengthAdjust="spacingAndGlyphs">Docs</text>
+<text x="84" y="52" font-size="32" font-weight="700" textLength="78" lengthAdjust="spacingAndGlyphs">Docs</text>
 </g>
 </svg>
