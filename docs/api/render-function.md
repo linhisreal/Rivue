@@ -4,461 +4,437 @@
 
 **Learn it:** [Guide 3: Describing UI](../guide/03-describing-ui.md) · [Guide 6: Styling and layout](../guide/06-styling-and-layout.md)
 
-Rivue has no templates: components return a tree of vnodes built with `h()`. All examples
-assume:
+Rivue has no templates: components return a tree of vnodes built with `h()`. Examples assume:
 
 ```lua
 local Rivue = require(game.ReplicatedStorage.RivueUI)
 local h = Rivue.h
 ```
 
-- [h()](#h)
-- [Element props](#element-props)
-- [bind()](#bind)
-- [Fragment](#fragment)
-- [hIf()](#hif)
-- [hFor()](#hfor)
-- [mergeProps()](#mergeprops)
-- [cloneVNode()](#clonevnode)
-- [isVNode()](#isvnode)
-- [resolveComponent()](#resolvecomponent)
-- [Function components](#function-components)
-
 ---
 
 ## h()
 
-The function every render uses to describe UI. One call describes one Instance or component, its
-props and its children.
+Describes one Instance or component, with its props and children. Every render is built from these
+calls.
 
-- **Example**
+```lua signature
+function h(type: VNodeType, props: Props?, children: Children?): VNode
+```
 
-  ```lua
-  -- An element with props and children
-  h("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 }, {
-  	h("UIListLayout", { Padding = UDim.new(0, 8) }),
-  	h("TextLabel", { Text = "Title" }),
-  	h("TextButton", {
-  		Text = "Close",
-  		onClick = function()
-  			print("closed")
-  		end,
-  	}),
-  })
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `type` | `string \| ComponentDef \| function \| Fragment` | | a ClassName like `"Frame"`, a name registered with `app:component()`, a component, a [function component](#function-components) or [`Fragment`](#fragment) |
+| `props` | `Props?` | | properties, events and Rivue's own props; see [Element props](#element-props) |
+| `children` | `Children?` | | a list, a single vnode, or a string or number; a table with string keys passes [named slots](component.md#slots) to a component |
 
-  -- Text as the child
-  h("TextLabel", nil, "Hello")
+**Returns** a `VNode`.
 
-  -- A component with props
-  local Badge = Rivue.defineComponent({
-  	name = "Badge",
-  	props = { text = { type = "string" } },
-  	render = function(props)
-  		return h("TextLabel", { Text = props.text })
-  	end,
-  })
-  h(Badge, { text = "NEW" })
-  ```
+> [!NOTE]
+> An unknown ClassName warns and renders a Frame instead.
 
-- **Details**
+### Example
 
-  - **`type`** decides what's rendered: an Instance class, a component, a function component or
-    a Fragment.
-  - **`props`** set Instance properties and connect events. Rivue also handles a few prop names
-    itself; see [Element props](#element-props).
-  - **`children`**:
-    - A string or number child sets `Text` on TextLabels, TextButtons and TextBoxes.
-    - A nested list (like the result of `hFor`) becomes a [Fragment](#fragment), so its keyed
-      diff stays separate from its siblings.
-    - `nil` and `false` entries are skipped.
-    - For components, a table with string keys passes
-      [named slots](component.md#slots).
+```lua
+h("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 }, {
+	h("UIListLayout", { Padding = UDim.new(0, 8) }),
+	h("TextLabel", { Text = "Title" }),
+	h("TextButton", {
+		Text = "Close",
+		onClick = function()
+			print("closed")
+		end,
+	}),
+})
 
-- **Type**
+-- text as the child
+h("TextLabel", nil, "Hello")
 
-  ```lua
-  function h(type: VNodeType, props: Props?, children: Children?): VNode
+-- a component with props
+local Badge = Rivue.defineComponent({
+	name = "Badge",
+	props = { text = { type = "string" } },
+	render = function(props)
+		return h("TextLabel", { Text = props.text })
+	end,
+})
+h(Badge, { text = "NEW" })
+```
 
-  type VNodeType =
-  	string -- a ClassName ("Frame"), or a name registered with app:component()
-  	| ComponentDef
-  	| (props: Props) -> VNode? -- function component
-  	| typeof(Rivue.Fragment)
+### Details
 
-  type Children =
-  	{ ChildInput } -- a list (nested lists and nil/false entries are allowed)
-  	| VNode | string | number -- a single child
-  	| { [string]: (scope: any) -> Children } -- named slots, components only
-  ```
+- A string or number child sets `Text` on a TextLabel, TextButton or TextBox.
+- A nested list, such as the result of `hFor`, becomes a [Fragment](#fragment), so its keyed diff
+  stays separate from its siblings.
+- `nil` and `false` children are skipped.
 
 ---
 
 ## Element props
 
-Everything you can put in an element's props table, and what Rivue does with it.
+Everything an element's props table can hold.
 
-| Prop | Meaning |
-|------|---------|
-| `Size`, `Text`, ... | Instance properties. camelCase (`size`) also works |
-| `Text = someRef` or `Rivue.bind(fn)` | A [binding](#bind): Rivue writes just this property when the ref or what `fn` reads changes, without re-rendering |
-| `onX = fn` | Connects event `X`: `onMouseEnter`, `onFocusLost`, `onInputBegan`, ... |
-| `onClick = fn` | `Activated` on buttons (falls back to `MouseButton1Click`) |
-| `onTextChanged = fn` | Called with the new `Text` |
-| `onXChanged = fn` / `onX = fn` | For a property `X` that isn't an event, called with the new value (`onSizeChanged`, `onVisible`) |
-| `key` | Identity among siblings. A new key replaces the element |
-| `ref` | A `Ref`, a function, or a string name. See [Template refs](component.md#usetemplateref) |
-| `vName = value` | A [directive](directives.md): `vShow`, `vFocus`, `vClickOutside`, `vSelect`, `vDrag`, ... |
-| `model = ref \| "name"` | Two-way `Text` binding on a TextBox. A string names a ref returned by `setup()` (for [`render(ctx)`](component.md#render)) |
-| `models = { name = ref }` | On a component: several named models, each paired with a [`defineModel({ name })`](component.md#definemodel) in the child |
-| `modelModifiers = { trim, number, lazy }` | With `model`: `trim` strips spaces, `number` stores a number when the text is one, `lazy` updates the ref when the box loses focus instead of on every key |
-| `class = "a" \| { "a", "b" } \| { a = bool }` | Applies named styles from the component's [`styles`](component.md#styles) and [`app:styles()`](application.md#appstyles). See below |
-| `style = table \| { tables }` | Prop tables merged under the element's own props. `false`/`nil` entries are skipped |
-| `memo = { deps }` | Skips patching this element and its children while every dep is `==` |
-| `disabled = true` | Applies the classes' `disabled` variants, sets `Interactable = false`, and turns hover and pressed styles off |
-| `vOnce = true` | Renders the element and its children once, then never patches them again |
-| `transition` | Enter/leave tween config, see [Transition](builtins.md#transition) |
-| `cornerRadius` | Creates a `UICorner` (number of pixels, or a UDim) |
-| `padding` | Creates a `UIPadding`: a number/UDim for all sides, `{ top, right, bottom, left }`, or `{ x, y }` |
-| `stroke` | Creates a `UIStroke`: a Color3, a number (Thickness), or a table of UIStroke properties |
-| `aspectRatio` | Creates a `UIAspectRatioConstraint` |
-| `layout` | Creates a `UIListLayout` or `UIGridLayout`. See below |
-| `flex` | Creates a `UIFlexItem`: `"fill"`, `"grow"`, `"shrink"`, `"none"`, a grow ratio, or a table of UIFlexItem properties |
-| `gradient` | Creates a `UIGradient`: a Color3, a ColorSequence, or `{ from, to, rotation, transparency, offset }` with the two colours first |
-| `scale` | Creates a `UIScale` with that `Scale` |
-| `sizeLimit` | Creates a `UISizeConstraint`: `{ min = Vector2, max = Vector2 }` |
-| `textSizeLimit` | Creates a `UITextSizeConstraint`: `{ min = number, max = number }`, for `TextScaled` text |
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `Size`, `Text`, ... | | | Instance properties; camelCase (`size`) works too |
+| `onX` | `(...) -> ()` | | connects event `X`: `onMouseEnter`, `onFocusLost`, `onInputBegan`, ... |
+| `onClick` | `() -> ()` | | `Activated` on buttons, falling back to `MouseButton1Click` |
+| `onTextChanged` | `(text: string) -> ()` | | called with the new `Text` |
+| `onXChanged` | `(value) -> ()` | | for a property `X` that isn't an event, called with the new value: `onSizeChanged`, `onVisible` |
+| `key` | `string \| number` | | identity among siblings; a new key replaces the element |
+| `ref` | `Ref \| function \| string` | | gives code the Instance; see [template refs](component.md#usetemplateref) |
+| `vName` | `any` | | a [directive](directives.md): `vShow`, `vFocus`, `vClickOutside`, `vSelect`, `vDrag`, ... |
+| `model` | `Ref<string> \| string` | | two-way `Text` binding on a TextBox; a string names a ref returned by `setup()` |
+| `modelModifiers` | `{ trim, number, lazy }` | | with `model`: `trim` strips spaces, `number` stores a number when the text is one, `lazy` writes on focus lost instead of every key |
+| `models` | `{ [string]: Ref }` | | on a component: several named models, paired with [`defineModel({ name })`](component.md#definemodel) in the child |
+| `class` | `string \| { string } \| { [string]: boolean }` | | named styles from [`styles`](component.md#styles) and [`app:styles()`](application.md#appstyles) |
+| `style` | `table \| { table }` | | prop tables merged under the element's own props; `false` and `nil` entries are skipped |
+| `memo` | `{ any }` | | skip patching this element and its children while every value is `==` to last time |
+| `vOnce` | `boolean` | `false` | render once and never patch again; the same as `memo = {}` |
+| `disabled` | `boolean` | `false` | apply the classes' `disabled` variants, set `Interactable = false`, and turn hover and pressed styles off |
+| `transition` | `TransitionProps` | | enter and leave tweens for this element; see [Transition](builtins.md#transition) |
+| `cornerRadius` | `number \| UDim` | | creates a `UICorner` |
+| `padding` | `number \| UDim \| { top, right, bottom, left } \| { x, y }` | | creates a `UIPadding` |
+| `stroke` | `Color3 \| number \| table` | | creates a `UIStroke`: a colour, a thickness, or UIStroke properties |
+| `aspectRatio` | `number` | | creates a `UIAspectRatioConstraint` |
+| `layout` | `string \| table` | | creates a `UIListLayout` or `UIGridLayout`; see below |
+| `flex` | `"fill" \| "grow" \| "shrink" \| "none" \| number \| table` | | creates a `UIFlexItem`; a number is the grow ratio |
+| `gradient` | `Color3 \| ColorSequence \| table` | | creates a `UIGradient`; a table is `{ from, to, rotation, transparency, offset }` |
+| `scale` | `number` | | creates a `UIScale` |
+| `sizeLimit` | `{ min: Vector2?, max: Vector2? }` | | creates a `UISizeConstraint` |
+| `textSizeLimit` | `{ min: number?, max: number? }` | | creates a `UITextSizeConstraint`, for `TextScaled` text |
 
-- **Example**
+Any Instance property or Rivue prop can also take a ref or a [`bind()`](#bind), to update without
+re-rendering.
 
-  ```lua
-  local name = Rivue.ref("")
-  local Styles = {
-  	card = { BackgroundColor3 = Color3.fromRGB(30, 30, 30), cornerRadius = 8, padding = 12 },
-  }
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `layout` | `"vertical" \| "horizontal"` | | a `UIListLayout` in that direction |
+| `layout` | `"grid"` | | a `UIGridLayout` |
+| `layout.direction` | `"vertical" \| "horizontal"` | `"vertical"` | the list direction |
+| `layout.gap` | `number \| UDim` | | space between children |
+| `layout.align` | `"start" \| "center" \| "end"` | | the cross axis |
+| `layout.justify` | `"start" \| "center" \| "end" \| "space-between" \| "space-around" \| "space-evenly" \| "fill"` | | the main axis |
+| `layout.wrap` | `boolean` | `false` | wrap onto more lines |
+| `layout.grid` | `UDim2` | | a `UIGridLayout` with this cell size |
 
-  h("Frame", { style = Styles.card, Size = UDim2.fromOffset(300, 120), layout = { gap = 6 } }, {
-  	h("TextBox", { model = name, vFocus = true, PlaceholderText = "Name" }),
-  	h("TextLabel", {
-  		Text = `Hello {name.value}`,
-  		onSizeChanged = function(size: UDim2)
-  			print("resized", size)
-  		end,
-  	}),
-  })
+> [!NOTE]
+> An error in an event handler is caught and reported with the component it came from, so it
+> doesn't stop other handlers.
 
-  -- A toolbar: title on the left, buttons on the right
-  local isFull = false
-  h("Frame", { Size = UDim2.new(1, 0, 0, 40), layout = { direction = "horizontal", justify = "space-between", align = "center" } }, {
-  	h("TextLabel", { Text = "Inventory", flex = "fill" }),
-  	h("TextButton", { class = { "button", isFull and "button-disabled" }, Text = "Sort" }),
-  })
-  ```
+### Example
 
-- **Details**
+```lua
+local name = Rivue.ref("")
+local Styles = {
+	card = { BackgroundColor3 = Color3.fromRGB(30, 30, 30), cornerRadius = 8, padding = 12 },
+}
 
-  - **Diffing.** Props are diffed shallowly and only changed ones are written. Removing a prop
-    restores the property default, or destroys the generated modifier child.
-  - **Events.** Each event is connected once. A re-render with a new handler function swaps it
-    in place instead of reconnecting.
-  - **TextBoxes.**
-    - Re-renders keep what the player typed, the cursor and focus, unless the render passes a
-      different `Text`.
-    - With `onTextChanged` or `model`, the state always owns `Text`.
-  - **Layouts.** With a `layout` prop, or a `UIListLayout` (or another UI*Layout) among the
-    children, Rivue keeps each child's `LayoutOrder` in render order. A child that sets
-    `LayoutOrder` itself keeps it.
-  - **`class`.** A string, a list (applied in order, later wins, `false`/`nil` skipped), or a map
-    of name to boolean (enabled names, applied alphabetically: use a list when order matters).
-    Precedence, lowest first: app styles, component styles, `style`, the element's own props. A
-    component's root also receives the `class` its parent passed.
-  - **`layout`.**
+h("Frame", { style = Styles.card, Size = UDim2.fromOffset(300, 120), layout = { gap = 6 } }, {
+	h("TextBox", { model = name, vFocus = true, PlaceholderText = "Name" }),
+	h("TextLabel", {
+		Text = `Hello {name.value}`,
+		onSizeChanged = function(size: UDim2)
+			print("resized", size)
+		end,
+	}),
+})
 
-    | Value | Result |
-    |-------|--------|
-    | `"vertical"` / `"horizontal"` | `UIListLayout` in that direction |
-    | `"grid"` | `UIGridLayout` |
-    | `{ direction, gap, align, justify, wrap }` | `UIListLayout`. `gap` is pixels or a UDim. `align` is the cross axis (`"start"`, `"center"`, `"end"`), `justify` the main axis (also `"space-between"`, `"space-around"`, `"space-evenly"`, `"fill"`). `wrap = true` wraps |
-    | `{ grid = UDim2, gap }` | `UIGridLayout` with that cell size |
+-- a toolbar: title on the left, buttons on the right
+local isFull = false
+h("Frame", { Size = UDim2.new(1, 0, 0, 40), layout = { direction = "horizontal", justify = "space-between", align = "center" } }, {
+	h("TextLabel", { Text = "Inventory", flex = "fill" }),
+	h("TextButton", { class = { "button", isFull and "button-disabled" }, Text = "Sort" }),
+})
+```
+
+### Details
+
+- Props are diffed shallowly and only changed ones are written. Removing a prop restores the
+  property's default, or destroys the child it created.
+- Each event is connected once. A new handler function on a re-render is swapped in place.
+- A TextBox keeps what the player typed, the cursor and focus across re-renders, unless the render
+  passes a different `Text`. With `onTextChanged` or `model`, state always owns `Text`.
+- With a `layout` prop, or a UI*Layout among the children, Rivue keeps each child's `LayoutOrder`
+  in render order. A child that sets `LayoutOrder` itself keeps it.
+- `class` as a list applies in order, later entries winning. As a map, enabled names apply in
+  alphabetical order, so use a list when order matters. From lowest to highest: app styles,
+  component styles, `style`, then the element's own props. A component's root also gets the
+  `class` its parent passed.
 
 ---
 
 ## bind()
 
-Ties one property to state, so Rivue can update that property alone instead of re-rendering the
-component. Use it for values that change many times a second: a countdown, a health bar, a ping
-counter.
+Ties one property to state, so Rivue updates that property alone instead of re-rendering the
+component. Use it for values that change many times a second, like a countdown or a health bar.
 
 ![a value read in render versus a bound property](../assets/diagrams/bindings.webp)
 
-- **Example**
+```lua signature
+function bind<T>(getter: () -> T): T
+```
 
-  A round timer whose label updates every second while the component renders once:
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `getter` | `() -> T` | | works out the property's value; what it reads is tracked by the binding, not by render |
 
-  ```lua
-  local RoundTimer = Rivue.defineComponent({
-  	name = "RoundTimer",
-  	setup = function()
-  		local seconds = Rivue.ref(90)
-  		task.spawn(function()
-  			while seconds.value > 0 do
-  				task.wait(1)
-  				seconds.value -= 1
-  			end
-  		end)
-  		return { seconds = seconds }
-  	end,
-  	render = function(ctx)
-  		return h("TextLabel", {
-  			Size = UDim2.fromOffset(120, 40),
-  			Text = Rivue.bind(function()
-  				return `{ctx.seconds}s left`
-  			end),
-  		})
-  	end,
-  })
-  ```
+**Returns** a binding to use as a prop value. Passing something that isn't a function errors.
 
-- **Details**
+### Example
 
-  - The function runs in its own small effect. What it reads is tracked by that effect, not by
-    the component's render, so a change rewrites one property and nothing else.
-  - A ref works as a binding by itself, with no `bind()`: `TextTransparency = fadeRef`. Inside a
-    `render(ctx)`, refs come out of `ctx` already unwrapped, so wrap the read in `bind()` there.
-  - Replacing a binding with a plain value stops it, and unmounting stops every binding.
-  - Bindings work on Instance properties and on Rivue's own props such as `cornerRadius` or
-    `scale`. Event handlers (`onX`) can't be bound.
+```lua
+local RoundTimer = Rivue.defineComponent({
+	name = "RoundTimer",
+	setup = function()
+		local seconds = Rivue.ref(90)
+		task.spawn(function()
+			while seconds.value > 0 do
+				task.wait(1)
+				seconds.value -= 1
+			end
+		end)
+		return { seconds = seconds }
+	end,
+	render = function(ctx)
+		return h("TextLabel", {
+			Size = UDim2.fromOffset(120, 40),
+			Text = Rivue.bind(function()
+				return `{ctx.seconds}s left`
+			end),
+		})
+	end,
+})
+```
 
-- **Type**
+### Details
 
-  ```lua
-  function bind<T>(getter: () -> T): T
-  ```
+- A ref works as a binding without `bind()`: `TextTransparency = fadeRef`. Inside `render(ctx)`
+  refs come out of `ctx` already unwrapped, so wrap the read in `bind()` there.
+- Replacing a binding with a plain value stops it, and unmounting stops every binding.
+- Bindings work on Instance properties and on Rivue's own props such as `cornerRadius` or `scale`,
+  but not on event handlers.
 
 ---
 
 ## Fragment
 
-Groups several elements without adding an Instance around them. Use it when a component returns more
-than one root.
+Groups several elements without an Instance around them. Use it when a component returns more than
+one root.
 
-- **Example**
+```lua signature
+Rivue.Fragment: FragmentType
+```
 
-  ```lua
-  -- Both labels are parented directly to whatever this renders into
-  h(Rivue.Fragment, nil, {
-  	h("TextLabel", { Text = "One" }),
-  	h("TextLabel", { Text = "Two" }),
-  })
-  ```
+### Example
 
-- **Details**
+```lua
+-- both labels are parented straight to whatever this renders into
+h(Rivue.Fragment, nil, {
+	h("TextLabel", { Text = "One" }),
+	h("TextLabel", { Text = "Two" }),
+})
+```
 
-  Nested lists in children become Fragments automatically. A component's render function can
-  also return a list instead of a single vnode.
+### Details
 
-- **Type**
-
-  ```lua
-  Rivue.Fragment: FragmentType
-  ```
+- Nested lists in children become Fragments on their own, and a render function can return a list
+  instead of one vnode.
 
 ---
 
 ## hIf()
 
-Shows an element only when a condition is true. A tidier way to write `if cond then h(...) else nil`
-inside a children list.
+Includes an element only when a condition is true: a shorter `if cond then h(...) else nil` inside
+a children list.
 
-- **Example**
+```lua signature
+function hIf(condition: boolean, vnode: VNode?): VNode?
+```
 
-  ```lua
-  local loading = Rivue.ref(true)
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `condition` | `boolean` | | whether to include it |
+| `vnode` | `VNode?` | | the element |
 
-  h("Frame", nil, {
-  	h("TextLabel", { Text = "Inventory" }),
-  	Rivue.hIf(loading.value, h("TextLabel", { Text = "Loading..." })),
-  })
-  ```
+> [!NOTE]
+> The vnode is built either way. When building it is expensive, use an `if` expression.
 
-- **Details**
+### Example
 
-  The vnode is created either way, so prefer
-  an `if` expression when building it is expensive.
+```lua
+local loading = Rivue.ref(true)
 
-- **Type**
-
-  ```lua
-  function hIf(condition: boolean, vnode: VNode?): VNode?
-  ```
+h("Frame", nil, {
+	h("TextLabel", { Text = "Inventory" }),
+	Rivue.hIf(loading.value, h("TextLabel", { Text = "Loading..." })),
+})
+```
 
 ---
 
 ## hFor()
 
-Turns a list into elements, one per item. Works with plain and reactive lists, and its result goes
-straight into a children list.
+One element per list item. Works with plain and reactive lists, and the result goes straight into a
+children list.
 
-- **Example**
+```lua signature
+function hFor<T>(list: { T }, mapper: (item: T, index: number) -> VNode?): { VNode }
+```
 
-  ```lua
-  local items = Rivue.ref({
-  	{ id = 1, name = "Sword" },
-  	{ id = 2, name = "Shield" },
-  })
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `list` | `{ T }` | | the items |
+| `mapper` | `(item, index) -> VNode?` | | returns the element for an item, or `nil` to skip it |
 
-  h("ScrollingFrame", nil, {
-  	h("UIListLayout"),
-  	Rivue.hFor(items.value, function(item)
-  		return h("TextLabel", { key = item.id, Text = item.name })
-  	end),
-  })
-  ```
+> [!WARNING]
+> Give each element a `key` that belongs to the item, like an id. Without keys, reordering the list
+> re-patches every item, and Rivue warns in Studio.
 
-- **Details**
+### Example
 
-  Returning `nil` from the mapper skips that item. Give each vnode a stable `key` (an id, not
-  the index), so reordering moves Instances instead of re-patching them.  In Studio, Rivue warns
-  when list items have no key.
+```lua
+local items = Rivue.ref({
+	{ id = 1, name = "Sword" },
+	{ id = 2, name = "Shield" },
+})
 
-- **Type**
-
-  ```lua
-  function hFor<T>(list: { T }, mapper: (item: T, index: number) -> VNode?): { VNode }
-  ```
+h("ScrollingFrame", nil, {
+	h("UIListLayout"),
+	Rivue.hFor(items.value, function(item)
+		return h("TextLabel", { key = item.id, Text = item.name })
+	end),
+})
+```
 
 ---
 
 ## mergeProps()
 
-Combines several props tables into one. Event handlers are chained so both run, which makes it safe
-for wrapper components that add their own handlers.
+Combines props tables into one, chaining event handlers so both run. Safe for wrapper components
+that add their own handlers.
 
-- **Example**
+```lua signature
+function mergeProps(...: Props?): Props
+```
 
-  ```lua
-  local base = {
-  	Size = UDim2.fromOffset(100, 40),
-  	onClick = function()
-  		print("base")
-  	end,
-  }
-  local extra = {
-  	Size = UDim2.fromOffset(200, 40),
-  	onClick = function()
-  		print("extra")
-  	end,
-  }
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `...` | `Props?` | | tables merged left to right; `nil` is skipped |
 
-  local merged = Rivue.mergeProps(base, extra)
-  -- merged.Size is 200x40, and clicking prints "base" then "extra"
-  h("TextButton", merged)
-  ```
+**Returns** a new props table: `on*` handlers chained, `__directives` and `style` combined, and
+everything else taken from the later table.
 
-- **Details**
+### Example
 
-  Tables are merged left to right:
-  - `on*` handlers are chained, so both run,
-  - `__directives` lists and `style` entries are combined,
-  - everything else is overwritten by the later table.
+```lua
+local base = {
+	Size = UDim2.fromOffset(100, 40),
+	onClick = function()
+		print("base")
+	end,
+}
+local extra = {
+	Size = UDim2.fromOffset(200, 40),
+	onClick = function()
+		print("extra")
+	end,
+}
 
-  `nil` arguments are skipped.
-
-- **Type**
-
-  ```lua
-  function mergeProps(...: Props?): Props
-  ```
+local merged = Rivue.mergeProps(base, extra)
+-- merged.Size is 200x40, and clicking prints "base" then "extra"
+h("TextButton", merged)
+```
 
 ---
 
 ## cloneVNode()
 
-Copies an element description, optionally with extra props. Useful in wrapper components that tweak
-the children they were given.
+Copies an element description, optionally with extra props. For wrapper components that adjust the
+children they were given.
 
-- **Example**
+```lua signature
+function cloneVNode(vnode: VNode, extraProps: Props?): VNode
+```
 
-  A wrapper that outlines whatever element it's given:
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `vnode` | `VNode` | | the element to copy; children, slots and key are kept |
+| `extraProps` | `Props?` | | merged over its props |
 
-  ```lua
-  local Highlight = Rivue.defineComponent({
-  	name = "Highlight",
-  	render = function(ctx)
-  		local child = ctx.slots[1]
-  		if not Rivue.isVNode(child) then
-  			return nil
-  		end
-  		return Rivue.cloneVNode(child :: Rivue.VNode, { stroke = Color3.fromRGB(255, 220, 0) })
-  	end,
-  })
+### Example
 
-  h(Highlight, nil, { h("ImageButton", { Size = UDim2.fromOffset(64, 64) }) })
-  ```
+```lua
+local Highlight = Rivue.defineComponent({
+	name = "Highlight",
+	render = function(ctx)
+		local child = ctx.slots[1]
+		if not Rivue.isVNode(child) then
+			return nil
+		end
+		return Rivue.cloneVNode(child :: Rivue.VNode, { stroke = Color3.fromRGB(255, 220, 0) })
+	end,
+})
 
-- **Details**
-
-  The copy keeps the original's children, slots and key.
-
-- **Type**
-
-  ```lua
-  function cloneVNode(vnode: VNode, extraProps: Props?): VNode
-  ```
+h(Highlight, nil, { h("ImageButton", { Size = UDim2.fromOffset(64, 64) }) })
+```
 
 ---
 
 ## isVNode()
 
-Tells you whether a value is an element description made by `h()`.
+Whether a value is an element description made by `h()`.
 
-- **Example**
+```lua signature
+function isVNode(value: unknown): boolean
+```
 
-  ```lua
-  print(Rivue.isVNode(h("Frame"))) -- true
-  print(Rivue.isVNode({ type = "Frame" })) -- false
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `value` | `unknown` | | anything |
 
-- **Type**
+### Example
 
-  ```lua
-  function isVNode(value: unknown): boolean
-  ```
+```lua
+print(Rivue.isVNode(h("Frame"))) -- true
+print(Rivue.isVNode({ type = "Frame" })) -- false
+```
 
 ---
 
 ## resolveComponent()
 
-Looks up a component registered with [`app:component()`](application.md#appcomponent) by name, in
-code.
+Looks up a component registered with [`app:component()`](application.md#appcomponent) or the
+current component's `components` option. You rarely need it: `h("Name")` resolves names itself.
 
-- **Example**
+```lua signature
+function resolveComponent(name: string): ComponentDef?
+```
 
-  Use an app-registered component only if the game registered one:
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `name` | `string` | | the registered name |
 
-  ```lua
-  local Toolbar = Rivue.defineComponent({
-  	name = "Toolbar",
-  	setup = function()
-  		return { Icon = Rivue.resolveComponent("Icon") }
-  	end,
-  	render = function(ctx)
-  		return h("Frame", { layout = "horizontal" }, {
-  			if ctx.Icon then h(ctx.Icon, { name = "settings" }) else h("TextLabel", { Text = "Settings" }),
-  		})
-  	end,
-  })
-  ```
+**Returns** the component, or `nil`. In Studio a missing name warns.
 
-- **Details**
+> [!WARNING]
+> Call it in `setup()` or a render function. Anywhere else it errors.
 
-  Call it in `setup()` or a render function. In Studio it warns when the name isn't
-  registered. You rarely need it, because `h("Name")` resolves registered names on its own.
+### Example
 
-- **Type**
-
-  ```lua
-  function resolveComponent(name: string): ComponentDef?
-  ```
+```lua
+local Toolbar = Rivue.defineComponent({
+	name = "Toolbar",
+	setup = function()
+		return { Icon = Rivue.resolveComponent("Icon") }
+	end,
+	render = function(ctx)
+		return h("Frame", { layout = "horizontal" }, {
+			if ctx.Icon then h(ctx.Icon, { name = "settings" }) else h("TextLabel", { Text = "Settings" }),
+		})
+	end,
+})
+```
 
 ---
 
@@ -467,30 +443,27 @@ code.
 A function from props to UI, with no state and no hooks. Use one for small display pieces like a
 badge or an icon.
 
-- **Example**
+```lua signature
+type FunctionalComponent = (props: Props) -> VNode?
+```
 
-  ```lua
-  local function Pill(props)
-  	return h("TextLabel", {
-  		Text = props.text,
-  		Size = UDim2.fromOffset(80, 24),
-  		cornerRadius = 12,
-  	})
-  end
+> [!NOTE]
+> It runs again every time its parent re-renders. Once it needs state or lifecycle hooks, use
+> [`defineComponent()`](component.md#definecomponent).
 
-  h(Pill, { text = "Online" })
-  ```
+### Example
 
-- **Details**
+```lua
+local function Pill(props)
+	return h("TextLabel", {
+		Text = props.text,
+		Size = UDim2.fromOffset(80, 24),
+		cornerRadius = 12,
+	})
+end
 
-  A function component runs again every time its parent re-renders. Use `defineComponent` when
-  you need state or lifecycle.
-
-- **Type**
-
-  ```lua
-  type FunctionalComponent = (props: Props) -> VNode?
-  ```
+h(Pill, { text = "Online" })
+```
 
 ---
 
