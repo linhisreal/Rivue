@@ -854,27 +854,45 @@ local function runTests()
 
 	print("\nTest 45: onErrorCaptured - Component error boundary")
 	do
-		local _ErrorComponent = Rivue.defineComponent({
-			setup = function()
+		local Broken = Rivue.defineComponent({
+			name = "Broken",
+			render = function()
 				error("Intentional error for testing")
 			end,
 		})
+		local function boundary(result: boolean?)
+			local caught = 0
+			local Boundary = Rivue.defineComponent({
+				name = "Boundary",
+				setup = function()
+					Rivue.onErrorCaptured(function()
+						caught += 1
+						return result
+					end)
+					return {}
+				end,
+				render = function()
+					return Rivue.h("Frame", nil, { Rivue.h(Broken) })
+				end,
+			})
+			local reachedApp = 0
+			local app = Rivue.createApp(Boundary)
+			app.config.errorHandler = function()
+				reachedApp += 1
+			end
+			app:mount(Instance.new("Folder"))
+			app:unmount()
+			return caught, reachedApp
+		end
 
-		local _ParentComponent = Rivue.defineComponent({
-			setup = function()
-				Rivue.onErrorCaptured(function(_err, _instance, _info)
-					return true -- handled here, stop it going further up
-				end)
-
-				return function()
-					return Rivue.h("Frame", {}, {
-						Rivue.h(_ErrorComponent),
-					})
-				end
-			end,
-		})
-
-		assertTrue(type(Rivue.onErrorCaptured) == "function", "onErrorCaptured API exists")
+		local caught, reachedApp = boundary(false)
+		assertEquals(caught, 1, "the boundary sees the error")
+		assertEquals(reachedApp, 0, "returning false stops it, as in Vue")
+		caught, reachedApp = boundary(nil)
+		assertEquals(caught, 1, "returning nothing still sees it")
+		assertEquals(reachedApp, 1, "and lets it reach app.config.errorHandler")
+		caught, reachedApp = boundary(true)
+		assertEquals(reachedApp, 1, "true doesn't stop it either")
 	end
 
 	print("\n========== ALL TESTS PASSED ✓ ==========\n")

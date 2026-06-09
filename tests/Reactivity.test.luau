@@ -398,6 +398,30 @@ local function runTests()
 		assertEquals(runs, 1, "Queued run should be skipped after stop()")
 	end
 
+	print("Writing NaN over NaN isn't a change")
+	do
+		local progress = Rivue.ref(0)
+		local runs = 0
+		Rivue.watch(progress, function(v)
+			runs += 1
+			progress.value = math.clamp(v, 0, 1)
+		end)
+		progress.value = 0 / 0
+		for _ = 1, 3 do
+			Rivue.nextTick()
+		end
+		assertEquals(runs, 1, "a watcher that writes NaN back doesn't run every frame")
+		local state = Rivue.reactive({ ratio = 0 / 0 })
+		local seen = 0
+		Rivue.watchEffect(function()
+			local _ = state.ratio
+			seen += 1
+		end)
+		state.ratio = 0 / 0
+		Rivue.nextTick()
+		assertEquals(seen, 1, "same for reactive keys")
+	end
+
 	print("\n========== REACTIVITY TESTS COMPLETE ==========\n")
 end
 

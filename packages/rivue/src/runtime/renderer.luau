@@ -1419,13 +1419,14 @@ local function unmountVNode(vnode: RenderVNode?, poolOpt: PoolOptions?, doRemove
 			end
 
 			inst:runBeforeUnmount()
-			inst:runUnmounted()
 
 			local root = inst.el
 			if root and inst.appContext.config.devtools then
 				clearDevtools(root)
 			end
 			unmountVNode(inst.subTree, poolOpt, doRemove)
+			-- After the children, like Vue: a parent can tear down what its children clean up into
+			inst:runUnmounted()
 			vnode._instance = nil
 		end
 		return
