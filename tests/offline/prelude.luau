@@ -150,12 +150,18 @@ os = setmetatable({
 		return now
 	end,
 }, { __index = realOs })
+COLOR3_MT = {
+	__rbxtype = "Color3",
+	__eq = function(a, b)
+		return a.R == b.R and a.G == b.G and a.B == b.B
+	end,
+}
 Color3 = {
 	fromRGB = function(r, g, b)
-		return { R = r / 255, G = g / 255, B = b / 255 }
+		return setmetatable({ R = r / 255, G = g / 255, B = b / 255 }, COLOR3_MT)
 	end,
 	new = function(r, g, b)
-		return { R = r, G = g, B = b }
+		return setmetatable({ R = r or 0, G = g or 0, B = b or 0 }, COLOR3_MT)
 	end,
 }
 local sequenceMt = {}
@@ -182,8 +188,14 @@ warn = function(...)
 	end
 end
 typeof = function(v)
-	if type(v) == "table" and rawget(v, "__rbxtype") then
-		return v.__rbxtype
+	if type(v) == "table" then
+		if rawget(v, "__rbxtype") then
+			return v.__rbxtype
+		end
+		local mt = getmetatable(v)
+		if type(mt) == "table" and rawget(mt, "__rbxtype") then
+			return mt.__rbxtype
+		end
 	end
 	return type(v)
 end
@@ -385,6 +397,9 @@ end
 
 -- Minimal Instance stub
 UDIM2_MT = {
+	__add = function(a, b)
+		return UDim2.new(a.X.Scale + b.X.Scale, a.X.Offset + b.X.Offset, a.Y.Scale + b.Y.Scale, a.Y.Offset + b.Y.Offset)
+	end,
 	__eq = function(a, b)
 		return a.X.Scale == b.X.Scale
 			and a.X.Offset == b.X.Offset
@@ -494,6 +509,11 @@ local GUI_PROPS = {
 	AbsolutePosition = Vector2.new(0, 0),
 	Selectable = false,
 	Interactable = true,
+	SelectionGroup = false,
+	SelectionBehaviorUp = "Escape",
+	SelectionBehaviorDown = "Escape",
+	SelectionBehaviorLeft = "Escape",
+	SelectionBehaviorRight = "Escape",
 }
 local TEXT_PROPS = {
 	Text = "",
@@ -509,7 +529,7 @@ local IMAGE_PROPS = { Image = "", ImageTransparency = 0, ImageColor3 = Color3.ne
 local CLASSES = {
 	Folder = { bases = {}, props = {} },
 	-- Only for scripts found by path (DevTools Open source): nothing runs them offline
-	ModuleScript = { bases = { "LuaSourceContainer" }, props = {} },
+	ModuleScript = { bases = { "LuaSourceContainer" }, props = { { Source = "" } } },
 	Frame = { bases = { "GuiObject", "GuiBase2d" }, props = { GUI_PROPS } },
 	ScrollingFrame = {
 		bases = { "GuiObject", "GuiBase2d" },
@@ -625,6 +645,8 @@ local COMMON_EVENTS = {
 	"ChildRemoved",
 	"Destroying",
 	"AncestryChanged",
+	"DescendantAdded",
+	"DescendantRemoving",
 	"InputBegan",
 	"InputChanged",
 	"InputEnded",
@@ -800,8 +822,18 @@ function Instance.new(className, parent)
 		__focusCalls = (__focusCalls or 0) + 1
 	end
 	function methods:ReleaseFocus() end
+	-- Like Roblox: properties and descendants are copied
 	function methods:Clone()
-		return Instance.new(className)
+		local copy = Instance.new(className)
+		for k, v in props do
+			pcall(function()
+				copy[k] = v
+			end)
+		end
+		for _, child in self:GetChildren() do
+			child:Clone().Parent = copy
+		end
+		return copy
 	end
 	methods.__children = children
 	for key, value in

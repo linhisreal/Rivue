@@ -14,6 +14,7 @@ local h = Rivue.h
 
 - [h()](#h)
 - [Element props](#element-props)
+- [bind()](#bind)
 - [Fragment](#fragment)
 - [hIf()](#hif)
 - [hFor()](#hfor)
@@ -99,6 +100,7 @@ Everything you can put in an element's props table, and what Rivue does with it.
 | Prop | Meaning |
 |------|---------|
 | `Size`, `Text`, ... | Instance properties. camelCase (`size`) also works |
+| `Text = someRef` or `Rivue.bind(fn)` | A [binding](#bind): Rivue writes just this property when the ref or what `fn` reads changes, without re-rendering |
 | `onX = fn` | Connects event `X`: `onMouseEnter`, `onFocusLost`, `onInputBegan`, ... |
 | `onClick = fn` | `Activated` on buttons (falls back to `MouseButton1Click`) |
 | `onTextChanged = fn` | Called with the new `Text` |
@@ -107,6 +109,7 @@ Everything you can put in an element's props table, and what Rivue does with it.
 | `ref` | A `Ref`, a function, or a string name. See [Template refs](component.md#usetemplateref) |
 | `vName = value` | A [directive](directives.md): `vShow`, `vFocus`, `vClickOutside`, `vSelect`, `vDrag`, ... |
 | `model = ref \| "name"` | Two-way `Text` binding on a TextBox. A string names a ref returned by `setup()` (for [`render(ctx)`](component.md#render)) |
+| `models = { name = ref }` | On a component: several named models, each paired with a [`defineModel({ name })`](component.md#definemodel) in the child |
 | `modelModifiers = { trim, number, lazy }` | With `model`: `trim` strips spaces, `number` stores a number when the text is one, `lazy` updates the ref when the box loses focus instead of on every key |
 | `class = "a" \| { "a", "b" } \| { a = bool }` | Applies named styles from the component's [`styles`](component.md#styles) and [`app:styles()`](application.md#appstyles). See below |
 | `style = table \| { tables }` | Prop tables merged under the element's own props. `false`/`nil` entries are skipped |
@@ -176,6 +179,60 @@ Everything you can put in an element's props table, and what Rivue does with it.
     | `"grid"` | `UIGridLayout` |
     | `{ direction, gap, align, justify, wrap }` | `UIListLayout`. `gap` is pixels or a UDim. `align` is the cross axis (`"start"`, `"center"`, `"end"`), `justify` the main axis (also `"space-between"`, `"space-around"`, `"space-evenly"`, `"fill"`). `wrap = true` wraps |
     | `{ grid = UDim2, gap }` | `UIGridLayout` with that cell size |
+
+---
+
+## bind()
+
+Ties one property to state, so Rivue can update that property alone instead of re-rendering the
+component. Use it for values that change many times a second: a countdown, a health bar, a ping
+counter.
+
+![a value read in render versus a bound property](../assets/diagrams/bindings.svg)
+
+- **Example**
+
+  A round timer whose label updates every second while the component renders once:
+
+  ```lua
+  local RoundTimer = Rivue.defineComponent({
+  	name = "RoundTimer",
+  	setup = function()
+  		local seconds = Rivue.ref(90)
+  		task.spawn(function()
+  			while seconds.value > 0 do
+  				task.wait(1)
+  				seconds.value -= 1
+  			end
+  		end)
+  		return { seconds = seconds }
+  	end,
+  	render = function(ctx)
+  		return h("TextLabel", {
+  			Size = UDim2.fromOffset(120, 40),
+  			Text = Rivue.bind(function()
+  				return `{ctx.seconds}s left`
+  			end),
+  		})
+  	end,
+  })
+  ```
+
+- **Details**
+
+  - The function runs in its own small effect. What it reads is tracked by that effect, not by
+    the component's render, so a change rewrites one property and nothing else.
+  - A ref works as a binding by itself, with no `bind()`: `TextTransparency = fadeRef`. Inside a
+    `render(ctx)`, refs come out of `ctx` already unwrapped, so wrap the read in `bind()` there.
+  - Replacing a binding with a plain value stops it, and unmounting stops every binding.
+  - Bindings work on Instance properties and on Rivue's own props such as `cornerRadius` or
+    `scale`. Event handlers (`onX`) can't be bound.
+
+- **Type**
+
+  ```lua
+  function bind<T>(getter: () -> T): T
+  ```
 
 ---
 

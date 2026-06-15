@@ -1,6 +1,6 @@
 [Docs](README.md) › **Rivue for Vue developers**
 
-![Vue / Rivue](images/vue-rivue-banner.svg)
+![Vue / Rivue](assets/diagrams/vue-rivue-banner.svg)
 
 # Rivue for Vue developers
 
@@ -37,6 +37,7 @@ The tables below are the cheat sheet. The differences worth knowing are at the e
 | `v-show="open"` | `vShow = open.value` |
 | `v-for="item in items" :key="item.id"` | `Rivue.hFor(items.value, function(item) return h(..., { key = item.id }) end)` |
 | `v-model="name"` | `model = name` (TextBox, or a component using `defineModel`), or `model = "name"` in `render(ctx)` |
+| `v-model:title="t" v-model:body="b"` | `models = { title = t, body = b }`, with `defineModel({ name = "title" })` and `defineModel({ name = "body" })` in the child |
 | `v-model.trim` / `.number` / `.lazy` | `modelModifiers = { trim = true }` (and `number`, `lazy`) |
 | `:hover` / `:active` / `:disabled` in CSS | `hover`, `pressed`, `disabled` variants in a style class |
 | `@media` queries | `phone`, `tablet`, `desktop`, `console` variants in a style class |
@@ -130,7 +131,7 @@ local Counter = Rivue.defineComponent({
 | Reactivity | `ref`, `shallowRef`, `reactive`, `shallowReactive`, `readonly`, `shallowReadonly`, `computed` (getter and get/set), `customRef`, `triggerRef`, `toRef`, `toRefs`, `toValue`, `unref`, `toRaw`, `markRaw`, `isRef`, `isReactive`, `isReadonly`, `isProxy`, `isShallow` |
 | Watching | `watch` (`immediate`, `deep` incl. a depth number, `flush`, `once`, multiple sources, pause/resume handle), `watchEffect`, `watchPostEffect`, `watchSyncEffect`, `onWatcherCleanup` |
 | Scopes | `effectScope`, `getCurrentScope`, `onScopeDispose` |
-| Lifecycle | `onBeforeMount`, `onMounted`, `onBeforeUpdate`, `onUpdated`, `onBeforeUnmount`, `onUnmounted`, `onActivated`, `onDeactivated`, `onErrorCaptured` (see below), `onRenderTracked`, `onRenderTriggered` |
+| Lifecycle | `onBeforeMount`, `onMounted`, `onBeforeUpdate`, `onUpdated`, `onBeforeUnmount`, `onUnmounted`, `onActivated`, `onDeactivated`, `onErrorCaptured`, `onRenderTracked`, `onRenderTriggered` |
 | Components | `defineComponent`, `defineAsyncComponent`, `defineModel`, `useAttrs`, `useSlots`, `useTemplateRef`, `useId`, `getCurrentInstance`, `provide`, `inject`, `hasInjectionContext`, `resolveComponent` |
 | Render | `h`, `Fragment`, `mergeProps`, `cloneVNode`, `isVNode`, `nextTick` |
 | App | `createApp`, `app.mount/unmount/provide/component/directive/use/onUnmount/runWithContext`, `app.config.errorHandler/warnHandler/globalProperties` |
@@ -145,12 +146,6 @@ Luau doesn't have them, so `pairs()` and `ipairs()` see an empty table. Loop wit
 `for k, v in state do` or a numeric loop instead. `table.insert` and `table.remove` go around the
 proxy too, so where you'd use JavaScript's array methods, use [`Rivue.array`](api/array.md)
 (`push`, `splice`, `removeWhere`, `sort` and the rest).
-
-### onErrorCaptured stops on true
-
-In Vue, an `onErrorCaptured` hook returns `false` to stop an error going further up. In Rivue it
-returns `true`. A Vue habit of `return false` lets the error carry on to the parent's hooks and
-`app.config.errorHandler`.
 
 ### No compiler
 
@@ -180,8 +175,16 @@ the animating.
 
 There's no SSR and no hydration. Rivue runs on the client.
 
+### Vue Router
+
+A smaller version is built in: `Rivue.createRouter`, `RouterView` and `useRouter` cover named
+routes, params, history and `beforeEach` guards, without URLs
+([Navigation and loading](api/navigation.md)).
+
 ### Things Vue doesn't have
 
 Roblox needs a few extras with no Vue counterpart: `VirtualList`, `useTween` and `useSpring`,
-`useViewportSize`, `useInputType`, `useSafeArea`, `useSelection`, `attributeRef`, `useTag`, and
-the Instance pool.
+`useViewportSize`, `useInputType`, `useSafeArea`, `useSelection`, `useGamepadFocus`, `useAsync`,
+`attributeRef`, `useTag`, and the Instance pool. A few more cover what Vue leaves to libraries:
+`Dialog`, `ErrorBoundary`, `Row`/`Column`/`Spacer`, `Rivue.transitions`, `Rivue.bind` for
+property bindings, and `testing.render` in the style of Vue Testing Library.

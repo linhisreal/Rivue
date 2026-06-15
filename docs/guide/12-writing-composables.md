@@ -53,7 +53,7 @@ setup = function()
 end,
 ```
 
-![each call to a composable makes its own state](../images/composable-calls.svg)
+![each call to a composable makes its own state](../assets/diagrams/composable-calls.svg)
 
 Whatever a composable creates during `setup` belongs to the component that called it, and stops
 when that component unmounts. Each call makes new state, too. Two components that need the same
@@ -192,7 +192,7 @@ end,
 A loader gives back data, loading and error refs, plus a refresh function. The tricky part is
 answers that arrive out of order:
 
-![an old answer arriving after a newer one](../images/stale-response.svg)
+![an old answer arriving after a newer one](../assets/diagrams/stale-response.svg)
 
 Number each request, and drop any answer that isn't for the latest one:
 
@@ -251,6 +251,20 @@ setup = function()
 	}
 end,
 ```
+
+Writing this once shows how the request numbering works. In your own code, `Rivue.useAsync` does
+the same job: data, loading and error refs, only the newest answer kept, and it holds a
+surrounding `Suspense` on its loading screen until the data arrives:
+
+```lua
+local shop = Rivue.useAsync(function(page: number)
+	return Remote.request("shop:list", { page = page })
+end, { args = { 1 } })
+
+shop.run(2) -- load page 2; a late answer for page 1 is dropped
+```
+
+See [useAsync()](../api/navigation.md#useasync).
 
 ---
 

@@ -628,7 +628,7 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, opts: AsyncCo
 
 			local suspense = context.inject("suspense") :: SuspenseContext?
 
-			local delayTimer
+			local delayTimer: thread? = nil
 			if options.delay and options.delay > 0 then
 				delayTimer = task.delay(options.delay / 1000, function()
 					if loading.value then
@@ -639,16 +639,86 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, opts: AsyncCo
 				showLoading.value = true
 			end
 
-			local timeoutTimer
-			if options.timeout and options.timeout > 0 then
-				timeoutTimer = task.delay(options.timeout / 1000, function()
-					if loading.value then
-						local message = "Component load timeout"
-						error.value = message
-						loading.value = false
-						if suspense then
-							suspense.reject(message)
+			local timeoutTimer: thread? = nil
+			local attempts = 0
+			local finished = false
+
+			local function stopTimers()
+				if delayTimer then
+					task.cancel(delayTimer)
+					delayTimer = nil
+				end
+				if timeoutTimer then
+					task.cancel(timeoutTimer)
+					timeoutTimer = nil
+				end
+			end
+
+			local function finish(loaded: ComponentDef?, message: string?)
+				if finished then
+					return
+				end
+				finished = true
+				stopTimers()
+				component.value = loaded
+				error.value = message
+				loading.value = false
+				showLoading.value = false
+				if suspense then
+					if message then
+						suspense.reject(message)
+					else
+						suspense.resolve()
+					end
+				end
+			end
+
+			local attempt: () -> ()
+
+			-- Like Vue: with onError, the app decides whether a failed load tries again
+			local function failed(message: string)
+				local onError = options.onError
+				if not onError then
+					finish(nil, message)
+					return
+				end
+				local ok, handlerErr = pcall(onError :: (...any) -> ...any, message, function()
+					if not finished then
+						attempt()
+					end
+				end, function()
+					finish(nil, message)
+				end, attempts)
+				if not ok then
+					finish(nil, tostring(handlerErr))
+				end
+			end
+
+			function attempt()
+				attempts += 1
+				local this = attempts
+				if timeoutTimer then
+					task.cancel(timeoutTimer)
+					timeoutTimer = nil
+				end
+				if options.timeout and options.timeout > 0 then
+					timeoutTimer = task.delay(options.timeout / 1000, function()
+						timeoutTimer = nil
+						if not finished and this == attempts then
+							failed("Component load timeout")
 						end
+					end)
+				end
+				task.spawn(function()
+					local success, result = pcall(loader)
+					-- A retry or a timeout already moved on from this attempt
+					if finished or this ~= attempts then
+						return
+					end
+					if success then
+						finish(result, nil)
+					else
+						failed(tostring(result))
 					end
 				end)
 			end
@@ -658,43 +728,11 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, opts: AsyncCo
 			end
 
 			loading.value = true
-			task.spawn(function()
-				local success, result = pcall(loader)
-
-				if success then
-					component.value = result
-					loading.value = false
-					showLoading.value = false
-
-					if suspense then
-						suspense.resolve()
-					end
-				else
-					local message = tostring(result)
-					error.value = message
-					loading.value = false
-					showLoading.value = false
-
-					if suspense then
-						suspense.reject(message)
-					end
-				end
-
-				if delayTimer then
-					task.cancel(delayTimer)
-				end
-				if timeoutTimer then
-					task.cancel(timeoutTimer)
-				end
-			end)
+			attempt()
 
 			componentModule.onUnmounted(function()
-				if delayTimer then
-					task.cancel(delayTimer)
-				end
-				if timeoutTimer then
-					task.cancel(timeoutTimer)
-				end
+				finished = true
+				stopTimers()
 			end)
 
 			return function()

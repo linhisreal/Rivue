@@ -15,6 +15,10 @@ local poolModule = require("./pool")
 local builtins = require("./builtins")
 local composables = require("./composables")
 local array = require("./array")
+local routerModule = require("./router")
+local testingModule = require("./testing")
+local uiModule = require("./ui")
+local transitionsModule = require("./transitions")
 
 local RunService = game:GetService("RunService")
 
@@ -52,6 +56,9 @@ export type App = renderer.App
 export type Plugin = renderer.Plugin
 export type WritableComputedOptions<T> = Types.WritableComputedOptions<T>
 export type ComponentInstance = componentAPI.ComponentInstance
+export type Router = routerModule.Router
+export type Route = routerModule.Route
+export type AsyncState<T> = composables.AsyncState<T>
 
 local Rivue = {}
 
@@ -280,6 +287,13 @@ Rivue.TransitionGroup = builtins.TransitionGroup
 Rivue.VirtualList = builtins.VirtualList
 Rivue.ViewportModel = builtins.ViewportModel
 
+Rivue.ErrorBoundary = uiModule.ErrorBoundary
+Rivue.Dialog = uiModule.Dialog
+Rivue.Row = uiModule.Row
+Rivue.Column = uiModule.Column
+Rivue.Spacer = uiModule.Spacer
+Rivue.transitions = transitionsModule
+
 Rivue.defineAsyncComponent = builtins.defineAsyncComponent
 
 Rivue.useAttrs = composables.useAttrs
@@ -288,6 +302,11 @@ Rivue.defineModel = composables.defineModel
 Rivue.useModel = composables.useModel
 Rivue.useTheme = composables.useTheme
 Rivue.useStyles = composables.useStyles
+Rivue.useAsync = composables.useAsync
+
+Rivue.createRouter = routerModule.createRouter
+Rivue.useRouter = routerModule.useRouter
+Rivue.RouterView = routerModule.RouterView
 
 Rivue.scheduler = schedulerModule
 
@@ -321,14 +340,28 @@ Rivue.useScroll = robloxUtils.useScroll
 Rivue.useInputType = robloxUtils.useInputType
 Rivue.useSafeArea = robloxUtils.useSafeArea
 Rivue.useSelection = robloxUtils.useSelection
+Rivue.useGamepadFocus = robloxUtils.useGamepadFocus
 Rivue.useTween = robloxUtils.useTween
 Rivue.useSpring = robloxUtils.useSpring
 
 -- Set by `lune run version`, same for every package
 Rivue.version = "2.57.0"
 
+--- A property value that follows `getter`: when what it reads changes, Rivue writes just that
+--- property, without re-rendering the component. A ref works the same way without bind()
+function Rivue.bind<T>(getter: () -> T): T
+	assert(type(getter) == "function", "Rivue.bind expects a function")
+	return table.freeze({ __rivueBinding = getter }) :: any
+end
+
 Rivue.createApp = renderer.createApp
-Rivue.testing = table.freeze({ trigger = renderer.trigger, setInteraction = renderer.setInteraction })
+Rivue.testing = table.freeze({
+	trigger = renderer.trigger,
+	setInteraction = renderer.setInteraction,
+	render = testingModule.render,
+	click = testingModule.click,
+	typeInto = testingModule.typeInto,
+})
 
 function Rivue.mount(componentOrVNode: ComponentDef | VNode, parent: Instance, opts: AppOptions?): App
 	local vnode: VNode = if (componentOrVNode :: ComponentDef).__is_component

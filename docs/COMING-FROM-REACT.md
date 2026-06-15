@@ -6,7 +6,7 @@ React-lua, Fusion and Rivue all describe UI as a tree of Instances. Where they p
 happens when a value changes. (Still on Roact? React-lua is its maintained successor, so this page
 compares against React-lua.)
 
-![what one state change touches in React-lua, Fusion and Rivue](images/update-models.svg)
+![what one state change touches in React-lua, Fusion and Rivue](assets/diagrams/update-models.svg)
 
 React-lua follows React. A component's render function runs again on every state change, along
 with everything under it, and you reach for `React.memo` or bindings when that gets expensive.

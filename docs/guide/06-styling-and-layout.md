@@ -82,7 +82,7 @@ device variant re-render.
 Hand-placed positions break the moment a label wraps or the screen gets smaller. The `layout` prop
 creates the layout object for you, and children show up in the order you render them:
 
-![layout = "vertical", "horizontal" and grid](../images/layout-direction.svg)
+![layout = "vertical", "horizontal" and grid](../assets/diagrams/layout-direction.svg)
 
 ```lua
 h("Frame", { class = "panel", layout = { gap = 8 } }, { -- vertical list, 8 px apart
@@ -96,11 +96,29 @@ h("Frame", { class = "panel", layout = { gap = 8 } }, { -- vertical list, 8 px a
 
 `justify` spaces items along the layout's direction. `align` lines them up across it:
 
-![justify and align](../images/layout-justify-align.svg)
+![justify and align](../assets/diagrams/layout-justify-align.svg)
 
 And `flex` decides how a child shares whatever space is left over:
 
-![flex](../images/layout-flex.svg)
+![flex](../assets/diagrams/layout-flex.svg)
+
+For the common cases there are shorter components. `Rivue.Row` lays its children left to right,
+`Rivue.Column` top to bottom, and `Rivue.Spacer` soaks up the leftover space, which pushes
+whatever comes after it to the far end:
+
+![a Row with a Spacer pushing the last button to the far end](../assets/diagrams/row-spacer.svg)
+
+```lua
+h(Rivue.Row, { gap = 8, align = "center", Size = UDim2.new(1, 0, 0, 40) }, {
+	h("TextButton", { class = "button", Text = "Back" }),
+	h("TextLabel", { Text = "Inventory" }),
+	h(Rivue.Spacer),
+	h("TextButton", { class = "button", Text = "Close" }),
+})
+```
+
+They take the same `gap`, `align`, `justify` and `wrap` as `layout`, and pass everything else to
+their Frame.
 
 If you need a property `layout` doesn't cover, add a `UIListLayout` or `UIGridLayout` child
 yourself. Rivue keeps `LayoutOrder` in render order either way.

@@ -548,7 +548,70 @@ local function writeProp(inst: Instance, prop: string, value: unknown): (boolean
 	end)
 end
 
+-- Rivue.bind(getter) wraps a getter in this, so a property can follow it without a re-render
+local BINDING_MARKER = "__rivueBinding"
+
+local function bindingGetter(value: unknown): (() -> unknown)?
+	if type(value) ~= "table" then
+		return nil
+	end
+	local getter = rawget(value :: any, BINDING_MARKER)
+	if type(getter) == "function" then
+		return getter
+	elseif _reactivity.isRef(value) then
+		local r = value :: any
+		return function(): unknown
+			return r.value
+		end
+	end
+	return nil
+end
+
+-- Bindings outlive a patch, so they look the element's current vnode up under this key
+local BINDING_VNODE = newproxy(false)
+
+local function stopBinding(vnode: RenderVNode, key: string)
+	local bindings = vnode._bindings
+	if bindings and bindings[key] then
+		bindings[key]:stop()
+		bindings[key] = nil
+	end
+end
+
+local applyProp: (inst: Instance, key: string, value: any, vnode: RenderVNode) -> ()
+
+--- The property is written from its own small effect: when what the getter reads changes, only
+--- this property is written, and the component that rendered it doesn't run again
+local function bindProp(inst: Instance, key: string, getter: () -> unknown, vnode: RenderVNode)
+	local bindings: { [any]: any } = vnode._bindings or {}
+	vnode._bindings = bindings
+	bindings[BINDING_VNODE] = vnode
+	local eff = _reactivity.effect(function()
+		local value = getter()
+		-- Written untracked: in Immediate signal mode, handlers that run here mustn't become dependencies
+		_reactivity._untracked(function()
+			applyProp(inst, key, value, bindings[BINDING_VNODE])
+		end)
+	end, { lazy = true })
+	bindings[key] = eff
+	eff.run()
+end
+
 local function setProp(inst: Instance, key: string, value: any, vnode: RenderVNode)
+	if vnode._bindings and vnode._bindings[key] then
+		stopBinding(vnode, key)
+	end
+	if key:sub(1, 2) ~= "on" and key ~= "__directives" then
+		local getter = bindingGetter(value)
+		if getter then
+			bindProp(inst, key, getter, vnode)
+			return
+		end
+	end
+	applyProp(inst, key, value, vnode)
+end
+
+function applyProp(inst: Instance, key: string, value: any, vnode: RenderVNode)
 	local className: string? = if type(vnode.type) == "string" then vnode.type else nil
 
 	if key == "__directives" and type(value) == "table" then
@@ -639,6 +702,16 @@ local function clearVNodeConns(vnode: RenderVNode?)
 		return
 	end
 
+	local bindings = vnode._bindings
+	if bindings then
+		for key, eff in bindings do
+			if key ~= BINDING_VNODE then
+				eff:stop()
+			end
+		end
+		vnode._bindings = nil
+	end
+
 	local conns = vnode._conns
 	if conns then
 		for _, conn in conns do
@@ -719,11 +792,27 @@ local function runTransitionHooks(vnode: RenderVNode, name: string, fn: ((el: In
 	end
 end
 
+--- Keeps only properties this element has, so one preset can serve a Frame and a TextLabel (one
+--- unknown property makes TweenService reject the whole tween). A function value gets the current
+--- value and returns the goal, for relative moves like "20 px below where it is"
+local function resolveGoals(el: Instance, goals: { [string]: any }): { [string]: any }
+	local out = {}
+	for k, v in goals do
+		local ok, current = pcall(function()
+			return (el :: any)[k]
+		end)
+		if ok and current ~= nil then
+			out[k] = if type(v) == "function" then v(current) else v
+		end
+	end
+	return out
+end
+
 local function createTween(el: Instance, info: TweenInfo?, goals: { [string]: any }?): Tween?
 	if not info or not goals then
 		return nil
 	end
-	local ok, tween = pcall(TweenService.Create, TweenService, el, info, goals)
+	local ok, tween = pcall(TweenService.Create, TweenService, el, info, resolveGoals(el, goals))
 	return if ok then tween else nil
 end
 
@@ -1251,7 +1340,8 @@ local function mountElement(vnode: RenderVNode, container: Instance, poolOpt: Po
 	if transition and transition.enter then
 		runTransitionHooks(vnode, "before-enter", transition.onBeforeEnter, inst)
 		enterGoals = transition.enterGoals or transition.goals
-		local from: { [string]: any }? = transition.enterFrom or transition.from
+		local fromIn: { [string]: any }? = transition.enterFrom or transition.from
+		local from = if fromIn then resolveGoals(inst, fromIn) else nil
 		if from then
 			if not enterGoals then
 				-- Tween back to the values the props just set
@@ -1614,6 +1704,9 @@ local function patchProps(el: Instance, oldPropsIn: Props?, newPropsIn: Props?, 
 	for k in oldProps do
 		if newProps[k] ~= nil or RESERVED_PROPS[k] then
 			continue
+		end
+		if vnode._bindings and vnode._bindings[k] then
+			stopBinding(vnode, k)
 		end
 		if k:sub(1, 2) == "on" then
 			local conns = vnode._conns
@@ -2134,6 +2227,11 @@ local function patchElement(oldVNode: RenderVNode, newVNode: RenderVNode, poolOp
 	newVNode._touched = oldVNode._touched
 	newVNode._sugar = oldVNode._sugar
 	newVNode._tween = oldVNode._tween
+	local bindings = oldVNode._bindings
+	if bindings then
+		newVNode._bindings = bindings
+		bindings[BINDING_VNODE] = newVNode
+	end
 	local stateRecord = stateRecords[el]
 	if stateRecord then
 		stateRecord.vnode = newVNode
@@ -2591,8 +2689,14 @@ local function trigger(inst: Instance, key: string, ...: any)
 	handler(...)
 end
 
+local function hasHandler(inst: Instance, key: string): boolean
+	local handlers = elementHandlers[inst]
+	return handlers ~= nil and handlers[key] ~= nil
+end
+
 return {
 	trigger = trigger,
+	hasHandler = hasHandler,
 	setInteraction = setInteraction,
 	createApp = createApp,
 	patch = patch,

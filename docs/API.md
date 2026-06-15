@@ -63,6 +63,7 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 **[Render function](api/render-function.md)**
 [h()](api/render-function.md#h) ·
 [Element props](api/render-function.md#element-props) ·
+[bind()](api/render-function.md#bind) ·
 [Fragment](api/render-function.md#fragment) ·
 [hIf()](api/render-function.md#hif) ·
 [hFor()](api/render-function.md#hfor) ·
@@ -115,7 +116,11 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [Teleport](api/builtins.md#teleport) ·
 [Suspense](api/builtins.md#suspense) ·
 [VirtualList](api/builtins.md#virtuallist) ·
-[ViewportModel](api/builtins.md#viewportmodel)
+[ViewportModel](api/builtins.md#viewportmodel) ·
+[transitions](api/builtins.md#transitions) ·
+[ErrorBoundary](api/builtins.md#errorboundary) ·
+[Dialog](api/builtins.md#dialog) ·
+[Row, Column, Spacer](api/builtins.md#row-column-and-spacer)
 
 **[Directives](api/directives.md)**
 [vShow](api/directives.md#vshow) ·
@@ -148,6 +153,12 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [app.config](api/application.md#appconfigerrorhandler) ·
 [Pooling options](api/application.md#pooling-options)
 
+**[Navigation and loading](api/navigation.md)**
+[createRouter()](api/navigation.md#createrouter) ·
+[RouterView](api/navigation.md#routerview) ·
+[useRouter()](api/navigation.md#userouter) ·
+[useAsync()](api/navigation.md#useasync)
+
 **[Scheduler](api/scheduler.md)**
 [nextTick()](api/scheduler.md#nexttick) ·
 [queueJob()](api/scheduler.md#queuejob) ·
@@ -165,6 +176,7 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [useInputType()](api/roblox.md#useinputtype) ·
 [useSafeArea()](api/roblox.md#usesafearea) ·
 [useSelection()](api/roblox.md#useselection) ·
+[useGamepadFocus()](api/roblox.md#usegamepadfocus) ·
 [useTween()](api/roblox.md#usetween) ·
 [useSpring()](api/roblox.md#usespring) ·
 [attributeRef()](api/roblox.md#attributeref) ·
@@ -216,5 +228,7 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [iterArray()](api/utilities.md#iterarray) ·
 [testing.trigger()](api/utilities.md#testingtrigger) ·
 [testing.setInteraction()](api/utilities.md#testingsetinteraction) ·
+[testing.render()](api/utilities.md#testingrender) ·
+[testing.click() / typeInto()](api/utilities.md#testingclick-and-testingtypeinto) ·
 [story()](api/utilities.md#story) ·
 [Types](api/utilities.md#types)
