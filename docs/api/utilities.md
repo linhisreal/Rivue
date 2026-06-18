@@ -2,224 +2,210 @@
 
 # Utilities and debugging
 
-**Learn it:** [Guide 9: Performance and debugging](../guide/09-performance-and-debugging.md)
+**Learn it:** [Guide 9: Performance and debugging](../guide/09-performance-and-debugging.md) · [Guide 16: Testing UI](../guide/16-testing-ui.md)
 
-All examples assume `local Rivue = require(game.ReplicatedStorage.RivueUI)`.
-
-- [Rivue.dev](#rivuedev)
-- [Rivue.version](#rivueversion)
-- [printTree()](#printtree)
-- [debug.enabled](#debugenabled)
-- [inspect()](#inspect)
-- [prettyPrint()](#prettyprint)
-- [assertInvariant()](#assertinvariant)
-- [debug.measure()](#debugmeasure)
-- [debug.log()](#debuglog)
-- [debug.formatError()](#debugformaterror)
-- [utils.debounce()](#utilsdebounce)
-- [utils.throttle()](#utilsthrottle)
-- [utils.nextFrame()](#utilsnextframe)
-- [utils.useRaf()](#utilsuseraf)
-- [utils.filterForClient()](#utilsfilterforclient)
-- [utils.shallowEqual()](#utilsshallowequal)
-- [utils.profiler](#utilsprofiler)
-- [iterArray()](#iterarray)
-- [testing.trigger()](#testingtrigger)
-- [testing.setInteraction()](#testingsetinteraction)
-- [testing.render()](#testingrender)
-- [testing.click() and testing.typeInto()](#testingclick-and-testingtypeinto)
-- [story()](#story)
-- [Types](#types)
+Debugging helpers, timing utilities, test helpers and storybook stories. Examples assume
+`local Rivue = require(game.ReplicatedStorage.RivueUI)` and `local h = Rivue.h`.
 
 ---
 
 ## Rivue.dev
 
-`true` when running in Studio. Rivue's own warnings (unknown props, bad keys, invalid props, ...)
-only run when this is true.
+`true` when running in Studio. Rivue's own warnings, such as unknown props, bad keys and invalid
+props, only run when it's true.
 
-- **Example**
+```lua signature
+Rivue.dev: boolean
+```
 
-  ```lua
-  if Rivue.dev then
-  	print("running in Studio")
-  end
-  ```
+### Example
 
-- **Type**
-
-  ```lua
-  Rivue.dev: boolean
-  ```
+```lua
+if Rivue.dev then
+	print("running in Studio")
+end
+```
 
 ---
 
 ## Rivue.version
 
-The version of Rivue that's running, such as `"0.9.0-rc.1"`. RivueRemote and RivueRouter have their
-own, in `Remote.version` and `Router.version`.
+The version of RivueUI that's running, such as `"0.10.0-rc.2"`. RivueRemote and RivueRouter have
+their own, `Remote.version` and `Router.version`.
 
-- **Example**
+```lua signature
+Rivue.version: string
+```
 
-  ```lua
-  print(`Running Rivue {Rivue.version}`)
-  ```
+### Example
 
-- **Type**
-
-  ```lua
-  Rivue.version: string
-  ```
+```lua
+print(`Running Rivue {Rivue.version}`)
+```
 
 ---
 
 ## printTree()
 
-Prints what's on screen under a mounted element, as a tree. `app:printTree()` does the same for the
-whole app.
+Prints what's mounted under an element as a tree. [`app:printTree()`](application.md#appprinttree)
+does the same for the whole app.
 
-- **Example**
+```lua signature
+function printTree(vnode: VNode): string
+```
 
-  ```lua
-  local h = Rivue.h
-  local root = h("Frame", { Name = "Root" }, { h("TextLabel", { Text = "Hi" }) })
-  Rivue.createApp(root):mount(Instance.new("ScreenGui"))
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `vnode` | `VNode` | | a mounted vnode |
 
-  Rivue.printTree(root)
-  --[[
-  Frame "Root"
-    TextLabel "TextLabel"
-  ]]
-  ```
+**Returns** the same text it printed.
 
-- **Type**
+### Example
 
-  ```lua
-  function printTree(vnode: VNode): string
-  ```
+```lua
+local root = h("Frame", { Name = "Root" }, { h("TextLabel", { Text = "Hi" }) })
+Rivue.createApp(root):mount(Instance.new("ScreenGui"))
+
+Rivue.printTree(root)
+--[[
+Frame "Root"
+  TextLabel "TextLabel"
+]]
+```
 
 ---
 
 ## debug.enabled
 
 Turns on detailed logging of everything Rivue does: every element, mount, update and remote call.
-Off by default.
 
-- **Example**
+```lua signature
+Rivue.debug.enabled: boolean -- default false
+```
 
-  ```lua
-  Rivue.debug.enabled = true
-  -- reproduce the problem, then
-  Rivue.debug.enabled = false
-  ```
+> [!WARNING]
+> It's very noisy and slows rendering down, so only turn it on briefly to trace a problem. Studio
+> warnings don't depend on it.
 
-- **Details**
+### Example
 
-  This is very noisy and slows rendering down, so only turn it on briefly to trace a problem.
-  Studio warnings don't depend on it.
-
-- **Type**
-
-  ```lua
-  Rivue.debug.enabled: boolean
-  ```
+```lua
+Rivue.debug.enabled = true
+-- reproduce the problem, then
+Rivue.debug.enabled = false
+```
 
 ---
 
 ## inspect()
 
-Turns any value into a readable string. Reactive tables show their data instead of an empty proxy,
-which `print` would show.
+Turns any value into a readable string. A reactive table shows its data, where `print` would show
+an empty proxy.
 
-- **Example**
+```lua signature
+function inspect(value: unknown, depth: number?): string
+```
 
-  ```lua
-  local state = Rivue.reactive({ coins = 10, items = { "Sword" } })
-  print(Rivue.inspect(state))
-  --[[
-  {
-    items = {
-      [1] = "Sword"
-    }
-    coins = 10
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `value` | `unknown` | | anything |
+| `depth` | `number?` | `3` | how many levels of nested tables to show |
+
+### Example
+
+```lua
+local state = Rivue.reactive({ coins = 10, items = { "Sword" } })
+print(Rivue.inspect(state))
+--[[
+{
+  items = {
+    [1] = "Sword"
   }
-  ]]
-  ```
-
-- **Type**
-
-  ```lua
-  function inspect(value: unknown, depth: number?): string -- depth defaults to 3
-  ```
+  coins = 10
+}
+]]
+```
 
 ---
 
 ## prettyPrint()
 
-Prints a value across several lines, nicely indented, with reactive tables unwrapped.
+Prints a value across several lines, indented, with reactive tables unwrapped.
 
-- **Example**
+```lua signature
+function prettyPrint(value: unknown, options: { indent: number?, maxDepth: number?, unwrapProxies: boolean? }?)
+```
 
-  ```lua
-  local state = Rivue.reactive({ player = { name = "Ada", level = 3 } })
-  Rivue.prettyPrint(state, { maxDepth = 2 })
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `value` | `unknown` | | anything |
+| `options.indent` | `number?` | | spaces per level |
+| `options.maxDepth` | `number` | `10` | how deep to go |
+| `options.unwrapProxies` | `boolean` | `true` | show reactive tables' data |
 
-- **Type**
+### Example
 
-  ```lua
-  function prettyPrint(value: unknown, options: {
-  	indent: number?,
-  	maxDepth: number?, -- default 10
-  	unwrapProxies: boolean?, -- default true
-  }?)
-  ```
+```lua
+local state = Rivue.reactive({ player = { name = "Ada", level = 3 } })
+Rivue.prettyPrint(state, { maxDepth = 2 })
+```
 
 ---
 
 ## assertInvariant()
 
-Checks something you expect to always be true, and errors loudly in Studio if it isn't. Costs
-nothing in live servers.
+_Studio only_
 
-- **Example**
+Checks something you expect to always be true, and errors in Studio if it isn't.
 
-  ```lua
-  local function setVolume(volume: number)
-  	Rivue.assertInvariant(volume >= 0 and volume <= 1, "volume must be between 0 and 1")
-  end
-  ```
+```lua signature
+function assertInvariant(condition: boolean, message: string)
+```
 
-- **Type**
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `condition` | `boolean` | | what should be true |
+| `message` | `string` | | the error message |
 
-  ```lua
-  function assertInvariant(condition: boolean, message: string)
-  ```
+> [!NOTE]
+> It only checks in Studio, or with `debug.enabled` on. In live servers it does nothing.
+
+### Example
+
+```lua
+local function setVolume(volume: number)
+	Rivue.assertInvariant(volume >= 0 and volume <= 1, "volume must be between 0 and 1")
+end
+```
 
 ---
 
 ## debug.measure()
 
-Times a function and logs how long it took, when `debug.enabled` is on. Returns whatever the
-function returned.
+Times a function and logs how long it took, when `debug.enabled` is on.
 
-- **Example**
+```lua signature
+function debug.measure<R...>(name: string, fn: () -> R...): R...
+```
 
-  ```lua
-  local total = Rivue.debug.measure("sum", function()
-  	local sum = 0
-  	for i = 1, 1e6 do
-  		sum += i
-  	end
-  	return sum
-  end)
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `name` | `string` | | the label in the log |
+| `fn` | `() -> R...` | | the work to time |
 
-- **Type**
+**Returns** whatever `fn` returned.
 
-  ```lua
-  function debug.measure<R...>(name: string, fn: () -> R...): R...
-  ```
+### Example
+
+```lua
+local total = Rivue.debug.measure("sum", function()
+	local sum = 0
+	for i = 1, 1e6 do
+		sum += i
+	end
+	return sum
+end)
+```
 
 ---
 
@@ -227,101 +213,111 @@ function returned.
 
 Prints a message with a category tag, only when `debug.enabled` is on.
 
-- **Example**
+```lua signature
+function debug.log(category: string, message: string, data: unknown?)
+```
 
-  ```lua
-  Rivue.debug.log("Shop", "Opened", { items = 12 })
-  -- prints "[Rivue:DEBUG:Shop] Opened" followed by the data
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `category` | `string` | | the tag, as in `[Rivue:DEBUG:Shop]` |
+| `message` | `string` | | the message |
+| `data` | `unknown?` | | printed after the message |
 
-- **Type**
+### Example
 
-  ```lua
-  function debug.log(category: string, message: string, data: unknown?)
-  ```
+```lua
+Rivue.debug.log("Shop", "Opened", { items = 12 })
+-- prints "[Rivue:DEBUG:Shop] Opened" followed by the data
+```
 
 ---
 
 ## debug.formatError()
 
-Builds a consistent error message with a category and optional details.
+Builds an error message in Rivue's format, with a category and optional details.
 
-- **Example**
+```lua signature
+function debug.formatError(category: string, message: string, context: unknown?): string
+```
 
-  ```lua
-  local message = Rivue.debug.formatError("Shop", "Item not found", { id = "sword" })
-  warn(message)
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `category` | `string` | | the area, such as `"Shop"` |
+| `message` | `string` | | what went wrong |
+| `context` | `unknown?` | | details to include |
 
-- **Type**
+### Example
 
-  ```lua
-  function debug.formatError(category: string, message: string, context: unknown?): string
-  ```
+```lua
+local message = Rivue.debug.formatError("Shop", "Item not found", { id = "sword" })
+warn(message)
+```
 
 ---
 
 ## utils.debounce()
 
-Waits until calls stop for a moment before running. Use it for search boxes, so you search once the
-player stops typing instead of on every key.
+Waits until calls stop for a moment before running, for example to search once the player stops
+typing.
 
-- **Example**
+```lua signature
+function utils.debounce<A...>(fn: (A...) -> (), ms: number): (A...) -> { cancel: () -> () }
+```
 
-  ```lua
-  local save = Rivue.utils.debounce(function(text: string)
-  	print("save", text)
-  end, 500)
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `fn` | `(A...) -> ()` | | runs with the last call's arguments |
+| `ms` | `number` | | milliseconds to wait; values below 1 are read as seconds |
 
-  save("H")
-  save("He")
-  save("Hey") -- only "Hey" is saved, 500 ms after the last call
-  ```
+**Returns** the debounced function. Each call returns a handle whose `cancel()` drops the pending
+call.
 
-- **Details**
+### Example
 
-  The last call's arguments are used. Values below 1 are treated as seconds. Calling the debounced
-  function returns a handle whose `cancel()` drops the pending call.
+```lua
+local save = Rivue.utils.debounce(function(text: string)
+	print("save", text)
+end, 500)
 
-- **Type**
-
-  ```lua
-  function utils.debounce<A...>(fn: (A...) -> (), ms: number): (A...) -> { cancel: () -> () }
-  ```
+save("H")
+save("He")
+save("Hey") -- only "Hey" is saved, 500 ms after the last call
+```
 
 ---
 
 ## utils.throttle()
 
-Runs at most once per interval, however often it's called. Use it for things that fire every frame,
-like mouse movement.
+Runs at most once per interval, however often it's called. For things that fire every frame, like
+mouse movement.
 
-- **Example**
+```lua signature
+function utils.throttle<A...>(fn: (A...) -> (), ms: number): (A...) -> ()
+```
 
-  ```lua
-  local UserInputService = game:GetService("UserInputService")
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `fn` | `(A...) -> ()` | | the function to limit |
+| `ms` | `number` | | the interval in milliseconds |
 
-  local onMove = Rivue.utils.throttle(function(position: Vector3)
-  	print("mouse at", position)
-  end, 100)
+**Returns** the throttled function. The first call runs right away; calls during the wait collapse
+into one trailing call with the latest arguments.
 
-  UserInputService.InputChanged:Connect(function(input)
-  	if input.UserInputType == Enum.UserInputType.MouseMovement then
-  		onMove(input.Position)
-  	end
-  end)
-  ```
+### Example
 
-- **Details**
+```lua
+local UserInputService = game:GetService("UserInputService")
 
-  The first call runs right away. Calls during the wait are collapsed into one trailing call
-  with the latest arguments.
+local onMove = Rivue.utils.throttle(function(position: Vector3)
+	print("mouse at", position)
+end, 100)
 
-- **Type**
-
-  ```lua
-  function utils.throttle<A...>(fn: (A...) -> (), ms: number): (A...) -> ()
-  ```
+UserInputService.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement then
+		onMove(input.Position)
+	end
+end)
+```
 
 ---
 
@@ -329,19 +325,21 @@ like mouse movement.
 
 Runs a function on the next Heartbeat.
 
-- **Example**
+```lua signature
+function utils.nextFrame(fn: () -> ())
+```
 
-  ```lua
-  Rivue.utils.nextFrame(function()
-  	print("one frame later")
-  end)
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `fn` | `() -> ()` | | the function to run |
 
-- **Type**
+### Example
 
-  ```lua
-  function utils.nextFrame(fn: () -> ())
-  ```
+```lua
+Rivue.utils.nextFrame(function()
+	print("one frame later")
+end)
+```
 
 ---
 
@@ -349,298 +347,205 @@ Runs a function on the next Heartbeat.
 
 Runs a function every frame until you stop it.
 
-- **Example**
+```lua signature
+function utils.useRaf(fn: (deltaTime: number) -> ()): { stop: () -> () }
+```
 
-  ```lua
-  local elapsed = 0
-  local loop
-  loop = Rivue.utils.useRaf(function(dt)
-  	elapsed += dt
-  	if elapsed > 2 then
-  		loop.stop()
-  	end
-  end)
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `fn` | `(deltaTime) -> ()` | | runs each frame |
 
-- **Details**
+**Returns** a handle whose `stop()` ends the loop.
 
-  Outside components, remember to call `stop()`. Inside components,
-  [`onRenderStepped()`](roblox.md#onrenderstepped--onheartbeat--onstepped) stops on its own.
+> [!WARNING]
+> It doesn't stop on its own, even in a component. Inside components,
+> [`onRenderStepped()`](roblox.md#onrenderstepped--onheartbeat--onstepped) stops on unmount.
 
-- **Type**
+### Example
 
-  ```lua
-  function utils.useRaf(fn: (deltaTime: number) -> ()): { stop: () -> () }
-  ```
+```lua
+local elapsed = 0
+local loop
+loop = Rivue.utils.useRaf(function(dt)
+	elapsed += dt
+	if elapsed > 2 then
+		loop.stop()
+	end
+end)
+```
 
 ---
 
 ## utils.filterForClient()
 
-Filters text with TextService before showing it to a player. Returns `""` if filtering
-fails, so unfiltered text is never shown. It yields, and only works on the server.
+_server · yields_
 
-- **Example**
+Filters text with TextService before a player sees it.
 
-  <!-- server -->
-  ```lua
-  -- Server
-  local Players = game:GetService("Players")
+```lua signature
+function utils.filterForClient(player: Player, text: string): string
+```
 
-  Players.PlayerAdded:Connect(function(player)
-  	local safe = Rivue.utils.filterForClient(player, "user-written pet name")
-  	player:SetAttribute("PetName", safe)
-  end)
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `player` | `Player` | | who wrote the text |
+| `text` | `string` | | the text to filter |
 
-- **Type**
+**Returns** the filtered text, or `""` if filtering fails, so unfiltered text is never shown.
 
-  ```lua
-  function utils.filterForClient(player: Player, text: string): string
-  ```
+> [!WARNING]
+> It yields, and only works on the server.
+
+### Example
+
+<!-- server -->
+```lua
+local Players = game:GetService("Players")
+
+Players.PlayerAdded:Connect(function(player)
+	local safe = Rivue.utils.filterForClient(player, "user-written pet name")
+	player:SetAttribute("PetName", safe)
+end)
+```
 
 ---
 
 ## utils.shallowEqual()
 
-Tells you whether two tables have the same keys and values, one level deep.
+Whether two tables have the same keys and values, one level deep.
 
-- **Example**
+```lua signature
+function utils.shallowEqual(a: unknown, b: unknown): boolean
+```
 
-  ```lua
-  print(Rivue.utils.shallowEqual({ a = 1 }, { a = 1 })) -- true
-  print(Rivue.utils.shallowEqual({ a = {} }, { a = {} })) -- false, different inner tables
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `a`, `b` | `unknown` | | the values to compare |
 
-- **Type**
+### Example
 
-  ```lua
-  function utils.shallowEqual(a: unknown, b: unknown): boolean
-  ```
+```lua
+print(Rivue.utils.shallowEqual({ a = 1 }, { a = 1 })) -- true
+print(Rivue.utils.shallowEqual({ a = {} }, { a = {} })) -- false, different inner tables
+```
 
 ---
 
 ## utils.profiler
 
-Simple named timers for finding slow code. While it's running, effect runs are timed too.
+Named timers for finding slow code. While it's active, every effect run is timed too.
 
-- **Example**
+```lua signature
+utils.profiler: {
+	active: boolean,
+	records: { [string]: number },
+	start: (self, name: string) -> (),
+	stop: (self, name: string) -> number?,
+}
+```
 
-  ```lua
-  local profiler = Rivue.utils.profiler
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `start` | `(self, name) -> ()` | | starts a timer and turns `active` on |
+| `stop` | `(self, name) -> number?` | | stops it and returns the elapsed seconds |
+| `active` | `boolean` | `false` | set it back to `false` when you're done |
+| `records` | `{ [string]: number }` | | timings by name |
 
-  profiler:start("buildList")
-  -- ... work ...
-  local seconds = profiler:stop("buildList")
-  print(`buildList took {seconds}s`)
-  profiler.active = false
-  ```
+### Example
 
-- **Details**
+```lua
+local profiler = Rivue.utils.profiler
 
-  `start()` turns `active` on, which also times every effect run. Set `active = false` when
-  you're done.
-
-- **Type**
-
-  ```lua
-  utils.profiler: {
-  	active: boolean,
-  	records: { [string]: number },
-  	start: (self, name: string) -> (),
-  	stop: (self, name: string) -> number?, -- elapsed seconds
-  }
-  ```
+profiler:start("buildList")
+-- ... work ...
+local seconds = profiler:stop("buildList")
+print(`buildList took {seconds}s`)
+profiler.active = false
+```
 
 ---
 
 ## iterArray()
 
-Loops over a reactive list like `ipairs` would, which plain `ipairs` can't do with proxies.
+Loops over a reactive list the way `ipairs` would, which plain `ipairs` can't do with proxies.
 
-- **Example**
+```lua signature
+function iterArray<T>(array: { T }): () -> (number?, T?)
+```
 
-  ```lua
-  local list = Rivue.reactive({ "a", "b", "c" })
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `array` | `{ T }` | | a plain or reactive list |
 
-  for index, value in Rivue.iterArray(list) do
-  	print(index, value)
-  end
-  ```
+### Example
 
-- **Details**
+```lua
+local list = Rivue.reactive({ "a", "b", "c" })
 
-  Same as `for i = 1, #list do`. Generalized iteration (`for i, v in list do`) also works on
+for index, value in Rivue.iterArray(list) do
+	print(index, value)
+end
+```
+
+### Details
+
+- The same as `for i = 1, #list do`. Generalized iteration, `for i, v in list do`, also works on
   proxies.
 
-- **Type**
-
-  ```lua
-  function iterArray<T>(array: { T }): () -> (number?, T?)
-  ```
-
 ---
-
-## testing.trigger()
-
-Calls an element's event handler as if the event fired. Scripts can't fire engine events like
-`Activated` or `FocusLost`, so tests use this to click buttons and submit text boxes.
-
-- **Example**
-
-  ```lua
-  local h = Rivue.h
-
-  local Counter = Rivue.defineComponent({
-  	name = "Counter",
-  	setup = function()
-  		return { count = Rivue.ref(0) }
-  	end,
-  	render = function(ctx)
-  		return h("TextButton", {
-  			Name = "Add",
-  			Text = `Clicked {ctx.count}`,
-  			onClick = function()
-  				ctx.count += 1
-  			end,
-  		})
-  	end,
-  })
-
-  local screen = Instance.new("Frame")
-  local app = Rivue.mount(Counter, screen)
-  local button = screen:FindFirstChild("Add") :: TextButton
-
-  Rivue.testing.trigger(button, "onClick")
-  Rivue.nextTick() -- re-renders are batched, wait for them
-  assert(button.Text == "Clicked 1")
-
-  app:unmount()
-  ```
-
-- **Details**
-
-  `key` is the event prop as written in `h()`: `"onClick"`, `"onFocusLost"`, `"onTextChanged"`. Extra
-  arguments are passed to the handler, so `trigger(box, "onFocusLost", true)` is pressing Enter.
-  It calls the handler the element has now, after any re-renders. It errors if the element has no
-  handler for `key`, which catches a test clicking the wrong thing.
-
-  Input that comes from `UserInputService` (`vClickOutside`, `vDrag`, the input-type composables)
-  can't be faked this way. Test the logic behind it in a composable instead, see
-  [Guide 16](../guide/16-testing-ui.md).
-
-- **Type**
-
-  ```lua
-  function testing.trigger(element: Instance, key: string, ...: any)
-  ```
-
----
-
-## testing.setInteraction()
-
-Turns an element's hover, pressed or selected state on or off, as if the player did it. Use it to
-test [style class variants](application.md#appstyles), since scripts can't move the mouse.
-
-- **Example**
-
-  ```lua
-  local hoverColor = Color3.fromRGB(200, 200, 200)
-
-  local Button = Rivue.defineComponent({
-  	name = "HoverButton",
-  	styles = {
-  		button = {
-  			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
-  			hover = { BackgroundColor3 = hoverColor },
-  		},
-  	},
-  	render = function()
-  		return h("TextButton", { Name = "Play", class = "button" })
-  	end,
-  })
-
-  local screen = Instance.new("Frame")
-  local app = Rivue.mount(Button, screen)
-  local button = screen:FindFirstChild("Play") :: TextButton
-
-  Rivue.testing.setInteraction(button, "hover", true)
-  assert(button.BackgroundColor3 == hoverColor)
-
-  app:unmount()
-  ```
-
-- **Details**
-
-  `state` is `"hover"`, `"pressed"` or `"selected"`. It does nothing on elements whose classes have
-  no state variants. The change applies straight away,
-  without waiting for `nextTick()`.
-
-- **Type**
-
-  ```lua
-  function testing.setInteraction(element: Instance, state: "hover" | "pressed" | "selected", on: boolean)
-  ```
-
 
 ## testing.render()
 
-Mounts a component for a test and gives you ways to find things by what the player would see,
-the way Testing Library does on the web.
+Mounts a component for a test, with ways to find elements by what the player would see, like
+Testing Library on the web.
 
-- **Example**
+```lua signature
+function testing.render(component: ComponentDef | VNode, props: { [string]: any }?): RenderResult
+```
 
-  ```lua
-  local Counter = Rivue.defineComponent({
-  	name = "Counter",
-  	props = { start = { type = "number", default = 0 } },
-  	setup = function(props)
-  		local count = Rivue.ref(props.start)
-  		return {
-  			count = count,
-  			add = function()
-  				count.value += 1
-  			end,
-  		}
-  	end,
-  	render = function(ctx)
-  		return h("Frame", nil, {
-  			h("TextLabel", { Text = `Count: {ctx.count}` }),
-  			h("TextButton", { Text = "Add", onActivated = ctx.add }),
-  		})
-  	end,
-  })
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `component` | `ComponentDef \| VNode` | | what to mount |
+| `props` | `{ [string]: any }?` | | its props |
 
-  local screen = Rivue.testing.render(Counter, { start = 5 })
-  Rivue.testing.click(screen.getByText("Add"))
-  assert(screen.queryByText("Count: 6"), "the count went up")
-  screen.unmount()
-  ```
+**Returns** `{ container, app, getByText, queryByText, getAllByText, getByName, queryByName, unmount }`.
 
-- **Details**
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `getByText` | `(text \| (string) -> boolean) -> Instance` | | the one TextLabel, TextButton or TextBox showing that text; errors if there's none or more than one |
+| `queryByText` | `(text) -> Instance?` | | the same, but `nil` when there's none |
+| `getAllByText` | `(text) -> { Instance }` | | every match |
+| `getByName`, `queryByName` | `(name: string) -> Instance` | | find by Instance `Name` |
+| `unmount` | `() -> ()` | | unmounts and destroys the container |
 
-  - The second argument is the component's props. A vnode works too: `render(h(Counter))`.
-  - `getByText` finds the one TextLabel, TextButton or TextBox showing that text, and errors if
-    there's none or more than one. `queryByText` returns nil instead of erroring when there's
-    none. `getAllByText` returns every match.
-  - A text match can be a function: `getAllByText(function(text) return text:find("Coins") end)`.
-  - `getByName` and `queryByName` find by Instance `Name`.
-  - `unmount()` unmounts and destroys the container.
+### Example
 
-- **Type**
+```lua
+local Counter = Rivue.defineComponent({
+	name = "Counter",
+	props = { start = { type = "number", default = 0 } },
+	setup = function(props)
+		local count = Rivue.ref(props.start)
+		return {
+			count = count,
+			add = function()
+				count.value += 1
+			end,
+		}
+	end,
+	render = function(ctx)
+		return h("Frame", nil, {
+			h("TextLabel", { Text = `Count: {ctx.count}` }),
+			h("TextButton", { Text = "Add", onActivated = ctx.add }),
+		})
+	end,
+})
 
-  ```lua
-  function testing.render(component: ComponentDef | VNode, props: { [string]: any }?): {
-  	container: Instance,
-  	app: App,
-  	getByText: (text: string | (string) -> boolean) -> Instance,
-  	queryByText: (text: string | (string) -> boolean) -> Instance?,
-  	getAllByText: (text: string | (string) -> boolean) -> { Instance },
-  	getByName: (name: string) -> Instance,
-  	queryByName: (name: string) -> Instance?,
-  	unmount: () -> (),
-  }
-  ```
+local screen = Rivue.testing.render(Counter, { start = 5 })
+Rivue.testing.click(screen.getByText("Add"))
+assert(screen.queryByText("Count: 6"), "the count went up")
+screen.unmount()
+```
 
 ---
 
@@ -648,105 +553,203 @@ the way Testing Library does on the web.
 
 Act like the player, then wait for the re-render, so the next line can check the result.
 
-- **Example**
+```lua signature
+function testing.click(inst: Instance)
+function testing.typeInto(box: TextBox, text: string)
+```
 
-  ```lua
-  local NameForm = Rivue.defineComponent({
-  	name = "NameForm",
-  	setup = function()
-  		return { name = Rivue.ref("") }
-  	end,
-  	render = function(ctx)
-  		return h("Frame", nil, {
-  			h("TextBox", { Name = "NameBox", model = "name" }),
-  			h("TextLabel", { Text = `Hi {ctx.name}` }),
-  		})
-  	end,
-  })
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `inst` | `Instance` | | runs its `onClick`, `onActivated` or `onMouseButton1Click` handler |
+| `box` | `TextBox` | | sets its `Text`, then runs `onFocusLost` as if the player pressed Enter |
+| `text` | `string` | | what to type |
 
-  local screen = Rivue.testing.render(NameForm)
-  Rivue.testing.typeInto(screen.getByName("NameBox"), "Ana")
-  assert(screen.queryByText("Hi Ana"))
-  screen.unmount()
-  ```
+> [!WARNING]
+> `click` errors when the element has no click handler, and `typeInto` errors on anything but a
+> TextBox, so a test that acts on the wrong element fails.
 
-- **Details**
+### Example
 
-  - `click` runs the button's `onClick`, `onActivated` or `onMouseButton1Click` handler, and
-    errors if it has none.
-  - `typeInto` sets the TextBox's `Text`, then runs its `onFocusLost` handler as if the player
-    pressed Enter.
-  - For any other event, use [`testing.trigger()`](#testingtrigger).
+```lua
+local NameForm = Rivue.defineComponent({
+	name = "NameForm",
+	setup = function()
+		return { name = Rivue.ref("") }
+	end,
+	render = function(ctx)
+		return h("Frame", nil, {
+			h("TextBox", { Name = "NameBox", model = "name" }),
+			h("TextLabel", { Text = `Hi {ctx.name}` }),
+		})
+	end,
+})
 
-- **Type**
+local screen = Rivue.testing.render(NameForm)
+Rivue.testing.typeInto(screen.getByName("NameBox"), "Ana")
+assert(screen.queryByText("Hi Ana"))
+screen.unmount()
+```
 
-  ```lua
-  function testing.click(inst: Instance)
-  function testing.typeInto(box: TextBox, text: string)
-  ```
+---
+
+## testing.trigger()
+
+Calls an element's event handler as if the event fired. Scripts can't fire engine events like
+`Activated` or `FocusLost`, so tests use this for any event `click` and `typeInto` don't cover.
+
+```lua signature
+function testing.trigger(element: Instance, key: string, ...: any)
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `element` | `Instance` | | the element |
+| `key` | `string` | | the event prop as written in `h()`: `"onClick"`, `"onFocusLost"`, ... |
+| `...` | `any` | | passed to the handler; `trigger(box, "onFocusLost", true)` is pressing Enter |
+
+> [!NOTE]
+> It doesn't wait for the re-render; call `Rivue.nextTick()` before checking. It errors when the
+> element has no handler for `key`.
+
+### Example
+
+```lua
+local Counter = Rivue.defineComponent({
+	name = "Counter",
+	setup = function()
+		return { count = Rivue.ref(0) }
+	end,
+	render = function(ctx)
+		return h("TextButton", {
+			Name = "Add",
+			Text = `Clicked {ctx.count}`,
+			onClick = function()
+				ctx.count += 1
+			end,
+		})
+	end,
+})
+
+local screen = Instance.new("Frame")
+local app = Rivue.mount(Counter, screen)
+local button = screen:FindFirstChild("Add") :: TextButton
+
+Rivue.testing.trigger(button, "onClick")
+Rivue.nextTick() -- re-renders are batched, wait for them
+assert(button.Text == "Clicked 1")
+
+app:unmount()
+```
+
+### Details
+
+- Input from `UserInputService` (`vClickOutside`, `vDrag`, the input-type composables) can't be
+  faked this way. Test the logic behind it in a composable instead; see
+  [Guide 16](../guide/16-testing-ui.md#what-a-script-cant-test).
+
+---
+
+## testing.setInteraction()
+
+Turns an element's hover, pressed or selected state on or off, as if the player did it. For testing
+[style class variants](application.md#appstyles), since scripts can't move the mouse.
+
+```lua signature
+function testing.setInteraction(element: Instance, state: "hover" | "pressed" | "selected", on: boolean)
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `element` | `Instance` | | an element whose classes have state variants; others are ignored |
+| `state` | `"hover" \| "pressed" \| "selected"` | | which state |
+| `on` | `boolean` | | turn it on or off |
+
+> [!NOTE]
+> The change applies straight away, without `nextTick()`.
+
+### Example
+
+```lua
+local hoverColor = Color3.fromRGB(200, 200, 200)
+
+local Button = Rivue.defineComponent({
+	name = "HoverButton",
+	styles = {
+		button = {
+			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+			hover = { BackgroundColor3 = hoverColor },
+		},
+	},
+	render = function()
+		return h("TextButton", { Name = "Play", class = "button" })
+	end,
+})
+
+local screen = Instance.new("Frame")
+local app = Rivue.mount(Button, screen)
+local button = screen:FindFirstChild("Play") :: TextButton
+
+Rivue.testing.setInteraction(button, "hover", true)
+assert(button.BackgroundColor3 == hoverColor)
+
+app:unmount()
+```
 
 ---
 
 ## story()
 
-Turns a component into a storybook story, so you can preview it in Studio without pressing Play.
-Works with [UI Labs](https://github.com/PepeElToro41/ui-labs), [Hoarcekat](https://github.com/Kampfkarren/hoarcekat)
+Turns a component into a storybook story, to preview it in Studio without pressing Play. Works with
+[UI Labs](https://github.com/PepeElToro41/ui-labs), [Hoarcekat](https://github.com/Kampfkarren/hoarcekat)
 and other plugins that take function stories.
 
-- **Example**
+```lua signature
+function story(component: ComponentDef, options: {
+	props: Props | ((controls) -> Props)?,
+	controls: { [string]: any }?,
+	styles: { [string]: Props }?,
+}?): any
+```
 
-  A ModuleScript named `ShopItem.story.luau` next to the component:
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `component` | `ComponentDef` | | what to preview |
+| `options.props` | `Props \| (controls) -> Props` | | props, or a function that turns the controls into props |
+| `options.controls` | `{ [string]: any }?` | | values you can change in UI Labs' panel, passed as props |
+| `options.styles` | `{ [string]: Props }?` | | style classes for the preview, like `app:styles()` |
 
-  ```lua
-  local ShopItem = Rivue.defineComponent({
-  	name = "ShopItem",
-  	props = {
-  		name = { type = "string", required = true },
-  		price = { type = "number", required = true },
-  	},
-  	render = function(ctx)
-  		return h("TextLabel", { Name = "Item", Text = `{ctx.name}: {ctx.price} coins` })
-  	end,
-  })
+**Returns** without `controls`, a function story: `function(target)` that mounts into `target` and
+returns a cleanup function. With `controls`, a UI Labs generic story, `{ controls, render }`, that
+re-renders when a control changes.
 
-  -- A plain story
-  local story = Rivue.story(ShopItem, { props = { name = "Iron Sword", price = 40 } })
+### Example
 
-  -- With controls you can change in UI Labs' panel
-  local withControls = Rivue.story(ShopItem, {
-  	controls = { name = "Iron Sword", price = 40 },
-  })
+A ModuleScript named `ShopItem.story.luau` next to the component returns `story` or `withControls`:
 
-  -- What the plugin does with them
-  local preview = Instance.new("Frame")
-  local cleanup = story(preview)
-  assert((preview:FindFirstChild("Item") :: TextLabel).Text == "Iron Sword: 40 coins")
-  cleanup()
-  ```
+```lua
+local ShopItem = Rivue.defineComponent({
+	name = "ShopItem",
+	props = {
+		name = { type = "string", required = true },
+		price = { type = "number", required = true },
+	},
+	render = function(ctx)
+		return h("TextLabel", { Name = "Item", Text = `{ctx.name}: {ctx.price} coins` })
+	end,
+})
 
-  The module returns `story` (or `withControls`).
+local story = Rivue.story(ShopItem, { props = { name = "Iron Sword", price = 40 } })
 
-- **Details**
+local withControls = Rivue.story(ShopItem, {
+	controls = { name = "Iron Sword", price = 40 },
+})
 
-  Without `controls`, `story()` returns a function story: `function(target)` that mounts the
-  component into `target` and returns a cleanup function. That's the format UI Labs and Hoarcekat
-  both take.
-
-  With `controls`, it returns a UI Labs generic story (`{ controls, render }`). The controls are
-  passed as props, and the component re-renders when you change one.
-
-  `props` can be a table, or a function that gets the controls and returns props, to name or
-  convert them. `styles` registers style classes for the preview, like `app:styles()`.
-
-- **Type**
-
-  ```lua
-  function story(component: ComponentDef, options: {
-  	props: Props | ((controls) -> Props)?,
-  	controls: { [string]: any }?,
-  	styles: { [string]: Props }?,
-  }?): any
-  ```
+-- what the plugin does with a story
+local preview = Instance.new("Frame")
+local cleanup = story(preview)
+assert((preview:FindFirstChild("Item") :: TextLabel).Text == "Iron Sword: 40 coins")
+cleanup()
+```
 
 ---
 
@@ -754,30 +757,30 @@ and other plugins that take function stories.
 
 Exported types, available as `Rivue.<Name>` in type annotations.
 
-| Type | Description |
-|------|-------------|
-| `Ref<T>`, `ComputedRef<T>` | Refs |
-| `MaybeRef<T>`, `MaybeRefOrGetter<T>` | A value or a ref (or a getter) |
-| `WatchOptions`, `WatchSource<T>`, `WatchCallback<T>`, `WatchHandle`, `OnCleanup` | Watchers |
-| `Effect`, `EffectScope`, `DebuggerEvent` | Effects |
-| `VNode`, `Props`, `Child`, `ChildInput`, `Children` | Render functions |
-| `ComponentDef`, `ComponentOptions`, `PropSchema`, `EmitsOptions`, `SetupContext`, `ComponentInstance` | Components |
-| `TransitionConfig` | `transition` prop and Transition config |
-| `Directive` | Custom directives |
-| `App`, `AppOptions`, `Plugin` | Apps |
-| `QueueOptions`, `JobHandle` | Scheduler |
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `Ref<T>`, `ComputedRef<T>` | | | refs |
+| `MaybeRef<T>`, `MaybeRefOrGetter<T>` | | | a value or a ref, or a getter too |
+| `WatchOptions`, `WatchSource<T>`, `WatchCallback<T>`, `WatchHandle`, `OnCleanup` | | | watchers |
+| `Effect`, `EffectScope`, `DebuggerEvent` | | | effects |
+| `VNode`, `Props`, `Child`, `ChildInput`, `Children` | | | render functions |
+| `ComponentDef`, `ComponentOptions`, `PropSchema`, `EmitsOptions`, `SetupContext`, `ComponentInstance` | | | components |
+| `TransitionConfig` | | | the `transition` prop and Transition |
+| `Directive` | | | custom directives |
+| `App`, `AppOptions`, `Plugin` | | | apps |
+| `QueueOptions`, `JobHandle` | | | the scheduler |
 
-- **Example**
+### Example
 
-  ```lua
-  type Item = { id: number, name: string }
+```lua
+type Item = { id: number, name: string }
 
-  local selected: Rivue.Ref<Item?> = Rivue.ref(nil :: Item?)
+local selected: Rivue.Ref<Item?> = Rivue.ref(nil :: Item?)
 
-  local function useCount(initial: number): Rivue.Ref<number>
-  	return Rivue.ref(initial)
-  end
-  ```
+local function useCount(initial: number): Rivue.Ref<number>
+	return Rivue.ref(initial)
+end
+```
 
 ---
 
