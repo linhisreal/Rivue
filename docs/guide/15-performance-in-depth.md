@@ -17,7 +17,7 @@ Only components whose render read a changed value re-render, and children whose 
 change are skipped. So a value that changes ten times a second, like ping, should be read in the
 smallest component that shows it:
 
-![moving a fast-changing read into a small component](../assets/diagrams/rerender-split.svg)
+![moving a fast-changing read into a small component](../assets/diagrams/rerender-split.webp)
 
 ```lua
 -- Network is a store module (chapter 14) whose state.ping the client updates
@@ -38,7 +38,7 @@ When the value only feeds one property, you can skip the extra component and bin
 instead. `Rivue.bind` gives the property its own small effect, so a change writes the label's
 `Text` and nothing else re-renders, not even the component that drew it:
 
-![a value read in render versus a bound property](../assets/diagrams/bindings.svg)
+![a value read in render versus a bound property](../assets/diagrams/bindings.webp)
 
 ```lua
 -- In Hud's render

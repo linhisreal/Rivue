@@ -53,7 +53,7 @@ setup = function()
 end,
 ```
 
-![each call to a composable makes its own state](../assets/diagrams/composable-calls.svg)
+![each call to a composable makes its own state](../assets/diagrams/composable-calls.webp)
 
 Whatever a composable creates during `setup` belongs to the component that called it, and stops
 when that component unmounts. Each call makes new state, too. Two components that need the same
@@ -192,7 +192,7 @@ end,
 A loader gives back data, loading and error refs, plus a refresh function. The tricky part is
 answers that arrive out of order:
 
-![an old answer arriving after a newer one](../assets/diagrams/stale-response.svg)
+![an old answer arriving after a newer one](../assets/diagrams/stale-response.webp)
 
 Number each request, and drop any answer that isn't for the latest one:
 
@@ -264,7 +264,7 @@ end, { args = { 1 } })
 shop.run(2) -- load page 2; a late answer for page 1 is dropped
 ```
 
-See [useAsync()](../api/navigation.md#useasync).
+See [useAsync()](../api/component.md#useasync).
 
 ---
 

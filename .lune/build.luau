@@ -1,7 +1,7 @@
 --[[
 	Builds the distributables into build/.
 
-	lune run build              Rivue.rbxm, RivueRemote.rbxm, RivueDevTools.rbxm and the dev place
+	lune run build              Rivue.rbxm, RivueRemote.rbxm, RivueRouter.rbxm, RivueDevTools.rbxm and the dev place
 	lune run build minify       also Rivue.min.rbxm: comments and whitespace stripped by darklua
 ]]
 
@@ -26,6 +26,7 @@ fs.writeDir(OUT)
 
 exec("rojo", { "build", "packages/rivue", "-o", `{OUT}/Rivue.rbxm` })
 exec("rojo", { "build", "packages/rivue-remote", "-o", `{OUT}/RivueRemote.rbxm` })
+exec("rojo", { "build", "packages/rivue-router", "-o", `{OUT}/RivueRouter.rbxm` })
 exec("rojo", { "build", "packages/rivue-devtools", "-o", `{OUT}/RivueDevTools.rbxm` })
 exec("rojo", { "build", "default.project.json", "-o", `{OUT}/RivueDevPlace.rbxl` })
 

@@ -19,3 +19,7 @@ globalTypes.d.luau
 node_modules/
 docs/.vitepress/dist/
 docs/.vitepress/cache/
+
+# Package manager lockfiles are generated locally, not committed
+wally.lock
+pesde.lock

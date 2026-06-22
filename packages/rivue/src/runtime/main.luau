@@ -15,7 +15,6 @@ local poolModule = require("./pool")
 local builtins = require("./builtins")
 local composables = require("./composables")
 local array = require("./array")
-local routerModule = require("./router")
 local testingModule = require("./testing")
 local uiModule = require("./ui")
 local transitionsModule = require("./transitions")
@@ -56,8 +55,6 @@ export type App = renderer.App
 export type Plugin = renderer.Plugin
 export type WritableComputedOptions<T> = Types.WritableComputedOptions<T>
 export type ComponentInstance = componentAPI.ComponentInstance
-export type Router = routerModule.Router
-export type Route = routerModule.Route
 export type AsyncState<T> = composables.AsyncState<T>
 
 local Rivue = {}
@@ -304,10 +301,6 @@ Rivue.useTheme = composables.useTheme
 Rivue.useStyles = composables.useStyles
 Rivue.useAsync = composables.useAsync
 
-Rivue.createRouter = routerModule.createRouter
-Rivue.useRouter = routerModule.useRouter
-Rivue.RouterView = routerModule.RouterView
-
 Rivue.scheduler = schedulerModule
 
 function Rivue.queueJob(fn: () -> (), opts: QueueOptions?): JobHandle
@@ -344,8 +337,8 @@ Rivue.useGamepadFocus = robloxUtils.useGamepadFocus
 Rivue.useTween = robloxUtils.useTween
 Rivue.useSpring = robloxUtils.useSpring
 
--- Set by `lune run version`, same for every package
-Rivue.version = "2.57.0"
+-- Set by `lune run version rivue <version>`
+Rivue.version = "0.9.0-rc.1"
 
 --- A property value that follows `getter`: when what it reads changes, Rivue writes just that
 --- property, without re-rendering the component. A ref works the same way without bind()

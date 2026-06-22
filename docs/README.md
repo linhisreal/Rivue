@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./assets/guide-icon.svg" width="128" height="128" alt="Rivue Guide logo">
+  <img src="./assets/guide-icon.webp" width="128" height="128" alt="Rivue Guide logo">
 </p>
 
 <h1 align="center">Rivue Guide</h1>

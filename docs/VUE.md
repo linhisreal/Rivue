@@ -1,6 +1,6 @@
 [Docs](README.md) › **Rivue for Vue developers**
 
-![Vue / Rivue](assets/diagrams/vue-rivue-banner.svg)
+![Vue / Rivue](assets/diagrams/vue-rivue-banner.webp)
 
 # Rivue for Vue developers
 
@@ -177,9 +177,9 @@ There's no SSR and no hydration. Rivue runs on the client.
 
 ### Vue Router
 
-A smaller version is built in: `Rivue.createRouter`, `RouterView` and `useRouter` cover named
-routes, params, history and `beforeEach` guards, without URLs
-([Navigation and loading](api/navigation.md)).
+[RivueRouter](api/router.md) is a smaller Vue Router, and a separate package like Vue's:
+`createRouter`, `RouterView` and `useRouter` cover named routes, params, history and `beforeEach`
+guards, without URLs.
 
 ### Things Vue doesn't have
 

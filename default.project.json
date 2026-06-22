@@ -10,6 +10,9 @@
       "RivueRemote": {
         "$path": "packages/rivue-remote"
       },
+      "RivueRouter": {
+        "$path": "packages/rivue-router"
+      },
       "Examples": {
         "$path": "examples/components"
       },
