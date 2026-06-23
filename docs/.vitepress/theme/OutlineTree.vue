@@ -2,10 +2,11 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue"
 import { useData, useRoute } from "vitepress"
 
-type Heading = { id: string; text: string; depth: number }
+type Heading = { id: string; text: string; depth: number; kind?: string; group?: string }
 type Point = { x: number; top: number; bottom: number }
 
 const INDENT = 12
+const GROUPS: Record<string, string> = { function: "Functions", component: "Components", type: "Types", property: "Properties", directive: "Directives" }
 const INSET = 6
 const PAD = 4
 
@@ -46,15 +47,45 @@ const thumb = computed(() => {
 	return { top: first.top + INSET, bottom: last.bottom - INSET, distance: distance ?? 0 }
 })
 
+const all = ref<Heading[]>([])
+const kindFilter = ref<string>()
+const kinds = computed(() => {
+	const counts = new Map<string, number>()
+	for (const h of all.value) if (h.kind) counts.set(h.kind, (counts.get(h.kind) ?? 0) + 1)
+	return counts.size > 1 ? [...counts] : []
+})
+
+function applyFilter() {
+	const list = kindFilter.value ? all.value.filter((h) => h.kind === kindFilter.value) : all.value
+	// group labels only when a page mixes kinds and keeps each kind in one block
+	const runs = list.filter((h, i) => h.kind && h.kind !== list[i - 1]?.kind).map((h) => h.kind)
+	const grouped = runs.length > 1 && new Set(runs).size === runs.length
+	headings.value = list.map((h, i) => ({
+		...h,
+		group: grouped && h.kind && h.kind !== list[i - 1]?.kind ? GROUPS[h.kind] : undefined,
+	}))
+}
+
+async function filterBy(kind: string) {
+	kindFilter.value = kindFilter.value === kind ? undefined : kind
+	applyFilter()
+	await nextTick()
+	await remeasure()
+	track()
+}
+
 function collect() {
 	const deepest = typeof frontmatter.value.outline === "number" ? frontmatter.value.outline : 4
 	const levels = ["h2", "h3", "h4"].slice(0, Math.max(1, deepest - 1)).join(", ")
 	const found = [...document.querySelectorAll<HTMLElement>(`.vp-doc :is(${levels})[id]`)]
-	headings.value = found.map((el) => ({
+	all.value = found.map((el) => ({
 		id: el.id,
 		text: (el.textContent ?? "").replace(/​/g, "").trim(),
 		depth: Number(el.tagName[1]) - 2,
+		kind: el.dataset.kind,
 	}))
+	kindFilter.value = undefined
+	applyFilter()
 }
 
 function measure() {
@@ -154,6 +185,19 @@ onUnmounted(() => {
 			<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M3 12h12M3 18h16" /></svg>
 			On this page
 		</p>
+		<div v-if="kinds.length" class="fd-toc-kinds" role="group" aria-label="Show only">
+			<button
+				v-for="[kind, count] in kinds"
+				:key="kind"
+				type="button"
+				:aria-pressed="kindFilter === kind"
+				:title="`Show only ${GROUPS[kind].toLowerCase()}`"
+				@click="filterBy(kind)"
+			>
+				<span class="fd-kind-icon" :data-kind="kind" aria-hidden="true"></span>{{ GROUPS[kind] }}
+				<span class="fd-toc-count">{{ count }}</span>
+			</button>
+		</div>
 		<div class="fd-toc-body">
 			<svg class="fd-toc-line" :width="width" :height="height" aria-hidden="true">
 				<path ref="line" :d="path" />
@@ -174,8 +218,9 @@ onUnmounted(() => {
 			></span>
 			<ul ref="list">
 				<li v-for="(h, i) in headings" :key="h.id" :style="{ paddingLeft: `${h.depth * INDENT + PAD + 14}px` }">
+					<span v-if="h.group" class="fd-toc-group">{{ h.group }}</span>
 					<a :href="`#${h.id}`" :class="{ active: active.includes(i) }" :aria-current="active[0] === i ? 'location' : undefined">
-						{{ h.text }}
+						<span v-if="h.kind" class="fd-kind-icon" :data-kind="h.kind" aria-hidden="true"></span>{{ h.text }}
 					</a>
 				</li>
 			</ul>

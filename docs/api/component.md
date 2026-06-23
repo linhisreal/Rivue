@@ -77,130 +77,6 @@ end, { name = "Counter2" })
 
 ---
 
-## props
-
-The inputs a component takes from its parent. Declaring them lets Rivue check types and required
-props in Studio, and fill in defaults.
-
-```lua signature
-type PropSchema = { [string]: PropSpec }
-
-type PropSpec = {
-	type: (string | { string })?,
-	required: boolean?,
-	default: unknown?,
-	validator: ((value: any) -> boolean)?,
-}
-```
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `type` | `string \| { string }` | | `type()` or `typeof()` names: `"number"`, `"table"`, `"UDim2"`, `"Instance"`, ...; a list allows any of them |
-| `required` | `boolean` | `false` | warn when it's missing |
-| `default` | `unknown` | | the value when it's missing; use a function for a table default |
-| `validator` | `(value) -> boolean` | | warn when it returns `false` |
-
-> [!WARNING]
-> `props` is shallow reactive. Read `props.x` where it's used, in render, a computed or a watcher.
-> Copying it into a local in `setup()` takes a snapshot that never updates; use
-> [`toRef()`](reactivity-utilities.md#toref) instead.
-
-### Example
-
-```lua
-local HealthBar = Rivue.defineComponent({
-	name = "HealthBar",
-	props = {
-		current = { type = "number", required = true },
-		max = { type = "number", default = 100 },
-		color = { type = "Color3", default = Color3.fromRGB(80, 200, 90) },
-		size = { type = { "UDim2", "number" } }, -- either type is fine
-		mode = {
-			type = "string",
-			default = "bar",
-			validator = function(value)
-				return value == "bar" or value == "text"
-			end,
-		},
-	},
-	render = function(ctx)
-		if ctx.mode == "text" then
-			return h("TextLabel", { Text = `{ctx.current} / {ctx.max}` })
-		end
-		return h("Frame", {
-			Size = UDim2.fromScale(ctx.current / ctx.max, 1),
-			BackgroundColor3 = ctx.color,
-		})
-	end,
-})
-
--- Position isn't declared, so it goes to the root Frame
-h(HealthBar, { current = 40, Position = UDim2.fromOffset(10, 10) })
-```
-
-### Details
-
-- Validation runs in Studio only, and warns with the component's name.
-- Props that aren't declared are attrs. With one root element they're put on it, unless
-  `inheritAttrs = false`. Without a `props` schema, every prop is a prop and there are no attrs.
-
----
-
-## emits
-
-The events a component sends to its parent, like `"select"` or `"close"`. The parent listens with
-`onSelect`, `onClose` and so on.
-
-```lua signature
-emits: { string } | { [string]: (...any) -> boolean }
-```
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| list form | `{ string }` | | the event names |
-| map form | `{ [string]: (...any) -> boolean }` | | names to validators; Studio warns when a validator returns `false` |
-
-> [!NOTE]
-> In Studio, emitting an undeclared event warns. After the component unmounts, `emit` does
-> nothing, as in Vue.
-
-### Example
-
-```lua
-local ItemRow = Rivue.defineComponent({
-	name = "ItemRow",
-	props = { item = { type = "table", required = true } },
-	emits = {
-		select = function(id)
-			return type(id) == "number"
-		end,
-	},
-	render = function(ctx)
-		return h("TextButton", {
-			Text = ctx.item.name,
-			onClick = function()
-				ctx.emit("select", ctx.item.id)
-			end,
-		})
-	end,
-})
-
-h(ItemRow, {
-	item = { id = 3, name = "Sword" },
-	onSelect = function(id)
-		print("equip", id)
-	end,
-})
-```
-
-### Details
-
-- `ctx.emit("select", id)` calls the parent's `onSelect(id)`. Kebab-case works as in Vue:
-  `ctx.emit("change-value", v)` calls `onChangeValue(v)`.
-- Declared listeners aren't attrs, so they don't reach the root element.
-
----
-
 ## setup()
 
 Where a component's state and logic live. It runs once, when the component appears, and returns
@@ -324,150 +200,18 @@ local Divider = Rivue.defineComponent({
 
 ---
 
-## components
-
-The components this one uses, so its render can name them: `h("ItemRow", ...)`.
-
-```lua signature
-components: { [string]: Component }
-```
-
-### Example
-
-```lua
-local Badge = Rivue.defineComponent({
-	name = "Badge",
-	render = function(ctx)
-		return h("TextLabel", { Text = ctx.text })
-	end,
-})
-
-local Card = Rivue.defineComponent({
-	name = "Card",
-	components = { Badge = Badge },
-	render = function()
-		return h("Frame", { layout = "vertical" }, {
-			h("Badge", { text = "NEW" }),
-		})
-	end,
-})
-```
-
-### Details
-
-- `h("Name")` looks in the rendering component's `components` first, then the app's
-  (`app:component()`).
-
----
-
-## styles
-
-Style classes only this component uses, applied with the [`class`](render-function.md#element-props)
-prop. They win over app-wide styles.
-
-```lua signature
-styles: { [className: string]: { [prop: string]: any } }
-```
-
-### Example
-
-```lua
-local Alert = Rivue.defineComponent({
-	name = "Alert",
-	styles = {
-		box = { BackgroundColor3 = Color3.fromRGB(120, 30, 30), cornerRadius = 6, padding = 8 },
-		message = { TextColor3 = Color3.new(1, 1, 1), TextSize = 16 },
-	},
-	render = function(ctx)
-		return h("Frame", { class = "box", Size = UDim2.fromOffset(300, 40) }, {
-			h("TextLabel", { class = "message", Text = ctx.text }),
-		})
-	end,
-})
-```
-
-### Details
-
-- A class holds Instance properties and Rivue props such as `cornerRadius`, `padding` and
-  `layout`, plus the variants described in [app:styles()](application.md#appstyles). The
-  element's own props always win.
-
----
-
-## Setup context
-
-The second argument of `setup()`, also readable from `ctx` in render.
-
-```lua signature
-type SetupContext = {
-	emit: (event: string, ...any) -> (),
-	attrs: Props,
-	slots: { Child },
-	renderSlot: (name: string, scope: any?, fallback: { Child }?) -> { Child },
-	hasSlot: (name: string) -> boolean,
-	expose: (exposed: { [string]: unknown }?) -> (),
-	provide: (key: string, value: unknown) -> (),
-	inject: (key: string, default: unknown?) -> unknown?,
-	globals: { [string]: unknown },
-	onUnmounted: (fn: () -> ()) -> (),
-}
-```
-
-| Field | Type | Default | Description |
-|---|---|---|---|
-| `emit` | `(event, ...) -> ()` | | calls the parent's `on<Event>` handler; see [emits](#emits) |
-| `attrs` | `Props` | | undeclared props, reactive |
-| `slots` | `{ Child }` | | the default slot: array children passed to the component |
-| `renderSlot`, `hasSlot` | | | named and scoped slots; see [Slots](#slots) |
-| `expose` | `(exposed) -> ()` | | what a [template ref](#usetemplateref) to this component gets |
-| `provide`, `inject` | | | the same as [`provide()`](#provide) and [`inject()`](#inject) |
-| `globals` | `{ [string]: unknown }` | | `app.config.globalProperties` |
-| `onUnmounted` | `(fn) -> ()` | | the same as [`onUnmounted()`](lifecycle.md#onunmounted) |
-
-### Example
-
-```lua
-local ConfirmDialog = Rivue.defineComponent({
-	name = "ConfirmDialog",
-	emits = { "confirm", "cancel" },
-	setup = function(_props, ctx)
-		local function cancel()
-			ctx.emit("cancel")
-		end
-		-- a parent holding a template ref to this dialog can call dialog.cancel()
-		ctx.expose({ cancel = cancel })
-		return { cancel = cancel }
-	end,
-	render = function(ctx)
-		return h("Frame", { class = "dialog", layout = { gap = 8 } }, {
-			ctx.renderSlot("default"),
-			h("TextButton", {
-				Text = if ctx.globals.locale == "fr" then "Confirmer" else "Confirm",
-				onClick = function()
-					ctx.emit("confirm")
-				end,
-			}),
-			h("TextButton", { Text = "Cancel", onClick = ctx.cancel }),
-		})
-	end,
-})
-```
-
----
-
 ## Slots
 
 How a parent passes UI into a component, for wrappers like panels, cards and modals. Array children
 are the default slot; named functions fill named areas and can get data from the child.
 
 ```lua signature
--- passing, in the parent
-h(Component, props, { Child })                            -- default slot
-h(Component, props, { [string]: (scope: any) -> Children }) -- named slots
-
--- rendering, in the child
 ctx.renderSlot(name: string, scope: any?, fallback: { Child }?): { Child }
 ctx.hasSlot(name: string): boolean
+
+-- passing them, in the parent
+h(Component, props, { Child })                            -- default slot
+h(Component, props, { [string]: (scope: any) -> Children }) -- named slots
 ```
 
 | Parameter | Type | Default | Description |
@@ -511,6 +255,8 @@ h(Card, { title = "Shop" }, {
 
 ## provide()
 
+_setup() only_
+
 Makes a value available to every component below this one, without passing it through each level.
 Descendants read it with [`inject()`](#inject).
 
@@ -523,9 +269,8 @@ function provide(key: unknown, value: unknown)
 | `key` | `unknown` | | what descendants inject by |
 | `value` | `unknown` | | provide a ref or reactive table to make it reactive for injectors |
 
-> [!WARNING]
-> Call it in `setup()`; anywhere else it errors. For app-wide values, use
-> [`app:provide()`](application.md#appprovide).
+> [!NOTE]
+> For app-wide values, use [`app:provide()`](application.md#appprovide).
 
 ### Example
 
@@ -618,6 +363,8 @@ end
 
 ## useTemplateRef()
 
+_setup() only_
+
 Gives setup a real Instance, or a child component, from render. Mark the element with
 `ref = "name"`; the ref holds it while it's mounted. For focus, sizes and tweens.
 
@@ -631,9 +378,6 @@ function useTemplateRef<T>(name: string): Ref<T?>
 
 **Returns** a ref, set before `onMounted` runs and reset to `nil` on unmount. For a component it
 holds what the component passed to [`ctx.expose()`](#setup-context), or its instance.
-
-> [!WARNING]
-> Call it in `setup()`; anywhere else it errors.
 
 ### Example
 
@@ -664,14 +408,13 @@ local SearchPanel = Rivue.defineComponent({
 
 ## useAttrs()
 
+_setup() only_
+
 The props passed to this component that it didn't declare; the same as `ctx.attrs`.
 
 ```lua signature
 function useAttrs(): Props
 ```
-
-> [!WARNING]
-> Call it in `setup()`; anywhere else it errors.
 
 ### Example
 
@@ -699,14 +442,13 @@ h(LabeledButton, { label = "Teleport", onClick = function() end, BackgroundColor
 
 ## useSlots()
 
+_setup() only_
+
 The children passed to this component; the same as `ctx.slots`.
 
 ```lua signature
 function useSlots(): { Child }
 ```
-
-> [!WARNING]
-> Call it in `setup()`; anywhere else it errors.
 
 ### Example
 
@@ -998,6 +740,263 @@ local Shop = Rivue.defineComponent({
 
 - Inside a [Suspense](builtins.md#suspense), one loading screen covers every `useAsync` under it. A
   failed load stays in `error` and doesn't fail the Suspense.
+
+---
+
+## props
+
+The inputs a component takes from its parent. Declaring them lets Rivue check types and required
+props in Studio, and fill in defaults.
+
+```lua signature
+props: PropSchema
+
+type PropSchema = { [string]: PropSpec }
+
+type PropSpec = {
+	type: (string | { string })?,
+	required: boolean?,
+	default: unknown?,
+	validator: ((value: any) -> boolean)?,
+}
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `type` | `string \| { string }` | | `type()` or `typeof()` names: `"number"`, `"table"`, `"UDim2"`, `"Instance"`, ...; a list allows any of them |
+| `required` | `boolean` | `false` | warn when it's missing |
+| `default` | `unknown` | | the value when it's missing; use a function for a table default |
+| `validator` | `(value) -> boolean` | | warn when it returns `false` |
+
+> [!WARNING]
+> `props` is shallow reactive. Read `props.x` where it's used, in render, a computed or a watcher.
+> Copying it into a local in `setup()` takes a snapshot that never updates; use
+> [`toRef()`](reactivity-utilities.md#toref) instead.
+
+### Example
+
+```lua
+local HealthBar = Rivue.defineComponent({
+	name = "HealthBar",
+	props = {
+		current = { type = "number", required = true },
+		max = { type = "number", default = 100 },
+		color = { type = "Color3", default = Color3.fromRGB(80, 200, 90) },
+		size = { type = { "UDim2", "number" } }, -- either type is fine
+		mode = {
+			type = "string",
+			default = "bar",
+			validator = function(value)
+				return value == "bar" or value == "text"
+			end,
+		},
+	},
+	render = function(ctx)
+		if ctx.mode == "text" then
+			return h("TextLabel", { Text = `{ctx.current} / {ctx.max}` })
+		end
+		return h("Frame", {
+			Size = UDim2.fromScale(ctx.current / ctx.max, 1),
+			BackgroundColor3 = ctx.color,
+		})
+	end,
+})
+
+-- Position isn't declared, so it goes to the root Frame
+h(HealthBar, { current = 40, Position = UDim2.fromOffset(10, 10) })
+```
+
+### Details
+
+- Validation runs in Studio only, and warns with the component's name.
+- Props that aren't declared are attrs. With one root element they're put on it, unless
+  `inheritAttrs = false`. Without a `props` schema, every prop is a prop and there are no attrs.
+
+---
+
+## emits
+
+The events a component sends to its parent, like `"select"` or `"close"`. The parent listens with
+`onSelect`, `onClose` and so on.
+
+```lua signature
+emits: { string } | { [string]: (...any) -> boolean }
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| list form | `{ string }` | | the event names |
+| map form | `{ [string]: (...any) -> boolean }` | | names to validators; Studio warns when a validator returns `false` |
+
+> [!NOTE]
+> In Studio, emitting an undeclared event warns. After the component unmounts, `emit` does
+> nothing, as in Vue.
+
+### Example
+
+```lua
+local ItemRow = Rivue.defineComponent({
+	name = "ItemRow",
+	props = { item = { type = "table", required = true } },
+	emits = {
+		select = function(id)
+			return type(id) == "number"
+		end,
+	},
+	render = function(ctx)
+		return h("TextButton", {
+			Text = ctx.item.name,
+			onClick = function()
+				ctx.emit("select", ctx.item.id)
+			end,
+		})
+	end,
+})
+
+h(ItemRow, {
+	item = { id = 3, name = "Sword" },
+	onSelect = function(id)
+		print("equip", id)
+	end,
+})
+```
+
+### Details
+
+- `ctx.emit("select", id)` calls the parent's `onSelect(id)`. Kebab-case works as in Vue:
+  `ctx.emit("change-value", v)` calls `onChangeValue(v)`.
+- Declared listeners aren't attrs, so they don't reach the root element.
+
+---
+
+## components
+
+The components this one uses, so its render can name them: `h("ItemRow", ...)`.
+
+```lua signature
+components: { [string]: Component }
+```
+
+### Example
+
+```lua
+local Badge = Rivue.defineComponent({
+	name = "Badge",
+	render = function(ctx)
+		return h("TextLabel", { Text = ctx.text })
+	end,
+})
+
+local Card = Rivue.defineComponent({
+	name = "Card",
+	components = { Badge = Badge },
+	render = function()
+		return h("Frame", { layout = "vertical" }, {
+			h("Badge", { text = "NEW" }),
+		})
+	end,
+})
+```
+
+### Details
+
+- `h("Name")` looks in the rendering component's `components` first, then the app's
+  (`app:component()`).
+
+---
+
+## styles
+
+Style classes only this component uses, applied with the [`class`](render-function.md#element-props)
+prop. They win over app-wide styles.
+
+```lua signature
+styles: { [className: string]: { [prop: string]: any } }
+```
+
+### Example
+
+```lua
+local Alert = Rivue.defineComponent({
+	name = "Alert",
+	styles = {
+		box = { BackgroundColor3 = Color3.fromRGB(120, 30, 30), cornerRadius = 6, padding = 8 },
+		message = { TextColor3 = Color3.new(1, 1, 1), TextSize = 16 },
+	},
+	render = function(ctx)
+		return h("Frame", { class = "box", Size = UDim2.fromOffset(300, 40) }, {
+			h("TextLabel", { class = "message", Text = ctx.text }),
+		})
+	end,
+})
+```
+
+### Details
+
+- A class holds Instance properties and Rivue props such as `cornerRadius`, `padding` and
+  `layout`, plus the variants described in [app:styles()](application.md#appstyles). The
+  element's own props always win.
+
+---
+
+## Setup context
+
+The second argument of `setup()`, also readable from `ctx` in render.
+
+```lua signature
+type SetupContext = {
+	emit: (event: string, ...any) -> (),
+	attrs: Props,
+	slots: { Child },
+	renderSlot: (name: string, scope: any?, fallback: { Child }?) -> { Child },
+	hasSlot: (name: string) -> boolean,
+	expose: (exposed: { [string]: unknown }?) -> (),
+	provide: (key: string, value: unknown) -> (),
+	inject: (key: string, default: unknown?) -> unknown?,
+	globals: { [string]: unknown },
+	onUnmounted: (fn: () -> ()) -> (),
+}
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `emit` | `(event, ...) -> ()` | | calls the parent's `on<Event>` handler; see [emits](#emits) |
+| `attrs` | `Props` | | undeclared props, reactive |
+| `slots` | `{ Child }` | | the default slot: array children passed to the component |
+| `renderSlot`, `hasSlot` | | | named and scoped slots; see [Slots](#slots) |
+| `expose` | `(exposed) -> ()` | | what a [template ref](#usetemplateref) to this component gets |
+| `provide`, `inject` | | | the same as [`provide()`](#provide) and [`inject()`](#inject) |
+| `globals` | `{ [string]: unknown }` | | `app.config.globalProperties` |
+| `onUnmounted` | `(fn) -> ()` | | the same as [`onUnmounted()`](lifecycle.md#onunmounted) |
+
+### Example
+
+```lua
+local ConfirmDialog = Rivue.defineComponent({
+	name = "ConfirmDialog",
+	emits = { "confirm", "cancel" },
+	setup = function(_props, ctx)
+		local function cancel()
+			ctx.emit("cancel")
+		end
+		-- a parent holding a template ref to this dialog can call dialog.cancel()
+		ctx.expose({ cancel = cancel })
+		return { cancel = cancel }
+	end,
+	render = function(ctx)
+		return h("Frame", { class = "dialog", layout = { gap = 8 } }, {
+			ctx.renderSlot("default"),
+			h("TextButton", {
+				Text = if ctx.globals.locale == "fr" then "Confirmer" else "Confirm",
+				onClick = function()
+					ctx.emit("confirm")
+				end,
+			}),
+			h("TextButton", { Text = "Cancel", onClick = ctx.cancel }),
+		})
+	end,
+})
+```
 
 ---
 
