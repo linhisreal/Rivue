@@ -5,7 +5,7 @@
 **Learn it:** [Guide 2: State](../guide/02-state.md) · [Guide 9: Performance and debugging](../guide/09-performance-and-debugging.md)
 
 Lower-level reactivity APIs for performance and library code. All examples assume
-`local Rivue = require(game.ReplicatedStorage.Rivue)`.
+`local Rivue = require(game.ReplicatedStorage.RivueUI)`.
 
 - [shallowRef()](#shallowref)
 - [triggerRef()](#triggerref)

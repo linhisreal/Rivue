@@ -309,8 +309,8 @@ game = setmetatable({
 		return services[k]
 	end,
 })
-local rivueScript = makeFolder("Rivue", ReplicatedStorage)
-ReplicatedStorage._children.Rivue = rivueScript
+local rivueScript = makeFolder("RivueUI", ReplicatedStorage)
+ReplicatedStorage._children.RivueUI = rivueScript
 local runtimeFolder = makeFolder("runtime", rivueScript)
 rivueScript._children.runtime = runtimeFolder
 local cache = {}

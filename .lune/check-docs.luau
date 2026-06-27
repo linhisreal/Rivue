@@ -16,7 +16,7 @@ local bundle = require("./lib/bundle")
 local run = require("./lib/run")
 
 local PREAMBLE = [[
-local Rivue = require(game:GetService("ReplicatedStorage"):WaitForChild("Rivue"))
+local Rivue = require(game:GetService("ReplicatedStorage"):WaitForChild("RivueUI"))
 local h = Rivue.h
 local Players = game:GetService("Players")
 local array = Rivue.array

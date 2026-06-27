@@ -4,7 +4,7 @@
 
 **Learn it:** [Guide 2: State](../guide/02-state.md)
 
-All examples assume `local Rivue = require(game.ReplicatedStorage.Rivue)`.
+All examples assume `local Rivue = require(game.ReplicatedStorage.RivueUI)`.
 
 - [isRef()](#isref)
 - [unref()](#unref)

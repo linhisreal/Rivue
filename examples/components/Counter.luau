@@ -2,7 +2,7 @@
 -- The smallest useful component: state, a computed value, an event handler.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
+local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
 local h = Rivue.h
 
 return Rivue.defineComponent({

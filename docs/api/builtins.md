@@ -8,7 +8,7 @@ Components that ship with Rivue. Use them like any component: `h(Rivue.Transitio
 All examples assume:
 
 ```lua
-local Rivue = require(game.ReplicatedStorage.Rivue)
+local Rivue = require(game.ReplicatedStorage.RivueUI)
 local h = Rivue.h
 ```
 

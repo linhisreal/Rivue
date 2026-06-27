@@ -1,7 +1,7 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
+local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
 local CollectionService = game:GetService("CollectionService")
 
 local function assertEquals(actual: any, expected: any, message: string?)
@@ -61,7 +61,7 @@ local function runTests()
 
 		local container = Instance.new("Folder")
 		local renderer =
-			require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("renderer"))
+			require(ReplicatedStorage:WaitForChild("RivueUI"):WaitForChild("runtime"):WaitForChild("renderer"))
 		local app = renderer.createApp(Rivue.h(TestComponent, {}))
 		app:mount(container)
 
@@ -99,7 +99,7 @@ local function runTests()
 
 		local container = Instance.new("Folder")
 		local renderer =
-			require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("renderer"))
+			require(ReplicatedStorage:WaitForChild("RivueUI"):WaitForChild("runtime"):WaitForChild("renderer"))
 		local app = renderer.createApp(Rivue.h(TestComponent, {}))
 		app:mount(container)
 		task.wait(0.1)
@@ -140,7 +140,7 @@ local function runTests()
 		})
 
 		local renderer =
-			require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("renderer"))
+			require(ReplicatedStorage:WaitForChild("RivueUI"):WaitForChild("runtime"):WaitForChild("renderer"))
 		local app = renderer.createApp(Rivue.h(TestComponent, {}))
 		app:mount(container)
 		task.wait(0.1)
@@ -179,7 +179,7 @@ local function runTests()
 		})
 
 		local renderer =
-			require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("renderer"))
+			require(ReplicatedStorage:WaitForChild("RivueUI"):WaitForChild("runtime"):WaitForChild("renderer"))
 		local app = renderer.createApp(Rivue.h(TestComponent, {}))
 		app:mount(container)
 		task.wait(0.1)
@@ -216,7 +216,7 @@ local function runTests()
 		})
 
 		local renderer =
-			require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("renderer"))
+			require(ReplicatedStorage:WaitForChild("RivueUI"):WaitForChild("runtime"):WaitForChild("renderer"))
 		local app = renderer.createApp(Rivue.h(TestComponent, {}))
 		app:mount(container)
 		task.wait(0.3)
@@ -245,7 +245,7 @@ local function runTests()
 		})
 
 		local renderer =
-			require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("renderer"))
+			require(ReplicatedStorage:WaitForChild("RivueUI"):WaitForChild("runtime"):WaitForChild("renderer"))
 		local app = renderer.createApp(Rivue.h(TestComponent, {}))
 		app:mount(container)
 		task.wait(0.3)
@@ -281,7 +281,7 @@ local function runTests()
 		})
 
 		local renderer =
-			require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("renderer"))
+			require(ReplicatedStorage:WaitForChild("RivueUI"):WaitForChild("runtime"):WaitForChild("renderer"))
 		local app = renderer.createApp(Rivue.h(TestComponent, {}))
 		app:mount(container)
 		task.wait(0.3)
@@ -311,7 +311,7 @@ local function runTests()
 		})
 
 		local renderer =
-			require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("renderer"))
+			require(ReplicatedStorage:WaitForChild("RivueUI"):WaitForChild("runtime"):WaitForChild("renderer"))
 		local app = renderer.createApp(Rivue.h(TestComponent, {}))
 		app:mount(container)
 		task.wait(0.1)
@@ -354,7 +354,7 @@ local function runTests()
 
 		local container = Instance.new("Folder")
 		local renderer =
-			require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("renderer"))
+			require(ReplicatedStorage:WaitForChild("RivueUI"):WaitForChild("runtime"):WaitForChild("renderer"))
 		local app = renderer.createApp(Rivue.h(TestComponent, {}))
 		app:mount(container)
 		task.wait(0.15)
@@ -369,7 +369,7 @@ local function runTests()
 	print("ViewportModel camera fits the model")
 	do
 		local builtins =
-			require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("builtins")) :: any
+			require(ReplicatedStorage:WaitForChild("RivueUI"):WaitForChild("runtime"):WaitForChild("builtins")) :: any
 		local eye, target = builtins.viewportCamera(Vector3.new(0, 0, 0), Vector3.new(2, 2, 2), 90, 0, 0, 1)
 		assertTrue(target == Vector3.new(0, 0, 0), "the camera looks at the model's centre")
 		assertTrue(math.abs(eye.Z - math.sqrt(12) / 2) < 1e-6, "far enough back for the model to fill the view")

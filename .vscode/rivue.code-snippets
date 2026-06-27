@@ -6,7 +6,7 @@
 		"body": [
 			"--!nonstrict",
 			"local ReplicatedStorage = game:GetService(\"ReplicatedStorage\")",
-			"local Rivue = require(ReplicatedStorage.Rivue)",
+			"local Rivue = require(ReplicatedStorage.RivueUI)",
 			"local h = Rivue.h",
 			"",
 			"type Props = {",
@@ -40,7 +40,7 @@
 		"body": [
 			"--!nonstrict",
 			"local ReplicatedStorage = game:GetService(\"ReplicatedStorage\")",
-			"local Rivue = require(ReplicatedStorage.Rivue)",
+			"local Rivue = require(ReplicatedStorage.RivueUI)",
 			"local h = Rivue.h",
 			"",
 			"local ${2:Header} = require(\"../components/${2:Header}\")",
@@ -66,7 +66,7 @@
 		"body": [
 			"--!strict",
 			"local ReplicatedStorage = game:GetService(\"ReplicatedStorage\")",
-			"local Rivue = require(ReplicatedStorage.Rivue)",
+			"local Rivue = require(ReplicatedStorage.RivueUI)",
 			"",
 			"local function ${1:use${TM_FILENAME_BASE/^use//}}()",
 			"\tlocal ${2:value} = Rivue.ref(${3:0})",

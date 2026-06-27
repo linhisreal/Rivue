@@ -48,7 +48,7 @@ export type Suite = { name: string, source: string }
 local function bundle(suites: { Suite }): string
 	local out = { fs.readFile("tests/offline/prelude.luau") }
 
-	local runtime = "packages/rivue/src/runtime"
+	local runtime = "packages/rivue-ui/src/runtime"
 	for _, file in luauFiles(runtime) do
 		defineModule(out, "runtimeFolder", moduleName(file), fs.readFile(`{runtime}/{file}`))
 	end
@@ -57,8 +57,8 @@ local function bundle(suites: { Suite }): string
 	addFolder(out, "dev/Demo", "demoFolder", "ReplicatedStorage", "Demo")
 	addFolder(out, "packages/rivue-devtools/src", "devtoolsFolder", "ReplicatedStorage", "RivueDevTools")
 	-- The plugin requires its own copy of Rivue next to it
-	table.insert(out, "devtoolsFolder._children.Rivue = rivueScript")
-	defineModule(out, "nil", "Rivue", fs.readFile("packages/rivue/src/init.luau"))
+	table.insert(out, "devtoolsFolder._children.RivueUI = rivueScript")
+	defineModule(out, "nil", "RivueUI", fs.readFile("packages/rivue-ui/src/init.luau"))
 	defineModule(out, "ReplicatedStorage", "RivueRemote", fs.readFile("packages/rivue-remote/src/init.luau"))
 	defineModule(out, "ReplicatedStorage", "RivueRouter", fs.readFile("packages/rivue-router/src/init.luau"))
 

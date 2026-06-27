@@ -3,7 +3,7 @@
 name = "linhisreal/rivue_workspace"
 version = "0.0.0"
 private = true
-workspace_members = ["packages/rivue", "packages/rivue-remote", "packages/rivue-router"]
+workspace_members = ["packages/rivue-ui", "packages/rivue-remote", "packages/rivue-router"]
 
 [target]
 environment = "roblox"

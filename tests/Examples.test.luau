@@ -3,7 +3,7 @@
 -- the docs keep working.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
+local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
 local Examples = ReplicatedStorage:WaitForChild("Examples")
 
 local h = Rivue.h
