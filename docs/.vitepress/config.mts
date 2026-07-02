@@ -1,464 +1,28 @@
+// Copyright (c) 2025-2026 linhisreal (ThisisLinh)
+// Licensed under the Rivue License, based on PolyForm Noncommercial 1.0.0. See LICENSE.
+
 import { execFileSync } from "node:child_process"
 import fs from "node:fs"
 import path from "node:path"
-import { createHighlighter } from "shiki"
-import { defineConfig } from "vitepress"
-import { withMermaid } from "vitepress-plugin-mermaid"
 import { transformerMetaWordHighlight } from "@shikijs/transformers"
+import { defineConfig, type PageData } from "vitepress"
+import { withMermaid } from "vitepress-plugin-mermaid"
 import { exampleMarkdown, loadExamples } from "./examples.mts"
-import { introMarkdown } from "./intro.mts"
-import { apiEntries } from "./api.mts"
-import { ogSection, ogSlug, writeOgImages } from "./og.mts"
 import { loadHovers, luaBlocks, stripPathComment, transformerLuauHovers, typeLines } from "./hovers.mts"
-
-const REPO = "https://github.com/linhisreal/Rivue"
-const DOCS = path.resolve(__dirname, "..")
-
-function githubLinks(md: any) {
-	const render = md.renderer.rules.link_open ?? ((tokens, idx, options, _env, self) => self.renderToken(tokens, idx, options))
-	md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
-		const href: string = tokens[idx].attrGet("href") ?? ""
-		if (env?.relativePath && !/^[a-z]+:|^#|^\//i.test(href)) {
-			const [file, hash] = href.split("#")
-			const target = path.resolve(DOCS, path.dirname(env.relativePath), file)
-			if (target === path.join(DOCS, "README.md")) {
-				const up = path.relative(path.dirname(path.resolve(DOCS, env.relativePath)), DOCS)
-				tokens[idx].attrSet("href", `${up ? up + "/" : "./"}introduction.md${hash ? `#${hash}` : ""}`)
-			} else if (/[\\/]examples[\\/]components[\\/]\w+\.luau$/.test(target)) {
-				tokens[idx].attrSet("href", `/examples/${path.basename(target, ".luau").toLowerCase()}`)
-			} else if (!target.startsWith(DOCS + path.sep)) {
-				const repoPath = path.relative(path.resolve(DOCS, ".."), target).split(path.sep).join("/")
-				const kind = path.extname(target) ? "blob" : "tree"
-				tokens[idx].attrSet("href", `${REPO}/${kind}/main/${repoPath}${hash ? `#${hash}` : ""}`)
-			}
-		}
-		return render(tokens, idx, options, env, self)
-	}
-}
-
-// the Vue template compiler drops whitespace with a newline between two tags, which glued "**Core**" to the next link
-function softBreaks(md: any) {
-	md.renderer.rules.softbreak = () => " "
-}
-
-// only a fence's first word counts on GitHub, so "lua [title] tab /word/ {3,5}" still renders as plain Lua there
-function codeBlocks(md: any) {
-	md.core.ruler.push("code_tabs", (state: any) => {
-		const tokens = state.tokens
-		for (let i = 0; i < tokens.length; i++) {
-			if (!isTab(tokens[i])) continue
-			let end = i
-			while (isTab(tokens[end + 1])) end++
-			const labels = tokens.slice(i, end + 1).map((token: any, n: number) => {
-				token.meta = { ...token.meta, tab: n }
-				return titleOf(token.info) ?? token.info.split(/\s/)[0]
-			})
-			const buttons = labels
-				.map(
-					(label: string, n: number) =>
-						`<button type="button" role="tab" aria-selected="${n === 0}" data-lang="${langOf(tokens[i + n].info)}">${md.utils.escapeHtml(label)}</button>`,
-				)
-				.join("")
-			const open = new state.Token("html_block", "", 0)
-			open.content = `<div class="fd-tabs"><div class="fd-tab-list" role="tablist">${buttons}</div>\n`
-			const close = new state.Token("html_block", "", 0)
-			close.content = "</div>\n"
-			tokens.splice(end + 1, 0, close)
-			tokens.splice(i, 0, open)
-			i = end + 2
-		}
-	})
-
-	const fence = md.renderer.rules.fence
-	md.renderer.rules.fence = (tokens: any, idx: number, options: any, env: any, self: any) => {
-		const token = tokens[idx]
-		if (langOf(token.info) === "tree") return fileTree(md, token.content)
-		let title = titleOf(token.info)
-		token.info = token.info.replace(/\s\[[^\]]+\]/, "").replace(/\stab(?=\s|$)/, "")
-		const pathComment = /^-- ([\w./-]+\.luau)\s*\n/.exec(token.content)
-		if (!title && token.info.startsWith("lua") && pathComment) {
-			title = pathComment[1]
-			token.content = token.content.slice(pathComment[0].length)
-		}
-		const html = fence(tokens, idx, options, env, self)
-		const tab = token.meta?.tab
-		if (tab !== undefined) return html.replace(/^<div class="([^"]*)"/, `<div class="$1 fd-tab-panel${tab === 0 ? " active" : ""}" role="tabpanel"`)
-		if (token.meta?.signature) {
-			const source = token.meta.source ? `<a class="fd-source" href="${token.meta.source}" target="_blank" rel="noreferrer">Source</a>` : ""
-			return html.replace(/^<div class="([^"]*)">/, `<div class="$1 fd-signature">${source}`)
-		}
-		if (!title) return html
-		const head = `<div class="fd-code-head"><span class="fd-code-icon" data-lang="${langOf(token.info)}"></span>${md.utils.escapeHtml(title)}</div>`
-		return html.replace(/^<div class="([^"]*)">/, `<div class="$1 fd-titled">${head}`)
-	}
-}
-
-// ```tree format: two spaces per level, "/" at the end for a folder, two or more spaces before a note
-function fileTree(md: any, content: string) {
-	type Node = { name: string; note: string; folder: boolean; children: Node[] }
-	const root: Node[] = []
-	const stack: { depth: number; children: Node[] }[] = [{ depth: -1, children: root }]
-	for (const raw of content.split("\n")) {
-		if (!raw.trim()) continue
-		const depth = Math.floor((raw.length - raw.trimStart().length) / 2)
-		const [, name, note = ""] = /^(\S+(?: \S+)*?)(?:\s{2,}(.*))?$/.exec(raw.trim()) ?? [, raw.trim()]
-		const node = { name: name.replace(/\/$/, ""), note, folder: name.endsWith("/"), children: [] }
-		while (stack.at(-1)!.depth >= depth) stack.pop()
-		stack.at(-1)!.children.push(node)
-		stack.push({ depth, children: node.children })
-	}
-	const icon = (node: Node) => {
-		if (node.folder) return `<span class="fd-file-icon fd-folder" aria-hidden="true"></span>`
-		const ext = node.name.split(".").pop()
-		return `<span class="fd-file-icon" data-lang="${md.utils.escapeHtml(ext === "luau" ? "lua" : ext)}" aria-hidden="true"></span>`
-	}
-	const list = (nodes: Node[]): string =>
-		`<ul>${nodes
-			.map(
-				(node) =>
-					`<li><span class="fd-file-row">${icon(node)}<span class="fd-file-name">${md.utils.escapeHtml(node.name)}</span>${
-						node.note ? `<span class="fd-file-note">${md.utils.escapeHtml(node.note)}</span>` : ""
-					}</span>${node.children.length ? list(node.children) : ""}</li>`,
-			)
-			.join("")}</ul>`
-	return `<div class="fd-files">${list(root)}</div>\n`
-}
-
-const titleOf = (info: string) => /\s\[([^\]]+)\]/.exec(info)?.[1]
-const langOf = (info: string) => info.trim().split(/\s/)[0] || "text"
-const isTab = (token: any) => token?.type === "fence" && /\stab(\s|$)/.test(token.info)
-
-function pageActions(md: any) {
-	md.core.ruler.push("page_actions", (state: any) => {
-		const tokens = state.tokens
-		const close = tokens.findIndex((t: any) => t.type === "heading_close" && t.tag === "h1")
-		if (close === -1) return
-		const html = new state.Token("html_block", "", 0)
-		html.content = "<PageActions />\n"
-		tokens.splice(close + 1, 0, html)
-	})
-}
-
-// the "← prev · contents · next →" line is for reading on GitHub; the site has its own prev/next footer
-function dropPagerLine(md: any) {
-	md.core.ruler.push("drop_pager_line", (state: any) => {
-		const tokens = state.tokens
-		const inline = tokens[tokens.length - 2]
-		if (tokens[tokens.length - 1]?.type !== "paragraph_close" || inline?.type !== "inline") return
-		if (/^\[(← |Guide contents\]|API reference\])/.test(inline.content) && /[←→]\]/.test(inline.content)) tokens.splice(-3, 3)
-	})
-}
-
-function githubSlug(text: string): string {
-	return text
-		.trim()
-		.toLowerCase()
-		.replace(/<[^>]*>/g, "")
-		.replace(/[^\p{L}\p{N}\s_-]/gu, "")
-		.replace(/\s/g, "-")
-}
-
-const SITE = "https://linhisreal.github.io/Rivue/"
-
-const plainTitle = (title: string) => title.replace(/`/g, "").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
-
-function pageTitle(markdown: string, fallback: string) {
-	return /^# (.+)$/m.exec(markdown)?.[1] ?? /<h1[^>]*>([^<]+)<\/h1>/.exec(markdown)?.[1] ?? fallback
-}
-
-function writeLlmsFiles(pages: string[], outDir: string) {
-	const sources = pages.sort().map((page) => {
-		const example = examples.find((e) => page === `examples/${e.slug}.md`)
-		const markdown = example ? exampleMarkdown(example) : page === "introduction.md" ? introMarkdown() : fs.readFileSync(path.resolve(DOCS, page), "utf8")
-		const url = SITE + (page === "README.md" ? "" : page.replace(/\.md$/, ""))
-		return { page, url, markdown, title: pageTitle(markdown, page) }
-	})
-	const index = sources.map(({ url, title }) => `- [${title}](${url})`).join("\n")
-	fs.writeFileSync(
-		path.join(outDir, "llms.txt"),
-		`# Rivue\n\n> Vue 3's component model for Roblox UI, in Luau.\n\n## Docs\n\n${index}\n`,
-	)
-	const full = sources.map(({ url, markdown }) => `<!-- ${url} -->\n\n${markdown}`).join("\n\n---\n\n")
-	fs.writeFileSync(path.join(outDir, "llms-full.txt"), full)
-}
-
-// the docs workflow passes its GITHUB_TOKEN; without it (or offline) the repo card just shows the name
-async function repoStats() {
-	const headers: Record<string, string> = { "User-Agent": "rivue-docs" }
-	if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`
-	const get = (url: string) => fetch(`https://api.github.com/repos/linhisreal/Rivue${url}`, { headers, signal: AbortSignal.timeout(5000) })
-	try {
-		const [repo, releases] = await Promise.all([get(""), get("/releases?per_page=1")])
-		if (!repo.ok) return {}
-		const data = await repo.json()
-		const latest = releases.ok ? (await releases.json())[0] : undefined
-		return { stars: data.stargazers_count as number, forks: data.forks_count as number, tag: latest?.tag_name as string | undefined }
-	} catch {
-		return {}
-	}
-}
+import { landingData, repoStats } from "./landing.mts"
+import { writeLlmsFiles } from "./llms.mts"
+import { markdownPlugins } from "./markdown.mts"
+import { ogHead, ogPages, writeOgImages } from "./og.mts"
+import { sidebar } from "./sidebar.mts"
+import { DESCRIPTION, DOCS, packageVersion, REPO, ROOT, slug } from "./site.mts"
 
 const PAGE_CLASSES: Record<string, string> = { "INSTALLATION.md": "fd-steps" }
-
-const guide = [
-	["Introduction", "01-introduction"],
-	["State", "02-state"],
-	["Describing UI", "03-describing-ui"],
-	["Components", "04-components"],
-	["Forms and input", "05-forms-and-input"],
-	["Styling and layout", "06-styling-and-layout"],
-	["Effects and animation", "07-effects-and-animation"],
-	["Sharing state and the server", "08-state-and-server"],
-	["Performance and debugging", "09-performance-and-debugging"],
-	["Organising a project", "10-organising-a-project"],
-	["Style rules", "11-style-rules"],
-]
-const advanced = [
-	["Writing composables", "12-writing-composables"],
-	["Component patterns", "13-advanced-components"],
-	["Organising state", "14-state-architecture"],
-	["Performance in depth", "15-performance-in-depth"],
-	["Testing UI", "16-testing-ui"],
-	["Screens and navigation", "17-screens-and-navigation"],
-]
-const version = (pkg: string) =>
-	/^version = "([^"]+)"/m.exec(fs.readFileSync(path.resolve(DOCS, `../packages/${pkg}/wally.toml`), "utf8"))?.[1] ?? ""
-
-const SHOP = `local ITEMS = {
-	{ name = "Sword", price = 20 },
-	{ name = "Shield", price = 30 },
-	{ name = "Potion", price = 10 },
-}
-
-local Shop = Rivue.defineComponent({
-	name = "Shop",
-	setup = function()
-		local coins = Rivue.ref(30)
-		local owned = Rivue.reactive({})
-		return {
-			coins = coins,
-			owned = owned,
-			buy = function(item)
-				coins.value -= item.price
-				owned[item.name] = true
-			end,
-		}
-	end,
-	render = function(ctx)
-		return h("Frame", { Name = "Shop", class = "shop" }, {
-			h("UIListLayout"),
-			h("TextLabel", { Name = "Coins", Text = \`{ctx.coins} coins\` }),
-			h("TextButton", {
-				Name = "Earn",
-				Text = "+10 coins",
-				onClick = function()
-					ctx.coins += 10
-				end,
-			}),
-			Rivue.hFor(ITEMS, function(item)
-				return h(ItemRow, {
-					key = item.name,
-					name = item.name,
-					price = item.price,
-					owned = ctx.owned[item.name] == true,
-					affordable = ctx.coins >= item.price,
-					onBuy = function()
-						ctx.buy(item)
-					end,
-				})
-			end),
-		})
-	end,
-})`
-
-const ITEM_ROW = `local ItemRow = Rivue.defineComponent({
-	name = "ItemRow",
-	props = {
-		name = { type = "string" },
-		price = { type = "number" },
-		owned = { type = "boolean", default = false },
-		affordable = { type = "boolean", default = true },
-	},
-	emits = { "buy" },
-	render = function(ctx)
-		return h("TextButton", {
-			Name = ctx.name,
-			class = "row",
-			Text = if ctx.owned then \`{ctx.name} · Owned\` else \`{ctx.name} · {ctx.price}\`,
-			disabled = ctx.owned or not ctx.affordable,
-			onClick = function()
-				ctx.emit("buy")
-			end,
-		})
-	end,
-})`
-
-const VUE_COUNTER = `<script setup>
-import { ref } from "vue"
-
-const count = ref(0)
-</script>
-
-<template>
-  <button @click="count++">Clicked {{ count }} times</button>
-</template>`
-
-// the React-lua, Fusion and Rivue counters come from the comparison page so the two can't drift apart
-function counters() {
-	const page = fs.readFileSync(path.resolve(DOCS, "COMING-FROM-REACT.md"), "utf8")
-	const section = page.slice(page.indexOf("## The same counter in each"), page.indexOf("## API map"))
-	const [react, fusion, rivue] = [...section.matchAll(/```lua\n([\s\S]*?)```/g)].map((m) => m[1].trimEnd())
-	return { react, fusion, rivue }
-}
-
-const highlighter = await createHighlighter({ themes: ["github-light", "github-dark"], langs: ["luau", "vue"] })
-const highlight = (code: string, lang: string, steps: Record<string, string> = {}) => {
-	const lines = code.split("\n")
-	const stepAt = new Map(Object.entries(steps).map(([text, step]) => [lines.findIndex((l) => l.includes(text)) + 1, step]))
-	return highlighter.codeToHtml(code, {
-		lang,
-		themes: { light: "github-light", dark: "github-dark" },
-		transformers: [
-			{
-				line(node, line) {
-					const step = stepAt.get(line)
-					if (step) node.properties["data-step"] = step
-				},
-			},
-		],
-	})
-}
-
-const { react, fusion, rivue } = counters()
-
-function lookup() {
-	const readme = fs.readFileSync(path.resolve(DOCS, "README.md"), "utf8")
-	const table = readme.slice(readme.indexOf("## I want to"))
-	const site = (href: string) => {
-		const [file, hash] = href.split("#")
-		const target = path.resolve(DOCS, file)
-		const anchor = hash ? `#${hash}` : ""
-		if (/[\\/]examples[\\/]components[\\/]\w+\.luau$/.test(target)) return `/examples/${path.basename(target, ".luau").toLowerCase()}`
-		if (!target.startsWith(DOCS + path.sep)) return `${REPO}/tree/main/${path.relative(path.resolve(DOCS, ".."), target).split(path.sep).join("/")}`
-		return `/${path.relative(DOCS, target).replace(/\.md$/, "")}${anchor}`
-	}
-	const links = (cell: string) => [...cell.matchAll(/\[([^\]]+)\]\(([^)]+)\)/g)].map((m) => ({ text: m[1], href: site(m[2]) }))
-	return table
-		.split("\n")
-		.filter((line) => line.startsWith("| ") && !line.startsWith("| I want to"))
-		.map((line) => {
-			const [task, learn, api, example] = line.split("|").slice(1, -1).map((cell) => cell.trim())
-			return { task: task[0].toUpperCase() + task.slice(1), learn: links(learn), api: links(api), example: links(example) }
-		})
-}
-
-const landing = {
-	lookup: lookup(),
-	shop: highlight(SHOP, "luau", {
-		"coins.value -= item.price": "spend",
-		"owned[item.name] = true": "own",
-		"ctx.coins += 10": "earn",
-		"Text = `{ctx.coins} coins`": "coins",
-		"owned = ctx.owned": "props",
-		"affordable = ctx.coins": "props",
-		"ctx.buy(item)": "call",
-	}),
-	itemRow: highlight(ITEM_ROW, "luau", {
-		'ctx.emit("buy")': "emit",
-		"Text = if ctx.owned": "text",
-		"disabled = ctx.owned": "disabled",
-	}),
-	compare: [
-		{ name: "Vue", lang: "vue", html: highlight(VUE_COUNTER, "vue") },
-		{ name: "Rivue", lang: "luau", html: highlight(rivue, "luau") },
-		{ name: "React-lua", lang: "luau", html: highlight(react, "luau") },
-		{ name: "Fusion", lang: "luau", html: highlight(fusion, "luau") },
-	],
-	packages: [
-		{ name: "RivueUI", version: version("rivue-ui"), text: "Components, reactivity, styling and the built-ins.", link: "/guide/01-introduction", example: "Rivue.createApp(App):mount(gui)" },
-		{ name: "RivueRemote", version: version("rivue-remote"), text: "Checked client/server calls, events and replicated state.", link: "/api/remote" },
-		{ name: "RivueRouter", version: version("rivue-router"), text: "Screens with history, guards and nested routes.", link: "/api/router" },
-		{ name: "RivueDevTools", version: "", text: "Props, state, renders and network, live during a playtest.", link: "/DEVTOOLS" },
-	],
-}
-
-const api: [string, [string, string][]][] = [
-	[
-		"Reactivity",
-		[
-			["Core", "reactivity-core"],
-			["Utilities", "reactivity-utilities"],
-			["Array helpers", "array"],
-			["Advanced", "reactivity-advanced"],
-		],
-	],
-	[
-		"Components and rendering",
-		[
-			["Render function", "render-function"],
-			["Components", "component"],
-			["Lifecycle hooks", "lifecycle"],
-			["Built-in components", "builtins"],
-			["Directives", "directives"],
-		],
-	],
-	[
-		"Application",
-		[
-			["Application", "application"],
-			["Scheduler", "scheduler"],
-		],
-	],
-	[
-		"Roblox",
-		[
-			["Roblox composables", "roblox"],
-			["RivueRemote", "remote"],
-			["RivueRouter", "router"],
-			["Instance pool", "pool"],
-		],
-	],
-	["Utilities", [["Utilities and debugging", "utilities"]]],
-]
-
-const chapter = ([text, file]: string[]) => ({ text, link: `/guide/${file}` })
-const folder = (text: string, pages: string[][]) => ({ text, collapsed: true, items: pages.map(chapter) })
-
-const guideSidebar = [
-	{
-		text: "Getting started",
-		items: [
-			{ text: "Introduction", link: "/introduction" },
-			{ text: "Installation", link: "/INSTALLATION" },
-			{ text: "Coming from Vue", link: "/VUE" },
-			{ text: "Coming from React-lua or Fusion", link: "/COMING-FROM-REACT" },
-		],
-	},
-	{
-		text: "Learn",
-		link: "/GUIDE",
-		items: [
-			folder("Basics", guide.slice(0, 5)),
-			folder("Styling and motion", guide.slice(5, 7)),
-			folder("Building a game", guide.slice(7)),
-		],
-	},
-	{ text: "Advanced", items: [folder("Patterns", advanced.slice(0, 3)), folder("Scaling up", advanced.slice(3))] },
-	{
-		text: "Tools",
-		items: [
-			{ text: "DevTools", link: "/DEVTOOLS" },
-			{ text: "Architecture", link: "/ARCHITECTURE" },
-			{ text: "Releasing", link: "/RELEASING" },
-		],
-	},
-]
 
 const examples = loadExamples()
 
 function gitTime(file: string): number | undefined {
 	try {
-		const seconds = execFileSync("git", ["log", "-1", "--format=%ct", "--", file], { cwd: path.resolve(DOCS, ".."), encoding: "utf8" }).trim()
+		const seconds = execFileSync("git", ["log", "-1", "--format=%ct", "--", file], { cwd: ROOT, encoding: "utf8" }).trim()
 		return seconds ? Number(seconds) * 1000 : undefined
 	} catch {
 		return undefined
@@ -478,26 +42,37 @@ const hovers = await loadHovers([
 	...examples.map((example) => stripPathComment(example.code)),
 ])
 const hoverLines = await typeLines()
-const examplesSidebar = [
-	{ text: "Examples", items: examples.map((example) => ({ text: example.name, link: `/examples/${example.slug}` })) },
-]
 
-const apiSidebar = [
-	{ items: [{ text: "Overview", link: "/API" }] },
-	{
-		text: "Reference",
-		items: api.map(([text, pages]) => ({
-			text,
-			collapsed: true,
-			items: pages.map(([page, file]) => ({ text: page, link: `/api/${file}` })),
-		})),
-	},
-]
+function addPageData(pageData: PageData) {
+	const page = pageData.relativePath
+	if (page === "index.md") {
+		pageData.frontmatter = { ...pageData.frontmatter, layout: "home" }
+		return
+	}
+	const example = examples.find((e) => e.slug === pageData.params?.example)
+	if (example) {
+		pageData.lastUpdated = gitTime(example.file) ?? pageData.lastUpdated
+		pageData.frontmatter = { ...pageData.frontmatter, githubPath: example.file, markdown: base64(exampleMarkdown(example)) }
+		return
+	}
+	const source = pageData.params?.page === "introduction" ? "README.md" : pageData.filePath
+	const isApi = page.startsWith("api/")
+	pageData.lastUpdated = gitTime(`docs/${source}`) ?? pageData.lastUpdated
+	pageData.frontmatter = {
+		...pageData.frontmatter,
+		githubPath: `docs/${source}`,
+		pageClass: PAGE_CLASSES[page] ?? (isApi ? "fd-api" : undefined),
+		...(isApi ? { outline: 2 } : {}),
+		markdown: base64(fs.readFileSync(path.join(DOCS, source), "utf8")),
+	}
+}
+
+const base64 = (text: string) => Buffer.from(text).toString("base64")
 
 export default withMermaid(
 	defineConfig({
 		title: "Rivue",
-		description: "Vue 3's component model for Roblox UI, in Luau",
+		description: DESCRIPTION,
 		base: "/Rivue/",
 		cleanUrls: true,
 		appearance: "dark",
@@ -522,76 +97,17 @@ export default withMermaid(
 				},
 			],
 		],
-		vite: { publicDir: path.resolve(DOCS, "assets/web") },
+		vite: { publicDir: path.join(DOCS, "assets/web") },
 		buildEnd(site) {
-			writeLlmsFiles(site.pages, site.outDir)
-			writeOgImages(
-				site.pages.map((page) => {
-					const example = examples.find((e) => page === `examples/${e.slug}.md`)
-					const markdown = example ? exampleMarkdown(example) : page === "introduction.md" ? introMarkdown() : fs.readFileSync(path.resolve(DOCS, page), "utf8")
-					return {
-						slug: ogSlug(page),
-						title: page === "README.md" ? "The Vue-style framework for Roblox UI" : plainTitle(pageTitle(markdown, page)),
-						section: page === "README.md" ? "Docs" : ogSection(page),
-					}
-				}),
-				site.outDir,
-				path.resolve(DOCS, "assets/web/icon-192.png"),
-			)
+			writeLlmsFiles(site.pages, site.outDir, examples)
+			writeOgImages(ogPages(site.pages, examples), site.outDir, path.join(DOCS, "assets/web/icon-192.png"))
 		},
-		transformHead({ pageData }) {
-			const image = `${SITE}og/${ogSlug(pageData.relativePath)}.png`
-			const title = pageData.relativePath === "index.md" ? "Rivue" : `${pageData.title} | Rivue`
-			const url = SITE + (pageData.relativePath === "index.md" ? "" : pageData.relativePath.replace(/\.md$/, ""))
-			return [
-				["meta", { property: "og:type", content: "website" }],
-				["meta", { property: "og:site_name", content: "Rivue" }],
-				["meta", { property: "og:title", content: title }],
-				["meta", { property: "og:description", content: pageData.description || "Vue 3's component model for Roblox UI, in Luau" }],
-				["meta", { property: "og:url", content: url }],
-				["meta", { property: "og:image", content: image }],
-				["meta", { property: "og:image:width", content: "1200" }],
-				["meta", { property: "og:image:height", content: "630" }],
-				["meta", { name: "twitter:card", content: "summary_large_image" }],
-				["meta", { name: "twitter:image", content: image }],
-			]
-		},
-		transformPageData(pageData) {
-			if (pageData.relativePath === "index.md") {
-				pageData.frontmatter = { ...pageData.frontmatter, layout: "home" }
-				return
-			}
-			const example = examples.find((e) => e.slug === pageData.params?.example)
-			if (example) {
-				pageData.frontmatter = {
-					...pageData.frontmatter,
-					githubPath: example.file,
-					markdown: Buffer.from(exampleMarkdown(example)).toString("base64"),
-				}
-				pageData.lastUpdated = gitTime(example.file) ?? pageData.lastUpdated
-				return
-			}
-			const source = pageData.filePath === "index.md" || pageData.params?.page === "introduction" ? "README.md" : pageData.filePath
-			pageData.lastUpdated = gitTime(`docs/${source}`) ?? pageData.lastUpdated
-			pageData.frontmatter = {
-				...pageData.frontmatter,
-				githubPath: `docs/${source}`,
-				pageClass: PAGE_CLASSES[pageData.relativePath] ?? (pageData.relativePath.startsWith("api/") ? "fd-api" : undefined),
-				...(pageData.relativePath.startsWith("api/") ? { outline: 2 } : {}),
-				markdown: fs.readFileSync(path.resolve(DOCS, source)).toString("base64"),
-			}
-		},
+		transformHead: ({ pageData }) => ogHead(pageData),
+		transformPageData: addPageData,
 		markdown: {
 			codeTransformers: [transformerMetaWordHighlight(), transformerLuauHovers(hovers, hoverLines)],
-			config(md) {
-				githubLinks(md)
-				softBreaks(md)
-				codeBlocks(md)
-				pageActions(md)
-				dropPagerLine(md)
-				apiEntries(md)
-			},
-			anchor: { slugify: githubSlug },
+			config: markdownPlugins,
+			anchor: { slugify: slug },
 		},
 		mermaid: {
 			fontFamily: "Geist, ui-sans-serif, system-ui, sans-serif",
@@ -600,9 +116,9 @@ export default withMermaid(
 		},
 		themeConfig: {
 			logo: { src: "/icon-192.png", alt: "Rivue" },
-			version: version("rivue-ui"),
+			version: packageVersion("rivue-ui"),
 			repo: { name: "linhisreal/Rivue", url: REPO, ...(await repoStats()) },
-			landing,
+			landing: landingData(),
 			outline: { level: [2, 3] },
 			footer: {
 				message: "Released under the Rivue License, based on PolyForm Noncommercial 1.0.0.",
@@ -613,10 +129,9 @@ export default withMermaid(
 				{ text: "API", link: "/API" },
 				{ text: "Examples", link: `/examples/${examples[0].slug}` },
 			],
-			sidebar: { "/api/": apiSidebar, "/API": apiSidebar, "/examples/": examplesSidebar, "/": guideSidebar },
+			sidebar: sidebar(examples),
 			socialLinks: [{ icon: "github", link: REPO }],
 			search: { provider: "local" },
-
 		},
 	}),
 )

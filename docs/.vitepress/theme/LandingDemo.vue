@@ -103,7 +103,6 @@ function shade(hex: string, amount: number) {
 
 type Shape = { points: string; fill: string; opacity?: number }
 
-// one side, the front and the top; the camera sits above everything and looks down +z
 function box(x0: number, x1: number, y0: number, y1: number, z0: number, z1: number, color: string): Shape[] {
 	const shapes: Shape[] = []
 	const side = (x0 + x1) / 2 > 0 ? x0 : x1
@@ -113,7 +112,6 @@ function box(x0: number, x1: number, y0: number, y1: number, z0: number, z1: num
 	return shapes
 }
 
-// the sun sits behind the camera on the left, so shadows fall back and to the right
 function shadow(x0: number, x1: number, z0: number, z1: number, height: number): Shape {
 	const dx = height * 0.7
 	const dz = height * 0.9

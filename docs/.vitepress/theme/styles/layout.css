@@ -451,7 +451,6 @@ html {
 	display: none;
 }
 
-/* phones and tablets: logo, search and menu in the bar; the sidebar slides in from the right as a drawer */
 @media (max-width: 959px) {
 	.VPSidebar .fd-sidebar-top .fd-search,
 	.VPSidebar .fd-brand-row > .fd-icon-button:not(.fd-drawer-close) {

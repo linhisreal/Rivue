@@ -6,6 +6,7 @@ import crypto from "node:crypto"
 import fs from "node:fs"
 import path from "node:path"
 import { createHighlighter, type ShikiTransformer, type ThemedToken } from "shiki"
+import { ROOT } from "./site.mts"
 
 export interface Hover {
 	line: number
@@ -14,7 +15,6 @@ export interface Hover {
 	text: string
 }
 
-const ROOT = path.resolve(import.meta.dirname, "../..")
 const CACHE = path.join(import.meta.dirname, "cache")
 const DEFINITIONS_URL = "https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/1.66.0/scripts/globalTypes.d.luau"
 
