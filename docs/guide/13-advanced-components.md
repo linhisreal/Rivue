@@ -192,8 +192,9 @@ router.push("item", { id = 7 }) -- Item gets props.id = 7
 router.back()
 ```
 
-Install it with `app:use(router)` before mounting. See [RivueRouter](../api/router.md) for guards
-and `replace`.
+Install it with `app:use(router)` before mounting.
+[Chapter 17](17-screens-and-navigation.md) covers the router in full: the history, a back button,
+and stopping the player from leaving with unsaved changes.
 
 ## Modals
 

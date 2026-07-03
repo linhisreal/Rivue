@@ -306,4 +306,4 @@ return Rivue.story(ShopItem, {
 [nextTick()](../api/scheduler.md#nexttick) · [effectScope()](../api/reactivity-advanced.md#effectscope) ·
 [mount()](../api/application.md#mount) · [story()](../api/utilities.md#story)
 
-[← 15. Performance in depth](15-performance-in-depth.md) · [Guide contents](../GUIDE.md)
+[← 15. Performance in depth](15-performance-in-depth.md) · [Guide contents](../GUIDE.md) · [17. Screens and navigation →](17-screens-and-navigation.md)

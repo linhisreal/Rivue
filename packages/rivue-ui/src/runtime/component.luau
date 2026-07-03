@@ -719,7 +719,7 @@ local function updateComponentProps(instance: ComponentInstance, rawProps: Props
 			local spec = if schema then schema[key] else nil
 			local default = if spec then spec.default else nil
 			if default ~= nil then
-				-- Fall back to the default (factory defaults keep their current value)
+				-- Factory defaults keep their current value
 				if type(default) ~= "function" then
 					props[key] = default
 				end
@@ -752,8 +752,11 @@ local function updateComponentSlots(instance: ComponentInstance, children: { Chi
 	if #defaultSlots == 0 and #children == 0 and next(namedSlots) == nil and slots == nil then
 		return false
 	end
-	table.clear(defaultSlots)
-	table.move(children, 1, #children, 1, defaultSlots)
+	-- A vnode patched against itself passes the instance's own slot table, which clearing would empty
+	if children ~= defaultSlots then
+		table.clear(defaultSlots)
+		table.move(children, 1, #children, 1, defaultSlots)
+	end
 	table.clear(namedSlots)
 	if slots then
 		for name, fn in slots do

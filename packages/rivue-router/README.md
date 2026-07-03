@@ -1,8 +1,9 @@
 # RivueRouter
 
-Screen navigation for [Rivue](https://github.com/linhisreal/Rivue), like a small Vue Router: named
-routes, params passed to the screen as props, back and forward history, and guards that can cancel
-a move.
+Screen navigation for [Rivue](https://github.com/linhisreal/Rivue), modelled on Vue Router 4:
+named and nested routes, named views, `RouterView` and `RouterLink`, navigation guards that can
+wait for the player, `redirect`, `alias`, `meta`, dynamic routes and `scrollBehavior`. Routes have
+names instead of paths, since Roblox UI has no URLs.
 
 Install RivueUI too. RivueRouter uses the copy of RivueUI your game already has, so keep both in the
 same Packages folder (Wally and pesde do this), or both in ReplicatedStorage.

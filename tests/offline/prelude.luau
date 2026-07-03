@@ -395,7 +395,6 @@ function __finish()
 	end
 end
 
--- Minimal Instance stub
 UDIM2_MT = {
 	__add = function(a, b)
 		return UDim2.new(a.X.Scale + b.X.Scale, a.X.Offset + b.X.Offset, a.Y.Scale + b.Y.Scale, a.Y.Offset + b.Y.Offset)
@@ -929,9 +928,6 @@ typeof = function(v)
 	end
 	return type(v)
 end
--- Folder-like stubs created by makeFolder() must also accept Instance children
-
--- Players / CollectionService / workspace stubs
 do
 	local player = Instance.new("Player")
 	player.Name = "LocalPlayer"

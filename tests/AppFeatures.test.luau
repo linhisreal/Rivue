@@ -150,11 +150,11 @@ return function()
 		local stopGuard = router.beforeEach(function(to)
 			return to.name ~= "item"
 		end)
-		assertTrue(not router.push("item", { id = 1 }), "a guard returning false cancels")
+		assertTrue(Router.isNavigationFailure(router.push("item", { id = 1 })), "a guard returning false cancels")
 		Rivue.nextTick()
 		assertEquals(screen(), "home", "and nothing changes")
 		stopGuard()
-		assertTrue(router.push("item", { id = 1 }), "removing the guard allows it again")
+		assertTrue(router.push("item", { id = 1 }) == nil, "removing the guard allows it again")
 
 		local ok = pcall(router.push, "missing")
 		assertTrue(not ok, "an unknown route errors")
