@@ -304,7 +304,7 @@ local Page = Rivue.defineComponent({
 
 ---
 
-**Try it:** [Tabs example](../../examples/components/Tabs.luau) · [Modal example](../../examples/components/Modal.luau)
+**Try it:** [Tabs example](../../examples/components/Tabs.luau) · [Modal example](../../examples/components/Modal.luau)\
 **Reference:** [provide()](../api/component.md#provide) · [Slots](../api/component.md#slots) ·
 [KeepAlive](../api/builtins.md#keepalive) · [defineAsyncComponent()](../api/component.md#defineasynccomponent) ·
 [ViewportModel](../api/builtins.md#viewportmodel) · [Dialog](../api/builtins.md#dialog) ·

@@ -13,6 +13,7 @@ export function markdownPlugins(md: any) {
 	codeBlocks(md)
 	pageActions(md)
 	dropPagerLine(md)
+	relatedLinks(md)
 	apiEntries(md)
 }
 
@@ -148,5 +149,45 @@ function dropPagerLine(md: any) {
 		const inline = tokens[tokens.length - 2]
 		if (tokens[tokens.length - 1]?.type !== "paragraph_close" || inline?.type !== "inline") return
 		if (/^\[(← |Guide contents\]|API reference\])/.test(inline.content) && /[←→]\]/.test(inline.content)) tokens.splice(-3, 3)
+	})
+}
+
+const RELATED_LABEL = /\*\*(Try it|Reference):\*\*/g
+
+function relatedRow(md: any, env: any, label: string, source: string) {
+	const items = source
+		.replace(/\\\n/g, " ")
+		.split(/\s+·\s+/)
+		.map((item) => item.trim())
+		.filter(Boolean)
+		.map((item) => {
+			const [, main, note] = /^(.*\S)\s+\(([^()]*(?:\([^()]*\)[^()]*)*)\)$/s.exec(item) ?? [, item]
+			const noteHtml = note ? `<span class="fd-related-note">${md.renderInline(note, env)}</span>` : ""
+			return `<li>${md.renderInline(main, env)}${noteHtml}</li>`
+		})
+	const kind = label === "Try it" ? "try" : "reference"
+	return `<div class="fd-related-row" data-kind="${kind}"><span class="fd-related-label">${label}</span><ul>${items.join("")}</ul></div>`
+}
+
+function relatedLinks(md: any) {
+	md.core.ruler.push("related_links", (state: any) => {
+		const tokens = state.tokens
+		for (let i = 0; i < tokens.length; i++) {
+			const content: string = tokens[i + 1]?.content ?? ""
+			if (tokens[i].type !== "paragraph_open" || !/^\*\*(Try it|Reference):\*\*/.test(content)) continue
+			const parts = content.split(RELATED_LABEL).slice(1)
+			const rows: string[] = []
+			for (let p = 0; p < parts.length; p += 2) rows.push(relatedRow(md, state.env, parts[p], parts[p + 1]))
+			const previous = tokens[i - 1]
+			if (previous?.meta?.related) {
+				previous.content = previous.content.replace(/<\/div>\n$/, `${rows.join("")}</div>\n`)
+				tokens.splice(i, 3)
+				i--
+			} else {
+				const block = htmlToken(state, `<div class="fd-related">${rows.join("")}</div>\n`)
+				block.meta = { related: true }
+				tokens.splice(i, 3, block)
+			}
+		}
 	})
 }

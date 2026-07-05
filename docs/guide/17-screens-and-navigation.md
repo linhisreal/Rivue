@@ -388,7 +388,7 @@ app:unmount()
 ---
 
 **Try it:** [GameMenu example](../../examples/components/GameMenu.luau) (back button, tabs, leave guard
-with a Dialog) · [tests/Router.test.luau](../../tests/Router.test.luau) covers every feature here
+with a Dialog) · [tests/Router.test.luau](../../tests/Router.test.luau) covers every feature here\
 **Reference:** [RivueRouter](../api/router.md) · [Router.lazy()](../api/router.md#routerlazy) · [KeepAlive](../api/builtins.md#keepalive) ·
 [Dialog](../api/builtins.md#dialog) · [useKeybind()](../api/roblox.md#usekeybind) ·
 [Transition](../api/builtins.md#transition)

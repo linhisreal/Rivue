@@ -92,7 +92,7 @@ renders into it. `app:mount(instance)` renders into any other Instance.
 
 ---
 
-**Try it:** [Counter example](../../examples/components/Counter.luau)
+**Try it:** [Counter example](../../examples/components/Counter.luau)\
 **Reference:** [defineComponent()](../api/component.md#definecomponent) ·
 [render()](../api/component.md#render) · [createApp()](../api/application.md#createapp)
 

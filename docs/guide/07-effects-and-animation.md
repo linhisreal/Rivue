@@ -138,7 +138,7 @@ end,
 ---
 
 **Try it:** [Hud example](../../examples/components/Hud.luau) (a spring on a bound property, attributeRef) ·
-[Modal example](../../examples/components/Modal.luau) (Transition)
+[Modal example](../../examples/components/Modal.luau) (Transition)\
 **Reference:** [watch()](../api/reactivity-core.md#watch) ·
 [watchEffect()](../api/reactivity-core.md#watcheffect) ·
 [onWatcherCleanup()](../api/reactivity-core.md#onwatchercleanup) · [Lifecycle hooks](../api/lifecycle.md) ·

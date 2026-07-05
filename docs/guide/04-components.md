@@ -144,7 +144,7 @@ on their own, but a `:Connect()` you wrote yourself needs an `onUnmounted`
 ---
 
 **Try it:** [Modal example](../../examples/components/Modal.luau) (named slots, events) ·
-[Tabs example](../../examples/components/Tabs.luau) (a slot per tab)
+[Tabs example](../../examples/components/Tabs.luau) (a slot per tab)\
 **Reference:** [props](../api/component.md#props) · [emits](../api/component.md#emits) ·
 [components](../api/component.md#components) · [Function components](../api/render-function.md#function-components) · [Slots](../api/component.md#slots) ·
 [Lifecycle hooks](../api/lifecycle.md)

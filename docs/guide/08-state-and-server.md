@@ -141,7 +141,7 @@ local coins = Remote.useState("coins", 0)
 
 ---
 
-**Try it:** [Shop example](../../examples/components/Shop.luau) (useAsync, errors and retry, pending buys)
+**Try it:** [Shop example](../../examples/components/Shop.luau) (useAsync, errors and retry, pending buys)\
 **Reference:** [provide()](../api/component.md#provide) · [inject()](../api/component.md#inject) ·
 [readonly()](../api/reactivity-core.md#readonly) · [RivueRemote](../api/remote.md) ·
 [Remote.useRequest()](../api/remote.md#remoteuserequest) · [Remote.state()](../api/remote.md#remotestate)
