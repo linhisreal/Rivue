@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from "vue"
+import { computed, onMounted, onUnmounted, ref } from "vue"
 import { useData, withBase } from "vitepress"
 import { openSearch } from "./composables"
 
@@ -57,7 +57,34 @@ const KINDS = [
 const DOC = { label: "Docs", icon: "M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6" }
 const kindOf = (link: string) => KINDS.find((kind) => link.startsWith(kind.prefix)) ?? DOC
 
+const zero = ref<HTMLElement>()
+const tilt = ref(0)
+const tries = ref(0)
+const tag = computed(() => (tries.value >= 3 ? "still nil" : "nil"))
+let frame = 0
+
+function lean(event: PointerEvent) {
+	if (event.pointerType !== "mouse") return
+	cancelAnimationFrame(frame)
+	frame = requestAnimationFrame(() => {
+		const box = zero.value?.getBoundingClientRect()
+		if (!box) return
+		const dx = (event.clientX - (box.left + box.width / 2)) / window.innerWidth
+		tilt.value = Math.max(-1, Math.min(1, dx * 3)) * 14
+	})
+}
+
+function dropIn() {
+	tries.value++
+}
+
+onUnmounted(() => {
+	window.removeEventListener("pointermove", lean)
+	cancelAnimationFrame(frame)
+})
+
 onMounted(() => {
+	window.addEventListener("pointermove", lean, { passive: true })
 	const base = site.value.base
 	const path = decodeURIComponent(location.pathname)
 	missing.value = (path.startsWith(base) ? path.slice(base.length) : path).replace(/\.html$|\/$/g, "") || "index"
@@ -66,16 +93,24 @@ onMounted(() => {
 
 <template>
 	<div class="fd-404">
-		<div class="fd-404-mark" role="img" aria-label="404">
-			<span>4</span>
-			<span class="fd-404-zero" aria-hidden="true">
-				<svg viewBox="0 0 100 100">
-					<rect class="fd-404-tile" x="16" y="16" width="68" height="68" rx="18" transform="rotate(-15 50 50)" />
-					<path class="fd-404-v" d="M37 40 50 61 63 40" />
+		<div class="fd-404-mark">
+			<span class="rv-visually-hidden">404</span>
+			<span aria-hidden="true">4</span>
+			<button
+				ref="zero"
+				type="button"
+				class="fd-404-zero"
+				:style="{ '--fd-tilt': `${tilt}deg` }"
+				aria-label="Put the page back"
+				@click="dropIn"
+			>
+				<svg viewBox="0 0 100 100" aria-hidden="true">
+					<rect class="fd-404-tile" x="16" y="16" width="68" height="68" rx="18" />
+					<path :key="tries" :class="['fd-404-v', { again: tries > 0 }]" d="M37 40 50 61 63 40" />
 				</svg>
-				<b>nil</b>
-			</span>
-			<span>4</span>
+				<b :key="tries" :class="{ again: tries > 0 }" aria-live="polite">{{ tag }}</b>
+			</button>
+			<span aria-hidden="true">4</span>
 		</div>
 		<h1>There's no page here</h1>
 		<p class="fd-404-lead">
