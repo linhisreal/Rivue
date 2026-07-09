@@ -1,5 +1,4 @@
 --!strict
--- Authoring helpers: v* props, model, style, mergeProps, printTree and error reporting
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))

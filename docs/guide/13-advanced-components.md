@@ -234,7 +234,7 @@ local Modal = Rivue.defineComponent({
 })
 ```
 
-The full version, with a backdrop and buttons, is in
+The full version, with named slots for the title and the content, is in
 [examples/components/Modal.luau](../../examples/components/Modal.luau).
 
 ### Or use Dialog

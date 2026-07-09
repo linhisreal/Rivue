@@ -30,6 +30,16 @@ local function makeSignal()
 		end)
 		return c
 	end
+	function sig:Wait()
+		local co = coroutine.running()
+		sig:Once(function(...)
+			local ok, err = coroutine.resume(co, ...)
+			if not ok then
+				print("THREAD ERROR:", err)
+			end
+		end)
+		return coroutine.yield()
+	end
 	function sig:Fire(...)
 		local list = table.clone(sig._conns)
 		for _, c in list do
@@ -304,7 +314,6 @@ game = setmetatable({
 		return services[n] or {}
 	end,
 }, {
-	-- game.ReplicatedStorage, game.Players, ...
 	__index = function(_, k)
 		return services[k]
 	end,
@@ -990,7 +999,6 @@ do
 	camera.Parent = workspace
 	workspace.CurrentCamera = camera
 
-	-- GuiService: SelectedObject with a change signal, fixed top bar inset
 	local guiSignals = {}
 	local selected = nil
 	services.GuiService = setmetatable({

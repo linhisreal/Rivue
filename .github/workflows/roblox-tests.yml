@@ -1,7 +1,5 @@
 name: Tests in Roblox
 
-# Runs the test suites in a real Roblox server through Open Cloud. Needs the ROBLOX_API_KEY
-# secret, and ROBLOX_UNIVERSE_ID and ROBLOX_PLACE_ID as variables or secrets (see docs/RELEASING.md)
 on:
   workflow_dispatch:
   push:

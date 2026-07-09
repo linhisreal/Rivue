@@ -1,5 +1,5 @@
 --!nonstrict
--- A form and a keyed list: model binding, a child component with emits, array helpers.
+-- A text box bound with model, a keyed list, and a child row that emits events.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))

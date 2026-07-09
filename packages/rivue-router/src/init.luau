@@ -1,10 +1,6 @@
 --!strict
 --!optimize 2
 
--- RivueRouter: screen navigation for Rivue, modelled on Vue Router 4. Named routes, nested routes,
--- navigation guards, RouterView and RouterLink. No paths or URLs, since Roblox UI has none, so
--- routes are found by name.
---
 -- It uses the Rivue your game already requires, the way Vue Router uses your Vue: two copies would
 -- track state separately and the router's components couldn't see the app's
 
@@ -666,7 +662,6 @@ local function createRouter(options: RouterOptions): Router
 	return router
 end
 
---- The router installed with app:use(router)
 local function useRouter(): Router
 	local router = Rivue.inject(ROUTER_KEY) :: Router?
 	if not router then
@@ -705,12 +700,10 @@ local function addComponentGuard(kind: string, guard: Guard)
 	end)
 end
 
---- Runs before the player leaves the screen this component is in. Return false to stay
 local function onBeforeRouteLeave(guard: Guard)
 	addComponentGuard("onBeforeRouteLeave", guard)
 end
 
---- Runs when the route changes but this screen stays, for example new params
 local function onBeforeRouteUpdate(guard: Guard)
 	addComponentGuard("onBeforeRouteUpdate", guard)
 end
@@ -727,13 +720,11 @@ local function propsFor(record: any, view: string, route: Route): { [string]: an
 	return {}
 end
 
---- Renders the current route's component. Nest RouterViews for child routes
 local RouterView = table.freeze({
 	__is_component = true,
 	__name = "RouterView",
 	props = {
 		name = { type = "string", default = "default" },
-		-- Keep screens you've left alive, so coming back keeps their state (see KeepAlive)
 		keepAlive = { type = "boolean" },
 	},
 	setup = function(props: any, ctx: any)
@@ -796,7 +787,6 @@ export type LinkState = {
 	navigate: () -> NavigationFailure?,
 }
 
---- What RouterLink knows about its target, for building your own link component
 local function useLink(props: any): LinkState
 	local router = useRouter()
 	local route = Rivue.computed(function()
@@ -827,7 +817,6 @@ local function useLink(props: any): LinkState
 	}
 end
 
---- A TextButton that navigates when pressed and gets style classes while its route is active
 local RouterLink = table.freeze({
 	__is_component = true,
 	__name = "RouterLink",

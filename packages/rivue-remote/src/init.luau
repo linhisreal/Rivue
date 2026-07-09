@@ -1,7 +1,5 @@
 --!strict
 --!optimize 2
--- RivueRemote: request/response and events between client and server over RemoteEvents, with
--- payload checks and per-player rate limits. Separate from Rivue, which only does UI.
 
 export type RemoteRequest = {
 	action: string,
@@ -30,8 +28,7 @@ Remote.__index = Remote
 
 const CLIENT_WAIT_TIMEOUT = 5
 
---- Finds a child, creating it on the server. Clients wait for the server's copy, since
---- instances created on the client never replicate.
+-- Clients wait for the server's copy: instances created on the client never replicate
 local function findOrCreate(parent: Instance, className: string, name: string): Instance
 	local existing = parent:FindFirstChild(name)
 	if existing then
@@ -296,8 +293,7 @@ end
 -- A server can't fire its own OnServerEvent, so the tests call this directly
 Remote._processRequest = processRequest
 
---- Creates the RemoteEvents folder and events. Call once on the server at startup
---- so clients don't wait for them.
+-- Call it once at server startup, so clients don't wait for the events
 function Remote.setupServer(): ()
 	assert(RunService:IsServer(), "Remote.setupServer() must be called on the server")
 	getRequestEvent()

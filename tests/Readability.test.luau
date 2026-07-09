@@ -1,5 +1,4 @@
 --!strict
--- Array helpers, render(ctx), local components, style classes and the layout props
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))

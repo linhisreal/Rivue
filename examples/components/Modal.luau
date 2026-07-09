@@ -1,6 +1,6 @@
 --!nonstrict
--- A dialog that renders above everything (Teleport), animates in and out (Transition) and closes
--- when the player clicks outside it (vClickOutside). Its content comes from slots.
+-- A modal put together from Teleport, Transition and vClickOutside, with named slots for the title
+-- and the content. Rivue.Dialog does the same job out of the box.
 --
 --   h(Modal, { open = isOpen.value, onClose = function() isOpen.value = false end }, {
 --       title = function() return h("TextLabel", { Text = "Settings" }) end,
