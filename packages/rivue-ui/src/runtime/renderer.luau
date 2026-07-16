@@ -2400,7 +2400,9 @@ local function patchInner(oldVNode: RenderVNode?, newVNode: RenderVNode?, contai
 			end
 		elseif inst then
 			inst.vnode = newVNode
-			componentAPI.updateComponentProps(inst, newVNode.props)
+			if not componentAPI.propsUnchanged(def, oldProps, newProps) then
+				componentAPI.updateComponentProps(inst, newProps)
+			end
 			-- Slots aren't reactive, so queue the child's re-render ourselves
 			local renderEffect = inst._renderEffect
 			if

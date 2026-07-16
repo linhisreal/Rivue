@@ -255,6 +255,62 @@ local function runTests()
 		assertEquals(failed, nil, "so a child can still clean up into what its parent owns")
 	end
 
+	print("A re-render with unchanged props skips the props update, but keeps listeners current")
+	do
+		local h = Rivue.h
+		local renders = 0
+		local Child = Rivue.defineComponent({
+			name = "PropsChild",
+			props = { label = { type = "string" } },
+			emits = { "select" },
+			setup = function(_, ctx)
+				return {
+					fire = function()
+						ctx.emit("select")
+					end,
+				}
+			end,
+			render = function(ctx)
+				renders += 1
+				return h("TextButton", { Name = "Btn", Text = ctx.label, onClick = ctx.fire })
+			end,
+		})
+		local tick = Rivue.ref(0)
+		local label = Rivue.ref("a")
+		local selected = nil
+		local App = Rivue.defineComponent(function()
+			return function()
+				local n = tick.value
+				return h("Frame", nil, {
+					h(Child, {
+						label = label.value,
+						onSelect = function()
+							selected = n
+						end,
+					}),
+				})
+			end
+		end, { name = "PropsHost" })
+		local root = Instance.new("Folder")
+		local app = Rivue.createApp(App)
+		app:mount(root)
+		local btn
+		for _, d in root:GetDescendants() do
+			if d.Name == "Btn" then
+				btn = d
+			end
+		end
+		tick.value = 1
+		Rivue.nextTick()
+		assertEquals(renders, 1, "a new listener closure alone doesn't re-render the child")
+		Rivue.testing.trigger(btn, "onClick")
+		assertEquals(selected, 1, "but emit calls the newest listener")
+		label.value = "b"
+		Rivue.nextTick()
+		assertEquals(btn.Text, "b", "a changed prop still updates")
+		app:unmount()
+	end
+
 	print("\n" .. string.rep("=", 40))
 	print(printFooter)
 	print(string.rep("=", 40) .. "\n")
