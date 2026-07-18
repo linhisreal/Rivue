@@ -96,6 +96,36 @@
 	color: var(--vp-c-text-1);
 }
 
+.fd-toc-step {
+	display: inline-grid;
+	place-items: center;
+	width: 18px;
+	height: 18px;
+	margin-right: 8px;
+	border: 1px solid var(--vp-c-divider);
+	border-radius: 50%;
+	font-size: 11px;
+	font-weight: 600;
+	line-height: 1;
+	font-variant-numeric: tabular-nums;
+	vertical-align: 1px;
+	color: var(--vp-c-text-2);
+	transition:
+		color 0.15s ease,
+		background-color 0.15s ease,
+		border-color 0.15s ease;
+}
+
+.fd-toc li a.active .fd-toc-step {
+	border-color: var(--vp-c-brand-1);
+	color: var(--vp-c-white);
+	background: var(--vp-c-brand-1);
+}
+
+.dark .fd-toc li a.active .fd-toc-step {
+	color: var(--vp-c-black);
+}
+
 @media (prefers-reduced-motion: reduce) {
 	.fd-toc-thumb,
 	.fd-toc-dot {

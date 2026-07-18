@@ -127,6 +127,22 @@
 	border-top: 1px solid var(--vp-c-divider);
 }
 
+:root .VPLocalSearchBox.fd-closing {
+	pointer-events: none;
+}
+
+:root .VPLocalSearchBox.fd-closing .backdrop {
+	animation: fd-fade 0.16s ease-in reverse both;
+}
+
+:root .VPLocalSearchBox.fd-closing .shell {
+	animation: fd-pop 0.16s ease-in reverse both;
+}
+
+:root .VPLocalSearchBox.fd-closing .result {
+	animation: none;
+}
+
 @keyframes fd-fade {
 	from {
 		opacity: 0;

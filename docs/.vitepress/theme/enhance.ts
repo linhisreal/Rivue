@@ -59,3 +59,26 @@ export function onImageClick(event: MouseEvent) {
 	}
 	zoom.showModal()
 }
+
+// VitePress unmounts the search box straight away, so play its exit on a copy that's left behind
+export function animateSearchClose() {
+	const observer = new MutationObserver((records) => {
+		if (matchMedia("(prefers-reduced-motion: reduce)").matches) return
+		for (const record of records)
+			for (const node of record.removedNodes) {
+				if (!(node instanceof HTMLElement) || !node.matches(".VPLocalSearchBox:not(.fd-closing)")) continue
+				const ghost = node.cloneNode(true) as HTMLElement
+				const query = node.querySelector("input")?.value
+				const ghostInput = ghost.querySelector("input")
+				if (ghostInput && query) ghostInput.value = query
+				ghost.classList.add("fd-closing")
+				ghost.setAttribute("aria-hidden", "true")
+				ghost.inert = true
+				document.body.append(ghost)
+				const remove = () => ghost.remove()
+				ghost.querySelector(".shell")?.addEventListener("animationend", remove, { once: true })
+				setTimeout(remove, 300)
+			}
+	})
+	observer.observe(document.body, { childList: true })
+}
