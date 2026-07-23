@@ -613,6 +613,7 @@ local CLASSES = {
 	},
 	UIFlexItem = { bases = {}, props = { { FlexMode = "None", GrowRatio = 1, ShrinkRatio = 1 } } },
 	RemoteEvent = { bases = {}, props = {}, events = { "OnClientEvent", "OnServerEvent" }, methods = true },
+	UnreliableRemoteEvent = { bases = {}, props = {}, events = { "OnClientEvent", "OnServerEvent" }, methods = true },
 	RemoteFunction = { bases = {}, props = {}, methods = true },
 	BindableEvent = { bases = {}, props = {}, events = { "Event" } },
 	Part = {

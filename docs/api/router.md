@@ -21,6 +21,7 @@ All examples assume `local Router = require(game.ReplicatedStorage.RivueRouter)`
 - [Router.RouterLink](#routerrouterlink)
 - [Router.useRouter() and Router.useRoute()](#routeruserouter-and-routeruseroute)
 - [Router.useLink()](#routeruselink)
+- [router.isReady() and router.onError()](#routerisready-and-routeronerror)
 - [Navigation failures](#navigation-failures)
 - [Differences from Vue Router](#differences-from-vue-router)
 
@@ -83,9 +84,10 @@ Creates the router. Install it with `app:use(router)` before mounting.
 
   - `routes` maps names to components or [route records](#route-records). A list of records
     with a `name` each works too, as in Vue Router.
-  - `initial` is the first screen, with `initialParams` as its params. It's shown when you call
-    `app:use(router)`, and it goes through `beforeEach` like any other navigation. Until then
-    `currentRoute` is `Router.START_LOCATION`.
+  - `initial` is the first screen, with `initialParams` as its params. `app:use(router)` starts
+    navigating to it, through `beforeEach` like any other navigation. Until it arrives,
+    `currentRoute` is `Router.START_LOCATION`; [`isReady()`](#routerisready-and-routeronerror)
+    waits for it.
   - `currentRoute` is a ref holding the current route: `{ name, params, meta, matched,
     redirectedFrom }`. `current` is the same ref under its old name.
   - `canGoBack` and `canGoForward` are refs, for greying out buttons.
@@ -361,7 +363,9 @@ Functions that run before or after every navigation, `back` and `forward` includ
   for it. Vue Router does the same with guards that return a Promise. If another navigation
   starts while one waits, the waiting one fails with `cancelled`.
 
-  A guard that errors cancels the navigation and logs a warning.
+  A guard that errors cancels the navigation. The error goes to
+  [`onError`](#routerisready-and-routeronerror) handlers, or is logged as a warning if there are
+  none.
 
   Guards run in Vue Router's order:
 
@@ -549,7 +553,8 @@ Decides where ScrollingFrames scroll to after a navigation, like Vue Router's `s
     ScrollingFrame in the screen, saved when the player left it. Return it to restore them.
     Frames are matched by their names inside the screen.
   - Return `{ top, left }` to scroll every ScrollingFrame in the screen there, or `nil` to leave
-    them alone.
+    them alone. Add `el = "Name"` to scroll only the frame with that name, or that path inside the
+    screen such as `"Panel/List"`.
   - Only the top-level `RouterView` is scrolled. Screens kept alive with `keepAlive` keep their
     scroll position anyway.
 
@@ -560,7 +565,7 @@ Decides where ScrollingFrames scroll to after a navigation, like Vue Router's `s
   	to: Route,
   	from: Route,
   	savedPosition: { [string]: Vector2 }?
-  ) -> { [string]: Vector2 } | { top: number?, left: number? } | nil
+  ) -> { [string]: Vector2 } | { el: string?, top: number?, left: number? } | nil
   ```
 
 ---
@@ -736,6 +741,71 @@ What `RouterLink` uses inside, for building your own link component.
   	isExactActive: Ref<boolean>,
   	navigate: () -> NavigationFailure?,
   }
+  ```
+
+---
+
+## router.isReady() and router.onError()
+
+`isReady()` waits until the first screen has arrived. `onError()` is told when a guard or
+`scrollBehavior` errors.
+
+- **Example**
+
+  Show the menu once the player's data has loaded, and report guard errors:
+
+  ```lua
+  local Screen = function(name: string)
+  	return Rivue.defineComponent({
+  		name = name,
+  		render = function()
+  			return h("TextLabel", { Text = name })
+  		end,
+  	})
+  end
+
+  local dataLoaded = Instance.new("BindableEvent")
+  local router = Router.createRouter({
+  	routes = { lobby = Screen("Lobby") },
+  	initial = "lobby",
+  })
+
+  router.beforeEach(function(_to, from)
+  	if from == Router.START_LOCATION then
+  		dataLoaded.Event:Wait()
+  	end
+  	return true
+  end)
+
+  router.onError(function(err, to)
+  	warn("navigation to", to.name, "failed:", err)
+  end)
+
+  local app = Rivue.createApp(Router.RouterView)
+  app:use(router)
+  app:mount(Instance.new("Folder"))
+
+  task.spawn(function()
+  	router.isReady()
+  	print("the lobby is on screen")
+  end)
+  dataLoaded:Fire()
+  ```
+
+- **Details**
+
+  - A guard that waits on the first navigation doesn't hold up `app:mount()`. The app mounts with
+    nothing in the `RouterView`, and the first screen appears when the guard lets it through.
+  - `isReady()` returns straight away once the first navigation has finished, whether it arrived
+    or was cancelled.
+  - `onError` returns a function that removes the handler. With no handlers, errors are logged as
+    warnings.
+
+- **Type**
+
+  ```lua
+  isReady: () -> ()
+  onError: (handler: (err: unknown, to: Route, from: Route) -> ()) -> () -> ()
   ```
 
 ---

@@ -100,6 +100,15 @@ Remote.on("inventory:added", function(id: string)
 end)
 ```
 
+```lua
+-- Server, wherever an item is given
+Remote.send(player, "inventory:added", itemId)
+```
+
+On the server, `Remote.handle` can take a `check` function that rejects a malformed payload before
+your handler sees it, and `Remote.use` runs a check before every action, such as "has this
+player's data loaded yet". See [RivueRemote](../api/remote.md).
+
 ## Optimistic updates
 
 Waiting for the server makes a buy button feel slow. Apply the change right away, and roll it
