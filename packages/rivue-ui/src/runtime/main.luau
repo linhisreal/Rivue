@@ -338,7 +338,7 @@ Rivue.useTween = robloxUtils.useTween
 Rivue.useSpring = robloxUtils.useSpring
 
 -- Set by `lune run version rivue-ui <version>`
-Rivue.version = "0.9.0-rc.1"
+Rivue.version = "0.9.0-rc.2"
 
 function Rivue.bind<T>(getter: () -> T): T
 	assert(type(getter) == "function", "Rivue.bind expects a function")
