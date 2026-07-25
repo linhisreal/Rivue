@@ -30,7 +30,9 @@ export function loadExamples(): Example[] {
 export function exampleMarkdown(example: Example) {
 	return `# ${example.name}
 
-What's in it: ${example.summary}.
+![${example.name}, drawn from the component's sizes, colours and text](../assets/examples/${example.slug}.webp)
+
+What's in it: ${example.summary}. The picture above is an illustration made from the code, not a screenshot from Roblox.
 
 Learn the parts in ${example.chapters}. \`tests/Examples.test.luau\` mounts this component and clicks through it, so the code below keeps working as Rivue changes.
 

@@ -12,13 +12,15 @@ import { loadHovers, luaBlocks, stripPathComment, transformerLuauHovers, typeLin
 import { landingData, repoStats } from "./landing.mts"
 import { writeLlmsFiles } from "./llms.mts"
 import { markdownPlugins } from "./markdown.mts"
-import { ogHead, ogPages, writeOgImages } from "./og.mts"
+import { copyBanners, ogHead, ogPages, writeOgImages } from "./og.mts"
 import { sidebar } from "./sidebar.mts"
+import { loadPosts, writeFeed } from "./blog.mts"
 import { DESCRIPTION, DOCS, packageVersion, REPO, ROOT, slug } from "./site.mts"
 
 const PAGE_CLASSES: Record<string, string> = { "INSTALLATION.md": "fd-steps" }
 
 const examples = loadExamples()
+const posts = loadPosts()
 
 function gitTime(file: string): number | undefined {
 	try {
@@ -62,6 +64,7 @@ function addPageData(pageData: PageData) {
 		...pageData.frontmatter,
 		githubPath: `docs/${source}`,
 		pageClass: PAGE_CLASSES[page] ?? (isApi ? "fd-api" : undefined),
+		...(page.startsWith("blog/") ? { layout: "BlogLayout", sidebar: false } : {}),
 		...(isApi ? { outline: 2 } : {}),
 		markdown: base64(fs.readFileSync(path.join(DOCS, source), "utf8")),
 	}
@@ -84,6 +87,7 @@ export default withMermaid(
 			["link", { rel: "icon", href: "/Rivue/favicon.ico", sizes: "any" }],
 			["link", { rel: "icon", type: "image/png", sizes: "32x32", href: "/Rivue/favicon-32.png" }],
 			["link", { rel: "apple-touch-icon", href: "/Rivue/apple-touch-icon.png" }],
+			["link", { rel: "alternate", type: "application/rss+xml", title: "Rivue blog", href: "/Rivue/feed.xml" }],
 			["meta", { name: "color-scheme", content: "dark light" }],
 			["meta", { name: "theme-color", content: "#0a0a0a", media: "(prefers-color-scheme: dark)" }],
 			["meta", { name: "theme-color", content: "#fafafa", media: "(prefers-color-scheme: light)" }],
@@ -99,10 +103,12 @@ export default withMermaid(
 		],
 		vite: { publicDir: path.join(DOCS, "assets/web") },
 		buildEnd(site) {
+			writeFeed(posts, site.outDir)
 			writeLlmsFiles(site.pages, site.outDir, examples)
-			writeOgImages(ogPages(site.pages, examples), site.outDir, path.join(DOCS, "assets/web/icon-192.png"))
+			writeOgImages(ogPages(site.pages, examples, posts), site.outDir, path.join(DOCS, "assets/web/icon-192.png"))
+			copyBanners(posts, site.outDir)
 		},
-		transformHead: ({ pageData }) => ogHead(pageData),
+		transformHead: ({ pageData }) => ogHead(pageData, posts),
 		transformPageData: addPageData,
 		markdown: {
 			codeTransformers: [transformerMetaWordHighlight(), transformerLuauHovers(hovers, hoverLines)],
@@ -119,6 +125,7 @@ export default withMermaid(
 			version: packageVersion("rivue-ui"),
 			repo: { name: "linhisreal/Rivue", url: REPO, ...(await repoStats()) },
 			landing: landingData(),
+			blog: posts,
 			outline: { level: [2, 3] },
 			footer: {
 				message: "Released under the Rivue License, based on PolyForm Noncommercial 1.0.0.",
@@ -128,6 +135,7 @@ export default withMermaid(
 				{ text: "Guide", link: "/GUIDE" },
 				{ text: "API", link: "/API" },
 				{ text: "Examples", link: `/examples/${examples[0].slug}` },
+				{ text: "Blog", link: "/blog/", activeMatch: "^/blog/" },
 			],
 			sidebar: sidebar(examples),
 			socialLinks: [{ icon: "github", link: REPO }],
