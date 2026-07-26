@@ -11,6 +11,7 @@ Images used by the README, the docs and the docs site.
 | `license-lockup.webp` | the header of the license files |
 | `packages/` | one icon per package |
 | `badges/` | the badges at the top of the README |
+| `examples/` | illustrations of each example component, drawn from its code |
 | `diagrams/` | pictures for the guide and the API pages; `name-dark.webp` is the dark-mode version the site shows instead |
 | `web/` | favicons and the site logo; the docs site serves this folder as its public folder |
 
