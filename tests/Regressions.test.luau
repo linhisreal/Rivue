@@ -761,6 +761,98 @@ local function runTests()
 		stop()
 	end
 
+	print("emit() after unmount doesn't call the parent")
+	do
+		-- A request that finished after its panel closed called the parent's handler on a dead child
+		local emitLater: ((string) -> ())?
+		local called = false
+		local Panel = Rivue.defineComponent({
+			name = "LatePanel",
+			emits = { "done" },
+			setup = function(_, ctx)
+				emitLater = ctx.emit
+				return {}
+			end,
+			render = function()
+				return h("Frame")
+			end,
+		})
+		local app = Rivue.createApp(h(Panel, {
+			onDone = function()
+				called = true
+			end,
+		}))
+		app:mount(Instance.new("Folder"))
+		app:unmount();
+		(emitLater :: any)("done")
+		assertEquals(called, false, "like Vue, the event is dropped")
+	end
+
+	print("Errors in event handlers and watchers reach onErrorCaptured and errorHandler")
+	do
+		-- They only reached the console, so ErrorBoundary and error reporters never saw them
+		local captured: { string } = {}
+		local reported: { string } = {}
+		local source = Rivue.ref(0)
+		local button: Instance? = nil
+		local Child = Rivue.defineComponent({
+			name = "Faulty",
+			setup = function()
+				Rivue.watch(source, function()
+					error("watch callback failed")
+				end, { flush = "sync" })
+				Rivue.watchEffect(function()
+					if source.value == 2 then
+						error("watch effect failed")
+					end
+				end, { flush = "sync" })
+				return {
+					press = function()
+						error("click failed")
+					end,
+				}
+			end,
+			render = function(ctx)
+				return h("TextButton", {
+					onActivated = ctx.press,
+					ref = function(el)
+						button = el
+					end,
+				})
+			end,
+		})
+		local Parent = Rivue.defineComponent({
+			name = "Catcher",
+			setup = function()
+				Rivue.onErrorCaptured(function(_err, _instance, info)
+					table.insert(captured, info)
+					return nil
+				end)
+				return {}
+			end,
+			render = function()
+				return h(Child)
+			end,
+		})
+		local app = Rivue.createApp(Parent)
+		app.config.errorHandler = function(_err, _instance, info)
+			table.insert(reported, info)
+		end
+		app:mount(Instance.new("Folder"))
+		task.wait()
+		local ok = pcall(Rivue.testing.trigger, button :: Instance, "onActivated")
+		assertTrue(ok, "a failing handler doesn't throw out of the event")
+		source.value = 1
+		source.value = 2
+		assertEquals(
+			table.concat(captured, ","),
+			"component event handler,watcher callback,watcher callback,watcher callback",
+			"onErrorCaptured sees each one"
+		)
+		assertEquals(#reported, 4, "and app.config.errorHandler too")
+		app:unmount()
+	end
+
 	print("\n========== REGRESSION TESTS COMPLETE ==========\n")
 end
 

@@ -1,5 +1,4 @@
 --!nonstrict
--- The window's colours, taken from Studio's theme so the panel matches the docks around it
 
 export type Palette = {
 	background: Color3,
@@ -12,13 +11,10 @@ export type Palette = {
 	accent: Color3,
 	accentText: Color3,
 	border: Color3,
-	-- Re-rendered since the last refresh
 	changed: Color3,
-	-- Over the slow-render threshold
 	slow: Color3,
 }
 
--- Studio's dark theme, used when there's no Studio to ask (tests, or settings() failing)
 local DARK: Palette = {
 	background = Color3.fromRGB(46, 46, 46),
 	input = Color3.fromRGB(37, 37, 37),
@@ -49,7 +45,6 @@ local function read(): Palette
 	local C = Enum.StudioStyleGuideColor
 	local M = Enum.StudioStyleGuideModifier
 	local background = theme:GetColor(C.MainBackground)
-	-- Orange and red that read on white need to be darker than the dark theme's
 	local light = (background.R + background.G + background.B) / 3 > 0.5
 	return {
 		background = background,

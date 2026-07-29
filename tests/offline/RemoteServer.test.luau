@@ -136,57 +136,62 @@ local function runTests()
 		assertEquals(reached, true, "and handled")
 	end
 
-	print("Test 8: send() and sendAll() reach Remote.on() on the client")
+	print("Test 8: send() and sendAll() reach Remote.on() on the client, batched per frame")
 	do
-		asServer(function()
-			Remote.sendAll("announce", "warm-up")
-		end)
 		local received = {}
 		local conn = Remote.on("announce", function(payload)
 			table.insert(received, payload)
+		end)
+		local folder = game:GetService("ReplicatedStorage"):WaitForChild("RemoteEvents")
+		local events = folder:FindFirstChild("Events")
+		local fired = 0
+		local count = events.OnClientEvent:Connect(function()
+			fired += 1
 		end)
 		asServer(function()
 			Remote.sendAll("announce", "double coins")
 			Remote.send(game:GetService("Players").LocalPlayer, "announce", { text = "just you" })
 		end)
+		assertEquals(#received, 0, "nothing is sent before the end of the frame")
+		task.wait()
 		assertEquals(received[1], "double coins", "sendAll delivers")
-		assertEquals(received[2] and received[2].text, "just you", "send delivers to one player")
-		conn:Disconnect()
-		local folder = game:GetService("ReplicatedStorage"):WaitForChild("RemoteEvents")
-		assertEquals(folder:FindFirstChild("announce").ClassName, "RemoteEvent", "the server made the event")
-		local okReserved = pcall(function()
-			asServer(function()
-				Remote.sendAll("Response", 1)
-			end)
+		assertEquals(received[2] and received[2].text, "just you", "send delivers to one player, in order")
+		assertEquals(fired, 1, "both travel in one message")
+		assertEquals(folder:FindFirstChild("announce"), nil, "no RemoteEvent per event name")
+		asServer(function()
+			Remote.sendAll("announce", "now")
+			Remote.flush()
 		end)
-		assertEquals(okReserved, false, "Request and Response can't be used as event names")
+		assertEquals(received[3], "now", "flush() sends straight away")
+		count:Disconnect()
+		conn:Disconnect()
+		asServer(function()
+			Remote.sendAll("announce", "after")
+			Remote.flush()
+		end)
+		assertEquals(#received, 3, "a disconnected listener hears nothing more")
 	end
 
 	print("Test 9: unreliable events")
 	do
 		local got = nil
-		asServer(function()
-			Remote.sendAll("position", 0, { unreliable = true })
-		end)
 		local conn = Remote.on("position", function(payload)
 			got = payload
 		end)
 		asServer(function()
 			Remote.sendAll("position", 42, { unreliable = true })
 		end)
-		assertEquals(got, 42, "an unreliable event is received the same way")
+		assertEquals(got, 42, "an unreliable event arrives straight away, outside the batch")
+		asServer(function()
+			Remote.send(game:GetService("Players").LocalPlayer, "position", 7, { unreliable = true })
+		end)
+		assertEquals(got, 7, "send works unreliably too")
 		local folder = game:GetService("ReplicatedStorage"):WaitForChild("RemoteEvents")
 		assertEquals(
-			folder:FindFirstChild("position").ClassName,
+			folder:FindFirstChild("UnreliableEvents").ClassName,
 			"UnreliableRemoteEvent",
-			"as an UnreliableRemoteEvent"
+			"through one UnreliableRemoteEvent"
 		)
-		local okMixed = pcall(function()
-			asServer(function()
-				Remote.sendAll("position", 1)
-			end)
-		end)
-		assertEquals(okMixed, false, "one name can't be sent both ways")
 		conn:Disconnect()
 	end
 
@@ -240,6 +245,54 @@ local function runTests()
 		end)
 		assertEquals(Double.request(21, 1), 42, "request goes through the action")
 		assertEquals(Double.name, "doubleAction", "and it knows its name")
+	end
+
+	print("Test 13: limits across all actions, and configure()")
+	do
+		Remote.configure({ maxRequestsPerSecond = 3 })
+		local errors = {}
+		for i = 1, 4 do
+			local action = if i % 2 == 0 then "double" else "fireCheck"
+			local _, err = Remote.request(action, { n = 1 }, 1)
+			errors[i] = err or "ok"
+		end
+		assertEquals(
+			table.concat(errors, ","),
+			"ok,ok,ok,rate_limited",
+			"the 4th request in a second is refused, whatever the action"
+		)
+		Remote.configure({ maxRequestsPerSecond = 60 })
+		task.wait(1)
+
+		Remote.configure({ maxBytesPerSecond = 100 })
+		local _, small = Remote.request("double", { n = 1 }, 1)
+		assertEquals(small, nil, "a small payload fits the byte budget")
+		local _, big = Remote.request("echoType", { blob = string.rep("x", 200) }, 1)
+		assertEquals(big, "rate_limited", "one over the byte budget is refused")
+		Remote.configure({ maxBytesPerSecond = 50000 })
+
+		Remote.configure({ maxPayloadSize = 50 })
+		local _, tooBig = Remote.request("double", { n = 1, pad = string.rep("x", 60) }, 1)
+		assertEquals(tooBig, "payload_too_large", "maxPayloadSize applies")
+		Remote.configure({ maxPayloadSize = 20000 })
+		local okUnknown = pcall(Remote.configure, { maxFoo = 1 } :: any)
+		assertEquals(okUnknown, false, "an unknown setting errors")
+	end
+
+	print("Test 14: stats")
+	do
+		Remote.resetStats()
+		Remote.request("double", { n = 1 }, 1)
+		Remote.request("double", { n = 2 }, 1)
+		Remote.request("boom", {}, 1)
+		Remote.request("checked", { id = 1 }, 1)
+		local stats = Remote.stats()
+		assertEquals(stats.double.calls, 2, "handler calls are counted")
+		assertEquals(stats.boom.failed, 1, "errors are counted")
+		assertEquals(stats.checked.rejected, 1, "refused requests are counted")
+		assertEquals(type(stats.double.maxTime), "number", "with handler time")
+		Remote.resetStats()
+		assertEquals(next(Remote.stats()), nil, "resetStats clears them")
 	end
 
 	print("\n========== REMOTE SERVER TESTS COMPLETE ==========\n")

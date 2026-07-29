@@ -1,8 +1,5 @@
 --!nonstrict
--- Rivue DevTools: lists the Rivue components on screen during a playtest, with their props and
--- state. The game opts in with app.config.devtools = true, which tags each component's root
--- Instance and mirrors its data into attributes. A plugin can't read a game script's modules, so
--- attributes are how the data gets here.
+-- A plugin can't require the game's modules, so the runtime mirrors components into attributes
 
 local Rivue = require(script.Parent:WaitForChild("RivueUI"))
 local DevTools = require(script.Parent:WaitForChild("App"))

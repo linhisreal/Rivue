@@ -157,16 +157,16 @@ local function runTests()
 		assertEquals(err, "timeout", "Should return timeout error")
 	end
 
-	print("Test 5: on() creates and listens to named event")
+	print("Test 5: on() listens on the shared events")
 	do
 		local conn = Remote.on("CustomEvent", function() end)
-		task.wait(0.05)
 		local folder = ReplicatedStorage:FindFirstChild("RemoteEvents")
-		local customEvent = folder and folder:FindFirstChild("CustomEvent")
-		assertTrue(customEvent ~= nil, "Should create custom RemoteEvent")
-		assertTrue(customEvent and customEvent:IsA("RemoteEvent") or false, "Should be a RemoteEvent")
-		-- FireClient needs a server, covered by tests/offline/RemoteServer.test.luau
+		assertTrue(folder and folder:FindFirstChild("Events") ~= nil, "Server events arrive on one RemoteEvent")
+		assertTrue(folder and folder:FindFirstChild("CustomEvent") == nil, "No RemoteEvent per event name")
+		assertTrue(conn.Connected, "The connection starts connected")
+		-- Sending needs a server, covered by tests/offline/RemoteServer.test.luau
 		conn:Disconnect()
+		assertTrue(not conn.Connected, "and Disconnect works like a signal connection's")
 	end
 
 	print("Test 6: Payload validation rejects non-serializable data")
@@ -208,14 +208,10 @@ local function runTests()
 	do
 		local conn1 = Remote.on("MultiEvent", function() end)
 		local conn2 = Remote.on("MultiEvent", function() end)
-		task.wait(0.05)
-
-		local folder = ReplicatedStorage:FindFirstChild("RemoteEvents")
-		local event = folder and folder:FindFirstChild("MultiEvent")
-
-		assertTrue(event ~= nil, "Should create event for multiple listeners")
-		-- Firing to clients needs a server, covered by tests/offline/RemoteServer.test.luau
+		assertTrue(conn1.Connected and conn2.Connected, "Both listeners are connected")
+		-- Sending needs a server, covered by tests/offline/RemoteServer.test.luau
 		conn1:Disconnect()
+		assertTrue(conn2.Connected, "Disconnecting one leaves the other")
 		conn2:Disconnect()
 	end
 

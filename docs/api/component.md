@@ -217,7 +217,8 @@ The events a component can send to its parent, like `"select"` or `"close"`. The
 
   The parent listens with an `on<Event>` prop: `ctx.emit("select", id)` calls `onSelect(id)`.
   Declared listeners don't become attrs, so they aren't passed on to the root element. In Studio,
-  emitting an undeclared event, or a payload the validator rejects, warns.
+  emitting an undeclared event, or a payload the validator rejects, warns. After the component
+  unmounts, `emit` does nothing, as in Vue.
 
 - **Type**
 

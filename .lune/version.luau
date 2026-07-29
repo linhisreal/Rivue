@@ -2,8 +2,8 @@
 	Sets the version of one package. Each package has its own version; the repo's releases are
 	tagged separately (see docs/RELEASING.md).
 
-	lune run version rivue-ui 0.9.0-rc.2
-	lune run version rivue-remote 0.5.0-beta.2
+	lune run version rivue-ui 0.9.0-rc.3
+	lune run version rivue-remote 0.7.0-beta.1
 
 	Updates that package's wally.toml and pesde.toml (and lockfiles, if you have them locally), the
 	version field in its source, and its install line in the README.
@@ -23,7 +23,7 @@ local function usage()
 		end
 	end
 	table.sort(names)
-	print("Usage: lune run version <package> <version>, for example lune run version rivue-ui 0.9.0-rc.2")
+	print("Usage: lune run version <package> <version>, for example lune run version rivue-ui 0.9.0-rc.3")
 	print(`Packages: {table.concat(names, ", ")}`)
 	process.exit(1)
 end

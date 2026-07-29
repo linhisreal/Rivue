@@ -189,6 +189,8 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [send() / sendAll()](api/remote.md#remotesend-and-remotesendall) ·
 [use()](api/remote.md#remoteuse) ·
 [action()](api/remote.md#remoteaction) ·
+[configure()](api/remote.md#remoteconfigure) ·
+[stats()](api/remote.md#remotestats) ·
 [Payloads and errors](api/remote.md#payloads-and-errors)
 
 **[RivueRouter](api/router.md)** (separate package)

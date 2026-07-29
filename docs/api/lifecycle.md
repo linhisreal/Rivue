@@ -316,9 +316,10 @@ breaking the whole screen.
 
 - **Details**
 
-  - **What's caught:** errors from descendants' render, patch, lifecycle hooks and emit
-    handlers.
-  - **`info`** says where the error happened, such as `"render"` or `"mounted hook"`.
+  - **What's caught:** errors from descendants' render, patch, lifecycle hooks, emit handlers,
+    event handlers like `onActivated`, and watchers created in their `setup()`.
+  - **`info`** says where the error happened, such as `"render"`, `"mounted hook"`,
+    `"component event handler"`, `"watcher callback"` or `"watcher getter"`.
   - **Return `false`** to stop the error from going further up, as in Vue. Return nothing to
     let it carry on to ancestors' hooks and then `app.config.errorHandler`.
   - **Uncaught errors** go to [`app.config.errorHandler`](application.md#appconfigerrorhandler),
