@@ -60,7 +60,6 @@ export function onImageClick(event: MouseEvent) {
 	zoom.showModal()
 }
 
-// VitePress unmounts the search box straight away, so play its exit on a copy that's left behind
 export function animateSearchClose() {
 	const observer = new MutationObserver((records) => {
 		if (matchMedia("(prefers-reduced-motion: reduce)").matches) return
@@ -92,7 +91,6 @@ export function fadeInPage() {
 
 const READ_KEY = "rivue-read-chapters"
 
-// marks the chapter you're on as read, then ticks every read chapter on the Guide page
 export function trackChapters() {
 	let read: string[] = []
 	try {

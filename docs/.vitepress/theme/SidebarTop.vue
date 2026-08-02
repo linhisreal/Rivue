@@ -22,12 +22,6 @@ const sections = [
 		link: "/API",
 		icon: "M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5a2 2 0 0 0 2 2h1M16 3h1a2 2 0 0 1 2 2v5a2 2 0 0 0 2 2 2 2 0 0 0-2 2v5a2 2 0 0 1-2 2h-1",
 	},
-	{
-		title: "Blog",
-		text: "Releases and what changed",
-		link: "/blog/",
-		icon: "M4 4h16v16H4zM8 8h8M8 12h8M8 16h5",
-	},
 ]
 
 const { page } = useData()

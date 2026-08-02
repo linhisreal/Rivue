@@ -1,44 +1,110 @@
 <script setup lang="ts">
-import { computed } from "vue"
-import { Content, useData, withBase } from "vitepress"
+import { computed, onMounted, ref, watch } from "vue"
+import { Content, useData, useRoute, withBase } from "vitepress"
 import { bannerUrl, formatDate } from "./blog"
+import OutlineTree from "./OutlineTree.vue"
 
-type Post = { slug: string; title: string; description: string; date: string; author: string; avatar: string; tags: string[]; banner?: string; minutes: number }
+type Post = {
+	slug: string
+	title: string
+	description: string
+	date: string
+	author: string
+	avatar: string
+	role: string
+	tags: string[]
+	banner?: string
+	minutes: number
+}
 
 const { theme, page, frontmatter } = useData()
+const route = useRoute()
 const posts = computed<Post[]>(() => theme.value.blog ?? [])
 const index = computed(() => posts.value.findIndex((p) => `blog/${p.slug}.md` === page.value.relativePath))
 const post = computed(() => posts.value[index.value])
 const newer = computed(() => posts.value[index.value - 1])
 const older = computed(() => posts.value[index.value + 1])
 const link = (p: Post) => withBase(`/blog/${p.slug}`)
+const tagLink = (tag: string) => withBase(`/blog/?tag=${encodeURIComponent(tag)}`)
+
+const tag = ref<string>()
+const tags = computed(() => {
+	const counts = new Map<string, number>()
+	for (const p of posts.value) for (const t of p.tags) counts.set(t, (counts.get(t) ?? 0) + 1)
+	return [...counts]
+})
+const shown = computed(() => (tag.value ? posts.value.filter((p) => p.tags.includes(tag.value!)) : posts.value))
+
+function pickTag(next?: string) {
+	tag.value = next
+	const url = new URL(location.href)
+	if (next) url.searchParams.set("tag", next)
+	else url.searchParams.delete("tag")
+	history.replaceState(history.state, "", url)
+}
+
+const shared = ref("")
+const shortDate = (date: string) =>
+	new Date(`${date}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
+
+function readTag() {
+	tag.value = new URLSearchParams(location.search).get("tag") ?? undefined
+}
+
+async function share() {
+	const url = location.href.split("#")[0]
+	try {
+		if (navigator.share) await navigator.share({ title: post.value?.title, url })
+		else {
+			await navigator.clipboard.writeText(url)
+			shared.value = "Link copied"
+			setTimeout(() => (shared.value = ""), 1600)
+		}
+	} catch {}
+}
+
+onMounted(readTag)
+watch(() => route.path, readTag)
 </script>
 
 <template>
 	<div class="fd-blog">
 		<template v-if="post">
-			<article class="fd-blog-post">
-				<header class="fd-blog-head">
-					<a class="fd-blog-back" :href="withBase('/blog/')">
-						<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6" /></svg>
-						Blog
-					</a>
-					<div class="fd-blog-tags">
-						<span v-for="tag in post.tags" :key="tag">{{ tag }}</span>
-					</div>
+			<article class="fd-post">
+				<a class="fd-blog-back" :href="withBase('/blog/')">
+					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M19 12H5M11 18l-6-6 6-6" /></svg>
+					All posts
+				</a>
+				<header class="fd-post-title">
 					<h1>{{ post.title }}</h1>
-					<p class="fd-blog-lead">{{ post.description }}</p>
-					<div class="fd-blog-byline">
-						<img :src="post.avatar" alt="" width="28" height="28" />
-						<span class="fd-blog-author">{{ post.author }}</span>
-						<span aria-hidden="true">·</span>
-						<time :datetime="post.date">{{ formatDate(post.date) }}</time>
-						<span aria-hidden="true">·</span>
-						<span>{{ post.minutes }} min read</span>
+					<p>{{ post.description }}</p>
+					<div class="fd-post-byline">
+						<img :src="post.avatar" alt="" width="40" height="40" />
+						<div>
+							<span class="fd-post-who"><strong>{{ post.author }}</strong> · {{ post.role }}</span>
+							<span class="fd-post-when">
+								<time :datetime="post.date">{{ formatDate(post.date) }}</time>
+								<span aria-hidden="true">·</span>
+								{{ post.minutes }} min read
+								<a v-for="t in post.tags" :key="t" class="fd-post-tag" :href="tagLink(t)">{{ t }}</a>
+							</span>
+						</div>
 					</div>
 				</header>
-				<img v-if="bannerUrl(post.banner)" class="fd-blog-banner" :src="bannerUrl(post.banner)" :alt="post.title" />
-				<Content class="vp-doc fd-blog-body" />
+				<template v-if="bannerUrl(post.banner)">
+					<img class="fd-post-banner" :class="{ 'fd-only-light': bannerUrl(post.banner, true) }" :src="bannerUrl(post.banner)" alt="" />
+					<img v-if="bannerUrl(post.banner, true)" class="fd-post-banner fd-only-dark" :src="bannerUrl(post.banner, true)" alt="" />
+				</template>
+				<div class="fd-post-main">
+					<Content class="vp-doc fd-blog-body" />
+					<aside class="fd-post-rail">
+						<OutlineTree class="fd-post-outline" />
+						<button type="button" class="fd-post-share" @click="share">
+							<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 15V3M8 7l4-4 4 4M5 13v7h14v-7" /></svg>
+							<span aria-live="polite">{{ shared || "Share this post" }}</span>
+						</button>
+					</aside>
+				</div>
 				<nav class="fd-blog-pager" aria-label="More posts">
 					<a v-if="older" :href="link(older)"><small>Older</small>{{ older.title }}</a>
 					<a v-else :href="withBase('/blog/')"><small>Blog</small>All posts</a>
@@ -49,28 +115,44 @@ const link = (p: Post) => withBase(`/blog/${p.slug}`)
 
 		<template v-else>
 			<header class="fd-blog-intro">
-				<h1>{{ frontmatter.title }}</h1>
-				<p>Releases, changes, and why they were made.</p>
-				<a class="fd-blog-rss" href="https://linhisreal.github.io/Rivue/feed.xml">
-					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11a8 8 0 0 1 8 8M5 5a14 14 0 0 1 14 14" /><circle cx="6" cy="18" r="1.5" /></svg>
-					RSS feed
-				</a>
+				<div>
+					<h1>{{ frontmatter.title }}</h1>
+					<p>Announcements and release notes from Rivue.</p>
+				</div>
+				<div class="fd-blog-filters" role="group" aria-label="Filter by tag">
+					<button type="button" :aria-pressed="!tag" @click="pickTag()">All <span>{{ posts.length }}</span></button>
+					<button v-for="[t, count] in tags" :key="t" type="button" :aria-pressed="tag === t" @click="pickTag(t)">
+						{{ t }} <span>{{ count }}</span>
+					</button>
+					<a class="fd-blog-rss" href="https://linhisreal.github.io/Rivue/feed.xml">
+						<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11a8 8 0 0 1 8 8M5 5a14 14 0 0 1 14 14" /><circle cx="6" cy="18" r="1.5" /></svg>
+						RSS
+					</a>
+				</div>
 			</header>
-			<ul class="fd-blog-list">
-				<li v-for="(p, i) in posts" :key="p.slug" :class="{ featured: i === 0 }">
-					<a :href="link(p)">
-						<img v-if="bannerUrl(p.banner)" :src="bannerUrl(p.banner)" alt="" :loading="i === 0 ? 'eager' : 'lazy'" />
-						<span class="fd-blog-card">
-							<span class="fd-blog-card-meta">
-								<time :datetime="p.date">{{ formatDate(p.date) }}</time>
-								<span v-for="tag in p.tags" :key="tag" class="fd-blog-tag">{{ tag }}</span>
-							</span>
-							<strong>{{ p.title }}</strong>
-							<span class="fd-blog-card-text">{{ p.description }}</span>
+
+			<ol class="fd-timeline">
+				<li v-for="(p, i) in shown" :key="p.slug" :class="{ latest: i === 0 }">
+					<time class="fd-timeline-date" :datetime="p.date">{{ shortDate(p.date) }}</time>
+					<a class="fd-timeline-card" :href="link(p)">
+						<template v-if="i === 0 && bannerUrl(p.banner)">
+							<img :class="{ 'fd-only-light': bannerUrl(p.banner, true) }" :src="bannerUrl(p.banner)" alt="" />
+							<img v-if="bannerUrl(p.banner, true)" class="fd-only-dark" :src="bannerUrl(p.banner, true)" alt="" />
+						</template>
+						<span class="fd-timeline-tags">
+							<span v-if="i === 0 && !tag" class="fd-timeline-new">Latest</span>
+							<span v-for="t in p.tags" :key="t">{{ t }}</span>
+						</span>
+						<strong>{{ p.title }}</strong>
+						<span class="fd-timeline-text">{{ p.description }}</span>
+						<span class="fd-timeline-more">
+							Read the post
+							<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
 						</span>
 					</a>
 				</li>
-			</ul>
+			</ol>
+			<p v-if="!shown.length" class="fd-blog-empty">No posts with that tag yet.</p>
 		</template>
 	</div>
 </template>

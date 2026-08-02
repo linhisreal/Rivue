@@ -79,7 +79,6 @@ function toggleCode(index: number) {
 	if (!codeShown.value.delete(index)) codeShown.value.add(index)
 }
 
-// only the picture loops on hover; the scan line and notes must play once
 function sceneAnimations(cell: HTMLElement) {
 	const art = cell.querySelector<HTMLElement>(".rv-art")
 	return (art?.getAnimations({ subtree: true }) ?? []).filter((anim) => anim instanceof CSSAnimation)
@@ -93,7 +92,6 @@ async function playScene(index: number, cell: HTMLElement) {
 	for (const anim of sceneAnimations(cell)) anim.effect?.updateTiming({ iterations: Infinity })
 }
 
-// finish the loop that's running instead of snapping back mid-move
 function settleScene(index: number, cell: HTMLElement) {
 	const anims = sceneAnimations(cell)
 	for (const anim of anims) {

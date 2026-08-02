@@ -36,7 +36,6 @@ const MAX_WIDTH = 160
 
 export const hoverKey = (code: string) => crypto.createHash("sha1").update(code.replace(/\s+$/, "")).digest("hex")
 
-// the fence renderer drops a leading "-- path.luau" line before highlighting, so hovers must match the code without it
 export function stripPathComment(code: string) {
 	return code.replace(/^-- [\w./-]+\.luau\s*\n/, "")
 }

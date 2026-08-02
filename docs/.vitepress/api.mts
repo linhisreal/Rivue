@@ -242,7 +242,6 @@ function renderApiPage(md: any, state: any, sources: Map<string, Location> | und
 			if (heading && !heading.attrGet("data-kind")) heading.attrSet("data-kind", kindOf(t.content))
 			t.info = "lua"
 			t.meta = { ...t.meta, signature: true }
-			// only the entry's first signature gets the Source link; later ones are overloads or related types
 			const at = entry ? sources?.get(entry) : undefined
 			if (at) t.meta.source = `${REPO}/blob/main/${at.file}#L${at.line}`
 			entry = undefined

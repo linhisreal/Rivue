@@ -32,7 +32,6 @@ export default {
 		app.component("PageActions", PageActions)
 		app.component("BlogLayout", BlogLayout)
 		if (typeof document === "undefined") return
-		// mermaid sizes boxes with whatever font is loaded and redraws on <html> attribute changes, so poke it once Geist is in
 		document.fonts.ready.then(() => document.documentElement.setAttribute("data-fonts", "ready"))
 		document.addEventListener("click", onSearchToggleClick, true)
 		document.addEventListener("click", onHeadingAnchorClick)

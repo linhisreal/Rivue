@@ -12,6 +12,7 @@ export type Post = {
 	date: string
 	author: string
 	avatar: string
+	role: string
 	tags: string[]
 	banner?: string
 	minutes: number
@@ -19,10 +20,8 @@ export type Post = {
 
 const BLOG = path.join(DOCS, "blog")
 
-// GitHub user ids, so avatars load from avatars.githubusercontent.com without a redirect
-const AUTHORS: Record<string, number> = { linhisreal: 97074586 }
+const AUTHORS: Record<string, { id: number; role: string }> = { linhisreal: { id: 97074586, role: "Maintainer" } }
 
-// only the flat "key: value" and "key: [a, b]" lines posts use
 function frontmatter(text: string) {
 	const block = /^---\n([\s\S]*?)\n---\n/.exec(text)?.[1] ?? ""
 	const fields: Record<string, string | string[]> = {}
@@ -50,7 +49,8 @@ export function loadPosts(): Post[] {
 				description: String(fields.description ?? ""),
 				date: String(fields.date ?? ""),
 				author: String(fields.author ?? "linhisreal"),
-				avatar: `https://avatars.githubusercontent.com/u/${AUTHORS[String(fields.author ?? "linhisreal")] ?? 0}?s=96`,
+				avatar: `https://avatars.githubusercontent.com/u/${AUTHORS[String(fields.author ?? "linhisreal")]?.id ?? 0}?s=96`,
+				role: AUTHORS[String(fields.author ?? "linhisreal")]?.role ?? "",
 				tags: Array.isArray(fields.tags) ? fields.tags : [],
 				banner: /!\[[^\]]*\]\(([^)]+)\)/.exec(body)?.[1]?.split("/").pop(),
 				minutes: Math.max(1, Math.round(body.split(/\s+/).length / 220)),

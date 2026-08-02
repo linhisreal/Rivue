@@ -37,7 +37,6 @@ html {
 	display: none;
 }
 
-/* a shadow, not a border: the bar's content-body is as tall as the bar and would paint over a border */
 .VPNavBar {
 	box-shadow: 0 1px 0 var(--vp-c-divider);
 }
@@ -493,7 +492,6 @@ html {
 		top: 0;
 	}
 
-	/* the open menu locks body scrolling, which stops sticky from applying, so pin the bar while it's open */
 	:root .Layout .VPNav:has(.VPNavScreen) {
 		position: fixed;
 		width: 100%;
