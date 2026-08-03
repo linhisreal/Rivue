@@ -1,4 +1,8 @@
 --!nocheck
+-- Copyright (c) 2025-2026 linhisreal (ThisisLinh)
+-- Licensed under the PolyForm Noncommercial License 1.0.0 with the Rivue games permission.
+-- See LICENSE.md for the terms.
+
 --[[
 	Minimal Roblox stand-ins (game, task, signals, Instances) so the test suites can run in
 	Lune. Time is virtual: each step advances 1/60s and fires RenderStepped/Stepped/Heartbeat.

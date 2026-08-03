@@ -1,4 +1,8 @@
 --!nonstrict
+-- Copyright (c) 2025-2026 linhisreal (ThisisLinh)
+-- Licensed under the PolyForm Noncommercial License 1.0.0 with the Rivue games permission.
+-- See LICENSE.md for the terms.
+
 -- Opt in: set the attribute RivueStressTest = true on Workspace before playing.
 
 if not workspace:GetAttribute("RivueStressTest") then

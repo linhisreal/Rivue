@@ -1,4 +1,8 @@
 --!nonstrict
+-- Copyright (c) 2025-2026 linhisreal (ThisisLinh)
+-- Licensed under the PolyForm Noncommercial License 1.0.0 with the Rivue games permission.
+-- See LICENSE.md for the terms.
+
 -- Offline only: counts engine calls (Instance property reads/writes and method lookups), which
 -- is what costs the most in Roblox, and fails if a common update gets more expensive
 

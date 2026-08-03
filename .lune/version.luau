@@ -1,3 +1,7 @@
+-- Copyright (c) 2025-2026 linhisreal (ThisisLinh)
+-- Licensed under the PolyForm Noncommercial License 1.0.0 with the Rivue games permission.
+-- See LICENSE.md for the terms.
+
 --[[
 	Sets the version of one package. Each package has its own version; the repo's releases are
 	tagged separately (see docs/RELEASING.md).

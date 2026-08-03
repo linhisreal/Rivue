@@ -1,4 +1,8 @@
 --!strict
+-- Copyright (c) 2025-2026 linhisreal (ThisisLinh)
+-- Licensed under the PolyForm Noncommercial License 1.0.0 with the Rivue games permission.
+-- See LICENSE.md for the terms.
+
 -- Mounts every component in examples/components and uses it like a player would, so the examples in
 -- the docs keep working.
 

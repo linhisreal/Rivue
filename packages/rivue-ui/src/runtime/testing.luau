@@ -1,5 +1,8 @@
 --!strict
 --!optimize 2
+-- Copyright (c) 2025-2026 linhisreal (ThisisLinh)
+-- Licensed under the PolyForm Noncommercial License 1.0.0 with the Rivue games permission.
+-- See LICENSE.md for the terms.
 
 local Types = require("./types")
 local renderer = require("./renderer")
