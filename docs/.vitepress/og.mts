@@ -107,12 +107,50 @@ export function copyBanners(posts: Post[], outDir: string) {
 	}
 }
 
+function postHead(post: Post, image: string): HeadConfig[] {
+	const url = `${SITE}blog/${post.slug}`
+	const author = { "@type": "Person", name: post.author, url: `https://github.com/${post.author}` }
+	const data = {
+		"@context": "https://schema.org",
+		"@graph": [
+			{
+				"@type": "BlogPosting",
+				headline: post.title,
+				description: post.description,
+				datePublished: post.date,
+				url,
+				mainEntityOfPage: url,
+				image,
+				author,
+				publisher: { "@type": "Organization", name: "Rivue", url: SITE, logo: `${SITE}icon-192.png` },
+				keywords: post.tags.join(", "),
+			},
+			{
+				"@type": "BreadcrumbList",
+				itemListElement: [
+					{ "@type": "ListItem", position: 1, name: "Rivue", item: SITE },
+					{ "@type": "ListItem", position: 2, name: "Blog", item: `${SITE}blog/` },
+					{ "@type": "ListItem", position: 3, name: post.title, item: url },
+				],
+			},
+		],
+	}
+	return [
+		["script", { type: "application/ld+json" }, JSON.stringify(data)],
+		["meta", { property: "article:published_time", content: post.date }],
+		["meta", { property: "article:author", content: `https://github.com/${post.author}` }],
+		...post.tags.map((tag): HeadConfig => ["meta", { property: "article:tag", content: tag }]),
+	]
+}
+
 export function ogHead(pageData: PageData, posts: Post[]): HeadConfig[] {
 	const page = pageData.relativePath
 	const banner = postOf(page, posts)
 	const image = `${SITE}og/${ogSlug(page)}.${banner ? "webp" : "png"}`
+	const post = posts.find((p) => page === `blog/${p.slug}.md`)
 	return [
-		["meta", { property: "og:type", content: "website" }],
+		...(post ? postHead(post, image) : []),
+		["meta", { property: "og:type", content: post ? "article" : "website" }],
 		["meta", { property: "og:site_name", content: "Rivue" }],
 		["meta", { property: "og:title", content: page === "index.md" ? "Rivue" : `${pageData.title} | Rivue` }],
 		["meta", { property: "og:description", content: pageData.description || DESCRIPTION }],
