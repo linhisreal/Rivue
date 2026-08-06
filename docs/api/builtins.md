@@ -411,7 +411,7 @@ h(Rivue.VirtualList, {
 
 - Rivue sets each row's `Position` and `key`. In a list, make rows fill the cross axis; in a grid it
   sets `Size` too, unless the row sets its own.
-- Sizes from a function are worked out again when the items change, not while scrolling.
+- Sizes from a function are recomputed when the items change, not while scrolling.
 - Scrolling re-renders only the rows coming into view.
 
 ---

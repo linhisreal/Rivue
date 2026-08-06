@@ -478,8 +478,8 @@ app:swapRoot(h(Match)) -- when the match starts
 
 ## app.config.errorHandler
 
-Receives every error that no [`onErrorCaptured()`](lifecycle.md#onerrorcaptured) stopped. Use it to
-send errors to your analytics.
+Receives every error that no [`onErrorCaptured()`](lifecycle.md#onerrorcaptured) stopped. A good
+place to send errors to your analytics.
 
 ```lua signature
 app.config.errorHandler: ((err: string, instance: ComponentInstance?, info: string) -> ())?
@@ -511,7 +511,7 @@ end
 
 ## app.config.warnHandler
 
-Receives Rivue's Studio warnings instead of printing them. Use it to collect them, or to fail a test
+Receives Rivue's Studio warnings instead of printing them, so you can collect them or fail a test
 run on any warning.
 
 ```lua signature

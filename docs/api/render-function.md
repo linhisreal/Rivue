@@ -167,7 +167,7 @@ h("Frame", { Size = UDim2.new(1, 0, 0, 40), layout = { direction = "horizontal",
 ## bind()
 
 Ties one property to state, so Rivue updates that property alone instead of re-rendering the
-component. Use it for values that change many times a second, like a countdown or a health bar.
+component. Meant for values that change many times a second, like a countdown or a health bar.
 
 ![a value read in render versus a bound property](../assets/diagrams/bindings.webp)
 
@@ -219,7 +219,7 @@ local RoundTimer = Rivue.defineComponent({
 
 ## Fragment
 
-Groups several elements without an Instance around them. Use it when a component returns more than
+Groups several elements without an Instance around them, for components that return more than
 one root.
 
 ```lua signature

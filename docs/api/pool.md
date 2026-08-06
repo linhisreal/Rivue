@@ -199,7 +199,7 @@ end
 
 ## Pool.setResetHandler()
 
-Your own cleanup for one class, run when an Instance of it goes back into the pool. Use it for
+Your own cleanup for one class, run when an Instance of it goes back into the pool. Covers
 attributes or children the default reset doesn't know about.
 
 ```lua signature

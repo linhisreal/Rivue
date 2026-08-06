@@ -11,7 +11,7 @@ Lower-level reactivity for performance work and library code. Examples assume
 
 ## shallowRef()
 
-A ref that only notices when `.value` is replaced, not when something inside it changes. Use it for
+A ref that only notices when `.value` is replaced, not when something inside it changes. Good for
 big data you swap out whole, like a server response, and for values that shouldn't be proxied, like
 Instances or component definitions.
 
@@ -194,7 +194,7 @@ print(Rivue.isShallow(Rivue.reactive({}))) -- false
 
 ## toRaw()
 
-The plain table behind a reactive one. Use it to read or pass data without tracking, for example
+The plain table behind a reactive one. Read or pass data through it without tracking, for example
 when sending state to the server, or to use `table.*` functions.
 
 ```lua signature
@@ -301,8 +301,8 @@ runner:stop()
 
 ## effectScope()
 
-Collects the computeds and watchers made inside it, so you can stop them all at once. Use it for
-state that lives outside components, and in tests.
+Collects the computeds and watchers made inside it, so you can stop them all at once. Mostly for
+state that lives outside components, and for tests.
 
 ```lua signature
 function effectScope(detached: boolean?): EffectScope
