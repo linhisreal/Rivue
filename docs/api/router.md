@@ -21,6 +21,7 @@ All examples assume `local Router = require(game.ReplicatedStorage.RivueRouter)`
 - [Router.RouterLink](#routerrouterlink)
 - [Router.useRouter() and Router.useRoute()](#routeruserouter-and-routeruseroute)
 - [Router.useLink()](#routeruselink)
+- [Router.lazy()](#routerlazy)
 - [router.isReady() and router.onError()](#routerisready-and-routeronerror)
 - [Navigation failures](#navigation-failures)
 - [Differences from Vue Router](#differences-from-vue-router)
@@ -88,9 +89,12 @@ Creates the router. Install it with `app:use(router)` before mounting.
     navigating to it, through `beforeEach` like any other navigation. Until it arrives,
     `currentRoute` is `Router.START_LOCATION`; [`isReady()`](#routerisready-and-routeronerror)
     waits for it.
-  - `currentRoute` is a ref holding the current route: `{ name, params, meta, matched,
+  - `currentRoute` is a ref holding the current route: `{ name, params, query, meta, matched,
     redirectedFrom }`. `current` is the same ref under its old name.
   - `canGoBack` and `canGoForward` are refs, for greying out buttons.
+  - `backKeys` lists keys that go back, like `{ Enum.KeyCode.ButtonB }` for a gamepad. They call
+    `back()` while there's history and are passed on to the game otherwise. They're unbound when
+    the app unmounts.
 
 - **Type**
 
@@ -100,11 +104,13 @@ Creates the router. Install it with `app:use(router)` before mounting.
   	initial: string,
   	initialParams: { [string]: any }?,
   	scrollBehavior: ScrollBehavior?,
+  	backKeys: { Enum.KeyCode }?,
   }): Router
 
   type Route = {
   	name: string?,
   	params: { [string]: any },
+  	query: { [string]: any },
   	meta: { [string]: any },
   	matched: { RouteRecord },
   	redirectedFrom: Route?,
@@ -168,7 +174,7 @@ A route can be a bare component, or a record with more options.
 
   | Field | What it does |
   |---|---|
-  | `component` | what `RouterView` shows for this route |
+  | `component` | what `RouterView` shows for this route, or a [`Router.lazy()`](#routerlazy) loader |
   | `components` | several components by view name, for [named views](#routerrouterview) |
   | `children` | child routes, shown by a `RouterView` inside this route's component |
   | `meta` | anything you like; `route.meta` merges the meta of the route and its parents |
@@ -234,6 +240,7 @@ skips it.
   router.replace("lobby") -- back() won't return to the loading screen
   router.push("item", { id = 7 })
   router.push({ name = "item", params = { id = 8 } }) -- the same, as a location table
+  router.push({ name = "item", params = { id = 8 }, query = { tab = "stats" } })
 
   local failure = router.push("item", { id = 8 })
   print(Router.isNavigationFailure(failure, Router.NavigationFailureType.duplicated)) --> true
@@ -241,11 +248,15 @@ skips it.
 
 - **Details**
 
-  - Both take a route name and params, or a location table `{ name, params, replace, force }`.
+  - Both take a route name and params, or a location table `{ name, params, query, replace,
+    force }`.
+  - `query` is extra data for the screen, like the open tab, as in Vue Router. It doesn't decide
+    which route matches, and `RouterLink`'s active classes ignore it. A redirect keeps it unless
+    the redirect gives its own.
   - They return `nil` when the route changed, or a [navigation failure](#navigation-failures)
     when it didn't.
-  - Pushing the route you're already on, with the same params, does nothing and returns a
-    `duplicated` failure, as in Vue Router. Pass `force = true` to push it anyway.
+  - Pushing the route you're already on, with the same params and query, does nothing and returns
+    a `duplicated` failure, as in Vue Router. Pass `force = true` to push it anyway.
   - Pushing after going back drops the entries you could have gone forward to.
   - If a guard [yields](#navigation-guards), `push` and `replace` yield with it.
   - An unknown route name errors and lists the routes there are.
@@ -253,7 +264,13 @@ skips it.
 - **Type**
 
   ```lua
-  type RouteLocation = { name: string, params: { [string]: any }?, replace: boolean?, force: boolean? }
+  type RouteLocation = {
+  	name: string,
+  	params: { [string]: any }?,
+  	query: { [string]: any }?,
+  	replace: boolean?,
+  	force: boolean?,
+  }
 
   push: (to: string | RouteLocation, params: { [string]: any }?) -> NavigationFailure?
   replace: (to: string | RouteLocation, params: { [string]: any }?) -> NavigationFailure?
@@ -745,6 +762,57 @@ What `RouterLink` uses inside, for building your own link component.
 
 ---
 
+## Router.lazy()
+
+Loads a route's component the first time the route is visited, like Vue Router's lazy routes. Big
+menus that most players never open then don't slow down startup.
+
+- **Example**
+
+  ```lua
+  local Lobby = Rivue.defineComponent({
+  	name = "Lobby",
+  	render = function()
+  		return h("TextLabel", { Text = "Lobby" })
+  	end,
+  })
+
+  local router = Router.createRouter({
+  	routes = {
+  		lobby = Lobby,
+  		settings = Router.lazy(function()
+  			-- usually: return require(script.Parent.Settings)
+  			return Rivue.defineComponent({
+  				name = "Settings",
+  				render = function()
+  					return h("TextLabel", { Text = "Settings" })
+  				end,
+  			})
+  		end),
+  	},
+  	initial = "lobby",
+  })
+  ```
+
+- **Details**
+
+  - The loader runs during the navigation, after the `beforeEnter` guards and before
+    `beforeResolve`, the same place Vue Router loads lazy components. It runs once, and the
+    result is kept.
+  - If the loader errors, or doesn't return a component, the navigation fails as `aborted` and
+    the error goes to [`onError`](#routerisready-and-routeronerror).
+  - It works anywhere a component goes: `component`, `components`, or as the whole route.
+  - Rivue already treats a plain function as a function component, which is why the loader is
+    wrapped in `Router.lazy()`.
+
+- **Type**
+
+  ```lua
+  function lazy(loader: () -> ComponentDef): LazyComponent
+  ```
+
+---
+
 ## router.isReady() and router.onError()
 
 `isReady()` waits until the first screen has arrived. `onError()` is told when a guard or
@@ -850,8 +918,10 @@ When a navigation doesn't happen, `push`, `replace` and `go` return why.
 
 ## Differences from Vue Router
 
-- Routes have names but no paths, since Roblox UI has no URLs. There's no query, hash or history
-  mode, and `initial` takes the place of the starting URL.
+- Routes have names but no paths, since Roblox UI has no URLs. There's no hash or history mode,
+  and `initial` takes the place of the starting URL. `query` is a table, not a string.
+- Lazy routes use [`Router.lazy()`](#routerlazy) around a `require`, where Vue Router takes a
+  function returning `import()`.
 - `props` defaults to `true`: params become props unless you say otherwise.
 - Guards and `push` yield where Vue Router uses Promises. There's no `next()` callback.
 - `back`, `forward` and `go` return a failure or `nil`, like `push`.

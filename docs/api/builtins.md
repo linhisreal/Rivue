@@ -306,8 +306,24 @@ loading, then swaps in the real content.
   - **When everything has loaded,** the content becomes visible.
   - **On failure or timeout,** an error message is shown.
 
-  Components made with [`defineAsyncComponent()`](component.md#defineasynccomponent) register
-  themselves automatically.
+  Components made with [`defineAsyncComponent()`](component.md#defineasynccomponent) and
+  [`useAsync()`](component.md#useasync) register themselves automatically.
+
+  As in Vue, it emits `pending` when something starts loading, `fallback` when the fallback shows,
+  and `resolve` when everything has loaded. Rivue shows the fallback straight away, so `pending`
+  and `fallback` come together. Unlike Vue's, `timeout` is how long to wait before showing an
+  error, not a delay before the fallback.
+
+  ```lua
+  h(Rivue.Suspense, {
+  	onPending = function()
+  		print("loading started")
+  	end,
+  	onResolve = function()
+  		print("everything loaded")
+  	end,
+  }, { h(Profile) })
+  ```
 
 - **Props**
 
@@ -315,6 +331,9 @@ loading, then swaps in the real content.
   type SuspenseProps = {
   	fallback: VNode?, -- shown while loading (default: a "Loading..." label)
   	timeout: number?, -- ms before showing an error (default 5000)
+  	onPending: (() -> ())?,
+  	onFallback: (() -> ())?,
+  	onResolve: (() -> ())?,
   }
   ```
 

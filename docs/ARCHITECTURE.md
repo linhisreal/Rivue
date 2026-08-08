@@ -289,9 +289,19 @@ these steps, and the first one that fails sends back its reason:
 
 ![The checks a request goes through on the server, and the error each one returns](assets/diagrams/remote-request.webp)
 
-`Remote.stats()` counts calls, failures, rejections and handler time per action. Server-to-client events from
-`send` and `sendAll` all travel on two shared RemoteEvents, one reliable and one unreliable, and
-a frame's sends to one player go out as one message.
+`Remote.stats()` counts calls, failures, rejections and handler time per action. Server-to-client
+events from `send` and `sendAll` all travel on two shared RemoteEvents, one reliable and one
+unreliable, and a frame's sends to one player go out as one message.
+
+`Remote.state` rides on the same batched events. Each state has a version that goes up on every
+`set` or `setFor`, and each message carries it, so a client keeps the newest value whatever
+order the snapshot and the updates arrive in. The snapshot is a request to a reserved action,
+made the first time a client reads state. The server answers with each state's value for that
+player.
+
+RivueRemote doesn't require RivueUI. The first time it needs it (a listener inside `setup()`,
+`useState`, `useRequest`), it looks for the game's copy the way the router does, and keeps
+working without one.
 
 ## RivueRouter
 
@@ -310,6 +320,18 @@ returns `cancelled` when its guard resumes. A guard that redirects starts a new 
 `back()` or `go()` that becomes a push, because history hasn't moved yet. After the guards pass,
 the router updates its history list, sets `currentRoute`, runs `afterEach` and restores the
 scroll position.
+
+Lazy route components load between the `beforeEnter` guards and `beforeResolve`, as in Vue Router.
+The loaded component replaces the `Router.lazy()` marker in the record, so it loads once.
+
+## DevTools channel
+
+With `app.config.devtools` on, `app:mount()` puts a `Configuration` named `RivueDevTools`, tagged
+`RivueDevToolsChannel`, in the container. `Rivue._devtools.event()` adds a line to its
+`RivueTimeline` attribute (the last 50, each with a sequence number so the plugin can tell which
+ones it already has), and `Rivue._devtools.route()` sets `RivueRoute`. The renderer adds renders
+and emits, the router adds navigations and the current route, and RivueRemote adds requests.
+When no app has devtools on, both calls return straight away.
 
 ## Tests
 

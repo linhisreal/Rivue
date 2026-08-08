@@ -1,0 +1,49 @@
+Pre-release.
+
+| Package | Version | Stage |
+|---|---|---|
+| RivueUI | 0.10.0-rc.1 | release candidate |
+| RivueRemote | 0.8.0-beta.1 | beta |
+| RivueRouter | 0.3.0-beta.1 | beta |
+
+## Changed behaviour
+
+- RivueUI: errors in event handlers and in watchers created in `setup()` now reach `onErrorCaptured`, `ErrorBoundary` and `app.config.errorHandler`, as in Vue. They used to only be logged, and a failing handler threw out of the event.
+- RivueUI: `emit()` after a component unmounts does nothing, as in Vue.
+- RivueRemote: `Remote.on()` called inside `setup()` disconnects when the component unmounts.
+- RivueRouter: pushing the same route with a different `query` is a new navigation, not a `duplicated` failure.
+
+## RivueUI
+
+- `computed` getters get the value they returned last time, as in Vue 3.4.
+- `Suspense` emits `pending`, `fallback` and `resolve`.
+- `onEffectCleanup()`, from Vue 3.5.
+- `app.config.performance` marks each component's setup, render and patch in the MicroProfiler.
+- With `app.config.devtools`, each app gets a `RivueDevTools` channel with a timeline of renders, emits, navigations and requests, and component roots list what they provide and inject.
+
+## RivueRemote
+
+- `Remote.state(name, initial)` on the server, with `set`, `setFor` and `get`. Clients read it with `Remote.useState`, `getState` or `onState`, and players who join later load the current values.
+- `Remote.useRequest(name, options)` wraps `useAsync` around `Remote.request`.
+- Requests show on the DevTools timeline.
+
+## RivueRouter
+
+- `route.query`, as in Vue Router.
+- `backKeys` binds keys like `ButtonB` to `router.back()` while there's history.
+- `Router.lazy(loader)` loads a route's component the first time it's visited.
+- Navigations and the current route show in the DevTools.
+
+## RivueDevTools
+
+- A Timeline tab and a Router tab.
+- The details panel lists what a component provides and injects.
+- The filter keeps the parents of matching components.
+
+## Fixed
+
+- RivueUI: a `VirtualList` that shrank while scrolled down rendered nothing until the engine clamped its scroll.
+
+## Install
+
+Drag `RivueUI.rbxm` into `ReplicatedStorage`. `RivueRemote.rbxm` and `RivueRouter.rbxm` are optional and go next to it. `RivueDevTools.rbxm` goes in your Plugins folder.

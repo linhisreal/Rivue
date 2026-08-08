@@ -164,6 +164,21 @@ os = setmetatable({
 		return now
 	end,
 }, { __index = realOs })
+-- MicroProfiler labels, recorded so tests can read them
+__profileMarks = {}
+local profileDepth = 0
+debug = setmetatable({
+	profilebegin = function(label: string)
+		profileDepth += 1
+		table.insert(__profileMarks, label)
+	end,
+	profileend = function()
+		profileDepth -= 1
+	end,
+	profileDepth = function()
+		return profileDepth
+	end,
+}, { __index = debug })
 COLOR3_MT = {
 	__rbxtype = "Color3",
 	__eq = function(a, b)
@@ -540,6 +555,7 @@ local TEXT_PROPS = {
 local IMAGE_PROPS = { Image = "", ImageTransparency = 0, ImageColor3 = Color3.new(1, 1, 1) }
 local CLASSES = {
 	Folder = { bases = {}, props = {} },
+	Configuration = { bases = {}, props = {} },
 	-- Only for scripts found by path (DevTools Open source): nothing runs them offline
 	ModuleScript = { bases = { "LuaSourceContainer" }, props = { { Source = "" } } },
 	Frame = { bases = { "GuiObject", "GuiBase2d" }, props = { GUI_PROPS } },

@@ -516,6 +516,59 @@ local function runTests()
 		shopApp:unmount()
 	end
 
+	print("app.config.devtools opens a channel with a timeline, and lists provide/inject")
+	do
+		local CollectionService = game:GetService("CollectionService")
+		local Child = Rivue.defineComponent({
+			name = "ThemedLabel",
+			setup = function()
+				Rivue.inject("theme", "light")
+				return {}
+			end,
+			render = function()
+				return Rivue.h("TextLabel")
+			end,
+		})
+		local Parent = Rivue.defineComponent({
+			name = "ThemeRoot",
+			emits = { "ready" },
+			setup = function(_, ctx)
+				Rivue.provide("theme", "dark")
+				ctx.emit("ready")
+				return {}
+			end,
+			render = function()
+				return Rivue.h("Frame", nil, { Rivue.h(Child) })
+			end,
+		})
+		local folder = Instance.new("Folder")
+		local app = Rivue.createApp(Parent)
+		app.config.devtools = true
+		app:mount(folder)
+		Rivue.nextTick()
+		local channel = folder:FindFirstChild("RivueDevTools") :: Instance
+		assertTrue(channel ~= nil and CollectionService:HasTag(channel, "RivueDevToolsChannel"), "a tagged channel")
+		local timelineText = channel:GetAttribute("RivueTimeline") :: string
+		assertTrue(string.find(timelineText, "\trender\t", 1, true) ~= nil, "renders are on the timeline")
+		assertTrue(string.find(timelineText, "ThemeRoot", 1, true) ~= nil, "named after the component")
+
+		Rivue._devtools.event("request", "shop:buy", "ok", 12)
+		assertTrue(
+			string.find(channel:GetAttribute("RivueTimeline") :: string, "\trequest\t12\tshop:buy\tok", 1, true) ~= nil,
+			"other packages can add events"
+		)
+		Rivue._devtools.route("name = shop")
+		assertEquals(channel:GetAttribute("RivueRoute"), "name = shop", "and the current route")
+
+		local root = folder:FindFirstChild("ThemeRoot") :: Instance
+		local label = folder:FindFirstChild("ThemedLabel", true) or root:FindFirstChildWhichIsA("TextLabel")
+		assertEquals(root:GetAttribute("RivueProvides"), "theme", "what a component provides")
+		assertEquals((label :: Instance):GetAttribute("RivueInjects"), "theme", "and what it injects")
+
+		app:unmount()
+		assertEquals(folder:FindFirstChild("RivueDevTools"), nil, "unmounting removes the channel")
+	end
+
 	print("\n========== DEVELOPER EXPERIENCE TESTS COMPLETE ==========\n")
 end
 

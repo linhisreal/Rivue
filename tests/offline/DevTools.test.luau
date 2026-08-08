@@ -38,7 +38,7 @@ end
 local function rows(root: Instance, listName: string?): { TextButton }
 	local list = {}
 	for _, child in find(root, listName or "Tree"):GetChildren() do
-		if child.ClassName == "TextButton" then
+		if child.ClassName == "TextButton" or child.ClassName == "TextLabel" then
 			table.insert(list, child)
 		end
 	end
@@ -65,6 +65,7 @@ return function()
 		name = "Wallet",
 		emits = { "spend" },
 		setup = function(_, ctx)
+			Rivue.inject("currency")
 			return {
 				coins = coins,
 				owner = Rivue.ref("Ana"),
@@ -79,6 +80,10 @@ return function()
 	})
 	local Shop = Rivue.defineComponent({
 		name = "Shop",
+		setup = function()
+			Rivue.provide("currency", "coins")
+			return {}
+		end,
 		render = function()
 			return h("Frame", nil, { h(Wallet) })
 		end,
@@ -129,6 +134,8 @@ return function()
 	assertEquals(find(widget, "Cause").Text, "first render", "and what caused its last render")
 	assertEquals(find(find(widget, "coins"), "Value").Text, "10", "state values sit in editable fields")
 	assertEquals(Selection:Get()[1], find(game, "Wallet"), "clicking selects its root in the Explorer")
+	assertEquals(find(widget, "Injects").Text, "currency", "what it injects")
+	assertEquals(find(widget, "Provides").Text, "(none)", "and what it provides")
 
 	coins.value = 11
 	waitRefresh()
@@ -193,7 +200,12 @@ return function()
 
 	find(widget, "Filter").Text = "wal"
 	Rivue.nextTick()
-	assertEquals(#rows(widget), 1, "the filter keeps matching names")
+	local filtered = rows(widget)
+	assertEquals(#filtered, 2, "the filter keeps matching names and their parents")
+	assertEquals(filtered[2].Text, "<Wallet>  1", "in the tree")
+	find(widget, "Filter").Text = "nothing"
+	Rivue.nextTick()
+	assertEquals(#rows(widget), 0, "and hides the rest")
 	find(widget, "Filter").Text = ""
 	Rivue.nextTick()
 
@@ -208,6 +220,43 @@ return function()
 	Rivue.testing.trigger(find(widget, "Clear"), "onClick")
 	Rivue.nextTick()
 	assertEquals(#rows(widget, "Events"), 0, "Clear empties the log")
+	Rivue.testing.trigger(find(widget, "TimelineTab"), "onClick")
+	Rivue.nextTick()
+	waitRefresh()
+	local timelineRows = rows(widget, "Timeline")
+	local joined = {}
+	for _, row in timelineRows do
+		table.insert(joined, row.Text)
+	end
+	local timelineText = table.concat(joined, "\n")
+	assertTrue(
+		string.find(timelineText, "emit  Wallet: spend", 1, true) ~= nil,
+		`emits are on the timeline: {timelineText}`
+	)
+	assertTrue(string.find(timelineText, "render  Wallet", 1, true) ~= nil, "and renders")
+	Rivue._devtools.event("request", "shop:buy", "ok", 12)
+	waitRefresh()
+	assertTrue(
+		string.find(rows(widget, "Timeline")[1].Text, "request  shop:buy  ok  12 ms", 1, true) ~= nil,
+		"newest first, with other packages' events"
+	)
+	Rivue.testing.trigger(find(widget, "Clear"), "onClick")
+	Rivue.nextTick()
+	assertEquals(#rows(widget, "Timeline"), 0, "Clear empties the timeline")
+
+	Rivue.testing.trigger(find(widget, "RouterTab"), "onClick")
+	Rivue.nextTick()
+	assertTrue(
+		string.find(find(widget, "Route").Text, "No router", 1, true) ~= nil,
+		"no route until a router posts one"
+	)
+	Rivue._devtools.route("name = shop\nhistory = lobby, [shop]")
+	waitRefresh()
+	assertEquals(
+		find(widget, "Route").Text,
+		"name = shop\nhistory = lobby, [shop]",
+		"the Router tab shows the current route"
+	)
 	Rivue.testing.trigger(find(widget, "ComponentsTab"), "onClick")
 	Rivue.nextTick()
 
