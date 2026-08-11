@@ -5,7 +5,7 @@ import fs from "node:fs"
 import path from "node:path"
 import { createHighlighter } from "shiki"
 import { siteLink } from "./markdown.mts"
-import { DOCS, packageVersion } from "./site.mts"
+import { DOCS, packageVersion, ROOT } from "./site.mts"
 
 const SHOP = `local ITEMS = {
 	{ name = "Sword", price = 20 },
@@ -196,6 +196,18 @@ function featureCode({ file, code, focus, note, error }: FeatureCode) {
 	return { file, html }
 }
 
+function readmeCopy() {
+	const readme = fs.readFileSync(path.join(ROOT, "README.md"), "utf8")
+	const lead = readme
+		.split(/\n\s*\n/)
+		.map((block) => block.trim())
+		.find((block) => block && !block.startsWith("<") && !block.startsWith("```") && !block.startsWith("#"))
+	const blurbs: Record<string, string> = {}
+	for (const [, name, text] of readme.matchAll(/<td>(?:<a [^>]*>)?(Rivue\w+)(?:<\/a>)?: ([^<]+?)\.?<\/td>/g))
+		blurbs[name] = text.charAt(0).toUpperCase() + text.slice(1) + "."
+	return { lead: (lead ?? "").replace(/\s*\n\s*/g, " "), blurbs }
+}
+
 function counters() {
 	const page = fs.readFileSync(path.join(DOCS, "COMING-FROM-REACT.md"), "utf8")
 	const section = page.slice(page.indexOf("## The same counter in each"), page.indexOf("## API map"))
@@ -223,6 +235,7 @@ function lookup() {
 
 export function landingData() {
 	const { react, fusion, rivue } = counters()
+	const { lead, blurbs } = readmeCopy()
 	return {
 		lookup: lookup(),
 		featureCode: Object.fromEntries(Object.entries(FEATURE_CODE).map(([art, code]) => [art, featureCode(code)])),
@@ -246,17 +259,18 @@ export function landingData() {
 			{ name: "React-lua", lang: "luau", html: highlight(react, "luau") },
 			{ name: "Fusion", lang: "luau", html: highlight(fusion, "luau") },
 		],
+		lead,
 		packages: [
 			{
 				name: "RivueUI",
 				version: packageVersion("rivue-ui"),
-				text: "Components, reactivity, styling and the built-ins.",
+				text: blurbs.RivueUI,
 				link: "/guide/01-introduction",
 				example: "Rivue.createApp(App):mount(gui)",
 			},
-			{ name: "RivueRemote", version: packageVersion("rivue-remote"), text: "Checked client/server calls, events and replicated state.", link: "/api/remote" },
-			{ name: "RivueRouter", version: packageVersion("rivue-router"), text: "Screens with history, guards and nested routes.", link: "/api/router" },
-			{ name: "RivueDevTools", version: "", text: "Props, state, renders and network, live during a playtest.", link: "/DEVTOOLS" },
+			{ name: "RivueRemote", version: packageVersion("rivue-remote"), text: blurbs.RivueRemote, link: "/api/remote" },
+			{ name: "RivueRouter", version: packageVersion("rivue-router"), text: blurbs.RivueRouter, link: "/api/router" },
+			{ name: "RivueDevTools", version: "", text: blurbs.RivueDevTools, link: "/DEVTOOLS" },
 		],
 	}
 }
