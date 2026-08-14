@@ -23,6 +23,14 @@ widget.Title = `Rivue DevTools {Rivue.version}`
 DevTools.setOpenScript(function(script, line)
 	self:OpenScript(script, line)
 end)
+DevTools.setSettingsStore({
+	get = function(key)
+		return self:GetSetting(`RivueDevTools.{key}`)
+	end,
+	set = function(key, value)
+		self:SetSetting(`RivueDevTools.{key}`, value)
+	end,
+})
 
 local app = nil
 local stop: (() -> ())? = nil

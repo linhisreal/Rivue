@@ -98,4 +98,47 @@ function Highlight.current(): Frame?
 	return box
 end
 
+local flashes: ScreenGui? = nil
+
+function Highlight.flash(target: Instance)
+	if not target:IsA("GuiObject") then
+		return
+	end
+	local parent = container()
+	if not parent then
+		return
+	end
+	if not flashes or flashes.Parent == nil then
+		local gui = Instance.new("ScreenGui")
+		gui.Name = "RivueDevToolsUpdates"
+		gui.DisplayOrder = 2 ^ 31 - 2
+		gui.IgnoreGuiInset = true
+		gui.ResetOnSpawn = false
+		gui.Parent = parent
+		flashes = gui
+	end
+	local guiObject = target :: GuiObject
+	local frame = Instance.new("Frame")
+	frame.Name = "Flash"
+	frame.BackgroundTransparency = 1
+	frame.Position = UDim2.fromOffset(guiObject.AbsolutePosition.X, guiObject.AbsolutePosition.Y)
+	frame.Size = UDim2.fromOffset(guiObject.AbsoluteSize.X, guiObject.AbsoluteSize.Y)
+	local stroke = Instance.new("UIStroke")
+	stroke.Color = Color3.fromRGB(126, 232, 192)
+	stroke.Thickness = 2
+	stroke.Parent = frame
+	frame.Parent = flashes
+	game:GetService("TweenService"):Create(stroke, TweenInfo.new(0.6), { Transparency = 1 }):Play()
+	task.delay(0.6, function()
+		frame:Destroy()
+	end)
+end
+
+function Highlight.clearFlashes()
+	if flashes then
+		flashes:Destroy()
+		flashes = nil
+	end
+end
+
 return Highlight
