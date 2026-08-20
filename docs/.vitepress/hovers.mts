@@ -16,7 +16,7 @@ export interface Hover {
 }
 
 const CACHE = path.join(import.meta.dirname, "cache")
-const DEFINITIONS_URL = "https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/1.66.0/scripts/globalTypes.d.luau"
+const DEFINITIONS_URL = "https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/1.69.0/scripts/globalTypes.d.luau"
 
 const PREAMBLE = `local Rivue = require(game:GetService("ReplicatedStorage"):WaitForChild("RivueUI"))
 local h = Rivue.h
