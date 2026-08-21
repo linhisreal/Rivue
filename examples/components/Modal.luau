@@ -1,7 +1,6 @@
 --!nonstrict
 -- Copyright (c) 2025-2026 linhisreal (ThisisLinh)
--- Licensed under the PolyForm Noncommercial License 1.0.0 with the Rivue games permission.
--- See LICENSE.md for the terms.
+-- Licensed under the Rivue License, based on PolyForm Noncommercial 1.0.0. See LICENSE.
 
 -- A modal put together from Teleport, Transition and vClickOutside, with named slots for the title
 -- and the content. Rivue.Dialog does the same job out of the box.

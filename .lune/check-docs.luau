@@ -1,6 +1,5 @@
 -- Copyright (c) 2025-2026 linhisreal (ThisisLinh)
--- Licensed under the PolyForm Noncommercial License 1.0.0 with the Rivue games permission.
--- See LICENSE.md for the terms.
+-- Licensed under the Rivue License, based on PolyForm Noncommercial 1.0.0. See LICENSE.
 
 --[[
 	Checks the docs: relative links and #anchors resolve, and every API example runs.
@@ -17,6 +16,7 @@ local fs = require("@lune/fs")
 local process = require("@lune/process")
 
 local bundle = require("./lib/bundle")
+local license = require("./lib/license")
 local run = require("./lib/run")
 
 local PREAMBLE = [[
@@ -220,6 +220,11 @@ end]]
 end
 
 local errors = {}
+for path, content in license.expected() do
+	if not fs.isFile(path) or fs.readFile(path) ~= content then
+		table.insert(errors, `{path} is out of date with LICENSE.md: run lune run license`)
+	end
+end
 checkLinks(errors)
 local count = checkExamples(errors)
 for _, err in errors do

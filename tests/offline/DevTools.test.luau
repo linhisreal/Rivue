@@ -1,7 +1,6 @@
 --!nonstrict
 -- Copyright (c) 2025-2026 linhisreal (ThisisLinh)
--- Licensed under the PolyForm Noncommercial License 1.0.0 with the Rivue games permission.
--- See LICENSE.md for the terms.
+-- Licensed under the Rivue License, based on PolyForm Noncommercial 1.0.0. See LICENSE.
 
 -- The DevTools plugin's window, run against live components (offline only: in the dev place the
 -- plugin sits in ServerStorage, where client tests can't reach it)

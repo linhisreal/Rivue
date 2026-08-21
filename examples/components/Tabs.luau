@@ -1,7 +1,6 @@
 --!nonstrict
 -- Copyright (c) 2025-2026 linhisreal (ThisisLinh)
--- Licensed under the PolyForm Noncommercial License 1.0.0 with the Rivue games permission.
--- See LICENSE.md for the terms.
+-- Licensed under the Rivue License, based on PolyForm Noncommercial 1.0.0. See LICENSE.
 
 -- Each tab is a named slot. KeepAlive keeps hidden tabs mounted, so scroll position, typed text and
 -- state are still there when the player switches back. For tabs that need a back button, use child

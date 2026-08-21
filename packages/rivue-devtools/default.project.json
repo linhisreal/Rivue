@@ -16,6 +16,9 @@
     },
     "Theme": {
       "$path": "src/Theme.luau"
+    },
+    "LICENSE": {
+      "$path": "LICENSE.txt"
     }
   }
 }

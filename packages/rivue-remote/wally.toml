@@ -2,7 +2,7 @@
 name = "linhisreal/rivue-remote"
 description = "Client/server requests and events over RemoteEvents, with rate limits. Companion to Rivue"
 version = "0.8.0-beta.1"
-license = "PolyForm-Noncommercial-1.0.0"
+license = "LicenseRef-Rivue"
 authors = ["linhisreal"]
 realm = "shared"
 registry = "https://github.com/UpliftGames/wally-index"

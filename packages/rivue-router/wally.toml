@@ -2,7 +2,7 @@
 name = "linhisreal/rivue-router"
 description = "Screen navigation for Rivue: named routes, params as props, history and guards"
 version = "0.3.0-beta.1"
-license = "PolyForm-Noncommercial-1.0.0"
+license = "LicenseRef-Rivue"
 authors = ["linhisreal"]
 realm = "shared"
 registry = "https://github.com/UpliftGames/wally-index"

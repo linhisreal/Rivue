@@ -1,6 +1,5 @@
 -- Copyright (c) 2025-2026 linhisreal (ThisisLinh)
--- Licensed under the PolyForm Noncommercial License 1.0.0 with the Rivue games permission.
--- See LICENSE.md for the terms.
+-- Licensed under the Rivue License, based on PolyForm Noncommercial 1.0.0. See LICENSE.
 
 --[[
 	Builds the distributables into build/.
@@ -37,7 +36,10 @@ exec("rojo", { "build", "default.project.json", "-o", `{OUT}/RivueDevPlace.rbxl`
 if table.find(process.args, "minify") then
 	local dir = `{OUT}/minified`
 	exec("darklua", { "process", "packages/rivue-ui/src", `{dir}/src`, "--config", ".darklua.json" })
-	fs.writeFile(`{dir}/default.project.json`, [[{ "name": "RivueUI", "tree": { "$path": "src" } }]])
+	fs.writeFile(
+		`{dir}/default.project.json`,
+		[[{ "name": "RivueUI", "tree": { "$path": "src", "LICENSE": { "$path": "../../packages/rivue-ui/LICENSE.txt" } } }]]
+	)
 	exec("rojo", { "build", dir, "-o", `{OUT}/RivueUI.min.rbxm` })
 end
 
