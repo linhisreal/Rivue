@@ -47,6 +47,11 @@ Pre-release.
 
 - RivueUI: a `class` on slot content was looked up in the styles of the component it was passed to, such as `Row` or `Column`, instead of the component that wrote it.
 - RivueUI: a `VirtualList` that shrank while scrolled down rendered nothing until the engine clamped its scroll.
+- RivueUI: `array.move` to a position past the end deleted the item, and `array.insert` outside the list dropped it silently. `move` now moves to the end, and `insert` errors.
+- RivueUI: `array.splice` with a negative start removed from the front. It now counts from the end, as in JavaScript.
+- RivueRouter: a route `meta` that refers to itself crashed navigation when DevTools was on.
+- RivueRouter: a router used by two apps went back two screens per press of a back key.
+- RivueRemote: requests only showed on the DevTools timeline after something else had called `Remote.on`.
 
 ## Install
 

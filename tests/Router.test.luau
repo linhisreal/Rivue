@@ -618,6 +618,26 @@ return function()
 		assertEquals(router.currentRoute.value.name, "shop", "unbound when the app unmounts")
 	end
 
+	print("Back keys with the router in two apps")
+	do
+		local router = Router.createRouter({
+			routes = { a = label("A"), b = label("B"), c = label("C") },
+			initial = "a",
+			backKeys = { Enum.KeyCode.ButtonB },
+		})
+		local _, first = mount(router)
+		local _, second = mount(router)
+		router.isReady()
+		router.push("b")
+		router.push("c")
+		__pressKey(Enum.KeyCode.ButtonB)
+		assertEquals(router.currentRoute.value.name, "b", "one press goes back one screen")
+		first:unmount()
+		__pressKey(Enum.KeyCode.ButtonB)
+		assertEquals(router.currentRoute.value.name, "a", "still bound while one app is left")
+		second:unmount()
+	end
+
 	print("Lazy route components")
 	do
 		local loads = 0
