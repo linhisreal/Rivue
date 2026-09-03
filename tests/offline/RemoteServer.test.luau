@@ -379,6 +379,26 @@ local function runTests()
 		app:unmount()
 	end
 
+	print("Test 15b: a state created after the client loaded the others")
+	do
+		local late: any
+		asServer(function()
+			late = Remote.state("late", { open = true })
+		end)
+		task.wait()
+		assertEquals(
+			Remote.getState("late") and Remote.getState("late").open,
+			true,
+			"reaches clients already in the game"
+		)
+		asServer(function()
+			late.set(nil)
+		end)
+		task.wait()
+		task.wait()
+		assertEquals(Remote.getState("late"), nil, "and so does setting it to nil")
+	end
+
 	print("Test 16: Remote.on inside setup disconnects on unmount")
 	do
 		local Rivue = require(game:GetService("ReplicatedStorage"):WaitForChild("RivueUI"))

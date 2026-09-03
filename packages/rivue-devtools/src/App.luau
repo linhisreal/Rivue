@@ -1116,6 +1116,9 @@ local App = Rivue.defineComponent({
 					dragging = false
 				end
 			end,
+			cancelDrag = function()
+				dragging = false
+			end,
 		}
 	end,
 	render = function(ctx)
@@ -1188,6 +1191,7 @@ local App = Rivue.defineComponent({
 					Size = UDim2.new(1, 0, 1, -30),
 					onInputChanged = ctx.drag,
 					onInputEnded = ctx.stopDrag,
+					onMouseLeave = ctx.cancelDrag,
 				}, {
 					h("ScrollingFrame", {
 						Name = "Tree",
