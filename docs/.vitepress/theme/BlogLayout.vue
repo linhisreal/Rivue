@@ -1,25 +1,16 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue"
-import { Content, useData, useRoute, withBase } from "vitepress"
+import { Content, useRoute, withBase } from "vitepress"
+import type { Post } from "../blog.mts"
 import { bannerUrl, formatDate } from "./blog"
+import { useFlash } from "./composables"
+import { ICONS } from "./icons"
 import OutlineTree from "./OutlineTree.vue"
+import { useTheme } from "./types"
 
-type Post = {
-	slug: string
-	title: string
-	description: string
-	date: string
-	author: string
-	avatar: string
-	role: string
-	tags: string[]
-	banner?: string
-	minutes: number
-}
-
-const { theme, page, frontmatter } = useData()
+const { theme, page, frontmatter } = useTheme()
 const route = useRoute()
-const posts = computed<Post[]>(() => theme.value.blog ?? [])
+const posts = computed(() => theme.value.blog ?? [])
 const index = computed(() => posts.value.findIndex((p) => `blog/${p.slug}.md` === page.value.relativePath))
 const post = computed(() => posts.value[index.value])
 const newer = computed(() => posts.value[index.value - 1])
@@ -43,9 +34,7 @@ function pickTag(next?: string) {
 	history.replaceState(history.state, "", url)
 }
 
-const shared = ref("")
-const shortDate = (date: string) =>
-	new Date(`${date}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })
+const { message: shared, flash } = useFlash(1600)
 
 function readTag() {
 	tag.value = new URLSearchParams(location.search).get("tag") ?? undefined
@@ -53,14 +42,20 @@ function readTag() {
 
 async function share() {
 	const url = location.href.split("#")[0]
-	try {
-		if (navigator.share) await navigator.share({ title: post.value?.title, url })
-		else {
-			await navigator.clipboard.writeText(url)
-			shared.value = "Link copied"
-			setTimeout(() => (shared.value = ""), 1600)
+	if (navigator.share) {
+		try {
+			await navigator.share({ title: post.value?.title, url })
+		} catch (error) {
+			if (!(error instanceof DOMException && error.name === "AbortError")) flash("Sharing failed")
 		}
-	} catch {}
+		return
+	}
+	try {
+		await navigator.clipboard.writeText(url)
+		flash("Link copied")
+	} catch {
+		flash("Copy failed")
+	}
 }
 
 onMounted(readTag)
@@ -133,7 +128,7 @@ watch(() => route.path, readTag)
 
 			<ol class="fd-timeline">
 				<li v-for="(p, i) in shown" :key="p.slug" :class="{ latest: i === 0 }">
-					<time class="fd-timeline-date" :datetime="p.date">{{ shortDate(p.date) }}</time>
+					<time class="fd-timeline-date" :datetime="p.date">{{ formatDate(p.date, "short") }}</time>
 					<a class="fd-timeline-card" :href="link(p)">
 						<template v-if="i === 0 && bannerUrl(p.banner)">
 							<img :class="{ 'fd-only-light': bannerUrl(p.banner, true) }" :src="bannerUrl(p.banner)" alt="" />
@@ -147,7 +142,7 @@ watch(() => route.path, readTag)
 						<span class="fd-timeline-text">{{ p.description }}</span>
 						<span class="fd-timeline-more">
 							Read the post
-							<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+							<svg viewBox="0 0 24 24" aria-hidden="true"><path :d="ICONS.arrow" /></svg>
 						</span>
 					</a>
 				</li>

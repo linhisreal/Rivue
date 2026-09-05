@@ -1,9 +1,11 @@
 <script setup lang="ts">
-import { useData, withBase } from "vitepress"
+import { computed } from "vue"
+import { withBase } from "vitepress"
+import { useTheme } from "./types"
 
-const { theme } = useData()
-const version: string = theme.value.version
-const stage = version.includes("-rc") ? "a release candidate" : version.includes("-") ? "a pre-release" : ""
+const { theme } = useTheme()
+const version = computed(() => theme.value.version)
+const stage = computed(() => (version.value.includes("-rc") ? "a release candidate" : version.value.includes("-") ? "a pre-release" : ""))
 </script>
 
 <template>

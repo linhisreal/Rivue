@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { useData } from "vitepress"
+import { computed } from "vue"
+import { useTheme } from "./types"
 
-const { theme } = useData()
-const repo = theme.value.repo
+const { theme } = useTheme()
+const repo = computed(() => theme.value.repo)
 </script>
 
 <template>

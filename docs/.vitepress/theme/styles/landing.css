@@ -2014,22 +2014,20 @@ html:not(.dark) .rv-cta-v-edge.rv-cta-mint {
 	border-radius: 7px;
 	background: var(--vp-c-bg);
 	offset-rotate: 0deg;
-	opacity: calc(0.32 + var(--i) * 0.13);
 }
 
 .rv-onion-frame:not(.is-end, .rv-onion-live) {
-	border: 1px dashed var(--vp-c-brand-1);
-	background: color-mix(in srgb, var(--vp-c-brand-1) 6%, var(--vp-c-bg));
+	--rv-ghost: color-mix(in srgb, var(--vp-c-brand-1) calc(40% + var(--i) * 20%), var(--vp-c-bg));
+	border: 1px dashed var(--rv-ghost);
 }
 
 .rv-onion-frame:not(.is-end, .rv-onion-live) .rv-sk {
-	background: color-mix(in srgb, var(--vp-c-brand-1) 45%, transparent);
+	background: var(--rv-ghost);
 }
 
 .rv-onion-frame.is-end,
 .rv-onion-live {
 	border-color: var(--vp-c-brand-1);
-	opacity: 1;
 }
 
 .rv-onion-frame.is-end .rv-sk,
@@ -2087,76 +2085,53 @@ html:not(.dark) .rv-cta-v-edge.rv-cta-mint {
 
 @keyframes rv-ghost-0 {
 	0%,
-	9.9% {
+	9.9%,
+	94%,
+	100% {
 		opacity: 0;
 	}
 	10%,
 	84% {
-		opacity: 0.32;
-	}
-	94%,
-	100% {
-		opacity: 0;
+		opacity: 1;
 	}
 }
 
 @keyframes rv-ghost-1 {
 	0%,
-	22.4% {
+	22.4%,
+	94%,
+	100% {
 		opacity: 0;
 	}
 	22.5%,
 	84% {
-		opacity: 0.45;
-	}
-	94%,
-	100% {
-		opacity: 0;
+		opacity: 1;
 	}
 }
 
 @keyframes rv-ghost-2 {
 	0%,
-	34.9% {
+	34.9%,
+	94%,
+	100% {
 		opacity: 0;
 	}
 	35%,
 	84% {
-		opacity: 0.58;
-	}
-	94%,
-	100% {
-		opacity: 0;
+		opacity: 1;
 	}
 }
 
 @keyframes rv-ghost-3 {
 	0%,
-	47.4% {
-		opacity: 0;
-	}
-	47.5%,
-	84% {
-		opacity: 0.71;
-	}
+	59.9%,
 	94%,
 	100% {
-		opacity: 0;
-	}
-}
-
-@keyframes rv-ghost-4 {
-	0%,
-	59.9% {
 		opacity: 0;
 	}
 	60%,
 	84% {
-		opacity: 0.84;
-	}
-	94%,
-	100% {
-		opacity: 0;
+		opacity: 1;
 	}
 }
 
@@ -2527,9 +2502,6 @@ html:not(.dark) .rv-cta-v-edge.rv-cta-mint {
 	}
 	.is-playing .rv-onion-frame:nth-of-type(4) {
 		animation-name: rv-ghost-3;
-	}
-	.is-playing .rv-onion-frame:nth-of-type(5) {
-		animation-name: rv-ghost-4;
 	}
 	.is-playing .rv-onion-trail {
 		animation-name: rv-trail-draw;

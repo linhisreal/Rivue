@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue"
+import { withBase } from "vitepress"
 import LandingDemo from "./LandingDemo.vue"
 import FeatureArt from "./FeatureArt.vue"
-import { useData, withBase } from "vitepress"
+import { ICONS } from "./icons"
+import { readStorage, writeStorage } from "./storage"
+import { useTheme, type Landing, type Scene } from "./types"
 import uiIcon from "../../assets/packages/rivue-ui.webp"
 import remoteIcon from "../../assets/packages/rivue-remote.webp"
 import routerIcon from "../../assets/packages/rivue-router.webp"
 import devtoolsIcon from "../../assets/packages/rivue-devtools.webp"
 import devtoolsShot from "../../assets/diagrams/devtools-window.webp"
 
-const { theme } = useData()
+const { theme } = useTheme()
 const landing = theme.value.landing
 const icons: Record<string, string> = {
 	RivueUI: uiIcon,
@@ -20,63 +23,59 @@ const icons: Record<string, string> = {
 
 const compare = ref(0)
 
-const version: string = theme.value.version
-const RELEASES = "https://github.com/linhisreal/Rivue/releases/latest"
-const installs = [
-	{ name: "Wally", where: "wally.toml", icon: "file", code: `RivueUI = "linhisreal/rivue-ui@${version}"` },
-	{ name: "pesde", where: "Terminal", icon: "terminal", code: "pesde add linhisreal/rivue_ui" },
-	{ name: "Rojo", where: "Terminal", icon: "terminal", code: "git submodule add https://github.com/linhisreal/Rivue vendor/Rivue" },
-	{ name: "Studio", where: "", icon: "", code: "" },
+const { version, repo } = theme.value
+const releases = `${repo.url}/releases/latest`
+
+type Install = { name: string; line?: { code: string; where: string; icon: "file" | "terminal" } }
+
+const installs: Install[] = [
+	{ name: "Wally", line: { code: `RivueUI = "linhisreal/rivue-ui@${version}"`, where: "wally.toml", icon: "file" } },
+	{ name: "pesde", line: { code: "pesde add linhisreal/rivue_ui", where: "Terminal", icon: "terminal" } },
+	{ name: "Rojo", line: { code: `git submodule add ${repo.url} vendor/Rivue`, where: "Terminal", icon: "terminal" } },
+	{ name: "Studio" },
 ]
 const INSTALL_KEY = "rivue-install-tab"
 const install = ref(0)
-watch(install, (i) => {
-	try {
-		localStorage.setItem(INSTALL_KEY, installs[i].name)
-	} catch {}
-})
+const installLine = computed(() => installs[install.value].line)
+watch(install, (i) => writeStorage(INSTALL_KEY, installs[i].name))
 
-const features = [
+type Feature = { title: string; text: string; link: string; art: Scene }
+
+const features: Feature[] = [
 	{
 		title: "Reactivity",
 		text: "ref, reactive, computed and watch, named and used as in Vue 3.",
 		link: "/guide/02-state",
-		chapter: "State",
 		art: "reactivity",
 	},
 	{
 		title: "Components",
 		text: "setup and render, props, emits, slots, provide/inject and every lifecycle hook.",
 		link: "/guide/04-components",
-		chapter: "Components",
 		art: "components",
 	},
 	{
 		title: "Styling and layout",
 		text: "Style classes with hover and device variants, plus layout, padding and corner props.",
 		link: "/guide/06-styling-and-layout",
-		chapter: "Styling and layout",
 		art: "styling",
 	},
 	{
 		title: "Animation",
 		text: "Transition, TransitionGroup, tweens and springs, with fade, slide and pop presets.",
 		link: "/guide/07-effects-and-animation",
-		chapter: "Effects and animation",
 		art: "animation",
 	},
 	{
 		title: "Long lists",
 		text: "Keyed diffing, VirtualList for thousands of rows, and bindings for values that change every frame.",
 		link: "/guide/09-performance-and-debugging",
-		chapter: "Performance and debugging",
 		art: "lists",
 	},
 	{
 		title: "Typed",
 		text: "Strict Luau throughout, with exported types and support for both type solvers.",
 		link: "/API",
-		chapter: "API reference",
 		art: "typed",
 	},
 ]
@@ -159,12 +158,15 @@ async function copy(button: HTMLElement, target: HTMLElement) {
 	}
 }
 
-function onCommand(event: any) {
-	if (event.command === "--copy") copy(event.source, event.target)
+type CommandEvent = Event & { command: string; source: HTMLElement | null }
+
+function onCommand(event: Event) {
+	const { command, source, target } = event as CommandEvent
+	if (command === "--copy" && source && target instanceof HTMLElement) copy(source, target)
 }
 
 function onClick(event: MouseEvent) {
-	const button = (event.target as HTMLElement).closest<HTMLElement>('button[command="--copy"]')
+	const button = (event.target as Element | null)?.closest<HTMLElement>('button[command="--copy"]')
 	const target = button && document.getElementById(button.getAttribute("commandfor") ?? "")
 	if (button && target) copy(button, target)
 }
@@ -176,20 +178,18 @@ const query = ref("")
 const expanded = ref(false)
 const lookupList = ref<HTMLElement>()
 const GROUPS = [
-	{ key: "learn", label: "Learn", icon: "M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5M8 7h7" },
-	{ key: "api", label: "API", icon: "M8 4H7a2 2 0 0 0-2 2v4l-2 2 2 2v4a2 2 0 0 0 2 2h1M16 4h1a2 2 0 0 1 2 2v4l2 2-2 2v4a2 2 0 0 1-2 2h-1" },
-	{ key: "example", label: "Example", icon: "M7 4v16l13-8z" },
+	{ key: "learn", label: "Learn", icon: ICONS.guide },
+	{ key: "api", label: "API", icon: ICONS.api },
+	{ key: "example", label: "Example", icon: ICONS.example },
 ] as const
 
-type LookupLink = { text: string; href: string }
-type LookupItem = { task: string; learn: LookupLink[]; api: LookupLink[]; example: LookupLink[] }
-const lookup: LookupItem[] = landing.lookup
+const lookup: Landing["lookup"] = landing.lookup
 
 const matches = computed(() => {
 	const words = query.value.toLowerCase().split(/\s+/).filter(Boolean)
 	if (!words.length) return lookup
 	return lookup.filter((item) => {
-		const text = [item.task, ...item.learn, ...item.api, ...item.example].map((part) => (typeof part === "string" ? part : part.text)).join(" ").toLowerCase()
+		const text = [item.task, ...[...item.learn, ...item.api, ...item.example].map((link) => link.text)].join(" ").toLowerCase()
 		return words.every((word) => text.includes(word))
 	})
 })
@@ -203,10 +203,8 @@ async function showAll() {
 }
 
 onMounted(() => {
-	try {
-		const saved = installs.findIndex((option) => option.name === localStorage.getItem(INSTALL_KEY))
-		if (saved > 0) install.value = saved
-	} catch {}
+	const saved = installs.findIndex((option) => option.name === readStorage(INSTALL_KEY))
+	if (saved > 0) install.value = saved
 	if (native) document.addEventListener("command", onCommand, true)
 	else document.addEventListener("click", onClick)
 })
@@ -239,7 +237,7 @@ onUnmounted(() => {
 			<div class="rv-actions">
 				<a class="rv-btn rv-btn-brand" :href="withBase('/introduction')">
 					Get started
-					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+					<svg viewBox="0 0 24 24" aria-hidden="true"><path :d="ICONS.arrow" /></svg>
 				</a>
 				<a class="rv-btn" :href="withBase('/examples/counter')">Browse examples</a>
 			</div>
@@ -259,16 +257,16 @@ onUnmounted(() => {
 					</div>
 					<a class="rv-install-guide" :href="withBase('/INSTALLATION')">
 						Install guide
-						<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+						<svg viewBox="0 0 24 24" aria-hidden="true"><path :d="ICONS.arrow" /></svg>
 					</a>
 				</div>
 				<div :key="install" class="rv-install-line">
-					<template v-if="installs[install].code">
-						<code id="rv-install-text" tabindex="0" aria-label="Install line">{{ installs[install].code }}</code>
-						<span class="rv-install-where" :title="`Paste into ${installs[install].where}`">
-							<svg v-if="installs[install].icon === 'file'" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 13h6M9 17h4" /></svg>
+					<template v-if="installLine">
+						<code id="rv-install-text" tabindex="0" aria-label="Install line">{{ installLine.code }}</code>
+						<span class="rv-install-where" :title="`Paste into ${installLine.where}`">
+							<svg v-if="installLine.icon === 'file'" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 13h6M9 17h4" /></svg>
 							<svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="m5 8 4 4-4 4M12 17h7" /></svg>
-							<span class="rv-visually-hidden">Paste into {{ installs[install].where }}</span>
+							<span class="rv-visually-hidden">Paste into {{ installLine.where }}</span>
 						</span>
 						<span class="rv-copy">
 							<button type="button" command="--copy" commandfor="rv-install-text" aria-label="Copy the install line">
@@ -280,7 +278,7 @@ onUnmounted(() => {
 					</template>
 					<p v-else class="rv-install-studio">
 						<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg>
-						<span><a :href="RELEASES">Download RivueUI.rbxm</a> and drag it into ReplicatedStorage</span>
+						<span><a :href="releases">Download RivueUI.rbxm</a> and drag it into ReplicatedStorage</span>
 					</p>
 				</div>
 			</div>
@@ -330,7 +328,7 @@ onUnmounted(() => {
 					<div class="rv-spec-text">
 						<a class="rv-spec-title" :href="withBase(feature.link)">
 							{{ feature.title }}
-							<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+							<svg viewBox="0 0 24 24" aria-hidden="true"><path :d="ICONS.arrow" /></svg>
 						</a>
 						<p>{{ feature.text }}</p>
 					</div>
@@ -373,11 +371,11 @@ onUnmounted(() => {
 				>
 					<div class="rv-tile-head">
 						<img :src="icons[pkg.name]" alt="" width="36" height="36" />
-						<span class="rv-tile-name">
+						<div class="rv-tile-name">
 							<h3>{{ pkg.name }}</h3>
 							<span class="rv-tile-version">{{ pkg.version || "Studio plugin" }}</span>
-						</span>
-						<svg class="rv-tile-go" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+						</div>
+						<svg class="rv-tile-go" viewBox="0 0 24 24" aria-hidden="true"><path :d="ICONS.arrow" /></svg>
 					</div>
 					<p>{{ pkg.text }}</p>
 					<div v-if="pkg.name === 'RivueUI'" class="rv-pkg-foot" aria-hidden="true">

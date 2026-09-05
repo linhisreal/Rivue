@@ -3,13 +3,14 @@
 
 import fs from "node:fs"
 import path from "node:path"
+import type { MarkdownEnv, MarkdownRenderer } from "vitepress"
 import { apiEntries } from "./api.mts"
 import { CHAPTERS } from "./sidebar.mts"
-import { DOCS, htmlToken, REPO, ROOT } from "./site.mts"
+import { DOCS, htmlToken, REPO, ROOT, type StateCore, type Token } from "./site.mts"
 
 const EXAMPLE_FILE = /[\\/]examples[\\/]components[\\/]\w+\.luau$/
 
-export function markdownPlugins(md: any) {
+export function markdownPlugins(md: MarkdownRenderer) {
 	githubLinks(md)
 	softBreaks(md)
 	codeBlocks(md)
@@ -30,7 +31,7 @@ export function siteLink(target: string, hash = "") {
 	return `${REPO}/${kind}/main/${path.relative(ROOT, target).split(path.sep).join("/")}${hash ? `#${hash}` : ""}`
 }
 
-function githubLinks(md: any) {
+function githubLinks(md: MarkdownRenderer) {
 	const render = md.renderer.rules.link_open ?? ((tokens, idx, options, _env, self) => self.renderToken(tokens, idx, options))
 	md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
 		const href: string = tokens[idx].attrGet("href") ?? ""
@@ -50,16 +51,16 @@ function introductionLink(page: string, hash?: string) {
 }
 
 // the Vue template compiler drops whitespace with a newline between two tags, which glued "**Core**" to the next link
-function softBreaks(md: any) {
+function softBreaks(md: MarkdownRenderer) {
 	md.renderer.rules.softbreak = () => " "
 }
 
 const titleOf = (info: string) => /\s\[([^\]]+)\]/.exec(info)?.[1]
 const langOf = (info: string) => info.trim().split(/\s/)[0] || "text"
-const isTab = (token: any) => token?.type === "fence" && /\stab(\s|$)/.test(token.info)
+const isTab = (token?: Token) => token?.type === "fence" && /\stab(\s|$)/.test(token.info)
 
-function codeBlocks(md: any) {
-	md.core.ruler.push("code_tabs", (state: any) => {
+function codeBlocks(md: MarkdownRenderer) {
+	md.core.ruler.push("code_tabs", (state: StateCore) => {
 		const tokens = state.tokens
 		for (let i = 0; i < tokens.length; i++) {
 			if (!isTab(tokens[i])) continue
@@ -67,7 +68,7 @@ function codeBlocks(md: any) {
 			while (isTab(tokens[end + 1])) end++
 			const group = tokens.slice(i, end + 1)
 			const buttons = group
-				.map((token: any, n: number) => {
+				.map((token, n) => {
 					token.meta = { ...token.meta, tab: n }
 					const label = titleOf(token.info) ?? langOf(token.info)
 					return `<button type="button" role="tab" aria-selected="${n === 0}" data-lang="${langOf(token.info)}">${md.utils.escapeHtml(label)}</button>`
@@ -79,8 +80,8 @@ function codeBlocks(md: any) {
 		}
 	})
 
-	const fence = md.renderer.rules.fence
-	md.renderer.rules.fence = (tokens: any, idx: number, options: any, env: any, self: any) => {
+	const fence = md.renderer.rules.fence ?? ((tokens, idx, options, _env, self) => self.renderToken(tokens, idx, options))
+	md.renderer.rules.fence = (tokens, idx, options, env: MarkdownEnv, self) => {
 		const token = tokens[idx]
 		if (langOf(token.info) === "tree") return fileTree(md, token.content)
 		let title = titleOf(token.info)
@@ -122,12 +123,12 @@ function parseTree(content: string) {
 	return root
 }
 
-function fileTree(md: any, content: string) {
+function fileTree(md: MarkdownRenderer, content: string) {
 	const escape = md.utils.escapeHtml
 	const icon = (node: TreeNode) => {
 		if (node.folder) return `<span class="fd-file-icon fd-folder" aria-hidden="true"></span>`
 		const ext = node.name.split(".").pop()
-		return `<span class="fd-file-icon" data-lang="${escape(ext === "luau" ? "lua" : ext)}" aria-hidden="true"></span>`
+		return `<span class="fd-file-icon" data-lang="${escape(ext === "luau" ? "lua" : (ext ?? ""))}" aria-hidden="true"></span>`
 	}
 	const item = (node: TreeNode): string => {
 		const note = node.note ? `<span class="fd-file-note">${escape(node.note)}</span>` : ""
@@ -138,16 +139,16 @@ function fileTree(md: any, content: string) {
 	return `<div class="fd-files">${list(parseTree(content))}</div>\n`
 }
 
-function pageActions(md: any) {
-	md.core.ruler.push("page_actions", (state: any) => {
+function pageActions(md: MarkdownRenderer) {
+	md.core.ruler.push("page_actions", (state: StateCore) => {
 		const tokens = state.tokens
-		const close = tokens.findIndex((t: any) => t.type === "heading_close" && t.tag === "h1")
+		const close = tokens.findIndex((t) => t.type === "heading_close" && t.tag === "h1")
 		if (close !== -1) tokens.splice(close + 1, 0, htmlToken(state, "<PageActions />\n"))
 	})
 }
 
-function dropPagerLine(md: any) {
-	md.core.ruler.push("drop_pager_line", (state: any) => {
+function dropPagerLine(md: MarkdownRenderer) {
+	md.core.ruler.push("drop_pager_line", (state: StateCore) => {
 		const tokens = state.tokens
 		const inline = tokens[tokens.length - 2]
 		if (tokens[tokens.length - 1]?.type !== "paragraph_close" || inline?.type !== "inline") return
@@ -157,7 +158,7 @@ function dropPagerLine(md: any) {
 
 const RELATED_LABEL = /\*\*(Try it|Reference):\*\*/g
 
-function relatedRow(md: any, env: any, label: string, source: string) {
+function relatedRow(md: MarkdownRenderer, env: MarkdownEnv, label: string, source: string) {
 	const items = source
 		.replace(/\\\n/g, " ")
 		.split(/\s+·\s+/)
@@ -175,8 +176,8 @@ function relatedRow(md: any, env: any, label: string, source: string) {
 	return `<div class="fd-related-row" data-kind="${kind}"><span class="fd-related-label">${label}</span><ul>${items.join("")}</ul></div>`
 }
 
-function relatedLinks(md: any) {
-	md.core.ruler.push("related_links", (state: any) => {
+function relatedLinks(md: MarkdownRenderer) {
+	md.core.ruler.push("related_links", (state: StateCore) => {
 		const tokens = state.tokens
 		for (let i = 0; i < tokens.length; i++) {
 			const content: string = tokens[i + 1]?.content ?? ""
@@ -198,9 +199,9 @@ function relatedLinks(md: any) {
 	})
 }
 
-function themedImages(md: any) {
-	const image = md.renderer.rules.image
-	md.renderer.rules.image = (tokens: any, idx: number, options: any, env: any, self: any) => {
+function themedImages(md: MarkdownRenderer) {
+	const image = md.renderer.rules.image ?? ((tokens, idx, options, _env, self) => self.renderToken(tokens, idx, options))
+	md.renderer.rules.image = (tokens, idx, options, env: MarkdownEnv, self) => {
 		const token = tokens[idx]
 		const src: string = token.attrGet("src") ?? ""
 		const dark = src.replace(/\.webp$/, "-dark.webp")
@@ -214,12 +215,12 @@ function themedImages(md: any) {
 	}
 }
 
-function blogPostHeader(md: any) {
-	md.core.ruler.push("blog_post_header", (state: any) => {
+function blogPostHeader(md: MarkdownRenderer) {
+	md.core.ruler.push("blog_post_header", (state: StateCore) => {
 		const page: string = state.env?.relativePath ?? ""
 		if (!page.startsWith("blog/") || page === "blog/index.md") return
 		const tokens = state.tokens
-		const h1 = tokens.findIndex((t: any) => t.type === "heading_open" && t.tag === "h1")
+		const h1 = tokens.findIndex((t) => t.type === "heading_open" && t.tag === "h1")
 		if (h1 === -1) return
 		tokens.splice(h1, 3)
 		const banner = tokens[h1 + 1]
@@ -230,12 +231,12 @@ function blogPostHeader(md: any) {
 const readingMinutes = (file: string) => Math.max(1, Math.round(fs.readFileSync(file, "utf8").split(/\s+/).length / 220))
 const chapterOf = (page: string) => CHAPTERS.find((c) => page === `guide/${c.file}.md`)
 
-function chapterHeader(md: any) {
-	md.core.ruler.push("chapter_header", (state: any) => {
+function chapterHeader(md: MarkdownRenderer) {
+	md.core.ruler.push("chapter_header", (state: StateCore) => {
 		const page: string = state.env?.relativePath ?? ""
 		const chapter = chapterOf(page)
 		if (!chapter) return
-		const close = state.tokens.findIndex((t: any) => t.type === "heading_close" && t.tag === "h1")
+		const close = state.tokens.findIndex((t) => t.type === "heading_close" && t.tag === "h1")
 		if (close === -1) return
 		const parts = [`Chapter ${chapter.number} of ${CHAPTERS.length}`, chapter.folder, `${readingMinutes(path.join(DOCS, page))} min read`]
 		const html = `<p class="fd-chapter-meta">${parts.map((part) => `<span>${md.utils.escapeHtml(part)}</span>`).join("")}</p>\n`
@@ -243,13 +244,13 @@ function chapterHeader(md: any) {
 	})
 }
 
-function guideMap(md: any) {
-	md.core.ruler.push("guide_map", (state: any) => {
+function guideMap(md: MarkdownRenderer) {
+	md.core.ruler.push("guide_map", (state: StateCore) => {
 		if (state.env?.relativePath !== "GUIDE.md") return
 		const tokens = state.tokens
 		for (let i = 0; i < tokens.length; i++) {
 			if (tokens[i].type !== "table_open") continue
-			const close = tokens.findIndex((t: any, j: number) => j > i && t.type === "table_close")
+			const close = tokens.findIndex((t, j) => j > i && t.type === "table_close")
 			const rows: string[][] = []
 			let row: string[] | undefined
 			for (let j = i; j < close; j++) {

@@ -1,37 +1,33 @@
 <script setup lang="ts">
 import { computed, ref } from "vue"
-import { useData } from "vitepress"
-import { useDismiss } from "./composables"
+import { useDismiss, useFlash } from "./composables"
+import { useTheme } from "./types"
 
-const REPO = "https://github.com/linhisreal/Rivue"
-const { frontmatter } = useData()
-const status = ref("")
+const { frontmatter, theme } = useTheme()
+const { message: status, flash } = useFlash()
 const open = ref(false)
 const menu = ref<HTMLElement>()
 
 const links = computed(() => {
 	const file = frontmatter.value.githubPath
+	const repo = theme.value.repo.url
 	return [
-		{ text: "View on GitHub", href: `${REPO}/blob/main/${file}` },
-		{ text: "Edit on GitHub", href: `${REPO}/edit/main/${file}` },
+		{ text: "View on GitHub", href: `${repo}/blob/main/${file}` },
+		{ text: "Edit on GitHub", href: `${repo}/edit/main/${file}` },
 	]
 })
-
-let timer: ReturnType<typeof setTimeout> | undefined
 
 function decode(base64: string): string {
 	return new TextDecoder().decode(Uint8Array.from(atob(base64), (c) => c.charCodeAt(0)))
 }
 
 async function copy() {
-	clearTimeout(timer)
 	try {
 		await navigator.clipboard.writeText(decode(frontmatter.value.markdown ?? ""))
-		status.value = "Copied"
+		flash("Copied")
 	} catch {
-		status.value = "Copy failed"
+		flash("Copy failed")
 	}
-	timer = setTimeout(() => (status.value = ""), 2000)
 }
 
 useDismiss(menu, open)

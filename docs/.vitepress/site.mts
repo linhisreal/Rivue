@@ -3,8 +3,12 @@
 
 import fs from "node:fs"
 import path from "node:path"
+import type { MarkdownRenderer } from "vitepress"
 import { exampleMarkdown, type Example } from "./examples.mts"
 import { introMarkdown } from "./intro.mts"
+
+export type StateCore = Parameters<Parameters<MarkdownRenderer["core"]["ruler"]["push"]>[1]>[0]
+export type Token = StateCore["tokens"][number]
 
 export const REPO = "https://github.com/linhisreal/Rivue"
 export const SITE = "https://linhisreal.github.io/Rivue/"
@@ -43,7 +47,7 @@ export function pageTitle(markdown: string, fallback: string) {
 
 export const plainTitle = (title: string) => title.replace(/`/g, "").replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
 
-export function htmlToken(state: any, content: string) {
+export function htmlToken(state: StateCore, content: string) {
 	const token = new state.Token("html_block", "", 0)
 	token.content = content
 	return token

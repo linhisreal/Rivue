@@ -1,22 +1,27 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from "vue"
-import { useData, withBase } from "vitepress"
+import { withBase } from "vitepress"
+import type { DefaultTheme } from "vitepress/theme"
 import { openSearch } from "./composables"
+import { ICONS } from "./icons"
+import { useTheme } from "./types"
 
 type Page = { text: string; link: string }
 
-const { theme, site } = useData()
+const { theme, site } = useTheme()
 const missing = ref("")
 
 const pages = computed(() => {
 	const found: Page[] = []
-	const walk = (items: any[]) => {
-		for (const item of items ?? []) {
-			if (item.link) found.push({ text: item.text, link: item.link })
+	const walk = (items: DefaultTheme.SidebarItem[] = []) => {
+		for (const item of items) {
+			if (item.link && item.text) found.push({ text: item.text, link: item.link })
 			walk(item.items)
 		}
 	}
-	for (const list of Object.values(theme.value.sidebar ?? {})) walk(list as any[])
+	const sidebar = theme.value.sidebar ?? {}
+	const lists = Array.isArray(sidebar) ? [sidebar] : Object.values(sidebar).map((entry) => (Array.isArray(entry) ? entry : entry.items))
+	for (const list of lists) walk(list)
 	return [...new Map(found.map((page) => [page.link, page])).values()]
 })
 
@@ -50,11 +55,11 @@ const suggestions = computed(() => {
 })
 
 const KINDS = [
-	{ prefix: "/guide/", label: "Guide", icon: "M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5M8 7h7" },
-	{ prefix: "/api/", label: "API", icon: "M8 4H7a2 2 0 0 0-2 2v4l-2 2 2 2v4a2 2 0 0 0 2 2h1M16 4h1a2 2 0 0 1 2 2v4l2 2-2 2v4a2 2 0 0 1-2 2h-1" },
-	{ prefix: "/examples/", label: "Example", icon: "M7 4v16l13-8z" },
+	{ prefix: "/guide/", label: "Guide", icon: ICONS.guide },
+	{ prefix: "/api/", label: "API", icon: ICONS.api },
+	{ prefix: "/examples/", label: "Example", icon: ICONS.example },
 ]
-const DOC = { label: "Docs", icon: "M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9zM14 3v6h6" }
+const DOC = { label: "Docs", icon: ICONS.doc }
 const kindOf = (link: string) => KINDS.find((kind) => link.startsWith(kind.prefix)) ?? DOC
 
 const zero = ref<HTMLElement>()
@@ -124,7 +129,7 @@ onMounted(() => {
 						<svg class="fd-404-kind" viewBox="0 0 24 24" aria-hidden="true"><path :d="kindOf(page.link).icon" /></svg>
 						<span class="fd-404-title">{{ page.text }}</span>
 						<span class="fd-404-section">{{ kindOf(page.link).label }}</span>
-						<svg class="fd-404-arrow" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+						<svg class="fd-404-arrow" viewBox="0 0 24 24" aria-hidden="true"><path :d="ICONS.arrow" /></svg>
 					</a>
 				</li>
 			</ul>
