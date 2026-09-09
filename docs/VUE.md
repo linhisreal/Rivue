@@ -182,7 +182,7 @@ There's no SSR and no hydration. Rivue runs on the client.
 named views, `redirect`, `alias`, `meta`, `addRoute`, the global and per-route guards,
 `onBeforeRouteLeave`, `onBeforeRouteUpdate`, navigation failures and `scrollBehavior` work the way
 they do in Vue Router. The differences come from Roblox having no URLs: routes have names but no paths,
-there's no query or hash, and guards yield where Vue's return Promises. The
+there's no hash, `query` is a table, and guards yield where Vue's return Promises. The
 [full list](api/router.md#differences-from-vue-router) is short.
 
 ### Things Vue doesn't have

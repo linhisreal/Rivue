@@ -986,6 +986,74 @@ local function runTests()
 		assertEquals(cleaned[1], 1, "the last run's cleanup ran first")
 	end
 
+	print("duplicate keys don't leave rows behind")
+	do
+		local items = Rivue.ref({ 1, 1, 2 })
+		local List = Rivue.defineComponent({
+			name = "DupKeys",
+			render = function()
+				return h(
+					"Frame",
+					nil,
+					Rivue.hFor(items.value, function(v)
+						return h("TextLabel", { key = v, Text = tostring(v) })
+					end)
+				)
+			end,
+		})
+		local folder = Instance.new("Folder")
+		local app = Rivue.createApp(List)
+		app:mount(folder)
+		items.value = { 3 }
+		Rivue.nextTick()
+		local labels = 0
+		for _, d in folder:GetDescendants() do
+			if d:IsA("TextLabel") then
+				labels += 1
+			end
+		end
+		assertEquals(labels, 1, "only the new row is left")
+		app:unmount()
+	end
+
+	print("onUpdated runs on children before their parent")
+	do
+		local n = Rivue.ref(0)
+		local order: { string } = {}
+		local Child = Rivue.defineComponent({
+			name = "UpdatedChild",
+			props = { v = {}, tag = {} },
+			setup = function(props)
+				Rivue.onUpdated(function()
+					table.insert(order, props.tag)
+				end)
+				return function()
+					return h("TextLabel", { Text = tostring(props.v) })
+				end
+			end,
+		})
+		local Parent = Rivue.defineComponent({
+			name = "UpdatedParent",
+			setup = function()
+				Rivue.onUpdated(function()
+					table.insert(order, "parent")
+				end)
+				return function()
+					return h("Frame", nil, {
+						h(Child, { v = n.value, tag = "first" }),
+						h(Child, { v = n.value, tag = "second" }),
+					})
+				end
+			end,
+		})
+		local app = Rivue.createApp(Parent)
+		app:mount(Instance.new("Folder"))
+		n.value = 1
+		Rivue.nextTick()
+		assertEquals(table.concat(order, ","), "first,second,parent", "children first, in order")
+		app:unmount()
+	end
+
 	print("\n========== REGRESSION TESTS COMPLETE ==========\n")
 end
 

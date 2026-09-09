@@ -216,6 +216,7 @@ The events a component can send to its parent, like `"select"` or `"close"`. The
 - **Details**
 
   The parent listens with an `on<Event>` prop: `ctx.emit("select", id)` calls `onSelect(id)`.
+  Kebab-case names work as in Vue: `ctx.emit("change-value", v)` calls `onChangeValue(v)`.
   Declared listeners don't become attrs, so they aren't passed on to the root element. In Studio,
   emitting an undeclared event, or a payload the validator rejects, warns. After the component
   unmounts, `emit` does nothing, as in Vue.
