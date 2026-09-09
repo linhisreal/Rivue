@@ -3,8 +3,18 @@ import type { Scene } from "./types"
 
 defineProps<{ kind: Scene }>()
 
-const FIELD = 120
-const TARGET = 53
+const COLS = 15
+const ROWS = 8
+const DIGITS = [3, 4, 5] as const
+const GLYPHS: Record<(typeof DIGITS)[number], string[]> = {
+	3: ["01110", "10001", "00001", "00110", "00001", "10001", "01110"],
+	4: ["00010", "00110", "01010", "10010", "11111", "00010", "00010"],
+	5: ["11111", "10000", "11110", "00001", "00001", "10001", "01110"],
+}
+const pixels = Array.from({ length: COLS * ROWS }, (_, i) =>
+	DIGITS.map((digit) => GLYPHS[digit][Math.floor(i / COLS)]?.[(i % COLS) - 5] ?? "0").join(""),
+)
+const writes = DIGITS.map((_, step) => pixels.filter((p) => p[step] !== p[(step + 1) % DIGITS.length]).length)
 const copies = [
 	{ name: "Sword", price: 20, swatch: "a", link: "M98 66 C 124 66, 124 22, 150 22" },
 	{ name: "Shield", price: 30, swatch: "b", link: "M98 66 H 150" },
@@ -22,10 +32,16 @@ const along = [0, 0.416, 0.751, 1]
 					<code>coins = <b class="rv-tick"><span>3</span><span>4</span><span>5</span><span>3</span></b></code>
 				</span>
 				<span class="rv-field">
-					<i v-for="n in FIELD" :key="n" :class="{ 'rv-field-hit': n === TARGET }"></i>
-					<b class="rv-field-beam"></b>
+					<i
+						v-for="(pattern, i) in pixels"
+						:key="i"
+						:class="{ 'is-on': pattern[0] === '1', [`rv-px-${pattern}`]: pattern !== '000' && pattern !== '111' }"
+					></i>
 				</span>
-				<em class="rv-field-count">1 / {{ FIELD }} written</em>
+				<em class="rv-field-count"
+					><b class="rv-tick"><span>{{ writes[2] }}</span><span>{{ writes[0] }}</span><span>{{ writes[1] }}</span><span>{{ writes[2] }}</span></b>
+					/ {{ pixels.length }} written</em
+				>
 			</span>
 		</template>
 
