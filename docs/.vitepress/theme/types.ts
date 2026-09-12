@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 linhisreal (ThisisLinh)
+// Licensed under the Rivue License, based on PolyForm Noncommercial 1.0.0. See LICENSE.
+
 import { useData } from "vitepress"
 import type { DefaultTheme } from "vitepress/theme"
 import type { Post } from "../blog.mts"

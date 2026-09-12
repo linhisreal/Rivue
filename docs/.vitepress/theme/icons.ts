@@ -1,3 +1,6 @@
+// Copyright (c) 2025-2026 linhisreal (ThisisLinh)
+// Licensed under the Rivue License, based on PolyForm Noncommercial 1.0.0. See LICENSE.
+
 export const ICONS = {
 	arrow: "M5 12h14M13 6l6 6-6 6",
 	guide: "M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 19V5M8 7h7",
