@@ -80,7 +80,7 @@ function codeBlocks(md: MarkdownRenderer) {
 		}
 	})
 
-	const fence = md.renderer.rules.fence ?? ((tokens, idx, options, _env, self) => self.renderToken(tokens, idx, options))
+	const fence = md.renderer.rules.fence!
 	md.renderer.rules.fence = (tokens, idx, options, env: MarkdownEnv, self) => {
 		const token = tokens[idx]
 		if (langOf(token.info) === "tree") return fileTree(md, token.content)
@@ -200,7 +200,7 @@ function relatedLinks(md: MarkdownRenderer) {
 }
 
 function themedImages(md: MarkdownRenderer) {
-	const image = md.renderer.rules.image ?? ((tokens, idx, options, _env, self) => self.renderToken(tokens, idx, options))
+	const image = md.renderer.rules.image!
 	md.renderer.rules.image = (tokens, idx, options, env: MarkdownEnv, self) => {
 		const token = tokens[idx]
 		const src: string = token.attrGet("src") ?? ""

@@ -115,6 +115,7 @@ export default withMermaid(
 			codeTransformers: [transformerMetaWordHighlight(), transformerLuauHovers(hovers, hoverLines)],
 			config: markdownPlugins,
 			anchor: { slugify: slug },
+			image: { lazyLoading: true },
 		},
 		mermaid: {
 			fontFamily: "Geist, ui-sans-serif, system-ui, sans-serif",

@@ -5,7 +5,8 @@
 import { computed, onMounted, ref, watch } from "vue"
 import { Content, useRoute, withBase } from "vitepress"
 import type { Post } from "../blog.mts"
-import { bannerUrl, formatDate } from "./blog"
+import BlogBanner from "./BlogBanner.vue"
+import { formatDate } from "./blog"
 import { useFlash } from "./composables"
 import { ICONS } from "./icons"
 import OutlineTree from "./OutlineTree.vue"
@@ -48,10 +49,10 @@ async function share() {
 	if (navigator.share) {
 		try {
 			await navigator.share({ title: post.value?.title, url })
+			return
 		} catch (error) {
-			if (!(error instanceof DOMException && error.name === "AbortError")) flash("Sharing failed")
+			if (error instanceof DOMException && error.name === "AbortError") return
 		}
-		return
 	}
 	try {
 		await navigator.clipboard.writeText(url)
@@ -89,10 +90,9 @@ watch(() => route.path, readTag)
 						</div>
 					</div>
 				</header>
-				<template v-if="bannerUrl(post.banner)">
-					<img class="fd-post-banner" :class="{ 'fd-only-light': bannerUrl(post.banner, true) }" :src="bannerUrl(post.banner)" alt="" />
-					<img v-if="bannerUrl(post.banner, true)" class="fd-post-banner fd-only-dark" :src="bannerUrl(post.banner, true)" alt="" />
-				</template>
+				<div v-if="post.banner" class="fd-post-banner">
+					<BlogBanner :file="post.banner" sizes="(max-width: 1100px) 100vw, 1040px" />
+				</div>
 				<div class="fd-post-main">
 					<Content class="vp-doc fd-blog-body" />
 					<aside class="fd-post-rail">
@@ -122,7 +122,7 @@ watch(() => route.path, readTag)
 					<button v-for="[t, count] in tags" :key="t" type="button" :aria-pressed="tag === t" @click="pickTag(t)">
 						{{ t }} <span>{{ count }}</span>
 					</button>
-					<a class="fd-blog-rss" href="https://linhisreal.github.io/Rivue/feed.xml">
+					<a class="fd-blog-rss" :href="withBase('/feed.xml')">
 						<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 11a8 8 0 0 1 8 8M5 5a14 14 0 0 1 14 14" /><circle cx="6" cy="18" r="1.5" /></svg>
 						RSS
 					</a>
@@ -133,10 +133,7 @@ watch(() => route.path, readTag)
 				<li v-for="(p, i) in shown" :key="p.slug" :class="{ latest: i === 0 }">
 					<time class="fd-timeline-date" :datetime="p.date">{{ formatDate(p.date, "short") }}</time>
 					<a class="fd-timeline-card" :href="link(p)">
-						<template v-if="i === 0 && bannerUrl(p.banner)">
-							<img :class="{ 'fd-only-light': bannerUrl(p.banner, true) }" :src="bannerUrl(p.banner)" alt="" />
-							<img v-if="bannerUrl(p.banner, true)" class="fd-only-dark" :src="bannerUrl(p.banner, true)" alt="" />
-						</template>
+						<BlogBanner v-if="i === 0" :file="p.banner" sizes="(max-width: 760px) 100vw, 640px" />
 						<span class="fd-timeline-tags">
 							<span v-if="i === 0 && !tag" class="fd-timeline-new">Latest</span>
 							<span v-for="t in p.tags" :key="t">{{ t }}</span>
