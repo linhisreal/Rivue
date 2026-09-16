@@ -133,7 +133,7 @@ local function useTag(tagName: string, onAdded: (instance: Instance) -> (() -> (
 		end
 	end)
 
-	for _, instance in ipairs(CollectionService:GetTagged(tagName)) do
+	for _, instance in CollectionService:GetTagged(tagName) do
 		local cleanup = onAdded(instance)
 		if cleanup and type(cleanup) == "function" then
 			cleanupMap[instance] = cleanup
@@ -143,7 +143,7 @@ local function useTag(tagName: string, onAdded: (instance: Instance) -> (() -> (
 	reactivity.onScopeDispose(function()
 		addedConn:Disconnect()
 		removedConn:Disconnect()
-		for _, cleanup in pairs(cleanupMap) do
+		for _, cleanup in cleanupMap do
 			pcall(cleanup)
 		end
 		table.clear(cleanupMap)

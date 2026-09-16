@@ -131,6 +131,22 @@ local function runTests()
 		assertTrue(preloadDirective.mounted and true or false, "Should have mounted hook")
 	end
 
+	print("Test 11b: preload takes a reactive list")
+	if __OFFLINE then
+		local icons = Rivue.reactive({ 101, 102 })
+		local App = Rivue.defineComponent({
+			name = "PreloadApp",
+			render = function()
+				return Rivue.h("ImageLabel", { vPreload = icons })
+			end,
+		})
+		local app = Rivue.createApp(App)
+		app:mount(Instance.new("Folder"))
+		task.wait()
+		assertEquals(table.concat(__preloaded, ","), "rbxassetid://101,rbxassetid://102", "both icons preload")
+		app:unmount()
+	end
+
 	print("Test 12: vModelText handles debounce correctly")
 	do
 		local textRef = Rivue.ref("initial")
