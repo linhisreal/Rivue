@@ -1,6 +1,5 @@
 --!strict
 --!optimize 2
---!native
 -- Copyright (c) 2025-2026 linhisreal (ThisisLinh)
 -- Licensed under the Rivue License, based on PolyForm Noncommercial 1.0.0. See LICENSE.
 
@@ -18,17 +17,11 @@ local RunService = game:GetService("RunService")
 local debugModule = require("./debug")
 
 local scheduler = {}
-local microQueue: { Job } = {}
-local microQueueSet: { [() -> ()]: true } = {}
-local microScheduled: boolean = false
-local isFlushingMicro: boolean = false
-local reentrancyDepth = 0
-const MAX_REENTRANCY_DEPTH = 100
 
-local NOOP_HANDLE: JobHandle = table.freeze({ cancel = function() end }) :: any
-
+const MAX_FLUSH_PASSES = 100
 -- Roblox silently drops a task.defer nested over 80 deep, so past 60 we wait for Heartbeat
 const MAX_DEFER_DEPTH = 60
+
 local deferDepth = 0
 local overflow: { thread | () -> () } = {}
 
@@ -59,21 +52,27 @@ local function defer(item: thread | () -> ()): ()
 	end)
 end
 
+local function cancelHandle(job: Job, queued: { [() -> ()]: Job }): JobHandle
+	return {
+		cancel = function()
+			job.cancelled = true
+			if queued[job.fn] == job then
+				queued[job.fn] = nil
+			end
+		end,
+	}
+end
+
 type FrameMode = "render" | "heartbeat"
 local frameQueues: { [FrameMode]: { Job } } = { render = {}, heartbeat = {} }
 local frameQueued: { [FrameMode]: { [() -> ()]: Job } } = { render = {}, heartbeat = {} }
-local frameConns: { [FrameMode]: RBXScriptConnection? } = {}
+local frameScheduled: { [FrameMode]: boolean } = { render = false, heartbeat = false }
 
 local function flushFrame(mode: FrameMode): ()
-	local conn = frameConns[mode]
-	if conn then
-		conn:Disconnect()
-		frameConns[mode] = nil
-	end
-
+	frameScheduled[mode] = false
 	local q = frameQueues[mode]
 	frameQueues[mode] = {}
-	frameQueued[mode] = {}
+	table.clear(frameQueued[mode])
 
 	for _, job in q do
 		if not job.cancelled then
@@ -82,125 +81,23 @@ local function flushFrame(mode: FrameMode): ()
 	end
 end
 
-local function queueFrameJob(mode: FrameMode, job: Job): ()
+local function queueFrameJob(mode: FrameMode, fn: () -> ()): JobHandle
+	local queued = frameQueued[mode]
+	local existing = queued[fn]
+	if existing then
+		return cancelHandle(existing, queued)
+	end
+	local job: Job = { fn = fn, cancelled = false }
+	queued[fn] = job
 	table.insert(frameQueues[mode], job)
-	if not frameConns[mode] then
+	if not frameScheduled[mode] then
+		frameScheduled[mode] = true
 		local event = if mode == "render" and RunService:IsClient() then RunService.PreRender else RunService.Heartbeat
-		frameConns[mode] = event:Connect(function()
+		event:Once(function()
 			flushFrame(mode)
 		end)
 	end
-end
-
-local function flushMicro(): ()
-	if isFlushingMicro then
-		debugModule.log("Scheduler", "Already flushing micro queue, deferring")
-		return
-	end
-
-	reentrancyDepth += 1
-	if reentrancyDepth > MAX_REENTRANCY_DEPTH then
-		reentrancyDepth = 0
-		error("[Rivue] The scheduler re-entered itself too many times, a job probably keeps queuing itself")
-	end
-
-	isFlushingMicro = true
-	local q = microQueue
-	microQueue = {}
-	microQueueSet = {}
-	microScheduled = false
-
-	if debugModule.enabled then
-		debugModule.log("Scheduler", "Flushing micro queue", { jobCount = #q, reentrancyDepth = reentrancyDepth })
-	end
-
-	for _, job in q do
-		if not job.cancelled then
-			debugModule.safeCall("queued job", job.fn :: () -> ...unknown)
-		end
-	end
-
-	isFlushingMicro = false
-	reentrancyDepth -= 1
-
-	if debugModule.enabled then
-		debugModule.log("Scheduler", "Micro queue flush complete", { executed = #q, reentrancyDepth = reentrancyDepth })
-	end
-
-	if #microQueue > 0 and not microScheduled then
-		microScheduled = true
-		debugModule.log("Scheduler", "New jobs added during flush, scheduling another flush")
-		defer(flushMicro)
-	end
-end
-
-function scheduler.queueJob(fn: () -> (), opts: QueueOptions?): JobHandle
-	local mode = if opts and opts.mode then opts.mode else "micro"
-	if mode == "micro" and microQueueSet[fn] then
-		return NOOP_HANDLE
-	end
-	local job: Job = { fn = fn, cancelled = false }
-
-	if debugModule.enabled then
-		debugModule.log("Scheduler", "Queueing job", { mode = mode })
-	end
-
-	if mode == "render" or mode == "heartbeat" then
-		local queued = frameQueued[mode]
-		local existing = queued[fn]
-		if existing and not existing.cancelled then
-			job = existing
-		else
-			queued[fn] = job
-			queueFrameJob(mode, job)
-		end
-		return {
-			cancel = function()
-				job.cancelled = true
-				if frameQueued[mode][fn] == job then
-					frameQueued[mode][fn] = nil
-				end
-			end,
-		}
-	else
-		microQueueSet[fn] = true
-		table.insert(microQueue, job)
-
-		if not microScheduled then
-			microScheduled = true
-			defer(flushMicro)
-		end
-
-		return {
-			cancel = function()
-				job.cancelled = true
-				microQueueSet[fn] = nil
-			end,
-		}
-	end
-end
-
---- Runs fn after pending updates, or yields the current thread until then when called without fn
---- Component re-renders and "pre" watchers are deferred, so a defer queued now runs after them.
-function scheduler.nextTick(fn: (() -> ())?): ()
-	if fn then
-		defer(fn)
-		return
-	end
-	defer(coroutine.running())
-	coroutine.yield()
-end
-
-function scheduler.queueEffect(fn: () -> ()): ()
-	if microQueueSet[fn] then
-		return
-	end
-	microQueueSet[fn] = true
-	table.insert(microQueue, { fn = fn, cancelled = false })
-	if not microScheduled then
-		microScheduled = true
-		defer(flushMicro)
-	end
+	return cancelHandle(job, queued)
 end
 
 export type UpdateJob = {
@@ -208,37 +105,114 @@ export type UpdateJob = {
 	run: () -> (),
 }
 
+local microQueue: { Job } = {}
+local microQueued: { [() -> ()]: Job } = {}
 local updateQueue: { UpdateJob } = {}
 local updateQueued: { [UpdateJob]: true } = {}
-local updateScheduled = false
+local tickQueue: { thread | () -> () } = {}
+local flushScheduled = false
+local isFlushing = false
+local flushThread: thread? = nil
 
 local function byId(a: UpdateJob, b: UpdateJob): boolean
 	return a.id < b.id
 end
 
-local function flushUpdates(): ()
-	updateScheduled = false
-	local passes = 0
-	while #updateQueue > 0 do
-		passes += 1
-		if passes > MAX_REENTRANCY_DEPTH then
-			warn("[Rivue] Component updates kept re-queuing, possible infinite update loop")
-			table.clear(updateQueue)
-			table.clear(updateQueued)
-			return
-		end
-
-		local q = updateQueue
-		updateQueue = {}
-		table.sort(q, byId)
-		for _, job in q do
-			updateQueued[job] = nil
-			local ok, err = pcall(job.run :: () -> ...unknown)
-			if not ok then
-				warn(`[Rivue] Error in component update: {err}`)
-			end
+local function runMicroJobs(): ()
+	local q = microQueue
+	microQueue = {}
+	table.clear(microQueued)
+	for _, job in q do
+		if not job.cancelled then
+			debugModule.safeCall("queued job", job.fn :: () -> ...unknown)
 		end
 	end
+end
+
+local function runUpdates(): ()
+	local q = updateQueue
+	updateQueue = {}
+	table.sort(q, byId)
+	for _, job in q do
+		updateQueued[job] = nil
+		local ok, err = pcall(job.run :: () -> ...unknown)
+		if not ok then
+			warn(`[Rivue] Error in component update: {err}`)
+		end
+	end
+end
+
+local function dropQueues(): ()
+	table.clear(microQueue)
+	table.clear(microQueued)
+	table.clear(updateQueue)
+	table.clear(updateQueued)
+end
+
+local function flush(): ()
+	flushScheduled = false
+	isFlushing = true
+	flushThread = coroutine.running()
+	local passes = 0
+	while #microQueue > 0 or #updateQueue > 0 do
+		passes += 1
+		if passes > MAX_FLUSH_PASSES then
+			warn(
+				"[Rivue] Effects or updates kept re-queuing each other, so the scheduler stopped them. Check for state that two effects write back and forth."
+			)
+			dropQueues()
+			break
+		end
+		if #microQueue > 0 then
+			runMicroJobs()
+		else
+			runUpdates()
+		end
+	end
+	isFlushing = false
+	flushThread = nil
+
+	local ticks = tickQueue
+	tickQueue = {}
+	for _, item in ticks do
+		if type(item) == "function" or coroutine.status(item) == "suspended" then
+			task.spawn(item)
+		end
+	end
+end
+
+local function scheduleFlush(): ()
+	if not flushScheduled and not isFlushing then
+		flushScheduled = true
+		defer(flush)
+	end
+end
+
+local function queueMicro(fn: () -> ()): Job
+	local existing = microQueued[fn]
+	if existing then
+		return existing
+	end
+	local job: Job = { fn = fn, cancelled = false }
+	microQueued[fn] = job
+	table.insert(microQueue, job)
+	scheduleFlush()
+	return job
+end
+
+function scheduler.queueJob(fn: () -> (), opts: QueueOptions?): JobHandle
+	local mode = if opts and opts.mode then opts.mode else "micro"
+	if debugModule.enabled then
+		debugModule.log("Scheduler", "Queueing job", { mode = mode })
+	end
+	if mode == "render" or mode == "heartbeat" then
+		return queueFrameJob(mode, fn)
+	end
+	return cancelHandle(queueMicro(fn), microQueued)
+end
+
+function scheduler.queueEffect(fn: () -> ()): ()
+	queueMicro(fn)
 end
 
 --- Queues a component re-render. Updates are batched and run parents first, so a child
@@ -249,10 +223,26 @@ function scheduler.queueUpdate(job: UpdateJob): ()
 	end
 	updateQueued[job] = true
 	table.insert(updateQueue, job)
-	if not updateScheduled then
-		updateScheduled = true
-		defer(flushUpdates)
+	scheduleFlush()
+end
+
+--- Runs fn after pending effects and updates, or yields the current thread until then when
+--- called without fn. Effects and updates those queue in turn also run first.
+function scheduler.nextTick(fn: (() -> ())?): ()
+	if fn then
+		table.insert(tickQueue, fn)
+		scheduleFlush()
+		return
 	end
+	local thread = coroutine.running()
+	if thread == flushThread then
+		-- a job yielding here would suspend the flush that has to resume it
+		defer(thread)
+	else
+		table.insert(tickQueue, thread)
+		scheduleFlush()
+	end
+	coroutine.yield()
 end
 
 return scheduler

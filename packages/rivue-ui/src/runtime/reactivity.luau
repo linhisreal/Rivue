@@ -948,7 +948,7 @@ local function watch<T>(source: WatchSource<T> | { [any]: any }, cb: WatchCallba
 		elseif flushMode == "post" then
 			scheduler.queueJob(job, { mode = "heartbeat" })
 		else
-			scheduler.queueJob(job, { mode = "micro" })
+			scheduler.queueEffect(job)
 		end
 	end
 
