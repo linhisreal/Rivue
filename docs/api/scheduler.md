@@ -13,8 +13,8 @@ When updates happen, and how to run code after them. Examples assume
 
 _yields without a callback_
 
-Waits until Rivue has applied pending updates. Call it after changing state when you need to read
-the updated Instances.
+Waits until Rivue has applied pending updates, including the ones that watchers and effects queue
+while they run. Call it after changing state when you need to read the updated Instances.
 
 ```lua signature
 function nextTick(callback: (() -> ())?)
@@ -54,8 +54,8 @@ print(label.Text) -- "5"
 
 ## queueJob()
 
-Runs a function on the next update. Queuing the same function again before then does nothing, so
-it's a cheap way to batch expensive work.
+Runs a function on the next update. Queuing the same function again before then doesn't queue it
+twice, so it's a cheap way to batch expensive work. Every call returns a handle to the queued job.
 
 ```lua signature
 function queueJob(job: () -> (), options: { mode: ("micro" | "render" | "heartbeat")? }?): JobHandle
@@ -73,7 +73,8 @@ function queueJob(job: () -> (), options: { mode: ("micro" | "render" | "heartbe
 > `Rivue.scheduler.queueJob` is the same function without that.
 
 > [!WARNING]
-> A job that keeps queuing itself makes the scheduler error after too many passes in one frame.
+> If jobs keep queuing each other, the scheduler warns after 100 passes in one flush and drops the
+> pending micro jobs and updates.
 
 ### Example
 
