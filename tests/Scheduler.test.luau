@@ -5,6 +5,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = ReplicatedStorage:WaitForChild("RivueUI")
 local scheduler = require(Rivue:WaitForChild("runtime"):WaitForChild("scheduler"))
+local RivueUI = require(Rivue)
 
 local TestSupport = require(game:GetService("ReplicatedStorage"):WaitForChild("TestSupport"))
 local assertEquals = TestSupport.assertEquals
@@ -195,6 +196,112 @@ local function runTests()
 
 		task.wait(0.15)
 		assertTrue(microExecuted and renderExecuted and heartbeatExecuted, "All flush modes should execute")
+	end
+
+	print("Test 15: Effects that keep re-triggering each other are stopped")
+	do
+		local a, b = RivueUI.ref(0), RivueUI.ref(0)
+		local runs = 0
+		local first = RivueUI.effect(function()
+			runs += 1
+			b.value = a.value + 1
+		end)
+		local second = RivueUI.effect(function()
+			runs += 1
+			a.value = b.value + 1
+		end)
+		task.wait(0.3)
+		local settled = runs
+		task.wait(0.3)
+		first:stop()
+		second:stop()
+		assertEquals(runs, settled, "The loop should stop instead of running every frame")
+		assertTrue(runs <= 210, `The loop should stop within one flush, ran {runs} times`)
+	end
+
+	local function fakeComponent(id: number, source: { value: number }): () -> number?
+		local rendered: number?
+		local runner: () -> ()
+		local job = {
+			id = id,
+			run = function()
+				runner()
+			end,
+		}
+		RivueUI.effect(function()
+			rendered = source.value
+		end, {
+			scheduler = function(run: () -> ())
+				runner = run
+				scheduler.queueUpdate(job)
+			end,
+		})
+		return function()
+			return rendered
+		end
+	end
+
+	print("Test 16: nextTick waits for updates queued by a watcher")
+	do
+		local a, b = RivueUI.ref(0), RivueUI.ref(0)
+		RivueUI.watch(a, function(value: number)
+			b.value = value * 10
+		end)
+		local view = fakeComponent(1, b)
+		task.wait(0.05)
+		a.value = 1
+		local seen: number?
+		scheduler.nextTick(function()
+			seen = view()
+		end)
+		task.wait(0.1)
+		assertEquals(seen, 10, "nextTick should see the component updated by the watcher")
+	end
+
+	print("Test 17: nextTick waits when a component update was queued before the watcher")
+	do
+		local a, b = RivueUI.ref(0), RivueUI.ref(0)
+		fakeComponent(1, a)
+		RivueUI.watch(a, function(value: number)
+			b.value = value * 10
+		end)
+		local view = fakeComponent(2, b)
+		task.wait(0.05)
+		a.value = 1
+		local seen: number?
+		task.spawn(function()
+			scheduler.nextTick()
+			seen = view()
+		end)
+		task.wait(0.1)
+		assertEquals(seen, 10, "A yielding nextTick should resume after the whole cascade")
+	end
+
+	print("Test 18: A duplicate micro job returns a handle that cancels the queued job")
+	do
+		local count = 0
+		local fn = function()
+			count += 1
+		end
+		scheduler.queueJob(fn)
+		scheduler.queueJob(fn).cancel()
+		task.wait(0.05)
+		assertEquals(count, 0, "Cancelling the duplicate's handle should cancel the queued job")
+	end
+
+	print("Test 19: A stale handle doesn't affect a job queued later")
+	do
+		local count = 0
+		local fn = function()
+			count += 1
+		end
+		local stale = scheduler.queueJob(fn)
+		task.wait(0.05)
+		scheduler.queueJob(fn)
+		stale.cancel()
+		scheduler.queueJob(fn)
+		task.wait(0.05)
+		assertEquals(count, 2, "The later job should still run exactly once")
 	end
 
 	print("\n========== SCHEDULER TESTS COMPLETE ==========\n")
