@@ -96,14 +96,15 @@ it. Watchers outside components only warn.
 
 ## Scheduler
 
-- **Micro queue:** `queueJob`/`queueEffect`, deduped, flushed on `task.defer`. Jobs queued during
-  a flush wait for the next.
-- **Frame queues:** `"render"` (RenderStepped, Heartbeat on the server) and `"heartbeat"`, deduped,
-  connected only while non-empty.
+- **Micro queue:** `queueJob`/`queueEffect`, deduped, for `"pre"` watchers and effects.
 - **Update queue:** `queueUpdate({ id, run })`, deduped and sorted by uid so parents render first.
-  A loop guard stops self-requeuing updates.
+- **Frame queues:** `"render"` (PreRender, Heartbeat on the server) and `"heartbeat"`, deduped,
+  each waiting on one `:Once()` connection while non-empty.
 
-`nextTick` waits for all of it.
+One flush on `task.defer` drains the micro and update queues in turn, micro jobs first, until both
+are empty, so work a watcher queues runs in the same flush. After 100 passes it warns and drops
+both queues, which stops effects that write back and forth. `nextTick` callbacks run when the flush
+ends.
 
 ```mermaid
 flowchart LR
