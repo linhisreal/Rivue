@@ -22,7 +22,7 @@ local warnedMissingKey = false
 
 local vnodeIdCounter = 0
 
-local Fragment: Types.FragmentType = table.freeze({ __fragment = true :: true, __name = "Fragment" :: "Fragment" })
+local Fragment: Types.FragmentType = table.freeze({ __fragment = true, __name = "Fragment" }) :: any
 
 local function isNestedList(child: unknown): boolean
 	return type(child) == "table" and (child :: { [unknown]: unknown }).type == nil
@@ -170,11 +170,13 @@ local function expandProps(isElement: boolean, props: Props, ownModel: boolean):
 			end
 			target.Text = if r.value == nil then "" else tostring(r.value)
 			if type(modifiers) == "table" and modifiers.lazy == true then
-				local list = if type(target.__directives) == "table" then target.__directives else {}
+				local list: { any } = if type(target.__directives) == "table"
+					then target.__directives :: { any }
+					else {}
 				table.insert(list, { name = "model-lazy", value = commit })
 				target.__directives = list
 			else
-				local own = target.onTextChanged
+				local own: ((string) -> ())? = target.onTextChanged
 				target.onTextChanged = function(text: string)
 					commit(text)
 					if own then
@@ -313,9 +315,11 @@ local function mergeProps(...: Props?): Props
 				and type(v) == "function"
 				and type(existing) == "function"
 			then
+				local first: (...any) -> () = existing
+				local second: (...any) -> () = v
 				out[k] = function(...)
-					existing(...)
-					v(...)
+					first(...)
+					second(...)
 				end
 			else
 				out[k] = v
@@ -357,7 +361,7 @@ local function hFor<T>(list: { T }, mapper: (item: T, index: number) -> VNode?):
 		utils.profiler:start(profileName)
 	end
 
-	local out: { VNode } = table.create(count)
+	local out: { VNode } = table.create(count) :: any
 	for i = 1, count do
 		local node = mapper(list[i], i)
 		if node then

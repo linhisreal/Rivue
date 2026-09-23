@@ -51,7 +51,7 @@ ui.ErrorBoundary = table.freeze({
 			if failed then
 				local fallback = props.fallback
 				if type(fallback) == "function" then
-					return fallback(failed.message, reset)
+					return (fallback :: (string, () -> ()) -> VNode?)(failed.message, reset)
 				end
 				return fallback
 			end
@@ -89,7 +89,7 @@ ui.Dialog = table.freeze({
 		local function close()
 			local onClose = props.onClose
 			if type(onClose) == "function" then
-				onClose()
+				(onClose :: () -> ())()
 			end
 		end
 
@@ -99,7 +99,7 @@ ui.Dialog = table.freeze({
 			end,
 		})
 
-		reactivity.watch(function()
+		reactivity.watch(function(): { any }
 			return { props.open, panel.value }
 		end, function(values: { any })
 			local root = values[2]

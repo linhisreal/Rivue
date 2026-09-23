@@ -200,9 +200,12 @@ local function createKeepAlive(): ComponentDef
 				marker.disposed = true
 			end)
 			componentModule.onUnmounted(function()
-				for _, cached in cache do
-					if not isCurrent(cached) and renderer then
-						renderer.unmount(cached)
+				local keepAliveRenderer = renderer
+				if keepAliveRenderer then
+					for _, cached in cache do
+						if not isCurrent(cached) then
+							keepAliveRenderer.unmount(cached)
+						end
 					end
 				end
 				table.clear(cache)
@@ -262,7 +265,7 @@ end
 builtins.KeepAlive = createKeepAlive()
 
 local function transitionConfig(props: Props, mounted: boolean, afterLeave: ((el: Instance) -> ())?): TransitionConfig
-	local onAfterLeave = props.onAfterLeave
+	local onAfterLeave: ((el: Instance) -> ())? = props.onAfterLeave
 	return {
 		tweenInfo = props.tweenInfo,
 		info = props.info,
@@ -417,7 +420,7 @@ local virtualList: ComponentDef = {
 			local items = props.items :: { unknown }
 			local gap = props.gap :: number
 			local count = #items
-			local list = table.create(count + 1)
+			local list: { number } = table.create(count + 1) :: any
 			local total = 0
 			for i = 1, count do
 				list[i] = total
@@ -474,7 +477,7 @@ local virtualList: ComponentDef = {
 				last = math.min(count, (lastRow + 1) * columns)
 			end
 
-			local rows: { Child } = table.create(math.max(last - first + 1, 0))
+			local rows: { Child } = table.create(math.max(last - first + 1, 0)) :: any
 			for i = first, last do
 				local item = items[i]
 				local row = render(item, i)
@@ -773,7 +776,7 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, opts: AsyncCo
 				stopTimers()
 			end)
 
-			return function()
+			return function(): VNode?
 				if error.value then
 					if options.errorComponent then
 						return options.errorComponent
