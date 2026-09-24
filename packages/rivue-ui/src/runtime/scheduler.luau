@@ -11,6 +11,7 @@ type JobHandle = Types.JobHandle
 type Job = {
 	fn: () -> (),
 	cancelled: boolean,
+	holders: number,
 }
 
 local RunService = game:GetService("RunService")
@@ -18,8 +19,7 @@ local debugModule = require("./debug")
 
 local scheduler = {}
 
-const MAX_FLUSH_PASSES = 100
--- Roblox silently drops a task.defer nested over 80 deep, so past 60 we wait for Heartbeat
+const MAX_JOB_RUNS = 100
 const MAX_DEFER_DEPTH = 60
 
 local deferDepth = 0
@@ -52,15 +52,61 @@ local function defer(item: thread | () -> ()): ()
 	end)
 end
 
-local function cancelHandle(job: Job, queued: { [() -> ()]: Job }): JobHandle
+local function holdJob(job: Job, queued: { [() -> ()]: Job }): JobHandle
+	local released = false
 	return {
 		cancel = function()
+			if released then
+				return
+			end
+			released = true
+			job.holders -= 1
+			if job.holders > 0 then
+				return
+			end
 			job.cancelled = true
 			if queued[job.fn] == job then
 				queued[job.fn] = nil
 			end
 		end,
 	}
+end
+
+local function enqueue(fn: () -> (), queue: { Job }, queued: { [() -> ()]: Job }): (Job, boolean)
+	local existing = queued[fn]
+	if existing then
+		existing.holders += 1
+		return existing, false
+	end
+	local job: Job = { fn = fn, cancelled = false, holders = 1 }
+	queued[fn] = job
+	table.insert(queue, job)
+	return job, true
+end
+
+local freeRunner: thread? = nil
+
+local function runOnRunner(label: string, fn: () -> ()): ()
+	local runner = freeRunner
+	freeRunner = nil
+	debugModule.safeCall(label, fn :: () -> ...unknown)
+	freeRunner = runner
+end
+
+local function runnerLoop(label: string, fn: () -> ()): ()
+	runOnRunner(label, fn)
+	while true do
+		runOnRunner(coroutine.yield())
+	end
+end
+
+local function runJob(label: string, fn: () -> ()): ()
+	local runner = freeRunner
+	if not runner then
+		runner = coroutine.create(runnerLoop)
+		freeRunner = runner
+	end
+	task.spawn(runner :: thread, label, fn)
 end
 
 type FrameMode = "render" | "heartbeat"
@@ -83,13 +129,7 @@ end
 
 local function queueFrameJob(mode: FrameMode, fn: () -> ()): JobHandle
 	local queued = frameQueued[mode]
-	local existing = queued[fn]
-	if existing then
-		return cancelHandle(existing, queued)
-	end
-	local job: Job = { fn = fn, cancelled = false }
-	queued[fn] = job
-	table.insert(frameQueues[mode], job)
+	local job = enqueue(fn, frameQueues[mode], queued)
 	if not frameScheduled[mode] then
 		frameScheduled[mode] = true
 		local event = if mode == "render" and RunService:IsClient() then RunService.PreRender else RunService.Heartbeat
@@ -97,7 +137,7 @@ local function queueFrameJob(mode: FrameMode, fn: () -> ()): JobHandle
 			flushFrame(mode)
 		end)
 	end
-	return cancelHandle(job, queued)
+	return holdJob(job, queued)
 end
 
 export type UpdateJob = {
@@ -113,9 +153,21 @@ local tickQueue: { thread | () -> () } = {}
 local flushScheduled = false
 local isFlushing = false
 local flushThread: thread? = nil
+local runCounts: { [unknown]: number } = {}
 
 local function byId(a: UpdateJob, b: UpdateJob): boolean
 	return a.id < b.id
+end
+
+local function withinRunLimit(key: unknown): boolean
+	local count = (runCounts[key] or 0) + 1
+	runCounts[key] = count
+	if count == MAX_JOB_RUNS + 1 then
+		warn(
+			"[Rivue] An effect or update kept re-queuing itself, so the scheduler stopped it. Check for state that two effects write back and forth."
+		)
+	end
+	return count <= MAX_JOB_RUNS
 end
 
 local function runMicroJobs(): ()
@@ -123,8 +175,8 @@ local function runMicroJobs(): ()
 	microQueue = {}
 	table.clear(microQueued)
 	for _, job in q do
-		if not job.cancelled then
-			debugModule.safeCall("queued job", job.fn :: () -> ...unknown)
+		if not job.cancelled and withinRunLimit(job.fn) then
+			runJob("queued job", job.fn)
 		end
 	end
 end
@@ -135,34 +187,17 @@ local function runUpdates(): ()
 	table.sort(q, byId)
 	for _, job in q do
 		updateQueued[job] = nil
-		local ok, err = pcall(job.run :: () -> ...unknown)
-		if not ok then
-			warn(`[Rivue] Error in component update: {err}`)
+		if withinRunLimit(job) then
+			debugModule.safeCall("component update", job.run :: () -> ...unknown)
 		end
 	end
-end
-
-local function dropQueues(): ()
-	table.clear(microQueue)
-	table.clear(microQueued)
-	table.clear(updateQueue)
-	table.clear(updateQueued)
 end
 
 local function flush(): ()
 	flushScheduled = false
 	isFlushing = true
 	flushThread = coroutine.running()
-	local passes = 0
 	while #microQueue > 0 or #updateQueue > 0 do
-		passes += 1
-		if passes > MAX_FLUSH_PASSES then
-			warn(
-				"[Rivue] Effects or updates kept re-queuing each other, so the scheduler stopped them. Check for state that two effects write back and forth."
-			)
-			dropQueues()
-			break
-		end
 		if #microQueue > 0 then
 			runMicroJobs()
 		else
@@ -171,6 +206,7 @@ local function flush(): ()
 	end
 	isFlushing = false
 	flushThread = nil
+	table.clear(runCounts)
 
 	local ticks = tickQueue
 	tickQueue = {}
@@ -189,14 +225,10 @@ local function scheduleFlush(): ()
 end
 
 local function queueMicro(fn: () -> ()): Job
-	local existing = microQueued[fn]
-	if existing then
-		return existing
+	local job, added = enqueue(fn, microQueue, microQueued)
+	if added then
+		scheduleFlush()
 	end
-	local job: Job = { fn = fn, cancelled = false }
-	microQueued[fn] = job
-	table.insert(microQueue, job)
-	scheduleFlush()
 	return job
 end
 
@@ -208,7 +240,7 @@ function scheduler.queueJob(fn: () -> (), opts: QueueOptions?): JobHandle
 	if mode == "render" or mode == "heartbeat" then
 		return queueFrameJob(mode, fn)
 	end
-	return cancelHandle(queueMicro(fn), microQueued)
+	return holdJob(queueMicro(fn), microQueued)
 end
 
 function scheduler.queueEffect(fn: () -> ()): ()
@@ -236,7 +268,6 @@ function scheduler.nextTick(fn: (() -> ())?): ()
 	end
 	local thread = coroutine.running()
 	if thread == flushThread then
-		-- a job yielding here would suspend the flush that has to resume it
 		defer(thread)
 	else
 		table.insert(tickQueue, thread)

@@ -153,9 +153,12 @@ function debug.formatError(component: string, message: string, context: unknown?
 	return table.concat(parts)
 end
 
---- Runs a user callback; an error is warned with its traceback instead of stopping the caller
+local function describeError(err: unknown): string
+	return traceback(tostring(err), 2)
+end
+
 function debug.safeCall(label: string, fn: (...any) -> ...any, ...: any)
-	local ok, err = xpcall(fn, traceback :: (any) -> string, ...)
+	local ok, err = xpcall(fn, describeError, ...)
 	if not ok then
 		warn(`[Rivue] {label} failed: {err}`)
 	end

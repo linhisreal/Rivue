@@ -103,7 +103,6 @@ export type AsyncOptions<T> = {
 	initial: T?,
 	--- Hold a surrounding Suspense on its fallback while loading (default true)
 	suspense: boolean?,
-	--- Don't warn in Studio when `fn` errors
 	silent: boolean?,
 }
 
@@ -154,7 +153,7 @@ function composables.useAsync<T>(fn: (...any) -> T, options: AsyncOptions<T>?): 
 			if ok then
 				data.value = result
 			else
-				err.value = result
+				err.value = if result == nil then "[Rivue] useAsync failed without an error message" else result
 				if not opts.silent and RunService:IsStudio() then
 					warn(`[Rivue] useAsync failed: {result}`)
 				end

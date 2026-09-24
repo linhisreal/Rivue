@@ -41,7 +41,7 @@ local function attributeRef<T>(
 	assert(typeof(instance) == "Instance", "[Rivue] attributeRef() expects an Instance")
 	assert(
 		type(attributeName) == "string" and attributeName ~= "",
-		"attributeRef expects a non-empty string for attributeName"
+		"[Rivue] attributeRef() expects a non-empty string for attributeName"
 	)
 
 	debugModule.log(
@@ -172,7 +172,7 @@ end
 
 local function onStepped(callback: (time: number, deltaTime: number) -> ()): ()
 	connectForComponent("onStepped", RunService.PreSimulation, function(deltaTime: number)
-		callback(workspace.DistributedGameTime, deltaTime)
+		callback(time(), deltaTime)
 	end)
 end
 
