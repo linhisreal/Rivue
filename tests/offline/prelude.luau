@@ -15,7 +15,10 @@ local deferred = {}
 -- Roblox errors when deferred threads keep deferring more than 80 levels deep
 local deferDepth = 0
 local timers = {}
-local function makeSignal()
+-- Like SignalBehavior.Deferred, the only mode Roblox has now: handlers are queued and run at
+-- the next resumption point, each in its own thread. Frame events pass immediate, as they are
+-- the resumption points themselves
+local function makeSignal(immediate: boolean?)
 	local sig = { _conns = {} }
 	function sig:Connect(fn)
 		local c = { Connected = true, fn = fn }
@@ -46,8 +49,18 @@ local function makeSignal()
 	function sig:Fire(...)
 		local list = table.clone(sig._conns)
 		for _, c in list do
-			if c.Connected then
+			if not c.Connected then
+				continue
+			end
+			if immediate then
 				c.fn(...)
+			else
+				local handler = coroutine.create(function(...)
+					if c.Connected then
+						c.fn(...)
+					end
+				end)
+				table.insert(deferred, { handler, table.pack(...), depth = deferDepth + 1 })
 			end
 		end
 		local keep = {}
@@ -60,8 +73,8 @@ local function makeSignal()
 	end
 	return sig
 end
-local heartbeat = makeSignal()
-local renderStepped = makeSignal()
+local heartbeat = makeSignal(true)
+local renderStepped = makeSignal(true)
 local function resumeThread(co, ...)
 	local ok, err = coroutine.resume(co, ...)
 	if not ok then
@@ -155,6 +168,9 @@ end
 tick = function()
 	return now
 end
+time = function()
+	return now
+end
 -- Tests that fire engine input signals check this: Studio scripts can't fire them
 __OFFLINE = true
 local realOs = os
@@ -245,8 +261,8 @@ services = {
 		end,
 		Heartbeat = heartbeat,
 		RenderStepped = renderStepped,
-		Stepped = makeSignal(),
-		PreSimulation = makeSignal(),
+		Stepped = makeSignal(true),
+		PreSimulation = makeSignal(true),
 		PreRender = renderStepped,
 		PostSimulation = heartbeat,
 	},

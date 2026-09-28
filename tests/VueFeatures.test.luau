@@ -240,17 +240,22 @@ local function runTests()
 			return findIn(container, n)
 		end
 		find("Name").Text = "  Ada  "
+		task.wait()
 		assertEquals(name.value, "Ada", "trim strips whitespace")
 		find("Amount").Text = "42"
+		task.wait()
 		assertEquals(amount.value, 42, "number converts to a number")
 		find("Amount").Text = "4x"
+		task.wait()
 		assertEquals(amount.value, "4x", "number keeps text that isn't a number")
 		Rivue.nextTick()
 		assertEquals(find("Amount").Text, "4x", "the box shows the model value")
 		find("Draft").Text = "Sword"
+		task.wait()
 		assertEquals(draft.value, "", "lazy doesn't update while typing")
 		if __OFFLINE then
 			(find("Draft").FocusLost :: any):Fire(false)
+			task.wait()
 			assertEquals(draft.value, "Sword", "lazy updates when focus is lost")
 		end
 		draft.value = "Shield"

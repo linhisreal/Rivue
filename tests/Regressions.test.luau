@@ -144,6 +144,7 @@ local function runTests()
 			{ UserInputType = Enum.UserInputType.MouseButton1, Position = Vector2.new(500, 500) },
 			false
 		)
+		task.wait()
 		assertEquals(got, 2, "click-outside calls the latest handler")
 
 		local tick = Rivue.ref(0)
@@ -488,7 +489,8 @@ local function runTests()
 		runs = 0
 		state.a = 2
 		state.b = 2
-		task.wait(0.1)
+		game:GetService("RunService").Heartbeat:Wait()
+		game:GetService("RunService").Heartbeat:Wait()
 		assertEquals(calls, 1, "deep post watcher ran once")
 		assertEquals(runs, 1, "post watchEffect ran once")
 		watcher()

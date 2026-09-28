@@ -79,6 +79,7 @@ local function runTests()
 		local box = container:FindFirstChild("Input") :: TextBox
 		assertEquals(box.Text, "hello", "TextBox starts with the ref value")
 		box.Text = "typed"
+		task.wait()
 		assertEquals(text.value, "typed", "Typing writes the ref")
 		text.value = ""
 		task.wait()
@@ -492,9 +493,10 @@ local function runTests()
 			'inventory = { flags = { vip = false }, gold = 5, items = { 1 = "Sword", 2 = "Bow" } }',
 			"tables show their fields"
 		)
-		bagRoot:SetAttribute("RivueEdit", "inventory.gold=9")
-		bagRoot:SetAttribute("RivueEdit", "inventory.flags.vip=true")
-		bagRoot:SetAttribute("RivueEdit", 'inventory.items.2="Axe"')
+		for _, edit in { "inventory.gold=9", "inventory.flags.vip=true", 'inventory.items.2="Axe"' } do
+			bagRoot:SetAttribute("RivueEdit", edit)
+			task.wait()
+		end
 		Rivue.nextTick()
 		assertEquals(inventory.value.gold, 9, "a nested number can be edited")
 		assertEquals(inventory.value.flags.vip, true, "and a nested boolean")

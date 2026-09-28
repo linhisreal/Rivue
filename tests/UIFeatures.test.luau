@@ -74,7 +74,7 @@ local function runTests()
 		assertEquals(events[#events], "after-leave", "onAfterLeave ran")
 
 		show.value = true
-		task.wait()
+		Rivue.nextTick()
 		local again = container:FindFirstChild("Panel") :: Frame
 		assertEquals(again.BackgroundTransparency, 1, "Enter starts from the `from` state")
 		task.wait(0.2)
@@ -746,23 +746,39 @@ local function runTests()
 			assertEquals(size.value.X, 1280, "Viewport size read from the camera")
 			local camera = workspace.CurrentCamera :: Camera
 			camera.ViewportSize = Vector2.new(800, 600)
+			task.wait()
 			assertEquals(size.value.X, 800, "Viewport size follows the camera")
 
 			local inputType = Rivue.useInputType()
 			assertEquals(inputType.value, "keyboard", "Mouse counts as keyboard")
 			local UserInputService = game:GetService("UserInputService");
 			(UserInputService.LastInputTypeChanged :: any):Fire(Enum.UserInputType.Gamepad1)
+			task.wait()
 			assertEquals(inputType.value, "gamepad", "Gamepad input switches the type")
 		end
 
 		-- A server has no PlayerGui, and SelectedObject needs one
 		if game:GetService("RunService"):IsClient() then
 			local selected, select = Rivue.useSelection()
+			local gui = Instance.new("ScreenGui")
 			local button = Instance.new("TextButton")
+			button.Parent = gui
+			gui.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+			for _ = 1, 30 do
+				task.wait()
+				GuiService.SelectedObject = button
+				if GuiService.SelectedObject == button then
+					break
+				end
+			end
+			GuiService.SelectedObject = nil
+			task.wait()
 			select(button)
+			task.wait()
 			assertTrue(GuiService.SelectedObject == button, "select() sets GuiService.SelectedObject")
 			assertTrue(selected.value == button, "Selection ref follows")
 			select(nil)
+			gui:Destroy()
 		end
 
 		local target = Rivue.ref(0)
@@ -830,13 +846,15 @@ local function runTests()
 		if not game:GetService("RunService"):IsClient() then
 			print("  skipped: SelectedObject needs a client")
 		else
-			local container = Instance.new("Frame")
+			local container = Instance.new("ScreenGui")
+			container.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
 			local v1 = h("TextButton", { Name = "Sel", __directives = { { name = "select", value = true } } })
 			renderer.patch(nil, v1, container)
 			local el = container:FindFirstChild("Sel")
 			assertTrue(GuiService.SelectedObject == el, "Selected on mount")
 			renderer.patch(v1, nil, container)
 			assertTrue(GuiService.SelectedObject == nil, "Selection cleared on unmount")
+			container:Destroy()
 		end
 	end
 
@@ -860,8 +878,10 @@ local function runTests()
 		)
 		local el = container:FindFirstChild("Sized") :: Frame
 		el.Size = UDim2.fromOffset(10, 20)
+		task.wait()
 		assertEquals(size, UDim2.fromOffset(10, 20), "onSizeChanged receives the new Size")
 		el.Visible = false
+		task.wait()
 		assertEquals(seen, false, "onVisible receives the new Visible")
 	end
 
@@ -917,8 +937,10 @@ local function runTests()
 		assertTrue(button.BackgroundColor3 == white, "back to base when the mouse leaves")
 		if __OFFLINE then
 			(button.MouseEnter :: any):Fire()
+			task.wait()
 			assertTrue(button.BackgroundColor3 == grey, "MouseEnter turns hover on");
 			(button.MouseLeave :: any):Fire()
+			task.wait()
 			assertTrue(button.BackgroundColor3 == white, "MouseLeave turns hover off")
 		end
 		enabled.value = false
@@ -956,6 +978,7 @@ local function runTests()
 			local camera = workspace.CurrentCamera :: Camera
 			UserInputService.TouchEnabled, UserInputService.KeyboardEnabled = true, false
 			camera.ViewportSize = Vector2.new(844, 390)
+			task.wait()
 			assertEquals(Rivue.useDevice().value, "phone", "a touch screen with a short side under 500 is a phone")
 			Rivue.nextTick()
 			assertTrue(panel.Size == UDim2.fromScale(1, 1), "phone variant applies after the device changes")

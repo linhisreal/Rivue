@@ -253,9 +253,9 @@ local function runTests()
 		local TestComponent = Rivue.defineComponent({
 			name = "SteppedTest",
 			setup = function()
-				Rivue.onStepped(function(time, dt)
+				Rivue.onStepped(function(stepTime, dt)
 					steppedCount += 1
-					if type(time) == "number" and type(dt) == "number" then
+					if stepTime == time() and type(dt) == "number" then
 						receivedTime = true
 					end
 				end)
@@ -272,7 +272,7 @@ local function runTests()
 		task.wait(0.3)
 
 		assertTrue(steppedCount >= 3, "Should execute multiple steps")
-		assertTrue(receivedTime, "Should receive time and deltaTime parameters")
+		assertTrue(receivedTime, "Should receive the current step's time and deltaTime")
 
 		app:unmount()
 		container:Destroy()
@@ -423,6 +423,7 @@ local function runTests()
 				end)
 			end)
 			player.LocaleId = "fr-fr"
+			task.wait()
 			assertEquals(Rivue.useLocale().value, "fr-fr", "useLocale follows the player's language")
 			task.wait()
 			Rivue.nextTick()
@@ -462,16 +463,21 @@ local function runTests()
 			frame.AbsoluteWindowSize = Vector2.new(100, 100)
 			frame.AbsoluteCanvasSize = Vector2.new(100, 1000)
 			frame.CanvasPosition = Vector2.new(0, 400)
+			task.wait()
 			assertEquals(scroll.position.value.Y, 400, "position follows the frame")
 			assertEquals(reachedEnd, 0, "not near the end yet")
 			frame.CanvasPosition = Vector2.new(0, 860)
+			task.wait()
 			assertEquals(reachedEnd, 1, "onReachEnd runs within the threshold of the end")
 			frame.CanvasPosition = Vector2.new(0, 870)
+			task.wait()
 			assertEquals(reachedEnd, 1, "and only once until the player scrolls away")
 			scroll.scrollTo(0)
+			task.wait()
 			assertEquals(frame.CanvasPosition.Y, 0, "scrollTo moves the frame")
 			assertEquals(scroll.atEnd.value, false, "no longer at the end")
 			scroll.scrollToEnd()
+			task.wait()
 			assertEquals(frame.CanvasPosition.Y, 900, "scrollToEnd goes to the bottom")
 			assertEquals(reachedEnd, 2, "reaching the end again calls onReachEnd again")
 			app:unmount()

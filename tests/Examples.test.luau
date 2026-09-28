@@ -43,6 +43,7 @@ local function runTests()
 		local input = find(container, "Input")
 		for _, text in { "Milk", "Eggs" } do
 			input.Text = text
+			task.wait()
 			Rivue.testing.trigger(input, "onFocusLost", true)
 			task.wait()
 		end
@@ -323,6 +324,7 @@ local function runTests()
 			end
 		end
 		input.Text = "Durian"
+		task.wait()
 		for _, d in list:GetDescendants() do
 			if d:IsA("TextButton") and d.Text == "Add" then
 				Rivue.testing.trigger(d, "onClick")

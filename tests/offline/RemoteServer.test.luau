@@ -30,6 +30,11 @@ local function asServer(fn: () -> ())
 	end
 end
 
+local function settleThisFrame()
+	task.defer(coroutine.running())
+	coroutine.yield()
+end
+
 local function runTests()
 	print("\n========== REMOTE SERVER TEST SUITE ==========\n")
 
@@ -167,6 +172,7 @@ local function runTests()
 		assertEquals(reached, false, "and never reaches the server")
 		assertEquals(Remote.fire("", {}), "invalid_action_name", "so is an empty action name")
 		assertEquals(Remote.fire("fireCheck", { ok = true }), nil, "a good payload is sent")
+		task.wait()
 		assertEquals(reached, true, "and handled")
 	end
 
@@ -196,6 +202,7 @@ local function runTests()
 			Remote.sendAll("announce", "now")
 			Remote.flush()
 		end)
+		settleThisFrame()
 		assertEquals(received[3], "now", "flush() sends straight away")
 		count:Disconnect()
 		conn:Disconnect()
@@ -203,6 +210,7 @@ local function runTests()
 			Remote.sendAll("announce", "after")
 			Remote.flush()
 		end)
+		settleThisFrame()
 		assertEquals(#received, 3, "a disconnected listener hears nothing more")
 	end
 
@@ -215,10 +223,12 @@ local function runTests()
 		asServer(function()
 			Remote.sendAll("position", 42, { unreliable = true })
 		end)
+		settleThisFrame()
 		assertEquals(got, 42, "an unreliable event arrives straight away, outside the batch")
 		asServer(function()
 			Remote.send(game:GetService("Players").LocalPlayer, "position", 7, { unreliable = true })
 		end)
+		settleThisFrame()
 		assertEquals(got, 7, "send works unreliably too")
 		local folder = game:GetService("ReplicatedStorage"):WaitForChild("RemoteEvents")
 		assertEquals(
@@ -457,12 +467,14 @@ local function runTests()
 			Remote.sendAll("toast", "hi")
 			Remote.flush()
 		end)
+		settleThisFrame()
 		assertEquals(heard, 1, "it listens while mounted")
 		app:unmount()
 		asServer(function()
 			Remote.sendAll("toast", "hi")
 			Remote.flush()
 		end)
+		settleThisFrame()
 		assertEquals(heard, 1, "and stops when the component unmounts")
 	end
 
@@ -611,6 +623,7 @@ local function runTests()
 		for i = 1, 10 do
 			requestEvent:FireServer({ action = "double", id = 2000 + i, payload = junk })
 		end
+		task.wait()
 		table.clear(replies)
 		requestEvent:FireServer({ action = "double", id = 3000, payload = { n = 1, note = string.rep("x", 15000) } })
 		task.wait()

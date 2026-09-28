@@ -277,16 +277,24 @@ local function runTests()
 		assertEquals(seen, 10, "A yielding nextTick should resume after the whole cascade")
 	end
 
-	print("Test 18: A duplicate micro job returns a handle that cancels the queued job")
+	print("Test 18: A duplicate micro job is cancelled only once every handle cancels")
 	do
 		local count = 0
 		local fn = function()
 			count += 1
 		end
-		scheduler.queueJob(fn)
-		scheduler.queueJob(fn).cancel()
+		local first = scheduler.queueJob(fn)
+		local second = scheduler.queueJob(fn)
+		first.cancel()
+		first.cancel()
 		task.wait(0.05)
-		assertEquals(count, 0, "Cancelling the duplicate's handle should cancel the queued job")
+		assertEquals(count, 1, "One holder cancelling should leave the job queued for the other")
+		first = scheduler.queueJob(fn)
+		second = scheduler.queueJob(fn)
+		first.cancel()
+		second.cancel()
+		task.wait(0.05)
+		assertEquals(count, 1, "Cancelling every handle should cancel the job")
 	end
 
 	print("Test 19: A stale handle doesn't affect a job queued later")
@@ -302,6 +310,84 @@ local function runTests()
 		scheduler.queueJob(fn)
 		task.wait(0.05)
 		assertEquals(count, 2, "The later job should still run exactly once")
+	end
+
+	print("Test 20: A yielding watcher doesn't hold back component updates")
+	do
+		local a, b = RivueUI.ref(0), RivueUI.ref(0)
+		RivueUI.watch(a, function()
+			task.wait(0.3)
+		end)
+		local view = fakeComponent(1, b)
+		task.wait(0.05)
+		a.value = 1
+		b.value = 1
+		task.wait(0.1)
+		assertEquals(view(), 1, "The component should update while the watcher is still yielding")
+		task.wait(0.3)
+	end
+
+	print("Test 21: nextTick inside a watcher waits for the component update")
+	do
+		local a, b = RivueUI.ref(0), RivueUI.ref(0)
+		local view = fakeComponent(1, b)
+		local seen: number?
+		RivueUI.watch(a, function(value: number)
+			b.value = value * 10
+			scheduler.nextTick()
+			seen = view()
+		end)
+		task.wait(0.05)
+		a.value = 1
+		task.wait(0.1)
+		assertEquals(seen, 10, "nextTick in a watcher should resume after the update it queued")
+	end
+
+	print("Test 22: A long watcher chain settles in one flush")
+	do
+		local levels = 150
+		local chain = {}
+		for i = 0, levels do
+			chain[i] = RivueUI.ref(0)
+		end
+		for i = 1, levels do
+			RivueUI.watch(chain[i - 1], function(value: number)
+				chain[i].value = value
+			end)
+		end
+		local view = fakeComponent(1, chain[levels])
+		task.wait(0.05)
+		chain[0].value = 1
+		task.wait(0.2)
+		assertEquals(chain[levels].value, 1, "The last watcher in the chain should run")
+		assertEquals(view(), 1, "The component at the end of the chain should update")
+	end
+
+	print("Test 23: A job error that isn't a string is reported, not swallowed by the handler")
+	do
+		local LogService = game:GetService("LogService")
+		local messages = {}
+		local connection = LogService.MessageOut:Connect(function(message: string)
+			table.insert(messages, message)
+		end)
+		scheduler.queueJob(function()
+			error({ code = 1 })
+		end)
+		task.wait(0.1)
+		connection:Disconnect()
+		local log = table.concat(messages, "\n")
+		assertTrue(string.find(log, "queued job failed", 1, true) ~= nil, "The failure should be warned")
+		assertFalse(string.find(log, "error in error handling", 1, true) ~= nil, "The handler itself shouldn't fail")
+	end
+
+	print("Test 24: useAsync keeps an error raised without a message")
+	do
+		local state = RivueUI.useAsync(function()
+			error()
+		end, { silent = true })
+		task.wait(0.05)
+		assertFalse(state.loading.value, "The run should have finished")
+		assertTrue(state.error.value ~= nil, "A failed run should leave an error set")
 	end
 
 	print("\n========== SCHEDULER TESTS COMPLETE ==========\n")
