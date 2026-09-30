@@ -3,6 +3,8 @@
 -- Copyright (c) 2025-2026 linhisreal (ThisisLinh)
 -- Licensed under the Rivue License, based on PolyForm Noncommercial 1.0.0. See LICENSE.
 
+local TweenService = game:GetService("TweenService")
+
 local componentModule = require("./component")
 local hModule = require("./h")
 local reactivity = require("./reactivity")
@@ -264,8 +266,14 @@ end
 
 builtins.KeepAlive = createKeepAlive()
 
-local function transitionConfig(props: Props, mounted: boolean, afterLeave: ((el: Instance) -> ())?): TransitionConfig
+local function transitionConfig(
+	props: Props,
+	mounted: boolean,
+	afterLeave: ((el: Instance) -> ())?,
+	afterEnter: ((el: Instance) -> ())?
+): TransitionConfig
 	local onAfterLeave: ((el: Instance) -> ())? = props.onAfterLeave
+	local onAfterEnter: ((el: Instance) -> ())? = props.onAfterEnter
 	return {
 		tweenInfo = props.tweenInfo,
 		info = props.info,
@@ -279,7 +287,14 @@ local function transitionConfig(props: Props, mounted: boolean, afterLeave: ((el
 		enter = mounted or props.appear == true,
 		leave = true,
 		onBeforeEnter = props.onBeforeEnter,
-		onAfterEnter = props.onAfterEnter,
+		onAfterEnter = if afterEnter
+			then function(el: Instance)
+				if onAfterEnter then
+					onAfterEnter(el)
+				end
+				afterEnter(el)
+			end
+			else onAfterEnter,
 		onBeforeLeave = props.onBeforeLeave,
 		onAfterLeave = if afterLeave
 			then function(el: Instance)
@@ -317,9 +332,42 @@ builtins.Transition = table.freeze({
 			end
 		end
 
+		local generation = 0
+		local currentKey: unknown = nil
+		local currentType: unknown = nil
+		local outgoing: VNode? = nil
+
+		local function onEntered()
+			if outgoing then
+				outgoing = nil
+				leaveDone.value += 1
+			end
+		end
+
+		local function renderInOut(child: VNode?): VNode
+			if not child then
+				shown, outgoing = nil, nil
+				return h(Fragment, nil, {})
+			end
+			local prev = shown
+			if prev and (child.type ~= currentType or child.key ~= currentKey) then
+				generation += 1
+				outgoing = if hasElement(prev) then prev else nil
+			end
+			currentType, currentKey = child.type, child.key
+			local keyed = hModule.cloneVNode(child)
+			keyed.key = `__transition{generation}`
+			keyed._transition = transitionConfig(props, mounted, nil, if outgoing then onEntered else nil)
+			shown = keyed
+			return h(Fragment, nil, if outgoing then { outgoing, keyed } else { keyed })
+		end
+
 		return function(): VNode?
 			local _ = leaveDone.value
 			local child = firstVNode(context.renderSlot("default"))
+			if props.mode == "in-out" then
+				return renderInOut(child)
+			end
 			if props.mode == "out-in" then
 				if leaving then
 					return nil
@@ -340,6 +388,84 @@ builtins.Transition = table.freeze({
 	end,
 }) :: ComponentDef
 
+type MoveSnapshot = {
+	container: Instance?,
+	order: { unknown },
+	elements: { [unknown]: GuiObject },
+	positions: { [GuiObject]: Vector2 },
+	props: { [GuiObject]: UDim2 },
+}
+
+type ActiveMove = {
+	layout: Instance,
+	layoutParent: Instance?,
+	restore: { [GuiObject]: UDim2 },
+	tweens: { Tween },
+}
+
+local function elementOf(vnode: VNode): GuiObject?
+	local inst = (vnode :: any)._instance
+	local el: Instance? = (vnode :: any).el or (if inst then inst.el else nil)
+	return if el and el:IsA("GuiObject") then el else nil
+end
+
+local function layoutOf(container: Instance?): Instance?
+	if not container then
+		return nil
+	end
+	for _, child in container:GetChildren() do
+		if child:IsA("UIListLayout") or child:IsA("UIGridLayout") then
+			return child
+		end
+	end
+	return nil
+end
+
+local function canAnimateLayout(layout: Instance): boolean
+	if layout:IsA("UIListLayout") then
+		local ok, wraps = pcall(function()
+			return (layout :: any).Wraps
+		end)
+		return not (ok and wraps == true)
+	end
+	return layout:IsA("UIGridLayout")
+end
+
+local function pinnedPosition(el: GuiObject, at: Vector2): UDim2
+	local size = el.AbsoluteSize
+	return UDim2.fromOffset(at.X + el.AnchorPoint.X * size.X, at.Y + el.AnchorPoint.Y * size.Y)
+end
+
+local function layoutTargets(snapshot: MoveSnapshot, order: { unknown }, layout: Instance): { [GuiObject]: Vector2 }
+	local targets: { [GuiObject]: Vector2 } = {}
+	if layout:IsA("UIGridLayout") then
+		for index, key in order do
+			local el = snapshot.elements[key]
+			local slot = snapshot.elements[snapshot.order[index]]
+			targets[el] = snapshot.positions[slot]
+		end
+		return targets
+	end
+	local list = layout :: UIListLayout
+	local vertical = list.FillDirection == Enum.FillDirection.Vertical
+	local container = snapshot.container :: GuiObject
+	local padding = list.Padding.Offset
+		+ list.Padding.Scale * (if vertical then container.AbsoluteSize.Y else container.AbsoluteSize.X)
+	local cursor = math.huge
+	for _, key in order do
+		local at = snapshot.positions[snapshot.elements[key]]
+		cursor = math.min(cursor, if vertical then at.Y else at.X)
+	end
+	for _, key in order do
+		local el = snapshot.elements[key]
+		local at = snapshot.positions[el]
+		local size = el.AbsoluteSize
+		targets[el] = if vertical then Vector2.new(at.X, cursor) else Vector2.new(cursor, at.Y)
+		cursor += (if vertical then size.Y else size.X) + padding
+	end
+	return targets
+end
+
 builtins.TransitionGroup = table.freeze({
 	__is_component = true :: true,
 	__name = "TransitionGroup",
@@ -349,15 +475,165 @@ builtins.TransitionGroup = table.freeze({
 			mounted = true
 		end)
 
+		local rendered: { VNode } = {}
+		local snapshot: MoveSnapshot? = nil
+		local active: ActiveMove? = nil
+		local sliding: { [GuiObject]: Tween } = {}
+
+		local function finishMove()
+			local move = active
+			if not move then
+				return
+			end
+			active = nil
+			for _, tween in move.tweens do
+				tween:Cancel()
+			end
+			for el, position in move.restore do
+				el.Position = position
+			end
+			move.layout.Parent = move.layoutParent
+		end
+
+		local function keyedElements(list: { VNode }): ({ unknown }, { [unknown]: GuiObject })
+			local order: { unknown } = {}
+			local elements: { [unknown]: GuiObject } = {}
+			for _, child in list do
+				local el = elementOf(child)
+				if el and child.key ~= nil then
+					table.insert(order, child.key)
+					elements[child.key] = el
+				end
+			end
+			return order, elements
+		end
+
+		componentModule.onBeforeUpdate(function()
+			if not props.moveInfo then
+				return
+			end
+			local order, elements = keyedElements(rendered)
+			local first = elements[order[1]]
+			local container = if first then first.Parent else nil
+			local positions: { [GuiObject]: Vector2 } = {}
+			local propsBefore: { [GuiObject]: UDim2 } = {}
+			if container and container:IsA("GuiBase2d") then
+				local origin = (container :: GuiBase2d).AbsolutePosition
+				for _, child in container:GetChildren() do
+					if child:IsA("GuiObject") then
+						positions[child] = child.AbsolutePosition - origin
+						propsBefore[child] = child.Position
+					end
+				end
+			end
+			snapshot = {
+				container = container,
+				order = order,
+				elements = elements,
+				positions = positions,
+				props = propsBefore,
+			}
+			finishMove()
+		end)
+
+		componentModule.onUpdated(function()
+			local info = props.moveInfo
+			local before = snapshot
+			snapshot = nil
+			if not info or not before then
+				return
+			end
+			local order, elements = keyedElements(rendered)
+			local layout = layoutOf(before.container)
+			if not layout then
+				for key, el in elements do
+					local from = before.props[el]
+					if before.elements[key] == el and from and from ~= el.Position then
+						local running = sliding[el]
+						if running then
+							running:Cancel()
+						end
+						local target = el.Position
+						el.Position = from
+						local tween = TweenService:Create(el, info, { Position = target })
+						sliding[el] = tween
+						tween.Completed:Once(function()
+							if sliding[el] == tween then
+								sliding[el] = nil
+							end
+						end)
+						tween:Play()
+					end
+				end
+				return
+			end
+			if not canAnimateLayout(layout) or #order ~= #before.order then
+				return
+			end
+			for key, el in elements do
+				if before.elements[key] ~= el then
+					return
+				end
+			end
+			local targets = layoutTargets(before, order, layout)
+			local moved = false
+			for el, target in targets do
+				if target ~= before.positions[el] then
+					moved = true
+				end
+			end
+			if not moved then
+				return
+			end
+			local move: ActiveMove = { layout = layout, layoutParent = layout.Parent, restore = {}, tweens = {} }
+			active = move
+			layout.Parent = nil
+			for el, at in before.positions do
+				if el.Parent == before.container then
+					move.restore[el] = el.Position
+					el.Position = pinnedPosition(el, at)
+				end
+			end
+			local remaining = 0
+			for el, target in targets do
+				if target ~= before.positions[el] then
+					remaining += 1
+					local tween = TweenService:Create(el, info, { Position = pinnedPosition(el, target) })
+					table.insert(move.tweens, tween)
+					tween.Completed:Once(function(state: Enum.PlaybackState)
+						remaining -= 1
+						if state == Enum.PlaybackState.Completed and remaining == 0 and active == move then
+							finishMove()
+						end
+					end)
+					tween:Play()
+				end
+			end
+		end)
+
+		componentModule.onBeforeUnmount(finishMove)
+
 		return function(): VNode
 			local config = transitionConfig(props, mounted, nil)
 			local children: { Child } = {}
-			for _, child in context.renderSlot("default") do
-				if type(child) == "table" then
-					child._transition = config
-					table.insert(children, child)
+			rendered = {}
+			local function add(list: { any })
+				for i = 1, table.maxn(list) do
+					local child = list[i]
+					if type(child) ~= "table" then
+						continue
+					elseif child.type == nil then
+						add(child)
+					elseif child.type == Fragment and child.key == nil then
+						add(child.children)
+					else
+						child._transition = config
+						table.insert(children, child)
+						table.insert(rendered, child)
+					end
 				end
 			end
+			add(context.renderSlot("default"))
 			local tag = props.tag
 			if type(tag) == "string" then
 				return h(tag, props.tagProps, children)

@@ -281,6 +281,25 @@ local function runTests()
 		assertEquals(table.concat(Rivue.toRaw(list), ","), "1,2,3,4", "nothing was removed or overwritten")
 	end
 
+	print("array.sort leaves the list intact when the comparator errors")
+	do
+		local values = {}
+		for i = 1, 50 do
+			values[i] = (i * 37) % 50
+		end
+		local list = Rivue.reactive(table.clone(values))
+		local calls = 0
+		local ok = pcall(Rivue.array.sort, list, function(a: number, b: number): boolean
+			calls += 1
+			if calls > 60 then
+				error("boom")
+			end
+			return a < b
+		end)
+		assertTrue(not ok, "the error propagates")
+		assertEquals(table.concat(Rivue.toRaw(list), ","), table.concat(values, ","), "the order is unchanged")
+	end
+
 	print("array.splice past the end appends instead of dropping values")
 	do
 		local list = Rivue.reactive({ 1, 2 })
@@ -1122,6 +1141,38 @@ local function runTests()
 		Rivue.nextTick()
 		assertTrue(folder:FindFirstChild("LateReal", true) ~= nil, "then the component once it loads")
 		assertEquals(folder:FindFirstChild("LateErr", true), nil, "replacing the error")
+		app:unmount()
+	end
+
+	print("onBeforeUpdate runs before render, so its state changes don't cost another render")
+	do
+		local n = Rivue.ref(0)
+		local renders = 0
+		local App = Rivue.defineComponent({
+			name = "BeforeUpdateApp",
+			setup = function()
+				local stamp = Rivue.ref("")
+				Rivue.onBeforeUpdate(function()
+					stamp.value = "updated " .. n.value
+				end)
+				return function()
+					renders += 1
+					return h("TextLabel", { Name = "Stamp", Text = `{n.value}|{stamp.value}` })
+				end
+			end,
+		})
+		local folder = Instance.new("Folder")
+		local app = Rivue.createApp(App)
+		app:mount(folder)
+		n.value = 1
+		Rivue.nextTick()
+		task.wait()
+		assertEquals(
+			(folder:FindFirstChild("Stamp", true) :: TextLabel).Text,
+			"1|updated 1",
+			"the render saw the hook's change"
+		)
+		assertEquals(renders, 2, "one render to mount, one to update")
 		app:unmount()
 	end
 

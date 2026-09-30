@@ -101,6 +101,10 @@ element you toggle, and describe its hidden state with `from`.
   - **Leaving.** The child tweens to `from`, stays on screen until the tween finishes, and is
     then destroyed. Leaving never blocks rendering.
   - **Component children.** A component child animates its root element.
+  - **Switching children.** By default the new child enters while the old one leaves.
+    `mode = "out-in"` waits for the old child to leave first. `mode = "in-out"` lets the new
+    child enter first, and the old one leaves once that's done, for a toast that slides in over
+    the last one.
 
   The same config can also be set per element with the `transition` prop. There, `enter = true`
   and `leave = true` turn each phase on.
@@ -117,7 +121,7 @@ element you toggle, and describe its hidden state with `from`.
   	enterGoals: { [string]: any }?, -- explicit enter target (default: the element's own props)
   	leaveGoals: { [string]: any }?, -- explicit leave target (default: `from`)
   	appear: boolean?, -- also animate the first render (default false)
-  	mode: "out-in"?, -- wait for the old child to leave before showing the new one
+  	mode: ("out-in" | "in-out")?, -- the order of leaving and entering when the child changes
   	onBeforeEnter: ((el: Instance) -> ())?,
   	onAfterEnter: ((el: Instance) -> ())?,
   	onBeforeLeave: ((el: Instance) -> ())?,
@@ -154,8 +158,28 @@ for notifications, chat messages and inventories.
 
 - **Details**
 
-  Every child must have a unique `key`. Added items enter, removed items leave, and items that
-  stay are moved without animating.
+  Every child must have a unique `key`. Added items enter and removed items leave. Items built
+  with `Rivue.hFor` count as children too.
+
+  With `moveInfo`, items that change place slide there instead of jumping, like Vue's move
+  transition. It's made for leaderboards and inventories that re-sort:
+
+  ```lua
+  local sortedPlayers = Rivue.ref({} :: { Player })
+
+  h(Rivue.TransitionGroup, { tag = "Frame", tagProps = { layout = { gap = 4 } }, moveInfo = TweenInfo.new(0.25) }, {
+  	Rivue.hFor(sortedPlayers.value, function(p)
+  		return h("TextLabel", { key = p.UserId, Text = p.Name, Size = UDim2.new(1, 0, 0, 32) })
+  	end),
+  })
+  ```
+
+  - **Items placed with `Position`** slide from their old `Position` to the new one, whatever
+    changed.
+  - **Items in a `UIListLayout` or `UIGridLayout`** slide when the same items change order. The
+    layout steps aside while they slide (Roblox layouts ignore `Position`), and comes back when
+    they land, so nothing jumps. A change that also adds or removes items, and a wrapping list,
+    skips the slide; adding and removing still animate.
 
 - **Props**
 
@@ -165,6 +189,7 @@ for notifications, chat messages and inventories.
   type TransitionGroupProps = TransitionProps & {
   	tag: string?, -- wrap the items in this element (default: no wrapper)
   	tagProps: Props?, -- props for that element
+  	moveInfo: TweenInfo?, -- slide items that change place
   }
   ```
 
