@@ -485,6 +485,36 @@ end)
 
 ---
 
+## getCurrentWatcher()
+
+Returns the watcher whose callback, or `watchEffect` body, is running, as in Vue 3.5. Returns
+`nil` anywhere else.
+
+```lua signature
+function getCurrentWatcher(): Effect?
+```
+
+> [!WARNING]
+> Like `onWatcherCleanup()`, it only works before the first yield in the callback.
+
+### Example
+
+```lua
+local score = Rivue.ref(0)
+
+Rivue.watch(score, function(value)
+	if value >= 100 then
+		print("goal reached")
+		Rivue.getCurrentWatcher():stop()
+	end
+end, { flush = "sync" })
+
+score.value = 100 -- prints once, then the watcher stops
+score.value = 200 -- nothing
+```
+
+---
+
 ## onEffectCleanup()
 
 Registers cleanup for the effect that's running, as in Vue 3.5. It runs before the effect runs

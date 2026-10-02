@@ -49,16 +49,23 @@ export type Effect = {
 	onTrigger: ((event: DebuggerEvent) -> ())?,
 	allowRecurse: boolean?,
 	cleanups: { () -> () }?,
+	paused: boolean?,
+	pendingTrigger: boolean?,
+	pause: (self: Effect) -> (),
+	resume: (self: Effect) -> (),
 }
 
 export type EffectScope = {
 	active: boolean,
+	paused: boolean,
 	effects: { Effect },
 	cleanups: { () -> () },
 	scopes: { EffectScope },
 	parent: EffectScope?,
 	run: (self: EffectScope, fn: () -> unknown) -> unknown,
 	stop: (self: EffectScope) -> (),
+	pause: (self: EffectScope) -> (),
+	resume: (self: EffectScope) -> (),
 }
 
 export type FlushMode = "pre" | "post" | "sync"

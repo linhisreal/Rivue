@@ -401,6 +401,100 @@ local function runTests()
 		assertEquals(seen, 1, "same for reactive keys")
 	end
 
+	print("Effect scopes pause and resume their effects")
+	do
+		local source = Rivue.ref(0)
+		local runs = 0
+		local scope = Rivue.effectScope()
+		scope:run(function()
+			Rivue.watchEffect(function()
+				local _ = source.value
+				runs += 1
+			end, { flush = "sync" })
+		end)
+		scope:pause()
+		source.value = 1
+		source.value = 2
+		assertEquals(runs, 1, "a paused scope's effects don't run")
+		scope:resume()
+		assertEquals(runs, 2, "changes made while paused run once on resume")
+		scope:resume()
+		assertEquals(runs, 2, "resuming again doesn't run again")
+
+		scope:pause()
+		source.value = 3
+		scope:stop()
+		assertEquals(runs, 2, "stopping a paused scope drops the pending run")
+	end
+
+	print("Scope resume also resumes a watcher paused on its own")
+	do
+		local source = Rivue.ref(0)
+		local calls = 0
+		local scope = Rivue.effectScope()
+		local handle
+		scope:run(function()
+			handle = Rivue.watch(source, function()
+				calls += 1
+			end, { flush = "sync" })
+		end)
+		handle.pause()
+		scope:pause()
+		source.value = 1
+		scope:resume()
+		assertEquals(calls, 1, "scope resume reaches every effect, as in Vue")
+		scope:stop()
+	end
+
+	print("A child scope created inside a paused scope starts unpaused")
+	do
+		local source = Rivue.ref(0)
+		local runs = 0
+		local parent = Rivue.effectScope()
+		parent:pause()
+		parent:run(function()
+			Rivue.effectScope():run(function()
+				Rivue.watchEffect(function()
+					local _ = source.value
+					runs += 1
+				end, { flush = "sync" })
+			end)
+		end)
+		source.value = 1
+		assertEquals(runs, 2, "the child scope's effect still runs")
+		parent:stop()
+	end
+
+	print("getCurrentWatcher returns the running watcher")
+	do
+		local source = Rivue.ref(0)
+		local seen: any = nil
+		local handle = Rivue.watch(source, function()
+			seen = Rivue.getCurrentWatcher()
+		end, { flush = "sync" })
+		source.value = 1
+		assertTrue(seen ~= nil and type(seen.stop) == "function", "inside a callback it is the watcher's effect")
+		assertEquals(Rivue.getCurrentWatcher(), nil, "outside any watcher it is nil")
+
+		local body: any = nil
+		local stopEffect = Rivue.watchEffect(function()
+			local _ = source.value
+			body = Rivue.getCurrentWatcher()
+		end)
+		assertTrue(body ~= nil, "inside watchEffect it is set too")
+
+		local failing = Rivue.watch(source, function()
+			error("boom")
+		end, { flush = "sync" })
+		pcall(function()
+			source.value = 2
+		end)
+		assertEquals(Rivue.getCurrentWatcher(), nil, "an erroring callback doesn't leave it set")
+		handle()
+		stopEffect()
+		failing()
+	end
+
 	print("\n========== REACTIVITY TESTS COMPLETE ==========\n")
 end
 

@@ -99,6 +99,7 @@ Rivue.effectScope = reactivity.effectScope
 Rivue.getCurrentScope = reactivity.getCurrentScope
 Rivue.onScopeDispose = reactivity.onScopeDispose
 Rivue.onWatcherCleanup = reactivity.onWatcherCleanup
+Rivue.getCurrentWatcher = reactivity.getCurrentWatcher
 Rivue.onEffectCleanup = reactivity.onEffectCleanup
 
 local function trackForCleanup(handle: WatchHandle | Effect)

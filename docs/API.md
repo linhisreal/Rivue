@@ -19,6 +19,7 @@ it does something unexpected, and examples. To learn Rivue step by step, start w
 [watchSyncEffect()](api/reactivity-core.md#watchsynceffect) ·
 [watch()](api/reactivity-core.md#watch) ·
 [onWatcherCleanup()](api/reactivity-core.md#onwatchercleanup) ·
+[getCurrentWatcher()](api/reactivity-core.md#getcurrentwatcher) ·
 [onEffectCleanup()](api/reactivity-core.md#oneffectcleanup)
 
 **[Utilities](api/reactivity-utilities.md)**

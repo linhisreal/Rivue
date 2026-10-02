@@ -313,7 +313,7 @@ function effectScope(detached: boolean?): EffectScope
 | `detached` | `boolean?` | `false` | don't stop when the scope it was made in stops |
 
 **Returns** an `EffectScope`:
-`{ run: (self, fn: () -> unknown) -> unknown, stop: (self) -> (), active: boolean }`.
+`{ run: (self, fn: () -> unknown) -> unknown, stop: (self) -> (), pause: (self) -> (), resume: (self) -> (), active: boolean, paused: boolean }`.
 
 ### Example
 
@@ -337,8 +337,31 @@ end)
 scope:stop() -- stops the computed and both watchers
 ```
 
+Pause a scope while its UI is hidden, so its watchers stop reacting:
+
+```lua
+local health = Rivue.ref(100)
+local hud = Rivue.effectScope()
+
+hud:run(function()
+	Rivue.watchEffect(function()
+		print("health:", health.value)
+	end)
+	return nil
+end)
+
+hud:pause()
+health.value = 80 -- nothing runs
+health.value = 60
+hud:resume() -- runs once, with 60
+```
+
 ### Details
 
+- `pause()` pauses every effect and child scope in the scope. Changes made while paused run once
+  on `resume()`.
+- `resume()` also resumes watchers that were paused on their own handle.
+- A scope created inside a paused scope starts unpaused.
 - Each component's `setup()` runs in its own scope.
 - A store module required first from a component's setup would otherwise belong to that component;
   `effectScope(true)` keeps its computeds alive for the whole game.

@@ -105,16 +105,45 @@ local function scopeStop(self: EffectScope)
 	table.clear(self.scopes)
 end
 
+local function scopePause(self: EffectScope)
+	if not self.active then
+		return
+	end
+	self.paused = true
+	for _, childScope in table.clone(self.scopes) do
+		childScope:pause()
+	end
+	for _, eff in self.effects do
+		eff:pause()
+	end
+end
+
+local function scopeResume(self: EffectScope)
+	if not self.active or not self.paused then
+		return
+	end
+	self.paused = false
+	for _, childScope in table.clone(self.scopes) do
+		childScope:resume()
+	end
+	for _, eff in table.clone(self.effects) do
+		eff:resume()
+	end
+end
+
 --- A detached scope isn't stopped with its parent scope
 local function effectScope(detached: boolean?): EffectScope
 	local scope: EffectScope = {
 		active = true,
+		paused = false,
 		effects = {},
 		cleanups = {},
 		scopes = {},
 		parent = if detached then nil else activeScope,
 		run = scopeRun,
 		stop = scopeStop,
+		pause = scopePause,
+		resume = scopeResume,
 	}
 
 	local parent = scope.parent
@@ -211,6 +240,15 @@ local function runEffectCleanups(cleanups: { () -> () })
 	end
 end
 
+local function schedule(eff: Effect)
+	local effectScheduler = eff.scheduler
+	if effectScheduler then
+		effectScheduler(eff.run)
+	else
+		scheduler.queueEffect(eff.job)
+	end
+end
+
 local function createEffect(fn: () -> (), opts: EffectOptions?, onError: ((err: string) -> ())?): Effect
 	local options: EffectOptions = opts or {}
 	local effect = {
@@ -222,6 +260,8 @@ local function createEffect(fn: () -> (), opts: EffectOptions?, onError: ((err: 
 		onTrigger = options.onTrigger,
 		allowRecurse = options.allowRecurse,
 		cleanups = nil :: { () -> () }?,
+		paused = nil :: boolean?,
+		pendingTrigger = nil :: boolean?,
 	}
 	local typedEffect: Effect = effect :: any
 
@@ -271,11 +311,27 @@ local function createEffect(fn: () -> (), opts: EffectOptions?, onError: ((err: 
 	end
 	effect.job = job
 
+	function effect.pause(self: Effect)
+		self.paused = true
+	end
+
+	function effect.resume(self: Effect)
+		if not self.paused then
+			return
+		end
+		self.paused = nil
+		if self.pendingTrigger and self.active then
+			self.pendingTrigger = nil
+			schedule(self)
+		end
+	end
+
 	function effect.stop(self: Effect)
 		if not self.active then
 			return
 		end
 		self.active = false
+		self.pendingTrigger = nil
 		for _, dep in self.deps do
 			dep[self] = nil
 		end
@@ -358,16 +414,15 @@ local function dispatch(eff: Effect, target: unknown, key: unknown)
 	if not eff.active or (eff == activeEffect and not eff.allowRecurse) then
 		return
 	end
+	if eff.paused then
+		eff.pendingTrigger = true
+		return
+	end
 	local onTrigger = eff.onTrigger
 	if onTrigger then
 		onTrigger({ target = target, key = key })
 	end
-	local effectScheduler = eff.scheduler
-	if effectScheduler then
-		effectScheduler(eff.run)
-	else
-		scheduler.queueEffect(eff.job)
-	end
+	schedule(eff)
 end
 
 local function triggerDep(dep: Dep, target: unknown, key: unknown)
@@ -800,6 +855,11 @@ local function createWatchHandle(stop: () -> (), pause: () -> (), resume: () -> 
 end
 
 local activeWatcherCleanup: OnCleanup? = nil
+local activeWatcher: Effect? = nil
+
+local function getCurrentWatcher(): Effect?
+	return activeWatcher
+end
 
 local function onWatcherCleanup(fn: () -> (), failSilently: boolean?)
 	local register = activeWatcherCleanup
@@ -887,8 +947,7 @@ local function watch<T>(source: WatchSource<T> | { [any]: any }, cb: WatchCallba
 	local currentValue: T
 
 	local stop: () -> ()
-	local paused = false
-	local dirty = false
+	local eff: Effect
 
 	local function sourceChanged(new: T): boolean
 		if deep then
@@ -917,9 +976,12 @@ local function watch<T>(source: WatchSource<T> | { [any]: any }, cb: WatchCallba
 		if shouldCall then
 			runCleanups()
 			local prevCleanup = activeWatcherCleanup
+			local prevWatcher = activeWatcher
 			activeWatcherCleanup = onCleanup
+			activeWatcher = eff
 			local ok, err = pcall(cb :: (T, T?, OnCleanup) -> ...unknown, new, old, onCleanup)
 			activeWatcherCleanup = prevCleanup
+			activeWatcher = prevWatcher
 			if not ok then
 				if owner then
 					reportError(owner, tostring(err), "watcher callback")
@@ -934,10 +996,6 @@ local function watch<T>(source: WatchSource<T> | { [any]: any }, cb: WatchCallba
 	end
 
 	local function onTrigger(run: () -> ())
-		if paused then
-			dirty = true
-			return
-		end
 		run()
 
 		if flushMode == "sync" then
@@ -952,7 +1010,7 @@ local function watch<T>(source: WatchSource<T> | { [any]: any }, cb: WatchCallba
 		end
 	end
 
-	local eff = createEffect(
+	eff = createEffect(
 		function()
 			currentValue = getter()
 			if deep then
@@ -979,13 +1037,9 @@ local function watch<T>(source: WatchSource<T> | { [any]: any }, cb: WatchCallba
 	job()
 
 	return createWatchHandle(stop, function()
-		paused = true
+		eff:pause()
 	end, function()
-		paused = false
-		if dirty and not stopped then
-			dirty = false
-			onTrigger(eff.run)
-		end
+		eff:resume()
 	end)
 end
 
@@ -1007,13 +1061,9 @@ local function watchEffect(fn: (onCleanup: OnCleanup) -> (), opts: WatchOptions?
 	end
 
 	local eff: Effect
-	local paused = false
-	local dirty = false
 	local owner = errorOwner()
 	local function onTrigger(run: () -> ())
-		if paused then
-			dirty = true
-		elseif flushMode == "sync" then
+		if flushMode == "sync" then
 			run()
 		elseif flushMode == "post" then
 			scheduler.queueJob(eff.job, { mode = "heartbeat" })
@@ -1025,9 +1075,12 @@ local function watchEffect(fn: (onCleanup: OnCleanup) -> (), opts: WatchOptions?
 		function()
 			runCleanups()
 			local prevCleanup = activeWatcherCleanup
+			local prevWatcher = activeWatcher
 			activeWatcherCleanup = onCleanup
+			activeWatcher = eff
 			local ok, err = pcall(fn :: (OnCleanup) -> ...unknown, onCleanup)
 			activeWatcherCleanup = prevCleanup
+			activeWatcher = prevWatcher
 			if not ok then
 				error(err, 0)
 			end
@@ -1044,13 +1097,9 @@ local function watchEffect(fn: (onCleanup: OnCleanup) -> (), opts: WatchOptions?
 		eff:stop()
 		runCleanups()
 	end, function()
-		paused = true
+		eff:pause()
 	end, function()
-		paused = false
-		if dirty and eff.active then
-			dirty = false
-			onTrigger(eff.run)
-		end
+		eff:resume()
 	end)
 end
 
@@ -1274,6 +1323,7 @@ return {
 	watchPostEffect = watchPostEffect,
 	watchSyncEffect = watchSyncEffect,
 	onWatcherCleanup = onWatcherCleanup,
+	getCurrentWatcher = getCurrentWatcher,
 	onEffectCleanup = onEffectCleanup,
 	effect = effect,
 
