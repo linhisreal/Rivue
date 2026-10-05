@@ -181,6 +181,38 @@ local function validatePayload(payload: unknown): (boolean, string?, number)
 	return true, nil, size
 end
 
+const STATE_SYNC = "__rivueStateSync"
+const STATE_EVENT = "__rivueState"
+
+local function devtools(): any
+	local found = findRivue()
+	local tools = if found then found._devtools else nil
+	if tools and (tools.enabled == nil or tools.enabled()) then
+		return tools
+	end
+	return nil
+end
+
+local function sizeOf(payload: unknown): number
+	local _, _, size = validatePayload(payload)
+	return size
+end
+
+local function describe(value: unknown): string
+	local t = typeof(value)
+	if t == "string" then
+		local text = value :: string
+		return if #text > 24 then `"{string.sub(text, 1, 21)}..."` else `"{text}"`
+	elseif t == "table" then
+		local count = 0
+		for _ in value :: { [unknown]: unknown } do
+			count += 1
+		end
+		return `table ({count})`
+	end
+	return tostring(value)
+end
+
 local function checkOutgoing(actionName: unknown, payload: unknown): string?
 	if type(actionName) ~= "string" or #actionName == 0 or #actionName > 100 then
 		return "invalid_action_name"
@@ -255,11 +287,10 @@ function Remote.request(actionName: string, payload: unknown, timeout: number?):
 		coroutine.yield()
 	end
 
-	local found = findRivue()
-	local devtools = if found then found._devtools else nil
-	if devtools then
+	local tools = devtools()
+	if tools then
 		local outcome = if result == nil then "timeout" elseif result.ok then "ok" else result.error or "error"
-		devtools.event("request", actionName, outcome, (os.clock() - started) * 1000)
+		tools.event("request", actionName, `{outcome} · {sizeOf(payload)} B`, (os.clock() - started) * 1000)
 	end
 
 	if result == nil then
@@ -281,6 +312,10 @@ function Remote.fire(actionName: string, payload: unknown): string?
 		return outgoingErr
 	end
 	getRequestEvent():FireServer({ action = actionName, payload = payload })
+	local tools = devtools()
+	if tools then
+		tools.event("send", actionName, `{sizeOf(payload)} B`)
+	end
 	return nil
 end
 
@@ -301,6 +336,12 @@ local listeners: { [string]: { (payload: any) -> () } } = {}
 local eventsConnected = false
 
 local function dispatch(name: unknown, payload: unknown)
+	if name ~= STATE_EVENT and type(name) == "string" then
+		local tools = devtools()
+		if tools then
+			tools.event("event", name, `{sizeOf(payload)} B`)
+		end
+	end
 	local list = if type(name) == "string" then listeners[name] else nil
 	if list then
 		for _, fn in table.clone(list) do
@@ -665,9 +706,6 @@ function Remote.action<Req, Res>(name: string): Action<Req, Res>
 	}) :: any
 end
 
-const STATE_EVENT = "__rivueState"
-const STATE_SYNC = "__rivueStateSync"
-
 export type State<T> = {
 	set: (value: T) -> string?,
 	setFor: (player: Player, value: T?) -> string?,
@@ -760,6 +798,10 @@ local function applyState(name: unknown, value: unknown, version: unknown)
 		return
 	end
 	clientStates[name] = { value = value, version = version }
+	local tools = devtools()
+	if tools then
+		tools.event("state", name, `v{version} = {describe(value)}`)
+	end
 	local list = stateListeners[name]
 	if list then
 		for _, fn in table.clone(list) do

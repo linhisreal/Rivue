@@ -657,7 +657,13 @@ local function createSetupContext(instance: ComponentInstance): SetupContext
 		renderSlot = function(name: string, scope: any?, fallback: { Child }?): { Child }
 			local slotFn = instance.namedSlots[name]
 			if slotFn then
-				return toChildList(slotFn(scope))
+				local owner = instance.vnode._owner :: ComponentInstance?
+				local previous = if owner then setRenderingInstance(owner) else nil
+				local rendered = slotFn(scope)
+				if owner then
+					setRenderingInstance(previous)
+				end
+				return toChildList(rendered)
 			elseif name == "default" and #instance.slots > 0 then
 				return table.clone(instance.slots)
 			end
