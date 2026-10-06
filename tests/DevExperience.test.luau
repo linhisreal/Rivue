@@ -506,6 +506,39 @@ local function runTests()
 		assertEquals((inventory.value :: any).missing, nil, "fields that don't exist aren't created")
 		bagApp:unmount()
 
+		local stored = "sword"
+		local query = Rivue.customRef(function(track, trigger)
+			return {
+				get = function()
+					track()
+					return stored
+				end,
+				set = function(value)
+					stored = value
+					trigger()
+				end,
+			}
+		end)
+		local Search = Rivue.defineComponent({
+			name = "DevtoolsSearch",
+			setup = function()
+				return { query = query }
+			end,
+			render = function()
+				return Rivue.h("TextLabel", { Text = query.value })
+			end,
+		})
+		local searchContainer = Instance.new("Folder")
+		local searchApp = Rivue.createApp(Search)
+		searchApp.config.devtools = true
+		searchApp:mount(searchContainer)
+		local searchRoot = searchContainer:FindFirstChild("DevtoolsSearch") :: TextLabel
+		assertEquals(searchRoot:GetAttribute("RivueState"), 'query = "sword"', "a customRef shows its value")
+		searchRoot:SetAttribute("RivueEdit", 'query="shield"')
+		task.wait()
+		assertEquals(stored, "shield", "and can be edited")
+		searchApp:unmount()
+
 		local plain = Instance.new("Folder")
 		local quiet = Rivue.createApp(Rivue.h(Counter))
 		quiet:mount(plain)

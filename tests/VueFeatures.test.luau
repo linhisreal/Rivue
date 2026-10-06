@@ -490,6 +490,33 @@ local function runTests()
 		app:unmount()
 	end
 
+	print("app.config.idPrefix prefixes useId")
+	do
+		local id: string? = nil
+		local Labelled = Rivue.defineComponent({
+			name = "Labelled",
+			setup = function()
+				id = Rivue.useId()
+				return function()
+					return Rivue.h("Frame")
+				end
+			end,
+		})
+		local app = Rivue.createApp(Labelled)
+		app.config.idPrefix = "shop"
+		app:mount(Instance.new("Folder"))
+		assertTrue(id ~= nil and string.sub(id, 1, 4) == "shop", `ids start with the prefix (got {id})`)
+		app:unmount()
+
+		local plain = Rivue.createApp(Labelled)
+		plain:mount(Instance.new("Folder"))
+		assertTrue(
+			id ~= nil and string.match(id, "^r%d+%-%d+$") ~= nil,
+			`without a prefix ids keep the r format (got {id})`
+		)
+		plain:unmount()
+	end
+
 	print("\n========== VUE FEATURES TESTS COMPLETE ==========\n")
 end
 

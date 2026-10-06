@@ -1229,7 +1229,9 @@ local function customRef<T>(factory: CustomRefFactory<T>): Ref<T>
 	return setmetatable(refTable, {
 		__index = function(_: unknown, k: unknown): unknown
 			if k == REF_VALUE_KEY then
-				return accessor.get()
+				local value = accessor.get()
+				rawset(refTable :: any, "_value", value)
+				return value
 			end
 			return nil
 		end,

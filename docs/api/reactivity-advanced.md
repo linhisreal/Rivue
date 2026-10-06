@@ -117,6 +117,11 @@ end
 local search = useDebouncedRef("", 0.3)
 ```
 
+### Details
+
+- `get` runs on every read. The last value it returned is kept, as in Vue 3.5, so the
+  [DevTools plugin](../DEVTOOLS.md) can show and edit a customRef without calling `get` itself.
+
 ---
 
 ## shallowReactive()

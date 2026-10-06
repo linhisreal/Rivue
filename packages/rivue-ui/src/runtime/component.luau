@@ -183,7 +183,8 @@ local function useId(): string
 	local inst = currentInstance
 	if inst then
 		inst._idCount += 1
-		return `r{inst.uid}-{inst._idCount}`
+		local prefix = inst.appContext.config.idPrefix or "r"
+		return `{prefix}{inst.uid}-{inst._idCount}`
 	end
 	idCounter += 1
 	return `r0-{idCounter}`

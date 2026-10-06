@@ -594,6 +594,7 @@ function useId(): string
 ```
 
 **Returns** an id. In `setup()` it's based on the component's uid, so each instance gets its own.
+[`app.config.idPrefix`](application.md#appconfigidprefix) replaces the leading `r`.
 
 ### Example
 

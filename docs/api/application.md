@@ -615,6 +615,44 @@ render. Writing them adds no dependencies, so it doesn't change what re-renders.
 
 ---
 
+## app.config.idPrefix
+
+Replaces the `r` at the start of [`useId()`](component.md#useid) ids for components in this app,
+as Vue 3.5's `idPrefix` does. Use it when two apps could otherwise give out the same ids.
+
+```lua signature
+app.config.idPrefix: string?
+```
+
+> [!WARNING]
+> Set it before `app:mount()`. Ids made before the change keep the old prefix.
+
+### Example
+
+```lua
+local Slot = Rivue.defineComponent({
+	name = "Slot",
+	setup = function()
+		print(Rivue.useId()) -- for example "inv12-1"
+		return {}
+	end,
+	render = function()
+		return h("Frame")
+	end,
+})
+
+local app = Rivue.createApp(Slot)
+app.config.idPrefix = "inv"
+app:mount(Instance.new("Folder"))
+```
+
+### Details
+
+- Defaults to `"r"`, giving ids like `"r12-1"`.
+- `useId()` called outside a component isn't tied to an app, so it always uses `r`.
+
+---
+
 ## app.config.performance
 
 Marks each component's `setup`, render and patch in Roblox's MicroProfiler, as Vue's

@@ -260,6 +260,7 @@ export type AppConfig = {
 	warnHandler: ((message: string, instance: unknown, trace: string) -> ())?,
 	devtools: boolean?,
 	performance: boolean?,
+	idPrefix: string?,
 }
 
 export type AppContext = {

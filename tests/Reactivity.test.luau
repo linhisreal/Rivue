@@ -495,6 +495,32 @@ local function runTests()
 		failing()
 	end
 
+	print("customRef caches the last value it read")
+	do
+		local reads = 0
+		local stored = "a"
+		local r = Rivue.customRef(function(track, trigger)
+			return {
+				get = function()
+					track()
+					reads += 1
+					return stored
+				end,
+				set = function(v)
+					stored = v
+					trigger()
+				end,
+			}
+		end)
+		assertEquals(rawget(r :: any, "_value"), nil, "nothing cached before the first read")
+		assertEquals(r.value, "a", "reads go through get")
+		assertEquals(rawget(r :: any, "_value"), "a", "the read value is cached")
+		r.value = "b"
+		local _ = r.value
+		assertEquals(rawget(r :: any, "_value"), "b", "the cache follows later reads")
+		assertEquals(reads, 2, "get still runs on every read")
+	end
+
 	print("\n========== REACTIVITY TESTS COMPLETE ==========\n")
 end
 
