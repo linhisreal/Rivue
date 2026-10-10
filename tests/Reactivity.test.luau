@@ -521,6 +521,110 @@ local function runTests()
 		assertEquals(reads, 2, "get still runs on every read")
 	end
 
+	print("An unchanged computed doesn't re-run its dependents")
+	do
+		local a = Rivue.ref(1)
+		local parity = Rivue.computed(function()
+			return a.value % 2
+		end)
+		local runs = 0
+		local stop = Rivue.watchEffect(function()
+			local _ = parity.value
+			runs += 1
+		end, { flush = "sync" })
+		a.value = 3
+		assertEquals(runs, 1, "same parity, no re-run")
+		a.value = 4
+		assertEquals(runs, 2, "new parity re-runs")
+		stop()
+	end
+
+	print("A chain of unchanged computeds stops at the first one")
+	do
+		local a = Rivue.ref(1)
+		local parity = Rivue.computed(function()
+			return a.value % 2
+		end)
+		local evaluations = 0
+		local label = Rivue.computed(function()
+			evaluations += 1
+			return if parity.value == 1 then "odd" else "even"
+		end)
+		local runs = 0
+		local stop = Rivue.watchEffect(function()
+			local _ = label.value
+			runs += 1
+		end, { flush = "sync" })
+		a.value = 5
+		assertEquals(evaluations, 1, "the outer computed isn't re-evaluated")
+		assertEquals(runs, 1, "and its dependent doesn't run")
+		stop()
+	end
+
+	print("Dependents still re-run when a computed starts erroring")
+	do
+		local fail = Rivue.ref(false)
+		local risky = Rivue.computed(function()
+			if fail.value then
+				error("bad")
+			end
+			return 1
+		end)
+		local runs, errored = 0, false
+		local stop = Rivue.watchEffect(function()
+			runs += 1
+			local ok = pcall(function()
+				return risky.value
+			end)
+			errored = not ok
+		end, { flush = "sync" })
+		fail.value = true
+		assertEquals(runs, 2, "the effect re-runs")
+		assertTrue(errored, "and sees the error")
+		stop()
+	end
+
+	print("Queued first runs, list changes and triggerRef still run effects")
+	do
+		local list = Rivue.reactive({ 1, 2 })
+		local length = 0
+		Rivue.effect(function()
+			length = #list
+		end)
+		task.wait()
+		assertEquals(length, 2, "a queued first run happens")
+		Rivue.array.insert(list, 3, 3)
+		task.wait()
+		assertEquals(length, 3, "list changes re-run the effect")
+
+		local box = Rivue.shallowRef({ n = 1 })
+		local seen = 0
+		local stop = Rivue.watchEffect(function()
+			seen = box.value.n
+		end, { flush = "sync" })
+		box.value.n = 2
+		Rivue.triggerRef(box)
+		assertEquals(seen, 2, "triggerRef re-runs the effect")
+		stop()
+	end
+
+	print("A deep watcher on an unchanged computed doesn't fire")
+	do
+		local a = Rivue.ref(1)
+		local parity = Rivue.computed(function()
+			return a.value % 2
+		end)
+		local calls = 0
+		local stop = Rivue.watch(parity, function()
+			calls += 1
+		end, { deep = true, flush = "sync" })
+		a.value = 3
+		assertEquals(calls, 0, "no callback for an unchanged value")
+		a.value = 4
+		assertEquals(calls, 1, "a real change still calls back")
+		stop()
+	end
+
 	print("\n========== REACTIVITY TESTS COMPLETE ==========\n")
 end
 

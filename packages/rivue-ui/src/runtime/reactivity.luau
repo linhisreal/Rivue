@@ -42,6 +42,9 @@ local function weakKeyed(): any
 end
 
 local depMap: { [unknown]: { [unknown]: Dep } } = weakKeyed()
+local depVersions: { [Dep]: number } = weakKeyed()
+local computedRefreshers: { [Dep]: () -> () } = weakKeyed()
+local isDirty: (eff: Effect) -> boolean
 local effectStack: { Effect } = {}
 local activeEffect: Effect? = nil
 
@@ -220,6 +223,7 @@ local function clearDeps(eff: Effect)
 		dep[eff] = nil
 	end
 	table.clear(eff.deps)
+	table.clear(eff.seenVersions)
 end
 
 local errorOwner: () -> any = function()
@@ -243,7 +247,7 @@ end
 local function schedule(eff: Effect)
 	local effectScheduler = eff.scheduler
 	if effectScheduler then
-		effectScheduler(eff.run)
+		effectScheduler(eff.runIfDirty)
 	else
 		scheduler.queueEffect(eff.job)
 	end
@@ -262,15 +266,18 @@ local function createEffect(fn: () -> (), opts: EffectOptions?, onError: ((err: 
 		cleanups = nil :: { () -> () }?,
 		paused = nil :: boolean?,
 		pendingTrigger = nil :: boolean?,
+		seenVersions = {} :: { [Dep]: number },
+		evaluated = false,
 	}
 	local typedEffect: Effect = effect :: any
 
-	function effect.run()
+	function effect.run(): boolean
 		if not effect.active then
 			fn()
-			return
+			return true
 		end
 
+		effect.evaluated = true
 		local effectName = if utils.profiler.active then `effect_{effect}` else nil
 		if effectName then
 			utils.profiler:start(effectName)
@@ -302,12 +309,22 @@ local function createEffect(fn: () -> (), opts: EffectOptions?, onError: ((err: 
 				warn(`[Rivue] Error in effect: {err}`)
 			end
 		end
+		return true
+	end
+
+	function effect.runIfDirty(): boolean
+		if not effect.active then
+			return false
+		end
+		if effect.evaluated and not isDirty(typedEffect) then
+			return false
+		end
+		effect.run()
+		return true
 	end
 
 	local function job()
-		if effect.active then
-			effect.run()
-		end
+		effect.runIfDirty()
 	end
 	effect.job = job
 
@@ -336,6 +353,7 @@ local function createEffect(fn: () -> (), opts: EffectOptions?, onError: ((err: 
 			dep[self] = nil
 		end
 		table.clear(self.deps)
+		table.clear(self.seenVersions)
 		local cleanups = self.cleanups
 		if cleanups then
 			self.cleanups = nil
@@ -359,6 +377,7 @@ local function createEffect(fn: () -> (), opts: EffectOptions?, onError: ((err: 
 end
 
 local function trackDep(dep: Dep, current: Effect, target: unknown, key: unknown)
+	current.seenVersions[dep] = depVersions[dep] or 0
 	if not dep[current] then
 		dep[current] = true
 		local deps = current.deps
@@ -370,10 +389,10 @@ local function trackDep(dep: Dep, current: Effect, target: unknown, key: unknown
 	end
 end
 
-local function track(target: unknown, key: unknown)
+local function track(target: unknown, key: unknown): Dep?
 	local current = activeEffect
 	if not current then
-		return
+		return nil
 	end
 	local deps = depMap[target]
 	if not deps then
@@ -385,6 +404,7 @@ local function track(target: unknown, key: unknown)
 		dep = {}
 		deps[key] = dep
 	end
+	current.seenVersions[dep] = depVersions[dep] or 0
 	if not dep[current] then
 		dep[current] = true
 		local effectDeps = current.deps
@@ -394,6 +414,7 @@ local function track(target: unknown, key: unknown)
 			onTrack({ target = target, key = key })
 		end
 	end
+	return dep
 end
 
 -- In Immediate signal mode, handlers fired by engine calls here would become render deps
@@ -425,7 +446,11 @@ local function dispatch(eff: Effect, target: unknown, key: unknown)
 	schedule(eff)
 end
 
-local function triggerDep(dep: Dep, target: unknown, key: unknown)
+local function bumpDep(dep: Dep)
+	depVersions[dep] = (depVersions[dep] or 0) + 1
+end
+
+local function notifyDep(dep: Dep, target: unknown, key: unknown)
 	triggerDepth += 1
 	local effects = triggerScratch[triggerDepth]
 	if not effects then
@@ -443,6 +468,11 @@ local function triggerDep(dep: Dep, target: unknown, key: unknown)
 		dispatch(eff, target, key)
 	end
 	triggerDepth -= 1
+end
+
+local function triggerDep(dep: Dep, target: unknown, key: unknown)
+	bumpDep(dep)
+	notifyDep(dep, target, key)
 end
 
 local function trigger(target: unknown, key: unknown)
@@ -651,6 +681,28 @@ end
 const PROTECTED_COMPUTED_DEPTH = 16
 local computedDepth = 0
 
+isDirty = function(eff: Effect): boolean
+	for dep, seen in eff.seenVersions do
+		local refresh = computedRefreshers[dep]
+		if refresh then
+			if computedDepth < PROTECTED_COMPUTED_DEPTH then
+				computedDepth += 1
+				local ok = pcall(refresh)
+				computedDepth -= 1
+				if not ok then
+					return true
+				end
+			else
+				refresh()
+			end
+		end
+		if (depVersions[dep] or 0) ~= seen then
+			return true
+		end
+	end
+	return false
+end
+
 local function computed<T>(getterOrOptions: ((previous: T?) -> T) | WritableComputedOptions<T>): ComputedRef<T>
 	local getter: (previous: T?) -> T
 	local setter: ((T) -> ())? = nil
@@ -664,6 +716,8 @@ local function computed<T>(getterOrOptions: ((previous: T?) -> T) | WritableComp
 	end
 
 	local dirty = true
+	local evaluatedOnce = false
+	local lastFailed = false
 	local value: T
 	local runner: Effect
 	runner = createEffect(function()
@@ -671,12 +725,31 @@ local function computed<T>(getterOrOptions: ((previous: T?) -> T) | WritableComp
 	end, {
 		lazy = true,
 		scheduler = function()
-			if not dirty then
-				dirty = true
-				trigger(runner, COMPUTED_KEY)
+			if dirty then
+				return
+			end
+			dirty = true
+			local deps = depMap[runner]
+			local dep = if deps then deps[COMPUTED_KEY] else nil
+			if dep then
+				notifyDep(dep, runner, COMPUTED_KEY)
 			end
 		end,
 	})
+
+	local function bumpComputedDep()
+		local deps = depMap[runner]
+		if not deps then
+			deps = {}
+			depMap[runner] = deps
+		end
+		local dep = deps[COMPUTED_KEY]
+		if not dep then
+			dep = {}
+			deps[COMPUTED_KEY] = dep
+		end
+		bumpDep(dep)
+	end
 
 	local function evaluate()
 		if not runner.active then
@@ -712,13 +785,33 @@ local function computed<T>(getterOrOptions: ((previous: T?) -> T) | WritableComp
 		value = result :: T
 	end
 
-	local function get(): T
-		if dirty then
-			evaluate()
-			dirty = false
+	local function refresh()
+		if not dirty then
+			return
 		end
+		if evaluatedOnce and not lastFailed and not isDirty(runner) then
+			dirty = false
+			return
+		end
+		local previous = value
+		local first = not evaluatedOnce
+		lastFailed = true
+		evaluate()
+		lastFailed = false
+		evaluatedOnce = true
+		dirty = false
+		if first or hasChanged(value, previous) then
+			bumpComputedDep()
+		end
+	end
+
+	local function get(): T
+		refresh()
 		if activeEffect then
-			track(runner, COMPUTED_KEY)
+			local dep = track(runner, COMPUTED_KEY)
+			if dep then
+				computedRefreshers[dep] = refresh
+			end
 		end
 		return value
 	end
@@ -995,8 +1088,10 @@ local function watch<T>(source: WatchSource<T> | { [any]: any }, cb: WatchCallba
 		end
 	end
 
-	local function onTrigger(run: () -> ())
-		run()
+	local function onTrigger(run: () -> boolean)
+		if not run() then
+			return
+		end
 
 		if flushMode == "sync" then
 			local ok, err = pcall(job :: () -> ...unknown)
@@ -1062,7 +1157,7 @@ local function watchEffect(fn: (onCleanup: OnCleanup) -> (), opts: WatchOptions?
 
 	local eff: Effect
 	local owner = errorOwner()
-	local function onTrigger(run: () -> ())
+	local function onTrigger(run: () -> boolean)
 		if flushMode == "sync" then
 			run()
 		elseif flushMode == "post" then
@@ -1286,6 +1381,7 @@ local function triggerListChange(raw: { [any]: any }, first: number, last: numbe
 	local function collect(key: unknown)
 		local dep = deps[key]
 		if dep then
+			bumpDep(dep)
 			for eff in dep do
 				if firstKey[eff] == nil then
 					firstKey[eff] = key

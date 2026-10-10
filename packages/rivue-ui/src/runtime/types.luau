@@ -20,7 +20,7 @@ export type WritableComputedOptions<T> = {
 export type MaybeRef<T> = T | Ref<T>
 export type MaybeRefOrGetter<T> = T | Ref<T> | () -> T
 
-export type EffectScheduler = (run: () -> ()) -> ()
+export type EffectScheduler = (run: () -> boolean) -> ()
 
 export type DebuggerEvent = {
 	target: unknown,
@@ -42,7 +42,7 @@ export type Effect = {
 	scheduler: EffectScheduler?,
 	deps: { Dep },
 	active: boolean,
-	run: () -> (),
+	run: () -> boolean,
 	job: () -> (),
 	stop: (self: Effect) -> (),
 	onTrack: ((event: DebuggerEvent) -> ())?,
@@ -51,6 +51,9 @@ export type Effect = {
 	cleanups: { () -> () }?,
 	paused: boolean?,
 	pendingTrigger: boolean?,
+	seenVersions: { [Dep]: number },
+	evaluated: boolean,
+	runIfDirty: () -> boolean,
 	pause: (self: Effect) -> (),
 	resume: (self: Effect) -> (),
 }
