@@ -52,6 +52,8 @@ export type Effect = {
 	paused: boolean?,
 	pendingTrigger: boolean?,
 	seenVersions: { [Dep]: number },
+	onStop: (() -> ())?,
+	computed: boolean?,
 	evaluated: boolean,
 	runIfDirty: () -> boolean,
 	pause: (self: Effect) -> (),

@@ -625,6 +625,54 @@ local function runTests()
 		stop()
 	end
 
+	print("Stopping a watcher through its effect or scope runs its cleanup")
+	do
+		local source = Rivue.ref(0)
+		local cleaned, calls = 0, 0
+		Rivue.watch(source, function()
+			calls += 1
+			Rivue.onWatcherCleanup(function()
+				cleaned += 1
+			end)
+			Rivue.getCurrentWatcher():stop()
+		end, { flush = "sync", deep = true })
+		source.value = 1
+		assertEquals(cleaned, 1, "stopping via getCurrentWatcher runs the cleanup")
+		source.value = 2
+		assertEquals(calls, 1, "and the watcher doesn't call back again")
+
+		local scopeCleaned = 0
+		local scope = Rivue.effectScope()
+		scope:run(function()
+			Rivue.watchEffect(function(onCleanup)
+				local _ = source.value
+				onCleanup(function()
+					scopeCleaned += 1
+				end)
+			end)
+		end)
+		scope:stop()
+		assertEquals(scopeCleaned, 1, "stopping the scope runs a watchEffect's cleanup")
+	end
+
+	print("Computeds in a paused scope still read fresh values")
+	do
+		local source = Rivue.ref(1)
+		local doubled
+		local scope = Rivue.effectScope()
+		scope:run(function()
+			doubled = Rivue.computed(function()
+				return source.value * 2
+			end)
+			local _ = doubled.value
+		end)
+		scope:pause()
+		source.value = 5
+		assertEquals(doubled.value, 10, "reading a computed while paused is up to date")
+		scope:resume()
+		scope:stop()
+	end
+
 	print("\n========== REACTIVITY TESTS COMPLETE ==========\n")
 end
 

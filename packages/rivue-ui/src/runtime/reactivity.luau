@@ -117,7 +117,9 @@ local function scopePause(self: EffectScope)
 		childScope:pause()
 	end
 	for _, eff in self.effects do
-		eff:pause()
+		if not eff.computed then
+			eff:pause()
+		end
 	end
 end
 
@@ -130,7 +132,9 @@ local function scopeResume(self: EffectScope)
 		childScope:resume()
 	end
 	for _, eff in table.clone(self.effects) do
-		eff:resume()
+		if not eff.computed then
+			eff:resume()
+		end
 	end
 end
 
@@ -268,6 +272,7 @@ local function createEffect(fn: () -> (), opts: EffectOptions?, onError: ((err: 
 		pendingTrigger = nil :: boolean?,
 		seenVersions = {} :: { [Dep]: number },
 		evaluated = false,
+		onStop = nil :: (() -> ())?,
 	}
 	local typedEffect: Effect = effect :: any
 
@@ -358,6 +363,10 @@ local function createEffect(fn: () -> (), opts: EffectOptions?, onError: ((err: 
 		if cleanups then
 			self.cleanups = nil
 			runEffectCleanups(cleanups)
+		end
+		local onStop = self.onStop
+		if onStop then
+			onStop()
 		end
 	end
 
@@ -736,6 +745,8 @@ local function computed<T>(getterOrOptions: ((previous: T?) -> T) | WritableComp
 			end
 		end,
 	})
+
+	runner.computed = true
 
 	local function bumpComputedDep()
 		local deps = depMap[runner]
@@ -1122,10 +1133,12 @@ local function watch<T>(source: WatchSource<T> | { [any]: any }, cb: WatchCallba
 			end
 			else nil
 	)
-	stop = function()
+	eff.onStop = function()
 		stopped = true
-		eff:stop()
 		runCleanups()
+	end
+	stop = function()
+		eff:stop()
 	end
 
 	eff.run()
@@ -1187,10 +1200,10 @@ local function watchEffect(fn: (onCleanup: OnCleanup) -> (), opts: WatchOptions?
 			end
 			else nil
 	)
+	eff.onStop = runCleanups
 	eff.run()
 	return createWatchHandle(function()
 		eff:stop()
-		runCleanups()
 	end, function()
 		eff:pause()
 	end, function()
