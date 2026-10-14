@@ -5,7 +5,7 @@
 	Builds the distributables into build/.
 
 	lune run build              RivueUI.rbxm, RivueRemote.rbxm, RivueRouter.rbxm, RivueDevTools.rbxm and the dev place
-	lune run build minify       also RivueUI.min.rbxm: comments and whitespace stripped by darklua
+	lune run build minify       also RivueUI.min.rbxm
 ]]
 
 local fs = require("@lune/fs")
