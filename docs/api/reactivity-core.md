@@ -116,9 +116,10 @@ print(volume.value) -- 0.8
 ### Details
 
 - The getter only runs when `.value` is read. Keep it free of side effects.
-- Returning `previous` when nothing you care about changed, as in Vue 3.4, means a `watch` on the
-  computed doesn't fire and a child that gets it as a prop doesn't update. A component that reads
-  it in render still re-renders, because it's told before the getter runs again.
+- Effects, watchers and components that read a computed re-run only when its value changes, as in
+  Vue 3.5. A getter that runs again and returns an equal value doesn't make anything re-run.
+- Returning `previous` when nothing you care about changed, as in Vue 3.4, keeps a new table from
+  counting as a change, so a `watch` on the computed doesn't fire and nothing re-renders.
 
 ```lua
 local items = Rivue.reactive({ 1, 2, 3 })
@@ -487,8 +488,8 @@ end)
 
 ## getCurrentWatcher()
 
-Returns the watcher whose callback, or `watchEffect` body, is running, as in Vue 3.5. Returns
-`nil` anywhere else.
+Returns the effect of the watcher whose callback (or `watchEffect` body) is running, as in Vue 3.5,
+so a watcher can stop or pause itself. Anywhere else it returns `nil`.
 
 ```lua signature
 function getCurrentWatcher(): Effect?

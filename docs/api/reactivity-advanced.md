@@ -119,7 +119,7 @@ local search = useDebouncedRef("", 0.3)
 
 ### Details
 
-- `get` runs on every read. The last value it returned is kept, as in Vue 3.5, so the
+- `get` runs on every read. Rivue keeps the value it last returned, as Vue 3.5 does, so the
   [DevTools plugin](../DEVTOOLS.md) can show and edit a customRef without calling `get` itself.
 
 ---
@@ -267,12 +267,12 @@ function effect(fn: () -> (), options: EffectOptions?): Effect
 | `fn` | `() -> ()` | | the function to run |
 | `options` | `EffectOptions?` | | |
 | `options.lazy` | `boolean` | `false` | don't run until you call `effect.run()` |
-| `options.scheduler` | `(run: () -> ()) -> ()` | | called instead of running on a change; decide when to call `run` |
+| `options.scheduler` | `(run: () -> boolean) -> ()` | | called instead of running on a change; decide when to call `run`, which returns `false` when nothing the effect read changed |
 | `options.onTrack` | `(event: DebuggerEvent) -> ()` | | called for each value it starts tracking |
 | `options.onTrigger` | `(event: DebuggerEvent) -> ()` | | called with the change that made it run again |
 | `options.allowRecurse` | `boolean` | `false` | let it trigger itself by writing what it reads |
 
-**Returns** an `Effect`: `{ run: () -> (), stop: (self) -> (), active: boolean }`. A
+**Returns** an `Effect`: `{ run: () -> boolean, stop: (self) -> (), pause: (self) -> (), resume: (self) -> (), active: boolean }`. A
 `DebuggerEvent` is `{ target, key }`.
 
 > [!NOTE]
@@ -363,8 +363,9 @@ hud:resume() -- runs once, with 60
 
 ### Details
 
-- `pause()` pauses every effect and child scope in the scope. Changes made while paused run once
-  on `resume()`.
+- `pause()` holds the watchers and effects in the scope and its child scopes. Anything that changed
+  while paused runs once on `resume()`.
+- Computeds keep updating while paused, so reading one gives the current value.
 - `resume()` also resumes watchers that were paused on their own handle.
 - A scope created inside a paused scope starts unpaused.
 - Each component's `setup()` runs in its own scope.

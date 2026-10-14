@@ -2212,16 +2212,19 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 	end
 
 	local renderEffect: Effect
+	local pendingRun: (() -> boolean)? = nil
 	local updateJob = {
 		id = inst.uid,
 		run = function()
+			local run = pendingRun or renderEffect.runIfDirty
+			pendingRun = nil
 			if not renderEffect.active then
 				return
 			elseif inst.isDeactivated then
 				inst._pendingUpdate = true
 				return
 			end
-			renderEffect.run()
+			run()
 		end,
 	}
 	renderEffect = reactivity.effect(function()
@@ -2297,7 +2300,10 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 		end
 	end, {
 		lazy = true,
-		scheduler = function()
+		scheduler = function(run: () -> boolean)
+			if pendingRun ~= renderEffect.run then
+				pendingRun = run
+			end
 			scheduler.queueUpdate(updateJob)
 		end,
 		allowRecurse = true,

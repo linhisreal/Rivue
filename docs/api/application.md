@@ -618,7 +618,8 @@ render. Writing them adds no dependencies, so it doesn't change what re-renders.
 ## app.config.idPrefix
 
 Replaces the `r` at the start of [`useId()`](component.md#useid) ids for components in this app,
-as Vue 3.5's `idPrefix` does. Use it when two apps could otherwise give out the same ids.
+as Vue 3.5's `idPrefix` does. Ids are already unique across apps, so the prefix is for seeing which
+app made an id, for example in an Instance name.
 
 ```lua signature
 app.config.idPrefix: string?

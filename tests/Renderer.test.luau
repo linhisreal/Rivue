@@ -598,6 +598,33 @@ local function runTests()
 		container:Destroy()
 	end
 
+	print("A component doesn't re-render for an unchanged computed")
+	do
+		local a = Rivue.ref(1)
+		local renders = 0
+		local Parity = Rivue.defineComponent({
+			name = "Parity",
+			setup = function()
+				local parity = Rivue.computed(function()
+					return a.value % 2
+				end)
+				return function()
+					renders += 1
+					return Rivue.h("TextLabel", { Name = "Label", Text = tostring(parity.value) })
+				end
+			end,
+		})
+		local app = Rivue.createApp(Parity)
+		app:mount(Instance.new("Folder"))
+		a.value = 3
+		Rivue.nextTick()
+		assertEquals(renders, 1, "no re-render when the value is the same")
+		a.value = 4
+		Rivue.nextTick()
+		assertEquals(renders, 2, "a real change re-renders")
+		app:unmount()
+	end
+
 	print("\n========== RENDERER TESTS COMPLETE ==========\n")
 end
 
