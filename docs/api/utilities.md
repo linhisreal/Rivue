@@ -377,8 +377,8 @@ Runs a function every frame until you stop it.
 
 ## utils.filterForClient()
 
-Filters text with TextService before showing it to a player. Returns the original text if
-filtering fails. It yields, and only works on the server.
+Filters text with TextService before showing it to a player. Returns `""` if filtering
+fails, so unfiltered text is never shown. It yields, and only works on the server.
 
 - **Example**
 

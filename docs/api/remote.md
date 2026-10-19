@@ -92,7 +92,14 @@ returns is sent back as the response.
     [`configure()`](#remoteconfigure). Calls over either limit get `"rate_limited"`.
   - **Payloads come from the client.** Never trust them. `check` gets the payload before the
     handler does; if it returns anything but `true` (or errors), the client gets
-    `"invalid_payload"` and the handler doesn't run.
+    `"invalid_payload"` and the handler doesn't run. `check` doesn't get the player, so put
+    permission checks in [`use()`](#remoteuse) or the handler. An Instance in a payload can be any
+    Instance the client sees, so check the player owns it.
+  - **One at a time.** With `exclusive = true`, a player's second call to the action while the
+    first is still running gets `"busy"`. Use it for handlers that yield between reading and
+    writing data, like trades and purchases.
+  - **Logs.** Handler and middleware errors are warned at most once every 10 seconds per action.
+  - Names starting with `__rivue` are reserved.
 
 - **Type**
 
@@ -103,6 +110,7 @@ returns is sent back as the response.
   	options: {
   		maxPerSecond: number?,
   		check: ((payload: unknown) -> boolean)?,
+  		exclusive: boolean?,
   	}?
   )
   ```
@@ -504,8 +512,9 @@ payloads against the same limits the server does.
   | `maxPayloadDepth` | 10 | how deep tables can nest |
   | `maxRequestsPerSecond` | 60 | requests one player can send per second, all actions together |
   | `maxBytesPerSecond` | 50000 | payload bytes one player can send per second, all actions together |
+  | `maxConcurrentRequests` | 10 | handlers one player can have running at once; more get `"busy"` |
 
-  `0` turns off `maxRequestsPerSecond` or `maxBytesPerSecond`. Without the totals, a client could
+  `0` turns off `maxRequestsPerSecond`, `maxBytesPerSecond` or `maxConcurrentRequests`. Without the totals, a client could
   spread its spam across every action and stay under each action's own `maxPerSecond`. An unknown
   setting errors.
 
@@ -517,6 +526,7 @@ payloads against the same limits the server does.
   	maxPayloadDepth: number?,
   	maxRequestsPerSecond: number?,
   	maxBytesPerSecond: number?,
+  	maxConcurrentRequests: number?,
   })
   ```
 
@@ -580,24 +590,30 @@ Counts per action on the server, for finding slow or failing handlers in a live 
   ```
 
 - **Payloads** can contain:
-  - strings, numbers and booleans,
+  - strings, numbers (not NaN or infinity) and booleans,
   - tables up to 10 levels deep, and about 20 KB in total (both can be changed with
     [`configure()`](#remoteconfigure)),
   - Instances,
-  - Roblox datatypes such as Vector3, CFrame, Color3, UDim2 and EnumItem.
+  - Roblox datatypes such as Vector3, CFrame, Color3, UDim2 and EnumItem, also without NaN or
+    infinity.
 
   Functions and threads are rejected before anything is sent.
+
+  The server answers at most 30 refused requests a second per player, and the rest get no reply.
+  A refused payload still counts toward the byte budget.
 
 - **Errors** returned by `request()`:
 
   | Error | Meaning |
   |-------|---------|
   | `"timeout"` | No response in time |
-  | `"unknown_action"` | No `handle()` for that action on the server (at most 30 of these replies a second per player) |
+  | `"unknown_action"` | No `handle()` for that action on the server |
   | `"rate_limited"` | Over the action's `maxPerSecond`, or the player's total request or byte budget |
   | `"rejected"` | A [`use()`](#remoteuse) function returned `false` |
   | `"invalid_payload"` | The action's `check` didn't return `true` |
   | `"handler_error"` | The server handler errored |
+  | `"busy"` | The action is `exclusive` and this player's last call hasn't finished, or the player has `maxConcurrentRequests` handlers running |
+  | `"payload_bad_number"` | The payload contains NaN or infinity, including inside a datatype |
   | `"invalid_action_name"` | Not a non-empty string of at most 100 characters |
   | `"payload_unsafe_type"` | The payload contains something RemoteEvents can't send |
   | `"payload_too_large"` / `"payload_too_deep"` | Over the size or nesting limit |
