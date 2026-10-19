@@ -673,6 +673,35 @@ local function runTests()
 		scope:stop()
 	end
 
+	print("isDirty stops at the first changed dependency, in read order")
+	do
+		local gate = Rivue.ref(false)
+		local base = Rivue.ref(0)
+		local evaluations = 0
+		local computeds = {}
+		for i = 1, 30 do
+			computeds[i] = Rivue.computed(function()
+				evaluations += 1
+				return base.value + i
+			end)
+		end
+		local stop = Rivue.watchEffect(function()
+			if gate.value then
+				return
+			end
+			for _, c in computeds do
+				local _ = c.value
+			end
+		end)
+		task.wait()
+		evaluations = 0
+		base.value = 1
+		gate.value = true
+		task.wait()
+		assertEquals(evaluations, 0, "the gate changed first in read order, so no computed was refreshed")
+		stop()
+	end
+
 	print("\n========== REACTIVITY TESTS COMPLETE ==========\n")
 end
 

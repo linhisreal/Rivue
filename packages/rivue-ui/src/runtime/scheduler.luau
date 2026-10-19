@@ -146,8 +146,10 @@ export type UpdateJob = {
 }
 
 local microQueue: { Job } = {}
+local microSpare: { Job } = {}
 local microQueued: { [() -> ()]: Job } = {}
 local updateQueue: { UpdateJob } = {}
+local updateSpare: { UpdateJob } = {}
 local updateQueued: { [UpdateJob]: true } = {}
 local tickQueue: { thread | () -> () } = {}
 local flushScheduled = false
@@ -172,18 +174,21 @@ end
 
 local function runMicroJobs(): ()
 	local q = microQueue
-	microQueue = {}
+	microQueue = microSpare
+	microSpare = q
 	table.clear(microQueued)
 	for _, job in q do
 		if not job.cancelled and withinRunLimit(job.fn) then
 			runJob("queued job", job.fn)
 		end
 	end
+	table.clear(q)
 end
 
 local function runUpdates(): ()
 	local q = updateQueue
-	updateQueue = {}
+	updateQueue = updateSpare
+	updateSpare = q
 	table.sort(q, byId)
 	for _, job in q do
 		updateQueued[job] = nil
@@ -191,6 +196,7 @@ local function runUpdates(): ()
 			debugModule.safeCall("component update", job.run :: () -> ...unknown)
 		end
 	end
+	table.clear(q)
 end
 
 local function flush(): ()

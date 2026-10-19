@@ -625,6 +625,76 @@ local function runTests()
 		app:unmount()
 	end
 
+	print("Props starting with 'on' keep their current handling")
+	do
+		local clicks = 0
+		local handler = function()
+			clicks += 1
+		end
+		local container = Instance.new("Folder")
+		local v1 = Rivue.h("TextButton", { Name = "B", onActivated = handler, Text = "x" })
+		renderer.patch(nil, v1, container)
+		local button = container:FindFirstChild("B") :: TextButton
+		Rivue.testing.trigger(button, "onActivated")
+		assertEquals(clicks, 1, "an on-prop with a function connects")
+		local v2 = Rivue.h("TextButton", {
+			Name = "B",
+			onActivated = function()
+				clicks += 10
+			end,
+			Text = "x",
+		})
+		renderer.patch(v1, v2, container)
+		Rivue.testing.trigger(button, "onActivated")
+		assertEquals(clicks, 11, "swapping the handler uses the new one")
+		local v3 = Rivue.h("TextButton", { Name = "B", Text = "x" })
+		renderer.patch(v2, v3, container)
+		local triggered = pcall(Rivue.testing.trigger, button, "onActivated")
+		assertTrue(not triggered and clicks == 11, "removing it disconnects")
+		renderer.patch(v3, nil, container)
+	end
+
+	print("Nested keyed lists reorder correctly in one update")
+	do
+		local rows = Rivue.ref({ { id = 1, items = { "a", "b" } }, { id = 2, items = { "c", "d" } } })
+		local App = Rivue.defineComponent(function()
+			return function()
+				return Rivue.h("Frame", { Name = "Root" }, {
+					Rivue.h("UIListLayout"),
+					Rivue.hFor(rows.value, function(row)
+						return Rivue.h("Frame", { key = row.id, Name = `Row{row.id}` }, {
+							Rivue.h("UIListLayout"),
+							Rivue.hFor(row.items, function(item)
+								return Rivue.h("TextLabel", { key = item, Name = item, Text = item })
+							end),
+						})
+					end),
+				})
+			end
+		end, { name = "NestedKeyed" })
+		local container = Instance.new("Folder")
+		local app = Rivue.createApp(App)
+		app:mount(container)
+		local root = container:FindFirstChild("Root") :: Frame
+		local row1Before = root:FindFirstChild("Row1")
+		rows.value = { { id = 2, items = { "d", "c" } }, { id = 1, items = { "b", "a" } } }
+		Rivue.nextTick()
+		local row1 = root:FindFirstChild("Row1") :: Frame
+		local row2 = root:FindFirstChild("Row2") :: Frame
+		assertTrue(row1 == row1Before, "outer rows keep their Instances")
+		assertTrue(row2.LayoutOrder < row1.LayoutOrder, "outer rows reordered")
+		assertTrue(
+			(row2:FindFirstChild("d") :: TextLabel).LayoutOrder < (row2:FindFirstChild("c") :: TextLabel).LayoutOrder,
+			"inner rows of the first row reordered"
+		)
+		assertTrue(
+			(row1:FindFirstChild("b") :: TextLabel).LayoutOrder < (row1:FindFirstChild("a") :: TextLabel).LayoutOrder,
+			"inner rows of the second row reordered"
+		)
+		assertEquals(#row1:GetChildren() + #row2:GetChildren(), 6, "no row duplicated or lost, plus the two layouts")
+		app:unmount()
+	end
+
 	print("\n========== RENDERER TESTS COMPLETE ==========\n")
 end
 

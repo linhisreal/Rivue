@@ -390,6 +390,28 @@ local function runTests()
 		assertTrue(state.error.value ~= nil, "A failed run should leave an error set")
 	end
 
+	print("Jobs queued during a flush still run in the same flush, in order")
+	do
+		local order = {}
+		scheduler.queueJob(function()
+			table.insert(order, "first")
+			scheduler.queueJob(function()
+				table.insert(order, "nested")
+			end)
+		end)
+		scheduler.queueJob(function()
+			table.insert(order, "second")
+		end)
+		task.wait()
+		assertEquals(table.concat(order, ","), "first,second,nested", "nested job runs after the current pass")
+		scheduler.queueJob(function()
+			table.insert(order, "later")
+		end)
+		task.wait()
+		assertEquals(order[4], "later", "the next flush starts clean")
+		assertEquals(#order, 4, "nothing from the earlier flush runs again")
+	end
+
 	print("\n========== SCHEDULER TESTS COMPLETE ==========\n")
 end
 

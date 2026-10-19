@@ -702,11 +702,22 @@ local function bindProp(inst: Instance, key: string, getter: () -> unknown, vnod
 	eff.run()
 end
 
+local eventKeyCache: { [string]: boolean } = {}
+
+local function isEventKey(key: string): boolean
+	local cached = eventKeyCache[key]
+	if cached == nil then
+		cached = string.sub(key, 1, 2) == "on"
+		eventKeyCache[key] = cached
+	end
+	return cached
+end
+
 local function setProp(inst: Instance, key: string, value: any, vnode: RenderVNode)
 	if vnode._bindings and vnode._bindings[key] then
 		stopBinding(vnode, key)
 	end
-	if key:sub(1, 2) ~= "on" and key ~= "__directives" then
+	if not isEventKey(key) and key ~= "__directives" then
 		local getter = bindingGetter(value)
 		if getter then
 			bindProp(inst, key, getter, vnode)
@@ -732,7 +743,7 @@ function applyProp(inst: Instance, key: string, value: any, vnode: RenderVNode)
 		return
 	end
 
-	if key:sub(1, 2) == "on" and type(value) == "function" then
+	if isEventKey(key) and type(value) == "function" then
 		local conns = vnode._conns or {}
 		local handlers: { [string]: (...any) -> () } = vnode._handlers :: any
 		if not handlers then
@@ -1811,7 +1822,7 @@ local function patchProps(el: Instance, oldPropsIn: Props?, newPropsIn: Props?, 
 		if vnode._bindings and vnode._bindings[k] then
 			stopBinding(vnode, k)
 		end
-		if k:sub(1, 2) == "on" then
+		if isEventKey(k) then
 			local conns = vnode._conns
 			local conn = if conns then conns[k] else nil
 			if conns and conn then
@@ -2396,7 +2407,7 @@ local function propsEqualSwappingHandlers(oldProps: Props?, newProps: Props?, vn
 				and handlers[key] ~= nil
 				and type(value) == "function"
 				and type(old) == "function"
-				and string.sub(key, 1, 2) == "on"
+				and isEventKey(key)
 			then
 				handlers[key] = value
 			else

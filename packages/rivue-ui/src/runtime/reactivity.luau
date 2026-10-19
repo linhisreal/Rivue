@@ -691,7 +691,9 @@ const PROTECTED_COMPUTED_DEPTH = 16
 local computedDepth = 0
 
 isDirty = function(eff: Effect): boolean
-	for dep, seen in eff.seenVersions do
+	local seenVersions = eff.seenVersions
+	for _, dep in eff.deps do
+		local seen = seenVersions[dep] or 0
 		local refresh = computedRefreshers[dep]
 		if refresh then
 			if computedDepth < PROTECTED_COMPUTED_DEPTH then
