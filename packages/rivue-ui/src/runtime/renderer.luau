@@ -1402,6 +1402,29 @@ local function syncLayoutOrder(children: { Child })
 	end
 end
 
+local function cloneIfMounted(vnode: RenderVNode): RenderVNode
+	if (vnode.el == nil and vnode._instance == nil) or vnode._kept or vnode._keepAlive then
+		return vnode
+	end
+	local children: { Child } = table.create(#vnode.children)
+	for i, child in vnode.children do
+		children[i] = if type(child) == "table" and (child :: any).type ~= nil
+			then cloneIfMounted(child :: RenderVNode) :: any
+			else child
+	end
+	return {
+		type = vnode.type,
+		props = vnode.props,
+		children = children,
+		slots = vnode.slots,
+		key = vnode.key,
+		_uid = vnode._uid,
+		_owner = vnode._owner,
+		_transition = vnode._transition,
+		_classApplied = vnode._classApplied,
+	} :: any
+end
+
 local function mountElement(vnode: RenderVNode, container: Instance, poolOpt: PoolOptions?): Instance
 	local tag = vnode.type :: string
 	local props = vnode.props
@@ -1489,6 +1512,8 @@ local function mountElement(vnode: RenderVNode, container: Instance, poolOpt: Po
 				tl.Parent = inst
 			end
 		elseif type(child) == "table" then
+			child = cloneIfMounted(child :: RenderVNode) :: any
+			children[i] = child
 			patch(nil, child, inst, poolOpt)
 		end
 	end
@@ -1724,6 +1749,10 @@ local function patchKeyedChildren(
 				seenKeys[k] = true
 			end
 			local oc = oldMap[k]
+			if oc ~= nc then
+				nc = cloneIfMounted(nc :: RenderVNode) :: any
+				newList[i] = nc
+			end
 			if oc then
 				patch(oc, nc, parent, poolOpt)
 				oldMap[k] = nil
@@ -1733,6 +1762,10 @@ local function patchKeyedChildren(
 			end
 		else
 			local oc = oldList[i]
+			if oc ~= nc then
+				nc = cloneIfMounted(nc :: RenderVNode) :: any
+				newList[i] = nc
+			end
 			if type(oc) == "table" and oc.key == nil then
 				reusedUnkeyed[i] = true
 				patch(oc, nc, parent, poolOpt)
@@ -1900,8 +1933,10 @@ local function mountTeleport(vnode: RenderVNode, container: Instance, poolOpt: P
 	if not target then
 		return
 	end
-	for _, child in vnode.children do
+	for i, child in vnode.children do
 		if type(child) == "table" then
+			child = cloneIfMounted(child :: RenderVNode) :: any
+			vnode.children[i] = child
 			patch(nil, child, target, poolOpt)
 		end
 	end
@@ -2183,6 +2218,9 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 	local renderStart = 0
 
 	local function commit(nextTree: VNode?)
+		if nextTree and nextTree ~= inst.subTree then
+			nextTree = cloneIfMounted(nextTree :: RenderVNode) :: any
+		end
 		if nextTree then
 			if inst.type.inheritAttrs ~= false and type(nextTree.type) == "string" then
 				nextTree.props = applyFallthroughAttrs(nextTree.props, inst.attrs)
@@ -2522,6 +2560,8 @@ local function mountFragment(vnode: RenderVNode, container: Instance, poolOpt: P
 			child = rendered :: any
 		end
 		if type(child) == "table" then
+			child = cloneIfMounted(child :: RenderVNode) :: any
+			vnode.children[i] = child
 			patch(nil, child, container, poolOpt)
 		end
 	end

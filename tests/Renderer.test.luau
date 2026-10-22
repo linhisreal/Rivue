@@ -695,6 +695,58 @@ local function runTests()
 		app:unmount()
 	end
 
+	print("A hoisted vnode can be used twice and stays skipped on re-render")
+	do
+		local title = Rivue.ref("Shop")
+		local header = Rivue.h("TextLabel", { Name = "Header", Text = title })
+		local tick = Rivue.ref(0)
+		local Card = Rivue.defineComponent(function()
+			return function()
+				local _ = tick.value
+				return Rivue.h("Frame", { Name = "Card" }, { header, Rivue.h("Frame", { Name = "Body" }, { header }) })
+			end
+		end, { name = "HoistCard" })
+		local a, b = Instance.new("Folder"), Instance.new("Folder")
+		local appA, appB = Rivue.createApp(Card), Rivue.createApp(Card)
+		appA:mount(a)
+		appB:mount(b)
+		local cardA = a:FindFirstChild("Card") :: Frame
+		local bodyA = cardA:FindFirstChild("Body") :: Frame
+		assertTrue(
+			cardA:FindFirstChild("Header") ~= nil and bodyA:FindFirstChild("Header") ~= nil,
+			"used twice in one tree, mounted twice"
+		)
+		local cardB = b:FindFirstChild("Card") :: Frame
+		assertTrue(cardB:FindFirstChild("Header") ~= nil, "and in a second app")
+		title.value = "Market"
+		Rivue.nextTick()
+		assertEquals(
+			(cardA:FindFirstChild("Header") :: TextLabel).Text,
+			"Market",
+			"the bound ref updates the first copy"
+		)
+		assertEquals((bodyA:FindFirstChild("Header") :: TextLabel).Text, "Market", "and the nested copy")
+		assertEquals((cardB:FindFirstChild("Header") :: TextLabel).Text, "Market", "and the other app's copy")
+		appA:unmount()
+		title.value = "Bazaar"
+		Rivue.nextTick()
+		assertEquals(
+			(cardB:FindFirstChild("Header") :: TextLabel).Text,
+			"Bazaar",
+			"unmounting one copy doesn't stop the other"
+		)
+		tick.value += 1
+		Rivue.nextTick()
+		local bodyB = cardB:FindFirstChild("Body") :: Frame
+		assertTrue(
+			cardB:FindFirstChild("Header") ~= bodyB:FindFirstChild("Header"),
+			"after a re-render the two copies are still separate Instances"
+		)
+		assertEquals((bodyB:FindFirstChild("Header") :: TextLabel).Text, "Bazaar", "and both keep updating")
+		appB:unmount()
+		assertEquals(#b:GetChildren(), 0, "unmount removes both copies")
+	end
+
 	print("\n========== RENDERER TESTS COMPLETE ==========\n")
 end
 

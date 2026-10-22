@@ -130,8 +130,10 @@ function.
 Props destructuring, `<style>` blocks and single-file components need the compiler, so they
 aren't here. Each component is a ModuleScript ([Organising a project](guide/10-organising-a-project.md)
 shows a layout), and the `defineProps` and `defineEmits` macros become the `props` and `emits`
-options. Every render builds its vnodes from scratch; Rivue diffs props shallowly, and `memo` and
-keys cover what static hoisting does in Vue.
+options. Every render builds its vnodes from scratch and Rivue diffs props shallowly. The static parts
+Vue's compiler hoists can be hoisted by hand: build them once outside `render`
+([Hoisting static parts](api/render-function.md#hoisting-static-parts)). `memo` and keys cover
+the rest.
 
 ### Instances instead of the DOM
 

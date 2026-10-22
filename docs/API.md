@@ -72,6 +72,7 @@ it does something unexpected, and examples. To learn Rivue step by step, start w
 [hFor()](api/render-function.md#hfor) ·
 [mergeProps()](api/render-function.md#mergeprops) ·
 [cloneVNode()](api/render-function.md#clonevnode) ·
+[Hoisting static parts](api/render-function.md#hoisting-static-parts) ·
 [isVNode()](api/render-function.md#isvnode) ·
 [resolveComponent()](api/render-function.md#resolvecomponent) ·
 [Function components](api/render-function.md#function-components)

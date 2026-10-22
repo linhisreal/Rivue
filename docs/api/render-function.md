@@ -68,6 +68,35 @@ h(Badge, { text = "NEW" })
   stays separate from its siblings.
 - `nil` and `false` children are skipped.
 
+### Hoisting static parts
+
+A part of the UI that never changes can be built once, outside `render`, and reused. When a
+render returns the same vnode table as last time, Rivue skips it without comparing anything. Vue's
+template compiler hoists static parts the same way.
+
+```lua
+local header = h("TextLabel", { Name = "Header", Text = "Shop" })
+
+local Shop = Rivue.defineComponent({
+	name = "Shop",
+	setup = function()
+		local coins = Rivue.ref(0)
+		return function()
+			return h("Frame", nil, {
+				header,
+				h("TextLabel", { Name = "Coins", Text = tostring(coins.value) }),
+			})
+		end
+	end,
+})
+```
+
+- A hoisted vnode can appear more than once, in one tree or in several apps. Each place gets its
+  own Instance.
+- It can hold a bound ref, such as `Text = titleRef`, and every copy keeps updating.
+- Only hoist what doesn't read state while it's built: a hoisted `Text = tostring(coins.value)`
+  would keep the value it had when the module loaded.
+
 ---
 
 ## Element props
