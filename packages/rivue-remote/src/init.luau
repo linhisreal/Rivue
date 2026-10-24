@@ -524,6 +524,7 @@ export type HandleOptions = {
 	maxPerSecond: number?,
 	check: ((payload: unknown) -> boolean)?,
 	exclusive: boolean?,
+	allow: ((player: Player) -> boolean)?,
 }
 
 --- Return false to reject the request with "rejected"
@@ -549,6 +550,38 @@ local checks: { [string]: ((payload: unknown) -> boolean)? } = {}
 local middlewares: { Middleware } = {}
 local exclusive: { [string]: { [Player]: true } } = {}
 local inFlight: { [Player]: number } = {}
+local allows: { [string]: ((player: Player) -> boolean)? } = {}
+local traps: { [string]: true } = {}
+local suspicionListeners: { (player: Player, reason: string, count: number) -> () } = {}
+local suspicions: { [Player]: { [string]: { count: number, last: number } } } = {}
+
+-- At most one call per player and reason a second, so a flood can't flood the listeners
+local function suspect(player: Player, reason: string)
+	if #suspicionListeners == 0 then
+		return
+	end
+	local byReason = suspicions[player]
+	if not byReason then
+		byReason = {}
+		suspicions[player] = byReason
+	end
+	local record = byReason[reason]
+	if not record then
+		record = { count = 0, last = -math.huge }
+		byReason[reason] = record
+	end
+	record.count += 1
+	local now = os.clock()
+	if now - record.last < 1 then
+		return
+	end
+	local count = record.count
+	record.count = 0
+	record.last = now
+	for _, listener in table.clone(suspicionListeners) do
+		task.spawn(listener, player, reason, count)
+	end
+end
 local lastWarned: { [string]: number } = {}
 
 local function warnThrottled(key: string, message: string)
@@ -600,11 +633,13 @@ local serverConn: RBXScriptConnection? = nil
 
 local function processRequest(player: Player, req: unknown): RemoteResponse?
 	if type(req) ~= "table" then
+		suspect(player, "malformed")
 		return nil
 	end
 	local request = req :: { action: unknown, id: unknown, payload: unknown }
 	local action = request.action
 	if type(action) ~= "string" or #action > MAX_ACTION_LENGTH then
+		suspect(player, "malformed")
 		return nil
 	end
 	local id = request.id
@@ -619,6 +654,7 @@ local function processRequest(player: Player, req: unknown): RemoteResponse?
 
 	local actionHandler = handlers[action]
 	if not actionHandler then
+		suspect(player, if traps[action] then "trap" else "unknown_action")
 		return refuseQuietly("unknown_action")
 	end
 
@@ -631,20 +667,34 @@ local function processRequest(player: Player, req: unknown): RemoteResponse?
 	-- Totalled across actions, or spam could be spread over all of them
 	local total = settings.maxRequestsPerSecond
 	if total > 0 and not take(player, ALL_REQUESTS, total, 1) then
+		suspect(player, "rate_limited")
 		return refuse("rate_limited")
 	end
 	local rate = limits[action]
 	if rate > 0 and not take(player, action, rate, 1) then
+		suspect(player, "rate_limited")
 		return refuse("rate_limited")
+	end
+
+	-- Before the payload is scanned, so refused players cost as little as possible
+	local allow = allows[action]
+	if allow then
+		local ran, allowed = pcall(allow, player)
+		if not ran or allowed ~= true then
+			suspect(player, "forbidden")
+			return refuse("rejected")
+		end
 	end
 
 	local payload = request.payload
 	local valid, validErr, size = validatePayload(payload)
 	local bytes = settings.maxBytesPerSecond
 	if bytes > 0 and not take(player, ALL_BYTES, bytes, size) then
+		suspect(player, "rate_limited")
 		return refuse("rate_limited")
 	end
 	if not valid then
+		suspect(player, validErr :: string)
 		return refuse(validErr :: string)
 	end
 
@@ -663,6 +713,7 @@ local function processRequest(player: Player, req: unknown): RemoteResponse?
 	if check then
 		local ran, passed = pcall(check, payload)
 		if not ran or passed ~= true then
+			suspect(player, "invalid_payload")
 			return refuse("invalid_payload")
 		end
 	end
@@ -738,17 +789,7 @@ function Remote.setupServer(): ()
 	getUnreliableEvent().OnServerEvent:Connect(ignore)
 end
 
-local function register(actionName: string, handler: RequestHandler, opts: HandleOptions?)
-	assert(RunService:IsServer(), "Remote.handle() must be called on the server")
-	assert(#actionName <= MAX_ACTION_LENGTH, `[RivueRemote] Action names are limited to {MAX_ACTION_LENGTH} characters`)
-	handlers[actionName] = handler
-	limits[actionName] = if opts and opts.maxPerSecond then opts.maxPerSecond else DEFAULT_MAX_PER_SECOND
-	checks[actionName] = if opts then opts.check else nil
-	if opts and opts.exclusive then
-		exclusive[actionName] = {}
-	else
-		exclusive[actionName] = nil
-	end
+local function listen()
 	if serverConn then
 		return
 	end
@@ -757,6 +798,7 @@ local function register(actionName: string, handler: RequestHandler, opts: Handl
 	Players.PlayerRemoving:Connect(function(player)
 		buckets[player] = nil
 		inFlight[player] = nil
+		suspicions[player] = nil
 		for _, running in exclusive do
 			running[player] = nil
 		end
@@ -771,9 +813,165 @@ local function register(actionName: string, handler: RequestHandler, opts: Handl
 	end)
 end
 
+local function register(actionName: string, handler: RequestHandler, opts: HandleOptions?)
+	assert(RunService:IsServer(), "Remote.handle() must be called on the server")
+	assert(#actionName <= MAX_ACTION_LENGTH, `[RivueRemote] Action names are limited to {MAX_ACTION_LENGTH} characters`)
+	handlers[actionName] = handler
+	limits[actionName] = if opts and opts.maxPerSecond then opts.maxPerSecond else DEFAULT_MAX_PER_SECOND
+	checks[actionName] = if opts then opts.check else nil
+	allows[actionName] = if opts then opts.allow else nil
+	traps[actionName] = nil
+	if opts and opts.exclusive then
+		exclusive[actionName] = {}
+	else
+		exclusive[actionName] = nil
+	end
+	listen()
+end
+
 function Remote.handle(actionName: string, handler: RequestHandler, opts: HandleOptions?): ()
 	assert(string.sub(actionName, 1, 7) ~= "__rivue", `[RivueRemote] '{actionName}' is reserved for RivueRemote`)
 	register(actionName, handler, opts)
+end
+
+type Validator = (value: unknown) -> boolean
+
+local function parseRange(spec: string, range: string): (number, number)
+	if range == "" then
+		return -math.huge, math.huge
+	end
+	local low, high = string.match(range, "^(%-?[%d%.]*)%.%.(%-?[%d%.]*)$")
+	local min, max = tonumber(low), tonumber(high)
+	assert(low ~= nil and (low == "" or min) and (high == "" or max), `[RivueRemote] Bad range in schema '{spec}'`)
+	return min or -math.huge, max or math.huge
+end
+
+local function compileString(spec: string): Validator
+	local name, range = string.match(spec, "^(%S+)%s*(.*)$")
+	assert(name, `[RivueRemote] Empty schema type`)
+	local optional = string.sub(name, -1) == "?"
+	if optional then
+		name = string.sub(name, 1, -2)
+	end
+	local min, max = parseRange(spec, range or "")
+	local test: Validator
+	if name == "any" then
+		test = function(value)
+			return value ~= nil
+		end
+	elseif name == "string" then
+		test = function(value)
+			return type(value) == "string" and #value >= min and #value <= max
+		end
+	elseif name == "number" then
+		test = function(value)
+			return type(value) == "number" and value >= min and value <= max
+		end
+	elseif name == "integer" then
+		test = function(value)
+			return type(value) == "number" and value % 1 == 0 and value >= min and value <= max
+		end
+	elseif name == "boolean" then
+		test = function(value)
+			return type(value) == "boolean"
+		end
+	elseif SAFE_DATATYPES[name] then
+		test = function(value)
+			return typeof(value) == name
+		end
+	else
+		test = function(value)
+			return typeof(value) == "Instance" and (value :: Instance):IsA(name)
+		end
+	end
+	if optional then
+		return function(value)
+			return value == nil or test(value)
+		end
+	end
+	return test
+end
+
+local compile: (spec: any) -> Validator
+
+local function compileTable(spec: { [any]: any }): Validator
+	if #spec == 1 and next(spec, 1) == nil then
+		local item = compile(spec[1])
+		return function(value)
+			if type(value) ~= "table" then
+				return false
+			end
+			local list = value :: { [unknown]: unknown }
+			local length = #list
+			local count = 0
+			for key, entry in list do
+				if type(key) ~= "number" or key % 1 ~= 0 or key < 1 or key > length or not item(entry) then
+					return false
+				end
+				count += 1
+			end
+			return count == length
+		end
+	end
+	local fields: { [string]: Validator } = {}
+	for key, fieldSpec in spec do
+		assert(type(key) == "string", "[RivueRemote] Schema tables are either { spec } or string keys")
+		fields[key] = compile(fieldSpec)
+	end
+	return function(value)
+		if type(value) ~= "table" then
+			return false
+		end
+		for key in value :: { [unknown]: unknown } do
+			if type(key) ~= "string" or fields[key] == nil then
+				return false
+			end
+		end
+		for key, field in fields do
+			if not field((value :: any)[key]) then
+				return false
+			end
+		end
+		return true
+	end
+end
+
+compile = function(spec: any): Validator
+	local kind = type(spec)
+	if kind == "string" then
+		return compileString(spec)
+	elseif kind == "table" then
+		return compileTable(spec)
+	elseif kind == "function" then
+		return spec
+	end
+	error(`[RivueRemote] Schemas are made of strings, tables and functions, got {kind}`)
+end
+
+--- Builds a `check` function: `Remote.schema({ id = "string 1..32", amount = "integer 1..99" })`
+function Remote.schema(spec: any): (payload: unknown) -> boolean
+	return compile(spec)
+end
+
+--- A fake action the game never calls; anyone who calls it is reported as "trap"
+function Remote.trap(actionName: string)
+	assert(RunService:IsServer(), "Remote.trap() must be called on the server")
+	assert(string.sub(actionName, 1, 7) ~= "__rivue", `[RivueRemote] '{actionName}' is reserved for RivueRemote`)
+	assert(handlers[actionName] == nil, `[RivueRemote] '{actionName}' already has a handler`)
+	traps[actionName] = true
+	listen()
+end
+
+--- Called with the player, a reason and how many times it happened since the last call
+function Remote.onSuspicious(listener: (player: Player, reason: string, count: number) -> ()): () -> ()
+	assert(RunService:IsServer(), "Remote.onSuspicious() must be called on the server")
+	table.insert(suspicionListeners, listener)
+	return function()
+		local at = table.find(suspicionListeners, listener)
+		if at then
+			table.remove(suspicionListeners, at)
+		end
+	end
 end
 
 --- Runs before every handler, after the rate limit and payload checks. Returns a remover
