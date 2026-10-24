@@ -475,10 +475,10 @@ local function createComponentInstance(vnode: VNode, parent: ComponentInstance?)
 		runBeforeUnmount = nil :: any,
 		runUnmounted = nil :: any,
 		handleError = nil :: any,
-	};
+	}
 
 	-- Track effects/watchers created during setup for auto-cleanup
-	(instance :: any)._effects = {};
+	(instance :: any)._effects = {}
 	-- Track scheduler jobs created during setup for auto-cleanup
 	(instance :: any)._schedulerJobs = {}
 
