@@ -421,17 +421,13 @@ end
 --- @return ComponentInstance -- New component instance
 --- @return ComponentContext -- Component context for setup
 local function createComponentInstance(vnode: VNode, parent: ComponentInstance?): (ComponentInstance, ComponentContext)
-	local incomingProps = vnode.props or {}
-	local propCount = 0
-	for _ in pairs(incomingProps) do
-		propCount = propCount + 1
+	if debugModule.enabled then
+		debugModule.log("Component", "Creating component instance", {
+			type = vnode.type.__name or "AnonymousComponent",
+			hasParent = parent ~= nil,
+			childCount = vnode.children and #vnode.children or 0,
+		})
 	end
-	debugModule.log("Component", "Creating component instance", {
-		type = vnode.type.__name or "AnonymousComponent",
-		propCount = propCount,
-		hasParent = parent ~= nil,
-		childCount = vnode.children and #vnode.children or 0,
-	})
 	-- Create new provides table with parent provides as prototype (shallow copy)
 	-- This prevents sibling components from sharing the same provides reference
 	local provides = {}

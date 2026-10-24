@@ -61,8 +61,52 @@ local microQueue: { Job } = {}
 local microQueueSet: { [any]: boolean } = {}
 local microScheduled: boolean = false
 local isFlushingMicro: boolean = false
-local reentrancyDepth: number = 0
-local MAX_REENTRANCY_DEPTH: number = 100 -- Prevent infinite loops
+local reentrancyDepth = 0
+local MAX_REENTRANCY_DEPTH = 100 -- Prevent infinite loops
+
+-- Shared handle for deduplicated jobs (nothing to cancel)
+local NOOP_HANDLE: JobHandle = table.freeze({ cancel = function() end })
+
+-- Frame-based queues share one connection per mode instead of one connection per job
+type FrameMode = "render" | "heartbeat"
+local frameQueues: { [FrameMode]: { Job } } = { render = {}, heartbeat = {} }
+local frameConns: { [FrameMode]: RBXScriptConnection? } = {}
+
+--- Runs every job queued for a frame mode, then releases the connection until more work arrives
+--- @param mode FrameMode -- Which frame queue to flush
+local function flushFrame(mode: FrameMode): ()
+	local conn = frameConns[mode]
+	if conn then
+		conn:Disconnect()
+		frameConns[mode] = nil
+	end
+
+	-- Swap first: jobs queued while flushing run next frame, matching per-job connection behaviour
+	local q = frameQueues[mode]
+	frameQueues[mode] = {}
+
+	for _, job in q do
+		if not job.cancelled then
+			local ok, err = pcall(job.fn :: any)
+			if not ok then
+				debugModule.log("Scheduler", "Frame queue job error", { mode = mode, error = err })
+			end
+		end
+	end
+end
+
+--- Queues a job onto the next RenderStepped/Heartbeat frame
+--- @param mode FrameMode -- Frame mode
+--- @param job Job -- Job to run
+local function queueFrameJob(mode: FrameMode, job: Job): ()
+	table.insert(frameQueues[mode], job)
+	if not frameConns[mode] then
+		local event = if mode == "render" and RS:IsClient() then RS.RenderStepped else RS.Heartbeat
+		frameConns[mode] = event:Connect(function()
+			flushFrame(mode)
+		end)
+	end
+end
 
 --- Flushes all queued micro jobs
 local function flushMicro(): ()
@@ -83,9 +127,11 @@ local function flushMicro(): ()
 	microQueueSet = {}
 	microScheduled = false
 
-	debugModule.log("Scheduler", "Flushing micro queue", { jobCount = #q, reentrancyDepth = reentrancyDepth })
+	if debugModule.enabled then
+		debugModule.log("Scheduler", "Flushing micro queue", { jobCount = #q, reentrancyDepth = reentrancyDepth })
+	end
 
-	for _, job in ipairs(q) do
+	for _, job in q do
 		if not job.cancelled then
 			local ok, err = pcall(job.fn :: any)
 			if not ok then
@@ -97,7 +143,9 @@ local function flushMicro(): ()
 	isFlushingMicro = false
 	reentrancyDepth -= 1
 
-	debugModule.log("Scheduler", "Micro queue flush complete", { executed = #q, reentrancyDepth = reentrancyDepth })
+	if debugModule.enabled then
+		debugModule.log("Scheduler", "Micro queue flush complete", { executed = #q, reentrancyDepth = reentrancyDepth })
+	end
 
 	-- If new jobs were added during flush, schedule another flush
 	if #microQueue > 0 and not microScheduled then
@@ -112,73 +160,31 @@ end
 --- @param opts QueueOptions? -- Queue options (mode: "micro" | "render" | "heartbeat")
 --- @return JobHandle -- Handle with cancel function
 function scheduler.queueJob(fn: () -> (), opts: QueueOptions?): JobHandle
-	local options: QueueOptions = opts or { mode = "micro" }
-	local mode = options.mode or "micro"
+	local mode = if opts and opts.mode then opts.mode else "micro"
 	local job: Job = { fn = fn, cancelled = false }
 
-	debugModule.log("Scheduler", "Queueing job", { mode = mode })
+	if debugModule.enabled then
+		debugModule.log("Scheduler", "Queueing job", { mode = mode })
+	end
 
-	if mode == "render" then
-		local event = if RS:IsClient() then RS.RenderStepped else RS.Heartbeat
-		local conn: RBXScriptConnection? = nil
-		conn = event:Connect(function()
-			if conn then
-				conn:Disconnect()
-			end
-			if not job.cancelled then
-				debugModule.log("Scheduler", "Executing render job")
-				local ok, err = pcall(fn :: any)
-				if not ok then
-					debugModule.log("Scheduler", "Render queue job error", { error = err })
-				end
-			end
-		end)
+	if mode == "render" or mode == "heartbeat" then
+		queueFrameJob(mode, job)
 		return {
 			cancel = function()
 				job.cancelled = true
-				debugModule.log("Scheduler", "Cancelled render job")
-				if conn then
-					conn:Disconnect()
-				end
-			end,
-		}
-	elseif mode == "heartbeat" then
-		local conn: RBXScriptConnection? = nil
-		conn = RS.Heartbeat:Connect(function()
-			if conn then
-				conn:Disconnect()
-			end
-			if not job.cancelled then
-				debugModule.log("Scheduler", "Executing heartbeat job")
-				local ok, err = pcall(fn :: any)
-				if not ok then
-					debugModule.log("Scheduler", "Heartbeat queue job error", { error = err })
-				end
-			end
-		end)
-		return {
-			cancel = function()
-				job.cancelled = true
-				debugModule.log("Scheduler", "Cancelled heartbeat job")
-				if conn then
-					conn:Disconnect()
-				end
 			end,
 		}
 	else
 		-- O(1) deduplication via set lookup
 		if microQueueSet[fn] then
-			debugModule.log("Scheduler", "Deduplicated micro job (already queued)")
-			return { cancel = function() end }
+			return NOOP_HANDLE
 		end
 
 		microQueueSet[fn] = true
 		table.insert(microQueue, job)
-		debugModule.log("Scheduler", "Added to micro queue", { queueSize = #microQueue })
 
 		if not microScheduled then
 			microScheduled = true
-			debugModule.log("Scheduler", "Scheduling micro flush")
 			task.defer(flushMicro)
 		end
 
@@ -186,7 +192,6 @@ function scheduler.queueJob(fn: () -> (), opts: QueueOptions?): JobHandle
 			cancel = function()
 				job.cancelled = true
 				microQueueSet[fn] = nil
-				debugModule.log("Scheduler", "Cancelled micro job")
 			end,
 		}
 	end
