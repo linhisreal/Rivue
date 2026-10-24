@@ -335,6 +335,88 @@ local function runTests()
 		assertTrue(childCleanupRan and parentCleanupRan, "Both parent and child cleanups should run")
 	end
 
+	-- Test 23: computed notifies dependents when its sources change
+	print("Test 23: computed chains notify dependent effects")
+	do
+		local count = Rivue.ref(1)
+		local doubled = Rivue.computed(function()
+			return count.value * 2
+		end)
+		local quadrupled = Rivue.computed(function()
+			return doubled.value * 2
+		end)
+		local seen = 0
+		Rivue.watchEffect(function()
+			seen = quadrupled.value
+		end, { flush = "sync" })
+		assertEquals(seen, 4, "Effect should see initial computed value")
+		count.value = 3
+		assertEquals(seen, 12, "Effect should re-run when computed chain changes")
+	end
+
+	-- Test 24: appending to a reactive array re-runs length-dependent effects
+	print("Test 24: array append triggers length dependents")
+	do
+		local list = Rivue.reactive({ "a", "b" })
+		local length = 0
+		Rivue.watchEffect(function()
+			length = #list
+		end, { flush = "sync" })
+		assertEquals(length, 2, "Initial length")
+		list[#list + 1] = "c"
+		assertEquals(length, 3, "Length effect should re-run after append")
+		list[3] = nil
+		assertEquals(length, 2, "Length effect should re-run after removal")
+	end
+
+	-- Test 25: generalized iteration over a reactive proxy tracks key additions
+	print("Test 25: generalized iteration (__iter) tracks new keys")
+	do
+		local obj = Rivue.reactive({ a = 1 })
+		local keyCount = 0
+		Rivue.watchEffect(function()
+			keyCount = 0
+			for _ in obj do
+				keyCount += 1
+			end
+		end, { flush = "sync" })
+		assertEquals(keyCount, 1, "Should iterate existing keys")
+		obj.b = 2
+		assertEquals(keyCount, 2, "Should re-run when a key is added")
+	end
+
+	-- Test 26: watch fires when source starts as nil, and not on creation
+	print("Test 26: watch handles nil initial values without spurious calls")
+	do
+		local value = Rivue.ref(nil :: any)
+		local calls = 0
+		local lastNew, lastOld = nil, nil
+		Rivue.watch(value, function(new, old)
+			calls += 1
+			lastNew, lastOld = new, old
+		end, { flush = "sync" })
+		assertEquals(calls, 0, "Watch should not fire on creation")
+		value.value = "hello"
+		assertEquals(calls, 1, "Watch should fire on first change from nil")
+		assertEquals(lastNew, "hello", "New value should be passed")
+		assertEquals(lastOld, nil, "Old value should be nil")
+	end
+
+	-- Test 27: deferred watch does not fire for unchanged source after creation
+	print("Test 27: deferred watch is silent until the source changes")
+	do
+		local value = Rivue.ref(1)
+		local calls = 0
+		Rivue.watch(value, function()
+			calls += 1
+		end)
+		task.wait(0.05)
+		assertEquals(calls, 0, "Watch should not fire without a change")
+		value.value = 2
+		task.wait(0.05)
+		assertEquals(calls, 1, "Watch should fire once after a change")
+	end
+
 	print("\n========== REACTIVITY TESTS COMPLETE ==========\n")
 end
 

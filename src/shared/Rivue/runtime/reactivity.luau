@@ -61,13 +61,16 @@ local debugModule = require(script.Parent:WaitForChild("debug"))
 local utils = require(script.Parent:WaitForChild("utils"))
 local RunService = game:GetService("RunService")
 
--- CRITICAL: Do NOT use weak keys for depMap - the raw table must stay in memory
--- or trigger() won't find dependencies after garbage collection
--- CRITICAL: Do NOT use weak keys for depMap - the raw table must stay in memory
--- or trigger() won't find dependencies after garbage collection
-local depMap: { [any]: { [any]: Dep } } = {}
+-- Weak keys are safe here: every tracked target (raw table, ref, computed runner) is kept
+-- alive by whoever can still read or write it, so an unreachable key can never be triggered again.
+-- Strong keys leaked every reactive object and ref ever created.
+local depMap: { [any]: { [any]: Dep } } = setmetatable({}, { __mode = "k" }) :: any
 local effectStack: { Effect } = {}
 local activeEffect: Effect? = nil
+
+-- Sentinel keys for structural changes (adding/removing keys, array length)
+local ITERATE_KEY = newproxy(false)
+local LENGTH_KEY = "__len"
 
 -- Effect scope management for grouping effects and batch cleanup
 type EffectScope = {
@@ -270,17 +273,17 @@ local function createEffect(fn: (...any) -> ...any, opts: EffectOptions?): Effec
 			return fn(...)
 		end
 
-		-- Profile effect execution for performance monitoring
-		local effectName = "effect_" .. tostring(effect)
-		if utils.profiler.active then
+		-- Profile effect execution for performance monitoring (name only built when profiling)
+		local effectName = if utils.profiler.active then "effect_" .. tostring(effect) else nil
+		if effectName then
 			utils.profiler:start(effectName)
 		end
 
 		-- This ensures fresh dependency tracking on each execution (Vue 3 pattern)
-		for _, dep in ipairs(effect.deps) do
+		for _, dep in effect.deps do
 			(dep :: any)[effect] = nil
 		end
-		effect.deps = {}
+		table.clear(effect.deps)
 
 		table.insert(effectStack, effect)
 		activeEffect = effect
@@ -288,7 +291,7 @@ local function createEffect(fn: (...any) -> ...any, opts: EffectOptions?): Effec
 		table.remove(effectStack)
 		activeEffect = effectStack[#effectStack]
 
-		if utils.profiler.active then
+		if effectName then
 			utils.profiler:stop(effectName)
 		end
 
@@ -359,12 +362,35 @@ local function trigger(target: any, key: any)
 	if not dep then
 		return
 	end
-	for eff: any, _ in pairs(dep) do
-		if not eff.active then continue end
+	-- Snapshot first: sync schedulers re-run effects, which removes and re-adds them to `dep`
+	-- while we'd still be iterating it (undefined behaviour for next()).
+	local effects: { any } = {}
+	for eff in dep do
+		table.insert(effects, eff)
+	end
+	for _, eff in effects do
+		if not eff.active then
+			continue
+		end
 		if eff.scheduler then
 			eff.scheduler(eff.run)
 		else
 			(scheduler :: any).queueJob(eff.run)
+		end
+	end
+end
+
+--- Triggers a key change plus structural keys when a key was added or removed
+--- @param target any -- Raw object that changed
+--- @param key any -- Property key that changed
+--- @param old any -- Previous value
+--- @param new any -- New value
+local function triggerSet(target: any, key: any, old: any, new: any)
+	trigger(target, key)
+	if old == nil or new == nil then
+		trigger(target, ITERATE_KEY)
+		if type(key) == "number" then
+			trigger(target, LENGTH_KEY)
 		end
 	end
 end
@@ -403,31 +429,31 @@ local function reactive<T>(target: T & {}): T
 		return v
 	end
 	function mt.__newindex(_: any, k: any, v: any)
+		-- Store raw values so the raw graph never contains proxies
+		v = toRaw(v)
 		local old = tbl[k]
 		tbl[k] = v
-		--print("[REACTIVE] __newindex called - key:", k, "old:", old, "new:", v, "different?", old ~= v)
 		if old ~= v then
-			trigger(target, k)
+			triggerSet(target, k, old, v)
 		end
 	end
-	function mt.__pairs(): any
-		track(target, "__pairs")
-		return pairs(tbl)
-	end
-	-- NOTE: __ipairs metamethod is defined but won't be called by Luau's ipairs()
-	-- Luau's ipairs() performs a preliminary check for table[1] existence BEFORE
-	-- invoking __ipairs. Since this proxy is an empty table (all data in 'tbl'),
-	-- the check fails and iteration stops immediately without calling this metamethod.
-	--
-	-- SOLUTION: Use numeric iteration instead: for i = 1, #array do ... end
-	-- This triggers __len and __index metamethods properly and tracks dependencies.
-	-- See docs/RUNTIME_REFERENCE.md "Iterating Reactive Arrays" for details.
-	function mt.__ipairs(): any
-		track(target, "__ipairs")
-		return ipairs(tbl)
+	-- Luau ignores __pairs/__ipairs; generalized iteration (`for k, v in proxy do`) uses __iter.
+	-- pairs()/ipairs() on a proxy still see an empty table - iterate the proxy directly
+	-- or use a numeric loop (`for i = 1, #proxy do`).
+	function mt.__iter(): any
+		track(target, ITERATE_KEY)
+		return function(_: any, k: any): (any, any)
+			local nk, nv = next(tbl, k)
+			if isTable(nv) and not rawMarker[nv] then
+				nv = reactive(nv)
+			end
+			return nk, nv
+		end,
+			proxy,
+			nil
 	end
 	function mt.__len(): number
-		track(target, "__len")
+		track(target, LENGTH_KEY)
 		return #tbl
 	end
 	function mt.__tostring(): string
@@ -471,8 +497,16 @@ local function shallowReactive<T>(target: T & {}): T
 		local old = tbl[k]
 		tbl[k] = v
 		if old ~= v then
-			trigger(target, k)
+			triggerSet(target, k, old, v)
 		end
+	end
+	function mt.__iter(): any
+		track(target, ITERATE_KEY)
+		return next, tbl
+	end
+	function mt.__len(): number
+		track(target, LENGTH_KEY)
+		return #tbl
 	end
 	function mt.__tostring(): string
 		local isDev = RunService and RunService:IsStudio() or false
@@ -589,7 +623,8 @@ local function computed<T>(getter: () -> T): ComputedRef<T>
 		scheduler = function(_: any)
 			if not dirty then
 				dirty = true
-				trigger(obj, "value")
+				-- Dependents track (runner, "computed") in get(), so notify that key
+				trigger(runner, "computed")
 			end
 		end,
 	})
@@ -700,47 +735,47 @@ local function watch(source: (() -> any) | Ref<any> | any, cb: WatchCallback, op
 		table.insert(cleanups, fn)
 	end
 	local oldValue: any = nil
-	local function job()
-		local new = getter()
-		if options.deep then
-			_traverse(new, nil)
+	local initialized = false
+	local immediate = options.immediate == true
+	local flushMode = options.flush or "pre" -- Default to "pre" (before component updates)
+
+	local function runCleanups()
+		for _, cleanup in cleanups do
+			pcall(cleanup)
 		end
-		if options.immediate then
-			for _, cleanup in ipairs(cleanups) do
-				pcall(cleanup)
-			end
-			cleanups = {}
-			cb(new, oldValue, onCleanup)
-			options.immediate = false
-			oldValue = new
+		table.clear(cleanups)
+	end
+
+	-- Latest getter result, captured by the effect so the getter runs once per change
+	local currentValue: any = nil
+
+	local function job()
+		local new = currentValue
+		-- Only skip when nothing changed; deep watchers fire on nested mutations of the same table
+		if initialized and not options.deep and new == oldValue then
 			return
 		end
-		if oldValue ~= nil then
-			for _, cleanup in ipairs(cleanups) do
-				pcall(cleanup)
-			end
-			cleanups = {}
+		if initialized or immediate then
+			runCleanups()
 			cb(new, oldValue, onCleanup)
 		end
+		initialized = true
 		oldValue = new
 	end
+
 	local eff = createEffect(function(): ()
+		currentValue = getter()
 		if options.deep then
-			_traverse(getter(), nil)
-		else
-			getter()
+			_traverse(currentValue, nil)
 		end
 	end, {
-		lazy = false,
+		-- Lazy so creation doesn't go through the scheduler and fire a spurious callback
+		lazy = true,
 		scheduler = function(run)
-			-- Must call run() to set activeEffect, then queue the callback
-			-- Flush timing controls when the watcher executes
-			local flushMode = options.flush or "pre" -- Default to "pre" (before component updates)
-
+			-- Re-run to refresh dependencies, then flush the callback per flush timing
 			run()
 
 			if flushMode == "sync" then
-				-- Execute immediately (synchronous)
 				job()
 			elseif flushMode == "post" then
 				-- Execute after render (heartbeat mode)
@@ -751,20 +786,12 @@ local function watch(source: (() -> any) | Ref<any> | any, cb: WatchCallback, op
 			end
 		end,
 	})
-	if options.immediate then
-		job()
-	else
-		oldValue = getter()
-		if options.deep then
-			_traverse(oldValue, nil)
-		end
-	end
+	-- Collect dependencies synchronously, then record the initial value (or fire if immediate)
+	eff.run()
+	job()
 	local function stop()
 		eff:stop()
-		for _, cleanup in ipairs(cleanups) do
-			pcall(cleanup)
-		end
-		cleanups = {}
+		runCleanups()
 	end
 	return stop
 end
@@ -780,10 +807,23 @@ end
 --- Runs a reactive effect with automatic dependency tracking and immediate execution
 --- Simpler alternative to watch() when you don't need the old/new value comparison
 --- @param fn () -> () -- Effect function to execute (dependencies are auto-tracked)
---- @param _opts { flush: "pre" | "post" | "sync"? }? -- Options: flush timing (currently ignored, always deferred)
+--- @param opts { flush: "pre" | "post" | "sync"? }? -- Re-run timing: "pre" (default, deferred), "post" (Heartbeat), "sync"
 --- @return WatchStopHandle -- Function to stop the effect
-local function watchEffect(fn: () -> (), _opts: any?): WatchStopHandle
-	local eff = createEffect(fn, { lazy = false })
+local function watchEffect(fn: () -> (), opts: WatchOptions?): WatchStopHandle
+	local flushMode = opts and opts.flush or "pre"
+	local effectScheduler: EffectScheduler? = nil
+	if flushMode == "sync" then
+		effectScheduler = function(run)
+			run()
+		end
+	elseif flushMode == "post" then
+		effectScheduler = function(run)
+			(scheduler :: any).queueJob(run, { mode = "heartbeat" })
+		end
+	end
+	local eff = createEffect(fn, { lazy = true, scheduler = effectScheduler })
+	-- First run is synchronous so dependencies are collected immediately
+	eff.run()
 	return function()
 		eff:stop()
 	end
@@ -836,14 +876,20 @@ local function readonly<T>(target: T): T
 			end
 		end,
 		__len = function(_: any): number
-			track(target, "length")
+			track(target, LENGTH_KEY)
 			return #(target :: any)
 		end,
-		__pairs = function(_: any)
-			return pairs(target :: any)
-		end,
-		__ipairs = function(_: any)
-			return ipairs(target :: any)
+		__iter = function(_: any)
+			track(target, ITERATE_KEY)
+			return function(_: any, k: any): (any, any)
+				local nk, nv = next(target :: any, k)
+				if type(nv) == "table" and not rawMarker[nv] then
+					nv = readonly(nv)
+				end
+				return nk, nv
+			end,
+				proxy,
+				nil
 		end,
 	})
 
