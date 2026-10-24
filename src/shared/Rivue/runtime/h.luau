@@ -38,48 +38,41 @@
 			'List rendering helper'
 ]]
 
-type VNode = {
-	type: string | any,
-	props: { [string]: any }?,
-	children: { any },
-	key: any?,
-	_uid: number | {},
-}
+local Types = require(script.Parent:WaitForChild("types"))
+
+type VNode = Types.VNode
+type VNodeType = Types.VNodeType
+type Props = Types.Props
+type Child = Types.Child
 
 local debugModule = require(script.Parent:WaitForChild("debug"))
 local utils = require(script.Parent:WaitForChild("utils"))
 
 --- Normalizes children to an array format
---- @param children any -- Child nodes (can be string, number, table, function, or nil)
---- @return { any } -- Normalized array of children
-local function normalizeChildren(children: any): { any }
+--- @param children unknown -- Child nodes (string, number, array, function, or nil)
+--- @return { Child } -- Normalized array of children
+local function normalizeChildren(children: unknown): { Child }
 	if children == nil then
 		return {}
 	end
 	local t = type(children)
-	if t == "string" or t == "number" then
-		return { tostring(children) }
-	end
 	if t == "table" then
-		return children
-	end
-	if t == "function" then
-		return { children }
+		return children :: { Child }
+	elseif t == "function" then
+		return { children :: () -> VNode? }
 	end
 	return { tostring(children) }
 end
 
-local vnodeIdCounter: number = 0
+local vnodeIdCounter = 0
 
 --- Creates a virtual DOM node
---- @param type_ string | any -- Element type (string for DOM elements, table/function for components)
---- @param props { [string]: any }? -- Element properties and attributes
---- @param children any -- Child nodes
+--- @param type_ VNodeType -- ClassName ("Frame"), component definition, or functional component
+--- @param props Props? -- Element properties and attributes
+--- @param children Children? -- Child nodes (array, single child, or text)
 --- @return VNode -- Virtual DOM node
-local function h(type_: string | any, props: { [string]: any }?, children: any): VNode
-	if props == nil then
-		props = {}
-	end
+local function h(type_: VNodeType, propsIn: Props?, children: Types.Children?): VNode
+	local props: Props = propsIn or {}
 	local ch = normalizeChildren(children)
 	vnodeIdCounter += 1
 
@@ -88,7 +81,7 @@ local function h(type_: string | any, props: { [string]: any }?, children: any):
 		debugModule.log("H", "Creating VNode", {
 			type = if type(type_) == "string" then type_ elseif type(type_) == "table" then type_.__name else "function",
 			childCount = #ch,
-			hasKey = props and props.key ~= nil,
+			hasKey = props.key ~= nil,
 			uid = vnodeIdCounter,
 		})
 	end
@@ -97,7 +90,7 @@ local function h(type_: string | any, props: { [string]: any }?, children: any):
 		type = type_,
 		props = props,
 		children = ch,
-		key = props and props.key,
+		key = props.key,
 		_uid = vnodeIdCounter,
 	}
 end
@@ -114,21 +107,22 @@ local function hIf(cond: boolean, vnode: VNode?): VNode?
 end
 
 --- Maps a list to VNodes
---- @param list { any } -- List to map over
---- @param mapper (any, number) -> VNode? -- Mapping function
+--- @param list { T } -- List to map over (plain or reactive array)
+--- @param mapper (item: T, index: number) -> VNode? -- Mapping function; nil skips the item
 --- @return { VNode } -- Array of VNodes
-local function hFor<T>(list: { T }, mapper: (T, number) -> VNode?): { VNode }
+local function hFor<T>(list: { T }, mapper: (item: T, index: number) -> VNode?): { VNode }
+	local count = #list
 	if debugModule.enabled then
-		debugModule.log("H", "Rendering list with hFor", { itemCount = #list })
+		debugModule.log("H", "Rendering list with hFor", { itemCount = count })
 	end
 
 	-- Profile list rendering for performance monitoring
-	if utils.profiler.active then
-		utils.profiler:start("hFor_" .. tostring(#list))
+	local profileName = if utils.profiler.active then `hFor_{count}` else nil
+	if profileName then
+		utils.profiler:start(profileName)
 	end
 
 	-- Numeric loop so reactive arrays work: ipairs() bypasses proxies (and their tracking) in Luau
-	local count = #list
 	local out: { VNode } = table.create(count)
 	for i = 1, count do
 		local node = mapper(list[i], i)
@@ -137,32 +131,30 @@ local function hFor<T>(list: { T }, mapper: (T, number) -> VNode?): { VNode }
 		end
 	end
 
-	if utils.profiler.active then
-		utils.profiler:stop("hFor_" .. tostring(#list))
+	if profileName then
+		utils.profiler:stop(profileName)
 	end
 
 	return out
 end
 
---- Parallel list rendering helper for large lists (1000+ items)
---- Uses Parallel Luau for CPU-intensive rendering operations
---- Note: Actual parallel execution is handled in renderer.patchChildrenParallel
---- @param items any -- Array of items to render
---- @param mapper function -- Map function (item, index) -> VNode | nil
---- @param keyFn function? -- Optional key function (item) -> any
---- @return { VNode } -- Array of VNodes with __parallel marker
-local function hForParallel(items: any, mapper: any, keyFn: any?): { any }
-	if debugModule.enabled then
-		debugModule.log("H", "Rendering large list with hForParallel", { itemCount = #items, hasKeyFn = keyFn ~= nil })
-	end
-
-	-- Profile parallel list rendering
-	if utils.profiler.active then
-		utils.profiler:start("hForParallel_" .. tostring(#items))
-	end
-
+--- List rendering helper for large lists that also assigns keys
+--- (Kept for API compatibility; rendering is serial, see renderer.patchChildrenParallel.)
+--- @param items { T } -- Array of items to render
+--- @param mapper (item: T, index: number) -> VNode? -- Map function; nil skips the item
+--- @param keyFn ((item: T) -> unknown)? -- Optional key function
+--- @return { VNode } -- Array of VNodes
+local function hForParallel<T>(
+	items: { T },
+	mapper: (item: T, index: number) -> VNode?,
+	keyFn: ((item: T) -> unknown)?
+): { VNode }
 	local count = #items
-	local out: any = table.create(count)
+	if debugModule.enabled then
+		debugModule.log("H", "Rendering large list with hForParallel", { itemCount = count, hasKeyFn = keyFn ~= nil })
+	end
+
+	local out: { VNode } = table.create(count)
 	for i = 1, count do
 		local item = items[i]
 		local vnode = mapper(item, i)
@@ -174,11 +166,8 @@ local function hForParallel(items: any, mapper: any, keyFn: any?): { any }
 		end
 	end
 
-	if utils.profiler.active then
-		utils.profiler:stop("hForParallel_" .. tostring(#items))
-	end
-	-- Marker for renderer to use parallel patching
-	out.__parallel = true
+	-- (The old `out.__parallel = true` marker was never read, and it put a string key into
+	-- the children array that every children loop then had to skip.)
 	return out
 end
 

@@ -40,13 +40,10 @@
 			---   "heartbeat": Next Heartbeat frame
 ]]
 
-type QueueOptions = {
-	mode: ("micro" | "render" | "heartbeat")?,
-}
+local Types = require(script.Parent:WaitForChild("types"))
 
-type JobHandle = {
-	cancel: () -> (),
-}
+type QueueOptions = Types.QueueOptions
+type JobHandle = Types.JobHandle
 
 type Job = {
 	fn: () -> (),
@@ -56,13 +53,13 @@ type Job = {
 local RS = game:GetService("RunService")
 local debugModule = require(script.Parent:WaitForChild("debug"))
 
-local scheduler: { queueJob: (fn: () -> (), opts: QueueOptions?) -> JobHandle } = {} :: any
+local scheduler = {}
 local microQueue: { Job } = {}
-local microQueueSet: { [any]: boolean } = {}
+local microQueueSet: { [() -> ()]: true } = {}
 local microScheduled: boolean = false
 local isFlushingMicro: boolean = false
 local reentrancyDepth = 0
-local MAX_REENTRANCY_DEPTH = 100 -- Prevent infinite loops
+const MAX_REENTRANCY_DEPTH = 100 -- Prevent infinite loops
 
 -- Shared handle for deduplicated jobs (nothing to cancel)
 local NOOP_HANDLE: JobHandle = table.freeze({ cancel = function() end })
@@ -87,7 +84,7 @@ local function flushFrame(mode: FrameMode): ()
 
 	for _, job in q do
 		if not job.cancelled then
-			local ok, err = pcall(job.fn :: any)
+			local ok, err = pcall(job.fn :: () -> ...unknown)
 			if not ok then
 				debugModule.log("Scheduler", "Frame queue job error", { mode = mode, error = err })
 			end
@@ -133,7 +130,7 @@ local function flushMicro(): ()
 
 	for _, job in q do
 		if not job.cancelled then
-			local ok, err = pcall(job.fn :: any)
+			local ok, err = pcall(job.fn :: () -> ...unknown)
 			if not ok then
 				debugModule.log("Scheduler", "Micro queue job error", { error = err })
 			end
