@@ -239,6 +239,7 @@
 -- Public API entrypoint for the runtime (ModuleScript)
 
 local runtime = script.Parent
+local Types = require(runtime:WaitForChild("types"))
 local reactivity = require(runtime:WaitForChild("reactivity"))
 local hModule = require(runtime:WaitForChild("h"))
 local renderer = require(runtime:WaitForChild("renderer"))
@@ -255,10 +256,36 @@ local composables = require(runtime:WaitForChild("composables"))
 
 local RunService = game:GetService("RunService")
 
+-- Public types, re-exported so consumers can write `Rivue.Ref<number>` after a static require
+export type Ref<T> = Types.Ref<T>
+export type ComputedRef<T> = Types.ComputedRef<T>
+export type MaybeRef<T> = Types.MaybeRef<T>
+export type Effect = Types.Effect
+export type EffectScope = Types.EffectScope
+export type FlushMode = Types.FlushMode
+export type WatchOptions = Types.WatchOptions
+export type WatchCallback<T> = Types.WatchCallback<T>
+export type WatchSource<T> = Types.WatchSource<T>
+export type WatchStopHandle = Types.WatchStopHandle
+export type QueueOptions = Types.QueueOptions
+export type JobHandle = Types.JobHandle
+export type VNode = Types.VNode
+export type Props = Types.Props
+export type Child = Types.Child
+export type Children = Types.Children
+export type ComponentDef = Types.ComponentDef
+export type ComponentOptions = Types.ComponentOptions
+export type PropSchema = Types.PropSchema
+export type SetupContext = Types.SetupContext
+export type Directive = Types.Directive
+export type AppOptions = Types.AppOptions
+export type App = renderer.App
+export type ComponentInstance = componentAPI.ComponentInstance
+
 local Rivue = {}
 
 -- detect studio/dev mode without writing to global environment
-Rivue.dev = RunService and RunService:IsStudio() or false
+Rivue.dev = RunService:IsStudio()
 
 -- Sync dev mode to debug module
 debugModule.enabled = Rivue.dev
@@ -304,47 +331,45 @@ Rivue.effectScope = reactivity.effectScope
 Rivue.getCurrentScope = reactivity.getCurrentScope
 Rivue.onScopeDispose = reactivity.onScopeDispose
 
---- Creates a reactive watcher with auto-cleanup for components
---- @param source any -- Reactive source to watch
---- @param callback function -- Callback to run on change
---- @param options any? -- Watch options (immediate, deep, etc.)
---- @return any -- Stop handle to manually stop watcher
--- watch with auto-cleanup tracking
-Rivue.watch = function(source, callback, options)
-	local stopHandle = reactivity.watch(source, callback, options)
+--- Registers a stop handle/effect on the component being set up so it's stopped on unmount
+--- (Effects are also collected by the component's effect scope; the stop handle additionally
+--- runs a watcher's onCleanup callbacks.)
+--- @param handle WatchStopHandle | Effect -- Handle to track
+local function trackForCleanup(handle: WatchStopHandle | Effect)
 	local currentInstance = componentAPI.getCurrentInstance()
-	if currentInstance and (currentInstance :: any)._effects then
-		table.insert((currentInstance :: any)._effects, stopHandle)
+	if currentInstance then
+		table.insert(currentInstance._effects, handle)
 	end
+end
+
+--- Creates a reactive watcher with auto-cleanup for components
+--- @param source WatchSource<T> | T -- Getter, ref, or reactive object to watch
+--- @param callback WatchCallback<T> -- Callback to run on change
+--- @param options WatchOptions? -- immediate, deep, flush
+--- @return WatchStopHandle -- Stop handle to manually stop watcher
+function Rivue.watch<T>(source: WatchSource<T> | T, callback: WatchCallback<T>, options: WatchOptions?): WatchStopHandle
+	local stopHandle = reactivity.watch(source, callback, options)
+	trackForCleanup(stopHandle)
 	return stopHandle
 end
 
---- Creates a reactive effect with automatic dependency tracking and immediate execution
---- Simpler alternative to watch() when you don't need old/new value comparison
---- @param fn function -- Effect function to run
---- @param opts any? -- Options (currently unused, for future flush timing)
---- @return any -- Stop handle to manually stop effect
--- watchEffect with auto-cleanup tracking
-Rivue.watchEffect = function(fn, opts)
+--- Runs an effect immediately and re-runs it when its dependencies change (auto-cleanup in components)
+--- @param fn () -> () -- Effect function to run
+--- @param opts WatchOptions? -- flush timing
+--- @return WatchStopHandle -- Stop handle to manually stop effect
+function Rivue.watchEffect(fn: () -> (), opts: WatchOptions?): WatchStopHandle
 	local stopHandle = reactivity.watchEffect(fn, opts)
-	local currentInstance = componentAPI.getCurrentInstance()
-	if currentInstance and (currentInstance :: any)._effects then
-		table.insert((currentInstance :: any)._effects, stopHandle)
-	end
+	trackForCleanup(stopHandle)
 	return stopHandle
 end
 
 --- Creates a reactive effect with auto-cleanup for components
---- @param fn function -- Effect function to run
---- @param opts any? -- Effect options
---- @return any -- Effect handle to manually stop effect
--- effect with auto-cleanup tracking
-Rivue.effect = function(fn, opts)
+--- @param fn () -> () -- Effect function to run
+--- @param opts Types.EffectOptions? -- Effect options
+--- @return Effect -- Effect handle to manually stop effect
+function Rivue.effect(fn: () -> (), opts: Types.EffectOptions?): Effect
 	local eff = reactivity.effect(fn, opts)
-	local currentInstance = componentAPI.getCurrentInstance()
-	if currentInstance and (currentInstance :: any)._effects then
-		table.insert((currentInstance :: any)._effects, eff)
-	end
+	trackForCleanup(eff)
 	return eff
 end
 
@@ -355,18 +380,18 @@ Rivue.hFor = hModule.hFor
 Rivue.hForParallel = hModule.hForParallel
 
 --- Defines a component with setup, render, props, and lifecycle hooks
---- @param opts any? -- Component options (setup, render, props, name, inheritAttrs)
---- @return any -- Component definition object
--- components
-Rivue.defineComponent = function(opts): any
-	local comp = {}
-	comp.__is_component = true
-	comp.setup = opts and opts.setup
-	comp.render = opts and opts.render
-	comp.props = opts and opts.props
-	comp.__name = opts and opts.name
-	comp.inheritAttrs = opts and opts.inheritAttrs
-	return comp
+--- @param opts ComponentOptions? -- Component options (setup, render, props, name, inheritAttrs)
+--- @return ComponentDef -- Component definition object
+function Rivue.defineComponent(opts: ComponentOptions?): ComponentDef
+	local options: ComponentOptions = opts or {}
+	return {
+		__is_component = true :: true,
+		__name = options.name,
+		setup = options.setup,
+		render = options.render,
+		props = options.props,
+		inheritAttrs = options.inheritAttrs,
+	}
 end
 
 -- lifecycle
@@ -397,13 +422,15 @@ Rivue.useStyles = composables.useStyles
 -- Export scheduler
 Rivue.scheduler = schedulerModule
 
--- Wrap scheduler.queueJob to enable auto-cleanup tracking
-local originalQueueJob = schedulerModule.queueJob
-Rivue.queueJob = function(fn, opts)
-	local jobHandle = originalQueueJob(fn, opts)
+--- Queues a job (auto-cancelled on unmount when called during component setup)
+--- @param fn () -> () -- Job to run
+--- @param opts QueueOptions? -- Queue mode ("micro" | "render" | "heartbeat")
+--- @return JobHandle -- Handle with cancel()
+function Rivue.queueJob(fn: () -> (), opts: QueueOptions?): JobHandle
+	local jobHandle = schedulerModule.queueJob(fn, opts)
 	local currentInstance = componentAPI.getCurrentInstance()
-	if currentInstance and (currentInstance :: any)._schedulerJobs then
-		table.insert((currentInstance :: any)._schedulerJobs, jobHandle)
+	if currentInstance then
+		table.insert(currentInstance._schedulerJobs, jobHandle)
 	end
 	return jobHandle
 end
@@ -426,49 +453,26 @@ Rivue.onRenderStepped = robloxUtils.onRenderStepped
 Rivue.onHeartbeat = robloxUtils.onHeartbeat
 Rivue.onStepped = robloxUtils.onStepped
 
---- Creates an application instance with mount/unmount API
---- @param vnode any -- Root VNode or component
---- @param opts any? -- App options (dev mode, pool options)
---- @return any -- App API with mount/unmount methods
 -- createApp
-Rivue.createApp = function(vnode, opts)
-	return renderer.createApp(vnode, opts)
-end
+Rivue.createApp = renderer.createApp
 
 --- Convenience method to mount a component or VNode to a parent Instance
---- @param componentOrVNode any -- Component definition or VNode
+--- @param componentOrVNode ComponentDef | VNode -- Component definition or VNode
 --- @param parent Instance -- Parent Instance to mount to
---- @param opts any? -- Mount options
---- @return any -- Mounted app instance
--- convenience mount
-function Rivue.mount(componentOrVNode: any, parent: Instance, opts: any?): any
-	local vnode = componentOrVNode
+--- @param opts AppOptions? -- Mount options
+--- @return App -- Mounted app instance
+function Rivue.mount(componentOrVNode: ComponentDef | VNode, parent: Instance, opts: AppOptions?): App
+	local vnode: VNode = if (componentOrVNode :: ComponentDef).__is_component
+		then hModule.h(componentOrVNode :: ComponentDef)
+		else componentOrVNode :: VNode
 
-	if type(componentOrVNode) == "table" and (componentOrVNode :: any).__is_component then
-		vnode = Rivue.h(componentOrVNode)
-	end
-
-	local app = Rivue.createApp(vnode :: any, opts or {})
+	local app = renderer.createApp(vnode, opts)
 	app:mount(parent)
 	return app
 end
 
---- Creates a v-model directive for text input binding with optional debounce
---- @param r any -- Ref to bind to
---- @param opts any? -- Options table with debounce delay in ms
---- @return any -- Directive configuration
 -- v-model helpers
-Rivue.vModelText = function(r, opts)
-	return directives.vModelText(r, opts)
-end
-
---- Creates a v-model directive for custom property binding
---- @param r any -- Ref to bind to
---- @param propName any -- Property name to bind
---- @param eventName any -- Event name to listen to
---- @return any -- Directive configuration
-Rivue.vModelProp = function(r, propName, eventName)
-	return directives.vModelProp(r, propName, eventName)
-end
+Rivue.vModelText = directives.vModelText
+Rivue.vModelProp = directives.vModelProp
 
 return Rivue

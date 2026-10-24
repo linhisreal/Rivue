@@ -192,14 +192,30 @@ export type ComponentDef = {
 	inheritAttrs: boolean?,
 }
 
+export type AsyncComponentOptions = {
+	loadingComponent: VNode?,
+	errorComponent: VNode?,
+	--- Milliseconds before the loading component shows
+	delay: number?,
+	--- Milliseconds before loading fails with a timeout error
+	timeout: number?,
+}
+
+--- Provided by Suspense, injected by async components under it
+export type SuspenseContext = {
+	register: () -> (),
+	resolve: () -> (),
+	reject: (err: string) -> (),
+}
+
 -- ===== Directives =====
 
-export type DirectiveHook = (el: Instance, value: any) -> unknown
-
+--- Directive lifecycle hooks. `mounted` may return state; `updated` may return replacement state;
+--- both are handed back to later hooks. Values are `any` because each directive defines its own.
 export type Directive = {
-	mounted: DirectiveHook?,
-	updated: ((el: Instance, value: any, state: unknown) -> ())?,
-	unmounted: ((el: Instance, state: unknown) -> ())?,
+	mounted: ((el: Instance, value: any) -> any)?,
+	updated: ((el: Instance, value: any, state: any) -> any)?,
+	unmounted: ((el: Instance, state: any) -> ())?,
 }
 
 -- ===== App =====

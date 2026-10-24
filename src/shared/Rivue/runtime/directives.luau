@@ -47,19 +47,16 @@
 		click-outside - Triggers callback when clicking outside element
 ]]
 
-type DirectiveHooks = {
-	mounted: ((el: any, value: any) -> any)?,
-	updated: ((el: any, value: any, cleanup: any) -> any)?,
-	unmounted: ((el: any, cleanup: any) -> ())?,
-}
+local Types = require(script.Parent:WaitForChild("types"))
 
-type Ref<T> = { value: T, _is_ref: boolean }
+type DirectiveHooks = Types.Directive
+type Ref<T> = Types.Ref<T>
 
 local UserInputService = game:GetService("UserInputService")
 local reactivity = require(script.Parent:WaitForChild("reactivity"))
 local debugModule = require(script.Parent:WaitForChild("debug"))
 
-local directives: any = {}
+local directives = {}
 local registry: { [string]: DirectiveHooks } = {}
 
 --- Registers a custom directive with lifecycle hooks
@@ -91,19 +88,18 @@ end
 
 directives.register("focus", {
 	mounted = function(el, val)
-		if el and val then
+		-- Only TextBoxes can take focus
+		if val and el:IsA("TextBox") then
 			debugModule.log("Directives", "Applying focus directive", { elementName = el.Name })
-			pcall(function()
-				el:CaptureFocus()
-			end)
+			el:CaptureFocus()
 		end
+		return nil
 	end,
 	updated = function(el, val)
-		if el and val then
-			pcall(function()
-				el:CaptureFocus()
-			end)
+		if val and el:IsA("TextBox") then
+			el:CaptureFocus()
 		end
+		return nil
 	end,
 })
 
@@ -220,16 +216,16 @@ directives.register("drag", {
 
 directives.register("show", {
 	mounted = function(el, value)
-		if not el:IsA("GuiObject") then
-			return
+		if el:IsA("GuiObject") then
+			el.Visible = not not value
 		end
-		el.Visible = not not value
+		return nil
 	end,
 	updated = function(el, value)
-		if not el:IsA("GuiObject") then
-			return
+		if el:IsA("GuiObject") then
+			el.Visible = not not value
 		end
-		el.Visible = not not value
+		return nil
 	end,
 })
 
@@ -275,14 +271,14 @@ directives.register("fade-in", {
 		local renderWait = type(opts) == "table" and opts.renderWait or 0.5
 
 		-- Maps to store original transparency values for all descendants
-		local transparencyMap = {}
-		local textTransparencyMap = {}
-		local imageTransparencyMap = {}
-		local strokeTransparencyMap = {}
-		local canvasGroupMap = {}
+		local transparencyMap: { [Instance]: number } = {}
+		local textTransparencyMap: { [Instance]: number } = {}
+		local imageTransparencyMap: { [Instance]: number } = {}
+		local strokeTransparencyMap: { [Instance]: number } = {}
+		local canvasGroupMap: { [Instance]: number } = {}
 
 		-- Recursively store original transparency and set to 1 (invisible)
-		local function storeAndHide(obj)
+		local function storeAndHide(obj: Instance)
 			if obj:IsA("GuiObject") then
 				-- Store and hide background transparency
 				transparencyMap[obj] = obj.BackgroundTransparency
@@ -290,14 +286,17 @@ directives.register("fade-in", {
 
 				-- Handle text transparency for text elements
 				if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
-					textTransparencyMap[obj] = obj.TextTransparency
-					obj.TextTransparency = 1
+					-- The old solver can't index a class union; TextLabel stands in (all share TextTransparency)
+					local textObj = obj :: TextLabel
+					textTransparencyMap[obj] = textObj.TextTransparency
+					textObj.TextTransparency = 1
 				end
 
 				-- Handle image transparency for image elements
 				if obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
-					imageTransparencyMap[obj] = obj.ImageTransparency
-					obj.ImageTransparency = 1
+					local imageObj = obj :: ImageLabel
+					imageTransparencyMap[obj] = imageObj.ImageTransparency
+					imageObj.ImageTransparency = 1
 				end
 			end
 
@@ -320,7 +319,7 @@ directives.register("fade-in", {
 		end
 
 		-- Recursively create and play fade-in tweens for all elements
-		local function fadeIn(obj, tweens)
+		local function fadeIn(obj: Instance, tweens: { Tween })
 			if obj:IsA("GuiObject") then
 				local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
@@ -394,7 +393,7 @@ directives.register("fade-in", {
 		end
 
 		-- Create array to store all tweens for cleanup
-		local allTweens = {}
+		local allTweens: { Tween } = {}
 
 		-- Start fade-in animation
 		task.spawn(function()
@@ -540,24 +539,23 @@ function directives.vModelText(
 end
 
 --- Generic two-way binding helper for any property
---- @param r Ref<any> -- Reactive ref to bind
+--- @param r Ref<T> -- Reactive ref to bind
 --- @param propName string -- Property name to bind
 --- @param eventName string? -- Optional event name (defaults to 'on' + capitalized propName)
---- @return { [string]: any } -- Props object with property and event handler
-function directives.vModelProp(r: Ref<any>, propName: string, eventName: string?): { [string]: any }
+--- @return Props -- Props object with property and event handler
+function directives.vModelProp<T>(r: Ref<T>, propName: string, eventName: string?): Types.Props
 	if not reactivity.isRef(r) then
 		error("vModelProp expects a ref")
 	end
 
-	local evtName = eventName or ("on" .. propName:sub(1, 1):upper() .. propName:sub(2))
+	local evtName = eventName or `on{propName:sub(1, 1):upper()}{propName:sub(2)}`
 
-	local t: { [string]: any } = {}
-	t[propName] = r.value
-	t[evtName] = function(new: any)
-		r.value = new
-	end
-
-	return t
+	return {
+		[propName] = r.value,
+		[evtName] = function(new: T)
+			r.value = new
+		end,
+	}
 end
 
 return directives

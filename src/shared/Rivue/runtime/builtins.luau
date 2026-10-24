@@ -20,9 +20,16 @@ local reactivity = require(script.Parent:WaitForChild("reactivity"))
 
 local h = hModule.h
 local ref = reactivity.ref
+local shallowRef = reactivity.shallowRef
 
-type VNode = any
-type ComponentDef = any
+local Types = require(script.Parent:WaitForChild("types"))
+
+type VNode = Types.VNode
+type ComponentDef = Types.ComponentDef
+type Props = Types.Props
+type SetupContext = Types.SetupContext
+type AsyncComponentOptions = Types.AsyncComponentOptions
+type SuspenseContext = Types.SuspenseContext
 
 local builtins = {}
 
@@ -44,17 +51,17 @@ local builtins = {}
 			h(AsyncComponent)
 		})
 ]=]
-builtins.Suspense = nil :: any -- Forward declaration
+builtins.Suspense = nil :: ComponentDef? -- Forward declaration
 
-local function createSuspense()
+local function createSuspense(): ComponentDef
 	return {
-		__is_component = true,
+		__is_component = true :: true,
 		__name = "Suspense",
 		props = {
-			fallback = { type = "table" },
-			timeout = { type = "number", default = 5000 },
+			fallback = { type = "table" :: "table" },
+			timeout = { type = "number" :: "number", default = 5000 },
 		},
-		setup = function(props: any, context: any)
+		setup = function(props: Props, context: SetupContext)
 			local isLoading = ref(true)
 			local error = ref(nil :: string?)
 			local hasTimedOut = ref(false)
@@ -156,122 +163,97 @@ builtins.Suspense = createSuspense()
 			currentTab.value == "tab1" and h(Tab1) or h(Tab2)
 		})
 ]=]
-builtins.KeepAlive = nil :: any
+builtins.KeepAlive = nil :: ComponentDef?
 
-local function createKeepAlive()
+--- Returns true if `name` is listed in an include/exclude array
+--- @param list unknown -- Prop value ({ string } expected)
+--- @param name string -- Component name
+--- @return boolean -- True when listed
+local function listContains(list: unknown, name: string): boolean
+	return type(list) == "table" and table.find(list :: { string }, name) ~= nil
+end
+
+local function createKeepAlive(): ComponentDef
 	return {
-		__is_component = true,
+		__is_component = true :: true,
 		__name = "KeepAlive",
 		props = {
-			include = { type = "table" },
-			exclude = { type = "table" },
-			max = { type = "number", default = 10 },
+			include = { type = "table" :: "table" },
+			exclude = { type = "table" :: "table" },
+			max = { type = "number" :: "number", default = 10 },
 		},
-		setup = function(props: any, context: any)
-			local cache = ref({} :: { [string]: { vnode: VNode, instance: any } })
-			local keys = ref({} :: { string })
+		setup = function(props: Props, context: SetupContext)
+			-- Plain tables on purpose: this is bookkeeping, not render state. As refs, render both read
+			-- and wrote them (re-triggering itself), and table.insert/remove bypassed the proxy anyway.
+			local cache: { [string]: VNode } = {}
+			local keys: { string } = {} -- LRU order, oldest first
 
-			local shouldCache = function(name: string): boolean
-				if props.include then
-					local found = false
-					for _, n in ipairs(props.include) do
-						if n == name then
-							found = true
-							break
-						end
-					end
-					if not found then
-						return false
-					end
+			local function shouldCache(name: string): boolean
+				if props.include and not listContains(props.include, name) then
+					return false
 				end
-
-				if props.exclude then
-					for _, n in ipairs(props.exclude) do
-						if n == name then
-							return false
-						end
-					end
-				end
-
-				return true
+				return not listContains(props.exclude, name)
 			end
 
-			local pruneCache = function()
-				if props.max and #keys.value > props.max then
-					local oldest = table.remove(keys.value, 1)
+			local function unmountCached(vnode: VNode)
+				local inst = vnode._instance :: any
+				if inst and inst.runUnmounted then
+					pcall(inst.runUnmounted, inst)
+				end
+			end
+
+			local function pruneCache()
+				local max = props.max
+				if type(max) == "number" and #keys > max then
+					local oldest = table.remove(keys, 1)
 					if oldest then
-						local cached = cache.value[oldest]
-						if cached and cached.instance then
-							-- Unmount oldest instance
-							pcall(function()
-								if cached.instance.runUnmounted then
-									cached.instance:runUnmounted()
-								end
-							end)
+						local cached = cache[oldest]
+						if cached then
+							unmountCached(cached)
 						end
-						cache.value[oldest] = nil
+						cache[oldest] = nil
 					end
 				end
 			end
 
 			-- Cleanup all cached instances on unmount
 			componentModule.onUnmounted(function()
-				for _, cached in pairs(cache.value) do
-					if cached.instance then
-						pcall(function()
-							if cached.instance.runUnmounted then
-								cached.instance:runUnmounted()
-							end
-						end)
-					end
+				for _, cached in cache do
+					unmountCached(cached)
 				end
-				cache.value = {}
-				keys.value = {}
+				table.clear(cache)
+				table.clear(keys)
 			end)
 
-			return function()
-				local slots = context.slots
-				if not slots or #slots == 0 then
+			return function(): VNode?
+				local child = context.slots[1]
+				if type(child) ~= "table" then
 					return nil
 				end
 
-				local child = slots[1]
-				if not child or not child.type then
+				local def = child.type
+				local name = if type(def) == "table" then def.__name or "anonymous" else "anonymous"
+				if not shouldCache(name) then
 					return child
 				end
 
-				local name = (child.type :: any).__name or "anonymous"
-
-				if shouldCache(name) then
-					if cache.value[name] then
-						-- Return cached instance (move to end for LRU)
-						local index = table.find(keys.value, name)
-						if index then
-							table.remove(keys.value, index)
-						end
-						table.insert(keys.value, name)
-
-						-- Restore cached vnode but update props
-						local cached = cache.value[name]
-						if child.props then
-							cached.vnode.props = child.props
-						end
-
-						return cached.vnode
-					else
-						-- Cache new instance
-						cache.value[name] = {
-							vnode = child,
-							instance = (child :: any)._instance,
-						}
-						table.insert(keys.value, name)
-						pruneCache()
-
-						return child
+				local cached = cache[name]
+				if cached then
+					-- Move to the end (most recently used)
+					local index = table.find(keys, name)
+					if index then
+						table.remove(keys, index)
 					end
+					table.insert(keys, name)
+
+					-- Reuse the cached vnode with fresh props
+					cached.props = child.props
+					return cached
 				end
 
-				-- Don't cache this component
+				cache[name] = child
+				table.insert(keys, name)
+				pruneCache()
 				return child
 			end
 		end,
@@ -306,20 +288,21 @@ builtins.KeepAlive = createKeepAlive()
 			timeout = 5000
 		})
 ]=]
-function builtins.defineAsyncComponent(loader: () -> ComponentDef, options: any?): ComponentDef
-	options = options or {}
+function builtins.defineAsyncComponent(loader: () -> ComponentDef, opts: AsyncComponentOptions?): ComponentDef
+	local options: AsyncComponentOptions = opts or {}
 
 	return {
 		__is_component = true,
 		__name = "AsyncComponent",
-		setup = function(props: any, context: any)
-			local component = ref(nil :: ComponentDef?)
+		setup = function(props: Props, context: SetupContext)
+			-- shallowRef: a deep ref would wrap the component definition itself in a reactive proxy
+			local component = shallowRef(nil :: ComponentDef?)
 			local loading = ref(false)
 			local error = ref(nil :: string?)
 			local showLoading = ref(false)
 
 			-- Get suspense context if available
-			local suspense = context.inject("suspense")
+			local suspense = context.inject("suspense") :: SuspenseContext?
 
 			-- Delay before showing loading component
 			local delayTimer
@@ -338,10 +321,11 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, options: any?
 			if options.timeout and options.timeout > 0 then
 				timeoutTimer = task.delay(options.timeout / 1000, function()
 					if loading.value then
-						error.value = "Component load timeout"
+						local message = "Component load timeout"
+						error.value = message
 						loading.value = false
 						if suspense then
-							suspense.reject(error.value)
+							suspense.reject(message)
 						end
 					end
 				end)
@@ -366,12 +350,13 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, options: any?
 						suspense.resolve()
 					end
 				else
-					error.value = tostring(result)
+					local message = tostring(result)
+					error.value = message
 					loading.value = false
 					showLoading.value = false
 
 					if suspense then
-						suspense.reject(error.value)
+						suspense.reject(message)
 					end
 				end
 
