@@ -206,6 +206,7 @@ type PoolType = {
 	acquire: (className: string) -> Instance,
 	acquireMultiple: (className: string, count: number) -> { Instance },
 	release: (inst: Instance, touched: { [string]: boolean }?) -> (),
+	restoreDefaults: (inst: Instance, props: { [string]: boolean }) -> (),
 	releaseMultiple: (instances: { Instance }) -> (),
 	clear: (className: string?) -> (),
 
@@ -441,6 +442,13 @@ local function resetInstance(inst: Instance, touched: { [string]: boolean }?): (
 		-- Event connections live on the vnode (vnode._conns) and are cleared by the renderer;
 		-- Instances can't hold Lua fields, so there is nothing else to disconnect here.
 	end)
+end
+
+--- Restores the given properties to their class defaults (used by the renderer when a prop is removed)
+--- @param inst Instance -- Instance to update
+--- @param props { [string]: boolean } -- Property names to restore
+function Pool.restoreDefaults(inst: Instance, props: { [string]: boolean }): ()
+	restoreTouchedProps(inst, props)
 end
 
 --- Acquires an Instance from the pool

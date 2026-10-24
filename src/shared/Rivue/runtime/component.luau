@@ -9,7 +9,7 @@
 	Component instance lifecycle management with prop schema validation, dependency injection,
 	and lifecycle hook registration for Vue.js-inspired component architecture.
 
-    @module directives
+    @module component
 
 	@author Rivue
 
@@ -128,40 +128,42 @@
 	- Context object provides scoped utilities: emit, provide/inject, slots
 ]]
 
-type PropSpec = {
-	type: string?,
-	required: boolean?,
-	default: any?,
-	validator: ((value: any) -> boolean)?,
-}
+local Types = require(script.Parent:WaitForChild("types"))
+local _reactivity = require(script.Parent:WaitForChild("reactivity"))
+local RunService = game:GetService("RunService")
+local debugModule = require(script.Parent:WaitForChild("debug"))
 
-type PropSchema = { [string]: PropSpec }
+type VNode = Types.VNode
+type Props = Types.Props
+type Child = Types.Child
+type PropSchema = Types.PropSchema
+type ComponentDef = Types.ComponentDef
+type SetupContext = Types.SetupContext
+type RenderFunction = Types.RenderFunction
+type Effect = Types.Effect
+type EffectScope = Types.EffectScope
+type JobHandle = Types.JobHandle
+type WatchStopHandle = Types.WatchStopHandle
 
-type ComponentDef = {
-	__is_component: boolean,
-	setup: ((props: any, ctx: any) -> any)?,
-	render: ((props: any) -> any)?,
-	props: PropSchema?,
-	__name: string?,
-	inheritAttrs: boolean?,
-}
+export type ErrorCapturedHook = (err: string, instance: ComponentInstance, info: string) -> boolean?
 
-type VNode = {
-	type: any,
-	props: { [string]: any }?,
-	children: { any },
-	key: any?,
-}
+--- Names of the lifecycle callback lists on an instance (singleton union, so typos fail type checking)
+type HookList = "beforeMountCbs" | "mountedCbs" | "beforeUpdateCbs" | "updatedCbs" | "beforeUnmountCbs" | "unmountedCbs"
 
-type ComponentInstance = {
+-- Component instances are a class: methods live once on this metatable instead of being
+-- recreated as closures for every mounted component.
+local ComponentInstance = {}
+ComponentInstance.__index = ComponentInstance
+
+type InstanceData = {
 	vnode: VNode,
-	type: ComponentDef | any,
-	props: { [string]: any },
-	attrs: { [string]: any },
+	type: ComponentDef,
+	props: Props,
+	attrs: Props,
 	parent: ComponentInstance?,
-	provides: { [string]: any },
+	provides: { [string]: unknown },
 	isMounted: boolean,
-	subTree: any,
+	subTree: VNode?,
 	el: Instance?,
 	cleanupCbs: { () -> () },
 	beforeMountCbs: { () -> () },
@@ -170,35 +172,23 @@ type ComponentInstance = {
 	updatedCbs: { () -> () },
 	beforeUnmountCbs: { () -> () },
 	unmountedCbs: { () -> () },
-	slots: { any },
-	pendingJobs: { any },
-	render: ((any) -> any)?,
-	setupState: any,
-	exposed: { [string]: any }?,
-	setupComponent: (self: ComponentInstance) -> (),
-	runBeforeMount: (self: ComponentInstance) -> (),
-	runMounted: (self: ComponentInstance) -> (),
-	runBeforeUpdate: (self: ComponentInstance) -> (),
-	runUpdated: (self: ComponentInstance) -> (),
-	runBeforeUnmount: (self: ComponentInstance) -> (),
-	runUnmounted: (self: ComponentInstance) -> (),
-	handleError: (self: ComponentInstance, err: string, info: string) -> (),
-	errorCapturedCbs: { (err: string, instance: any, info: string) -> boolean? },
+	errorCapturedCbs: { ErrorCapturedHook },
+	slots: { Child },
+	render: RenderFunction?,
+	setupState: { render: RenderFunction, [string]: unknown }?,
+	exposed: { [string]: unknown }?,
+	ctx: SetupContext,
+	-- Cleanup bookkeeping (filled by main's watch/effect/queueJob wrappers and the renderer)
+	_effects: { WatchStopHandle | Effect },
+	_schedulerJobs: { JobHandle },
+	_scope: EffectScope?,
+	_renderEffect: Effect?,
+	_transitionHooks: { [string]: { (el: Instance) -> () } }?,
 }
 
-type ComponentContext = {
-	emit: (eventName: string, ...any) -> (),
-	provide: (key: string, value: any) -> (),
-	inject: (key: string, default: any?) -> any?,
-	slots: { any },
-	attrs: { [string]: any },
-	expose: (exposed: { [string]: any }?) -> (),
-	onUnmounted: (fn: () -> ()) -> (),
-}
+export type ComponentInstance = typeof(setmetatable({} :: InstanceData, ComponentInstance))
 
-local _reactivity = require(script.Parent:WaitForChild("reactivity"))
-local RunService = game:GetService("RunService")
-local debugModule = require(script.Parent:WaitForChild("debug"))
+const IS_STUDIO = RunService:IsStudio()
 
 local currentInstance: ComponentInstance? = nil
 
@@ -214,138 +204,73 @@ local function getCurrentInstance(): ComponentInstance?
 	return currentInstance
 end
 
---- Registers a callback to run after component is mounted
---- @param fn () -> () -- Callback function
-local function onMounted(fn: () -> ()): ()
-	local inst = getCurrentInstance()
+--- Builds a lifecycle hook registration function (onMounted, onUpdated, ...)
+--- @param hookName string -- Public name, used in error messages
+--- @param list HookList -- Instance callback list the hook appends to
+--- @return (fn: () -> ()) -> () -- Registration function
+local function createHook(hookName: string, list: HookList): (fn: () -> ()) -> ()
+	return function(fn: () -> ())
+		local inst = currentInstance
+		if not inst then
+			error(`{hookName} must be called in setup`, 2)
+		end
 
-	if not inst then
-		error("onMounted must be called in setup")
+		if debugModule.enabled then
+			debugModule.log(
+				"Component",
+				`Registered {hookName} callback`,
+				{ component = inst.type.__name or "Anonymous" }
+			)
+		end
+		table.insert(inst[list], fn)
 	end
-
-	debugModule.log(
-		"Component",
-		"Registered onMounted callback",
-		{ component = inst.type.__name or "Anonymous", totalCallbacks = #inst.mountedCbs + 1 }
-	)
-	table.insert(inst.mountedCbs, fn)
 end
 
---- Registers a callback to run before component is mounted
---- @param fn () -> () -- Callback function
-local function onBeforeMount(fn: () -> ()): ()
-	local inst = getCurrentInstance()
-
-	if not inst then
-		error("onBeforeMount must be called in setup")
-	end
-
-	debugModule.log("Component", "Registered onBeforeMount callback", { component = inst.type.__name or "Anonymous" })
-	table.insert((inst :: any).beforeMountCbs, fn)
-end
-
---- Registers a callback to run after component updates
---- @param fn () -> () -- Callback function
-local function onUpdated(fn: () -> ()): ()
-	local inst = getCurrentInstance()
-
-	if not inst then
-		error("onUpdated must be called in setup")
-	end
-
-	debugModule.log("Component", "Registered onUpdated callback", { component = inst.type.__name or "Anonymous" })
-	table.insert(inst.updatedCbs, fn)
-end
-
---- Registers a callback to run before component updates
---- @param fn () -> () -- Callback function
-local function onBeforeUpdate(fn: () -> ()): ()
-	local inst = getCurrentInstance()
-
-	if not inst then
-		error("onBeforeUpdate must be called in setup")
-	end
-
-	debugModule.log("Component", "Registered onBeforeUpdate callback", { component = inst.type.__name or "Anonymous" })
-	table.insert((inst :: any).beforeUpdateCbs, fn)
-end
-
---- Registers a callback to run before component unmounts
---- @param fn () -> () -- Callback function
-local function onUnmounted(fn: () -> ()): ()
-	local inst = getCurrentInstance()
-
-	if not inst then
-		error("onUnmounted must be called in setup")
-	end
-
-	debugModule.log(
-		"Component",
-		"Registered onUnmounted callback",
-		{ component = inst.type.__name or "Anonymous", totalCallbacks = #inst.unmountedCbs + 1 }
-	)
-	table.insert(inst.unmountedCbs, fn)
-end
-
---- Registers a callback to run before component unmounts (before cleanup)
---- @param fn () -> () -- Callback function
-local function onBeforeUnmount(fn: () -> ()): ()
-	local inst = getCurrentInstance()
-
-	if not inst then
-		error("onBeforeUnmount must be called in setup")
-	end
-
-	debugModule.log("Component", "Registered onBeforeUnmount callback", { component = inst.type.__name or "Anonymous" })
-	table.insert((inst :: any).beforeUnmountCbs, fn)
-end
+local onBeforeMount = createHook("onBeforeMount", "beforeMountCbs")
+local onMounted = createHook("onMounted", "mountedCbs")
+local onBeforeUpdate = createHook("onBeforeUpdate", "beforeUpdateCbs")
+local onUpdated = createHook("onUpdated", "updatedCbs")
+local onBeforeUnmount = createHook("onBeforeUnmount", "beforeUnmountCbs")
+local onUnmounted = createHook("onUnmounted", "unmountedCbs")
 
 --- Registers an error handler to catch errors in child components
---- @param fn (err: string, instance: ComponentInstance, info: string) -> boolean? -- Error handler (return true to stop propagation)
-local function onErrorCaptured(fn: (err: string, instance: any, info: string) -> boolean?): ()
-	local inst = getCurrentInstance()
-
+--- @param fn ErrorCapturedHook -- Error handler (return true to stop propagation)
+local function onErrorCaptured(fn: ErrorCapturedHook): ()
+	local inst = currentInstance
 	if not inst then
-		error("onErrorCaptured must be called in setup")
+		error("onErrorCaptured must be called in setup", 2)
 	end
 
-	debugModule.log("Component", "Registered onErrorCaptured handler", { component = inst.type.__name or "Anonymous" })
-	table.insert((inst :: any).errorCapturedCbs, fn)
+	table.insert(inst.errorCapturedCbs, fn)
 end
 
 --- Applies default values to props based on schema
 --- @param schema PropSchema -- Prop schema definition
---- @param props { [string]: any } -- Props object to apply defaults to
-local function applyPropDefaults(schema: PropSchema, props: { [string]: any }): ()
-	for name, spec in pairs(schema) do
-		if props[name] == nil and spec.default ~= nil then
-			local defaultVal = spec.default
-			if type(defaultVal) == "function" then
-				props[name] = (defaultVal :: any)()
-			else
-				props[name] = defaultVal
-			end
+--- @param props Props -- Props object to apply defaults to
+local function applyPropDefaults(schema: PropSchema, props: Props): ()
+	for name, spec in schema do
+		local defaultVal = spec.default
+		if props[name] == nil and defaultVal ~= nil then
+			-- Factory defaults give each instance its own table
+			props[name] = if type(defaultVal) == "function" then (defaultVal :: () -> unknown)() else defaultVal
 		end
 	end
 end
 
 --- Separates declared props from non-declared attrs
 --- @param schema PropSchema? -- Prop schema definition
---- @param allProps { [string]: any } -- All incoming props
---- @return { [string]: any } -- Declared props
---- @return { [string]: any } -- Non-declared attrs
-local function separatePropsAndAttrs(
-	schema: PropSchema?,
-	allProps: { [string]: any }
-): ({ [string]: any }, { [string]: any })
+--- @param allProps Props -- All incoming props
+--- @return Props -- Declared props
+--- @return Props -- Non-declared attrs
+local function separatePropsAndAttrs(schema: PropSchema?, allProps: Props): (Props, Props)
 	if not schema then
 		return allProps, {}
 	end
 
-	local props = {}
-	local attrs = {}
+	local props: Props = {}
+	local attrs: Props = {}
 
-	for key, value in pairs(allProps) do
+	for key, value in allProps do
 		if schema[key] then
 			props[key] = value
 		else
@@ -358,52 +283,36 @@ end
 
 --- Validates props against schema (only in Studio mode)
 --- @param schema PropSchema? -- Prop schema definition
---- @param props { [string]: any } -- Props to validate
+--- @param props Props -- Props to validate
 --- @return boolean -- True if valid
 --- @return string? -- Error message if invalid
-local function validateProps(schema: PropSchema?, props: { [string]: any }): (boolean, string?)
+local function validateProps(schema: PropSchema?, props: Props): (boolean, string?)
 	if not schema then
 		return true, nil
 	end
 
 	local errs: { string } = {}
 
-	for name, spec in pairs(schema) do
+	for name, spec in schema do
 		local val = props[name]
 
 		if spec.required and val == nil then
-			table.insert(errs, ("prop '%s' required"):format(name))
+			table.insert(errs, `prop '{name}' required`)
 		end
 
-		if val ~= nil and spec.type then
-			local t = type(val)
-			local ok = false
-
-			if spec.type == "table" then
-				ok = t == "table"
-			elseif spec.type == "number" then
-				ok = t == "number"
-			elseif spec.type == "string" then
-				ok = t == "string"
-			elseif spec.type == "boolean" then
-				ok = t == "boolean"
-			elseif spec.type == "function" then
-				ok = t == "function"
-			else
-				ok = true
-			end
-
-			if not ok then
-				table.insert(errs, ("prop '%s' expected %s got %s"):format(name, spec.type, t))
-			end
+		-- PropTypeName values match type() results, so a direct comparison is enough
+		local expected = spec.type
+		if val ~= nil and expected and type(val) ~= expected then
+			table.insert(errs, `prop '{name}' expected {expected} got {type(val)}`)
 		end
 
 		-- Run custom validator if provided
-		if val ~= nil and spec.validator then
-			local ok, result = pcall(spec.validator, val)
+		local validator = spec.validator
+		if val ~= nil and validator then
+			local ok, result = pcall(validator, val)
 
 			if not ok or result == false then
-				table.insert(errs, ("prop '%s' failed custom validation"):format(name))
+				table.insert(errs, `prop '{name}' failed custom validation`)
 			end
 		end
 	end
@@ -415,44 +324,233 @@ local function validateProps(schema: PropSchema?, props: { [string]: any }): (bo
 	return true, nil
 end
 
---- Creates a new component instance with lifecycle management
---- @param vnode VNode -- Virtual node representing the component
---- @param parent ComponentInstance? -- Parent component instance
---- @return ComponentInstance -- New component instance
---- @return ComponentContext -- Component context for setup
-local function createComponentInstance(vnode: VNode, parent: ComponentInstance?): (ComponentInstance, ComponentContext)
-	if debugModule.enabled then
-		debugModule.log("Component", "Creating component instance", {
-			type = vnode.type.__name or "AnonymousComponent",
-			hasParent = parent ~= nil,
-			childCount = vnode.children and #vnode.children or 0,
-		})
+--- Runs a list of lifecycle callbacks, isolating errors per callback
+--- @param self ComponentInstance -- Owning instance (for error reporting)
+--- @param callbacks { () -> () } -- Callbacks to run
+--- @param info string -- Lifecycle phase name
+local function runCallbacks(self: ComponentInstance, callbacks: { () -> () }, info: string)
+	for _, fn in callbacks do
+		local ok, err = pcall(fn :: () -> ...unknown)
+		if not ok then
+			self:handleError(tostring(err), info)
+		end
 	end
-	-- Create new provides table with parent provides as prototype (shallow copy)
-	-- This prevents sibling components from sharing the same provides reference
-	local provides = {}
-	if parent and parent.provides then
-		for k, v in pairs(parent.provides) do
-			provides[k] = v
+end
+
+--- Runs setup() (or resolves render) and stores the component's render function
+function ComponentInstance.setupComponent(self: ComponentInstance)
+	setCurrentInstance(self)
+
+	local def = self.type
+	local schema = def.props
+
+	-- Apply default prop values
+	if schema then
+		applyPropDefaults(schema, self.props)
+
+		-- Validate props in Studio mode
+		if IS_STUDIO then
+			local ok, err = validateProps(schema, self.props)
+			if not ok then
+				debugModule.log("Component", `Prop validation failed: {err}`)
+			end
 		end
 	end
 
+	-- Effects/computeds/watchers created in setup belong to this scope and stop on unmount
+	local scope = _reactivity.effectScope(true)
+	self._scope = scope
+
+	local setupResult: unknown = nil
+	local setup = def.setup
+	if setup then
+		local setupErr: unknown = nil
+		setupResult = scope:run(function()
+			local ok, result = pcall(setup, self.props, self.ctx)
+			if not ok then
+				setupErr = result
+				return nil
+			end
+			return result
+		end)
+		if setupErr ~= nil then
+			setCurrentInstance(nil)
+			error(setupErr, 0)
+		end
+	end
+	setCurrentInstance(nil)
+
+	if type(setupResult) == "function" then
+		self.render = setupResult :: RenderFunction
+	elseif type(setupResult) == "table" and type((setupResult :: any).render) == "function" then
+		local state = setupResult :: { render: RenderFunction, [string]: unknown }
+		self.render = state.render
+		self.setupState = state
+	elseif def.render then
+		local render = def.render
+		self.render = function()
+			return render(self.props)
+		end
+	else
+		error("Component must provide setup() or render()")
+	end
+end
+
+function ComponentInstance.runBeforeMount(self: ComponentInstance)
+	runCallbacks(self, self.beforeMountCbs, "beforeMount hook")
+end
+
+function ComponentInstance.runMounted(self: ComponentInstance)
+	self.isMounted = true
+	runCallbacks(self, self.mountedCbs, "mounted hook")
+end
+
+function ComponentInstance.runBeforeUpdate(self: ComponentInstance)
+	runCallbacks(self, self.beforeUpdateCbs, "beforeUpdate hook")
+end
+
+function ComponentInstance.runUpdated(self: ComponentInstance)
+	runCallbacks(self, self.updatedCbs, "updated hook")
+end
+
+function ComponentInstance.runBeforeUnmount(self: ComponentInstance)
+	runCallbacks(self, self.beforeUnmountCbs, "beforeUnmount hook")
+end
+
+--- Runs unmounted callbacks, then tears down everything the component created
+function ComponentInstance.runUnmounted(self: ComponentInstance)
+	if debugModule.enabled then
+		debugModule.log("Component", "Running unmounted callbacks and cleanup", {
+			component = self.type.__name or "Anonymous",
+			unmountedCbs = #self.unmountedCbs,
+			cleanupCbs = #self.cleanupCbs,
+			effects = #self._effects,
+			schedulerJobs = #self._schedulerJobs,
+		})
+	end
+
+	runCallbacks(self, self.unmountedCbs, "unmounted hook")
+	runCallbacks(self, self.cleanupCbs, "cleanup")
+
+	-- Auto-cleanup: Cancel all tracked scheduler jobs
+	for _, jobHandle in self._schedulerJobs do
+		pcall(jobHandle.cancel)
+	end
+	table.clear(self._schedulerJobs)
+
+	-- Auto-cleanup: Stop all tracked effects/watchers
+	for _, tracked in self._effects do
+		if type(tracked) == "function" then
+			-- Stop handle from watch()/watchEffect()
+			pcall(tracked)
+		else
+			-- Effect object from effect()
+			pcall(tracked.stop, tracked)
+		end
+	end
+	table.clear(self._effects)
+
+	local scope = self._scope
+	if scope then
+		scope:stop()
+		self._scope = nil
+	end
+end
+
+--- Propagates an error up the parent chain until an onErrorCaptured handler returns true
+--- @param err string -- Error message
+--- @param info string -- Where the error happened
+function ComponentInstance.handleError(self: ComponentInstance, err: string, info: string)
+	local cur = self.parent
+	while cur do
+		for _, handler in cur.errorCapturedCbs do
+			local ok, stop = pcall(handler, err, self, info)
+			if ok and stop == true then
+				return
+			end
+		end
+		cur = cur.parent
+	end
+	-- If no handler consumed it, log it
+	debugModule.log("Component", `Unhandled component error: {err}`, { info = info })
+end
+
+--- Creates the setup() context bound to an instance
+--- @param instance ComponentInstance -- Owning instance
+--- @return SetupContext -- Context passed as setup's second argument
+local function createSetupContext(instance: ComponentInstance): SetupContext
+	return {
+		emit = function(eventName: string, ...: any): ()
+			local handlerName = `on{eventName:sub(1, 1):upper()}{eventName:sub(2)}`
+			local handler = instance.props[handlerName] or instance.attrs[handlerName]
+
+			if type(handler) == "function" then
+				local ok, err = pcall(handler, ...)
+				if not ok then
+					instance:handleError(tostring(err), `emit({eventName})`)
+				end
+			end
+		end,
+		provide = function(key: string, val: unknown): ()
+			instance.provides[key] = val
+		end,
+		inject = function(key: string, default: unknown?): unknown?
+			local cur: ComponentInstance? = instance
+
+			while cur do
+				local provided = cur.provides[key]
+				if provided ~= nil then
+					return provided
+				end
+				cur = cur.parent
+			end
+
+			return default
+		end,
+		slots = instance.slots,
+		attrs = instance.attrs,
+		expose = function(exposed: { [string]: unknown }?): ()
+			instance.exposed = exposed
+		end,
+		onUnmounted = function(fn: () -> ()): ()
+			table.insert(instance.unmountedCbs, fn)
+		end,
+	}
+end
+
+--- Creates a new component instance with lifecycle management
+--- @param vnode VNode -- Virtual node representing the component
+--- @param parent ComponentInstance? -- Parent component instance (for provide/inject and error propagation)
+--- @return ComponentInstance -- New component instance
+--- @return SetupContext -- Component context for setup
+local function createComponentInstance(vnode: VNode, parent: ComponentInstance?): (ComponentInstance, SetupContext)
+	local def = vnode.type :: ComponentDef
+	if debugModule.enabled then
+		debugModule.log("Component", "Creating component instance", {
+			type = def.__name or "AnonymousComponent",
+			hasParent = parent ~= nil,
+			childCount = #vnode.children,
+		})
+	end
+
+	-- Copy parent provides so siblings never share (and mutate) one provides table
+	local provides: { [string]: unknown } = if parent then table.clone(parent.provides) else {}
+
 	-- Separate declared props from attrs
-	local allProps = vnode.props or {}
-	local declaredProps, attrs = separatePropsAndAttrs(vnode.type.props, allProps)
+	local declaredProps, attrs = separatePropsAndAttrs(def.props, vnode.props or {})
 	-- Props are shallow-reactive so the render effect re-runs when a parent passes new values.
 	-- Cloned so updates never write into the parent's vnode.props table.
 	local props = _reactivity.shallowReactive(table.clone(declaredProps))
 
-	local instance: ComponentInstance = {
+	local data: InstanceData = {
 		vnode = vnode,
-		type = vnode.type,
+		type = def,
 		props = props,
 		attrs = attrs,
 		parent = parent,
 		provides = provides,
 		isMounted = false,
-		subTree = nil :: any,
+		subTree = nil,
 		el = nil,
 		cleanupCbs = {},
 		beforeMountCbs = {},
@@ -462,264 +560,28 @@ local function createComponentInstance(vnode: VNode, parent: ComponentInstance?)
 		beforeUnmountCbs = {},
 		unmountedCbs = {},
 		errorCapturedCbs = {},
-		slots = vnode.children or {},
-		pendingJobs = {},
+		slots = vnode.children,
 		render = nil,
 		setupState = nil,
 		exposed = nil,
-		setupComponent = nil :: any,
-		runBeforeMount = nil :: any,
-		runMounted = nil :: any,
-		runBeforeUpdate = nil :: any,
-		runUpdated = nil :: any,
-		runBeforeUnmount = nil :: any,
-		runUnmounted = nil :: any,
-		handleError = nil :: any,
+		ctx = nil :: any, -- assigned right below (needs the instance)
+		_effects = {},
+		_schedulerJobs = {},
+		_scope = nil,
+		_renderEffect = nil,
+		_transitionHooks = nil,
 	}
+	local instance = setmetatable(data, ComponentInstance)
+	instance.ctx = createSetupContext(instance)
 
-	-- Track effects/watchers created during setup for auto-cleanup
-	(instance :: any)._effects = {}
-	-- Track scheduler jobs created during setup for auto-cleanup
-	(instance :: any)._schedulerJobs = {}
-
-	local ctx: ComponentContext = {
-		emit = function(eventName: string, ...: any): ()
-			local handlerName = "on" .. (eventName:sub(1, 1):upper() .. eventName:sub(2))
-			local handler = instance.props and instance.props[handlerName]
-
-			if type(handler) == "function" then
-				pcall(handler :: any, ...)
-			end
-		end,
-		provide = function(key: string, val: any): ()
-			instance.provides = instance.provides or {}
-			instance.provides[key] = val
-		end,
-		inject = function(key: string, default: any?): any?
-			local cur: ComponentInstance? = instance
-
-			while cur do
-				if cur.provides and cur.provides[key] ~= nil then
-					return cur.provides[key]
-				end
-
-				cur = cur.parent
-			end
-
-			return default
-		end,
-		slots = instance.slots,
-		attrs = instance.attrs,
-		expose = function(exposed: { [string]: any }?): ()
-			instance.exposed = exposed
-		end,
-		onUnmounted = function(fn: () -> ()): ()
-			table.insert(instance.unmountedCbs, fn)
-		end,
-	}
-
-	function instance:setupComponent()
-		setCurrentInstance(instance)
-
-		-- Apply default prop values
-		if type(self.type.props) == "table" then
-			applyPropDefaults(self.type.props, self.props)
-		end
-
-		-- Validate props in Studio mode
-		if type(self.type.props) == "table" and RunService and RunService:IsStudio() then
-			local ok, err = validateProps(self.type.props, self.props)
-
-			if not ok then
-				debugModule.log("Component", "Prop validation failed: " .. tostring(err))
-			end
-		end
-
-		-- Effects/computeds/watchers created in setup belong to this scope and stop on unmount
-		local scope = _reactivity.effectScope(true);
-		(self :: any)._scope = scope
-
-		local setupResult
-		if type(self.type.setup) == "function" then
-			local setupErr: any = nil
-			setupResult = scope:run(function()
-				local ok, result = pcall(self.type.setup :: any, self.props, ctx)
-				if not ok then
-					setupErr = result
-					return nil
-				end
-				return result
-			end)
-			if setupErr ~= nil then
-				setCurrentInstance(nil)
-				error(setupErr, 0)
-			end
-		elseif type(self.type) == "function" then
-			setupResult = self.type
-		end
-		setCurrentInstance(nil)
-
-		if type(setupResult) == "function" then
-			self.render = setupResult
-		elseif type(setupResult) == "table" and type(setupResult.render) == "function" then
-			self.render = setupResult.render
-			self.setupState = setupResult
-		elseif type(self.type.render) == "function" then
-			self.render = function()
-				return (self.type.render :: any)(self.props)
-			end
-		else
-			error("Component must provide setup() or render()")
-		end
-	end
-
-	function instance:runBeforeMount()
-		if #self.beforeMountCbs > 0 then
-			debugModule.log(
-				"Component",
-				"Running beforeMount callbacks",
-				{ component = self.type.__name or "Anonymous", count = #self.beforeMountCbs }
-			)
-		end
-		for _, fn in ipairs(self.beforeMountCbs) do
-			pcall(fn)
-		end
-	end
-
-	function instance:runMounted()
-		if #self.mountedCbs > 0 then
-			debugModule.log(
-				"Component",
-				"Running mounted callbacks",
-				{ component = self.type.__name or "Anonymous", count = #self.mountedCbs }
-			)
-		end
-		self.isMounted = true
-		for _, fn in ipairs(self.mountedCbs) do
-			pcall(fn)
-		end
-	end
-
-	function instance:runBeforeUpdate()
-		if #self.beforeUpdateCbs > 0 then
-			debugModule.log(
-				"Component",
-				"Running beforeUpdate callbacks",
-				{ component = self.type.__name or "Anonymous", count = #self.beforeUpdateCbs }
-			)
-		end
-		for _, fn in ipairs(self.beforeUpdateCbs) do
-			pcall(fn)
-		end
-	end
-
-	function instance:runUpdated()
-		if #self.updatedCbs > 0 then
-			debugModule.log(
-				"Component",
-				"Running updated callbacks",
-				{ component = self.type.__name or "Anonymous", count = #self.updatedCbs }
-			)
-		end
-		for _, fn in ipairs(self.updatedCbs) do
-			pcall(fn)
-		end
-	end
-
-	function instance:runBeforeUnmount()
-		if #self.beforeUnmountCbs > 0 then
-			debugModule.log(
-				"Component",
-				"Running beforeUnmount callbacks",
-				{ component = self.type.__name or "Anonymous", count = #self.beforeUnmountCbs }
-			)
-		end
-		for _, fn in ipairs(self.beforeUnmountCbs) do
-			pcall(fn)
-		end
-	end
-
-	function instance:runUnmounted()
-		local totalCallbacks = #self.unmountedCbs + #self.cleanupCbs
-		local effectCount = (self :: any)._effects and #(self :: any)._effects or 0
-		local jobCount = (self :: any)._schedulerJobs and #(self :: any)._schedulerJobs or 0
-		if totalCallbacks > 0 or effectCount > 0 or jobCount > 0 then
-			debugModule.log("Component", "Running unmounted callbacks and cleanup", {
-				component = self.type.__name or "Anonymous",
-				unmountedCbs = #self.unmountedCbs,
-				cleanupCbs = #self.cleanupCbs,
-				effects = effectCount,
-				schedulerJobs = jobCount,
-			})
-		end
-
-		for _, fn in ipairs(self.unmountedCbs) do
-			pcall(fn)
-		end
-
-		for _, fn in ipairs(self.cleanupCbs) do
-			pcall(fn)
-		end
-
-		-- Auto-cleanup: Cancel all tracked scheduler jobs
-		if (self :: any)._schedulerJobs then
-			for _, jobHandle in ipairs((self :: any)._schedulerJobs) do
-				if jobHandle and type(jobHandle) == "table" and jobHandle.cancel then
-					pcall(function()
-						jobHandle.cancel()
-					end)
-				end
-			end
-			(self :: any)._schedulerJobs = {}
-		end
-
-		-- Auto-cleanup: Stop all tracked effects/watchers
-		if (self :: any)._effects then
-			for _, effect in ipairs((self :: any)._effects) do
-				if effect and type(effect) == "function" then
-					-- It's a stop handle from watch()
-					pcall(effect)
-				elseif effect and type(effect) == "table" and effect.stop then
-					-- It's an Effect object from effect()
-					pcall(function()
-						effect:stop()
-					end)
-				end
-			end
-			(self :: any)._effects = {}
-		end
-
-		if (self :: any)._scope then
-			(self :: any)._scope:stop();
-			(self :: any)._scope = nil
-		end
-	end
-
-	function instance:handleError(err: string, info: string)
-		local cur: any = self.parent
-		while cur do
-			if cur.errorCapturedCbs then
-				for _, handler in ipairs(cur.errorCapturedCbs) do
-					local ok, stop = pcall(handler, err, self, info)
-					if ok and stop == true then
-						return
-					end
-				end
-			end
-			cur = cur.parent
-		end
-		-- If no handler consumed it, log it
-		debugModule.log("Component", "Unhandled component error: " .. tostring(err), { info = info })
-	end
-
-	return instance, ctx
+	return instance, instance.ctx
 end
 
 --- Applies new incoming props to a mounted component instance
 --- Only changed keys are written, so only render effects that read them re-run
 --- @param instance ComponentInstance -- Mounted component instance
---- @param rawProps { [string]: any }? -- New props from the parent's vnode
-local function updateComponentProps(instance: ComponentInstance, rawProps: { [string]: any }?): ()
+--- @param rawProps Props? -- New props from the parent's vnode
+local function updateComponentProps(instance: ComponentInstance, rawProps: Props?): ()
 	local schema = instance.type.props
 	local nextProps, nextAttrs = separatePropsAndAttrs(schema, rawProps or {})
 	local props = instance.props
@@ -727,11 +589,12 @@ local function updateComponentProps(instance: ComponentInstance, rawProps: { [st
 
 	for key in current do
 		if nextProps[key] == nil then
-			local spec = if type(schema) == "table" then schema[key] else nil
-			if spec and spec.default ~= nil then
+			local spec = if schema then schema[key] else nil
+			local default = if spec then spec.default else nil
+			if default ~= nil then
 				-- Fall back to the default; keep factory defaults as-is to avoid needless re-renders
-				if type(spec.default) ~= "function" then
-					props[key] = spec.default
+				if type(default) ~= "function" then
+					props[key] = default
 				end
 			else
 				props[key] = nil
@@ -753,31 +616,28 @@ end
 --- Registers a transition hook to run before/after element transitions
 --- Transition hooks allow coordinated animations across multiple elements
 --- @param name string -- Hook name: "before-enter", "enter", "after-enter", "before-leave", "leave", "after-leave"
---- @param fn function -- Callback function (el: Instance) -> ()
+--- @param fn (el: Instance) -> () -- Callback function
 local function onTransition(name: string, fn: (el: Instance) -> ()): ()
-	if not currentInstance then
-		error("onTransition must be called within setup()")
+	local inst = currentInstance
+	if not inst then
+		error("onTransition must be called within setup()", 2)
 	end
 
-	local inst: any = currentInstance
-	if not inst._transitionHooks then
-		inst._transitionHooks = {}
-	end
+	local hooks: { [string]: { (el: Instance) -> () } } = inst._transitionHooks or {}
+	inst._transitionHooks = hooks
 
-	if not inst._transitionHooks[name] then
-		inst._transitionHooks[name] = {}
-	end
-
-	table.insert(inst._transitionHooks[name], fn)
+	local list = hooks[name] or {}
+	hooks[name] = list
+	table.insert(list, fn)
 end
 
 --- Built-in Teleport component for rendering content in a different location
 --- Usage: h(Teleport, { to = targetInstance }, children)
 --- Note: Teleport is handled specially by the renderer, not through normal render flow
-local Teleport = {
-	__is_component = true,
+local Teleport: ComponentDef = table.freeze({
+	__is_component = true :: true,
 	__name = "Teleport",
-}
+})
 
 return {
 	createComponentInstance = createComponentInstance,
