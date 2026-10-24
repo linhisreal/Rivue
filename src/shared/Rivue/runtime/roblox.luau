@@ -1,6 +1,5 @@
 --!strict
 --!optimize 2
---!native
 
 --[[
 	roblox.luau
@@ -70,6 +69,7 @@
 	- All utilities require being called during component setup() for proper cleanup
 ]]
 
+local Types = require(script.Parent:WaitForChild("types"))
 local reactivity = require(script.Parent:WaitForChild("reactivity"))
 local componentAPI = require(script.Parent:WaitForChild("component"))
 local debugModule = require(script.Parent:WaitForChild("debug"))
@@ -78,18 +78,21 @@ local utils = require(script.Parent:WaitForChild("utils"))
 local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")
 
+--- A ref synced with an Instance attribute. Outside a component, call `_cleanup()` to disconnect.
+export type AttributeRef<T> = Types.Ref<T> & { _cleanup: (() -> ())? }
+
 --- Creates a reactive reference to an Instance attribute with bidirectional sync
 --- @param instance Instance -- Instance to watch
 --- @param attributeName string -- Name of the attribute
 --- @param defaultValue T? -- Default value if attribute doesn't exist
 --- @param opts { throttle: number? }? -- Options (throttle in ms for high-frequency updates)
---- @return Ref<T> -- Reactive reference synced with the attribute
+--- @return AttributeRef<T?> -- Reactive reference synced with the attribute
 local function attributeRef<T>(
 	instance: Instance,
 	attributeName: string,
 	defaultValue: T?,
 	opts: { throttle: number? }?
-): any
+): AttributeRef<T?>
 	assert(typeof(instance) == "Instance", "attributeRef expects an Instance")
 	assert(
 		type(attributeName) == "string" and attributeName ~= "",
@@ -110,7 +113,8 @@ local function attributeRef<T>(
 		end
 	end
 
-	local r = reactivity.ref(initialValue)
+	-- Attribute values are untyped at runtime; the caller's T describes what they expect to store
+	local r: AttributeRef<T?> = reactivity.ref(initialValue :: T?) :: any
 	local isUpdatingFromAttribute = false
 	local isUpdatingFromRef = false
 
@@ -120,7 +124,7 @@ local function attributeRef<T>(
 			return -- Prevent circular update
 		end
 
-		local newValue = instance:GetAttribute(attributeName)
+		local newValue = instance:GetAttribute(attributeName) :: T?
 		-- Only update if value actually changed
 		if r.value ~= newValue then
 			isUpdatingFromAttribute = true
@@ -161,7 +165,7 @@ local function attributeRef<T>(
 	else
 		-- If not in component context, at least provide manual cleanup
 		-- Store cleanup functions on the ref for manual cleanup if needed
-		(r :: any)._cleanup = function()
+		r._cleanup = function()
 			conn:Disconnect()
 			stopWatch()
 		end

@@ -1,6 +1,5 @@
 --!strict
 --!optimize 2
---!native
 
 --[[
 	Remote Communication
@@ -62,16 +61,17 @@
 		end)
 ]]
 
-type RemoteRequest = {
+export type RemoteRequest = {
 	action: string,
-	payload: any,
+	payload: unknown,
 	id: string?,
 }
 
-type RemoteResponse = {
+--- Responses arrive over the network, so `data` is `unknown`: refine it before use
+export type RemoteResponse = {
 	id: string,
 	ok: boolean,
-	data: any?,
+	data: unknown?,
 	error: string?,
 }
 
@@ -79,7 +79,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
 local debugModule = require(script.Parent:WaitForChild("debug"))
 
-local Remote: any = {}
+local Remote = {}
 Remote.__index = Remote
 
 --- Gets or creates the RemoteEvents folder in ReplicatedStorage
@@ -124,9 +124,10 @@ local function getResponseEvent(): RemoteEvent
 end
 
 -- Payload validation helpers
-local MAX_PAYLOAD_SIZE = 20000 -- 20KB limit
+const MAX_PAYLOAD_SIZE = 20000 -- 20KB limit
+const MAX_PAYLOAD_DEPTH = 10
 
-local function validatePayload(payload: any): (boolean, string?)
+local function validatePayload(payload: unknown): (boolean, string?)
 	-- Size check via JSON serialization
 	local ok, jsonStr = pcall(function()
 		return HttpService:JSONEncode(payload)
@@ -141,15 +142,15 @@ local function validatePayload(payload: any): (boolean, string?)
 	end
 
 	-- Type validation - only allow safe types
-	local function isSafeType(val: any, depth: number): boolean
-		if depth > 10 then
+	local function isSafeType(val: unknown, depth: number): boolean
+		if depth > MAX_PAYLOAD_DEPTH then
 			return false
 		end -- prevent deep nesting
 		local t = type(val)
 		if t == "string" or t == "number" or t == "boolean" or t == "nil" then
 			return true
 		elseif t == "table" then
-			for k, v in pairs(val) do
+			for k, v in val :: { [unknown]: unknown } do
 				if not isSafeType(k, depth + 1) or not isSafeType(v, depth + 1) then
 					return false
 				end
@@ -168,11 +169,11 @@ end
 
 --- Sends a request to server and waits for response with timeout
 --- @param actionName string -- Action identifier for the request
---- @param payload any -- Data to send with the request
+--- @param payload unknown -- Data to send with the request
 --- @param timeout number? -- Optional timeout in seconds (default: 10)
---- @return any? -- Response data if successful
+--- @return unknown? -- Response data if successful (refine before use)
 --- @return string? -- Error message if failed
-function Remote.request(actionName: string, payload: any, timeout: number?): (any?, string?)
+function Remote.request(actionName: string, payload: unknown, timeout: number?): (unknown?, string?)
 	if debugModule.enabled then
 		debugModule.log("Remote", "Sending request to server", {
 			action = actionName,
@@ -254,9 +255,9 @@ end
 
 --- Fires a one-way event to server (no response expected)
 --- @param actionName string -- Action identifier
---- @param payload any -- Data to send
+--- @param payload unknown -- Data to send
 --- @return
-function Remote.fire(actionName: string, payload: any): ()
+function Remote.fire(actionName: string, payload: unknown): ()
 	debugModule.log("Remote", "Firing one-way event to server", { action = actionName })
 	local reqEv = getRequestEvent()
 	reqEv:FireServer({ action = actionName, payload = payload })
@@ -274,9 +275,9 @@ function Remote.on(name: string, fn: (...any) -> ()): RBXScriptConnection
 		local newEv = Instance.new("RemoteEvent")
 		newEv.Name = name
 		newEv.Parent = folder
-		return newEv.OnClientEvent:Connect(fn :: any)
+		return newEv.OnClientEvent:Connect(fn)
 	end
-	return ev.OnClientEvent:Connect(fn :: any)
+	return ev.OnClientEvent:Connect(fn)
 end
 
 return Remote

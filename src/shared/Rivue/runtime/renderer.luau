@@ -1,6 +1,5 @@
 --!strict
 --!optimize 2
---!native
 
 --[[
 	renderer.luau

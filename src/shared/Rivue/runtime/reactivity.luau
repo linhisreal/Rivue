@@ -54,10 +54,17 @@ local RunService = game:GetService("RunService")
 
 const IS_STUDIO = RunService:IsStudio()
 
+--- Creates a weak-keyed map: entries vanish once nothing else references the key
+--- @return { [K]: V } -- Empty weak-keyed table
+local function weakKeyed<K, V>(): { [K]: V }
+	-- setmetatable's result type doesn't carry the indexer, so cast once here
+	return setmetatable({}, { __mode = "k" }) :: any
+end
+
 -- Weak keys are safe here: every tracked target (raw table, ref, computed runner) is kept
 -- alive by whoever can still read or write it, so an unreachable key can never be triggered again.
 -- Strong keys leaked every reactive object and ref ever created.
-local depMap: { [unknown]: { [unknown]: Dep } } = setmetatable({}, { __mode = "k" }) :: any
+local depMap: { [unknown]: { [unknown]: Dep } } = weakKeyed()
 local effectStack: { Effect } = {}
 local activeEffect: Effect? = nil
 
@@ -174,9 +181,9 @@ local function onScopeDispose(fn: () -> (), failSilently: boolean?)
 end
 
 -- Reactivity markers (stored with weak keys to avoid memory leaks)
-local rawMarker: { [unknown]: true } = setmetatable({}, { __mode = "k" }) :: any
-local reactiveMarker: { [unknown]: RawTable } = setmetatable({}, { __mode = "k" }) :: any
-local readonlyMarker: { [unknown]: true } = setmetatable({}, { __mode = "k" }) :: any
+local rawMarker: { [unknown]: true } = weakKeyed()
+local reactiveMarker: { [unknown]: RawTable } = weakKeyed()
+local readonlyMarker: { [unknown]: true } = weakKeyed()
 
 --- Marks an object as raw (non-reactive)
 --- Prevents the object from being converted to a reactive proxy
@@ -374,9 +381,9 @@ local function triggerSet(target: RawTable, key: unknown, old: unknown, new: unk
 	end
 end
 
-local proxyCache: { [RawTable]: RawTable } = setmetatable({}, { __mode = "k" }) :: any
-local shallowProxyCache: { [RawTable]: RawTable } = setmetatable({}, { __mode = "k" }) :: any
-local readonlyCache: { [RawTable]: RawTable } = setmetatable({}, { __mode = "k" }) :: any
+local proxyCache: { [RawTable]: RawTable } = weakKeyed()
+local shallowProxyCache: { [RawTable]: RawTable } = weakKeyed()
+local readonlyCache: { [RawTable]: RawTable } = weakKeyed()
 
 --- Creates a deeply reactive proxy of an object.
 ---  All nested objects are automatically made reactive

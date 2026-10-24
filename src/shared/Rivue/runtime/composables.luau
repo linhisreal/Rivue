@@ -1,6 +1,5 @@
 --!strict
 --!optimize 2
---!native
 
 --[[
 	composables.luau
