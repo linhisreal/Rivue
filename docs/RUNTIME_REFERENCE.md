@@ -144,7 +144,8 @@ Creates a deeply reactive proxy. All nested objects become reactive automaticall
 
 **Implementation notes:**
 - Uses weak-key `depMap` for tracking
-- Creates `__index`, `__newindex`, `__pairs` metamethods
+- Creates `__index`, `__newindex`, `__len`, and `__iter` metamethods (Luau ignores `__pairs`/`__ipairs`)
+- Adding or removing a key also triggers length/iteration dependents, so `#list` and `for k, v in proxy do` re-run on append
 - Caches proxies to avoid duplicate wrapping
 - Respects `markRaw` objects
 
@@ -346,11 +347,23 @@ Returns the raw object (passthrough in current implementation).
 
 **Important:** Use numeric iteration instead of `ipairs()` for reactive arrays.
 
-#### Why `ipairs()` Doesn't Work
+#### Why `ipairs()` / `pairs()` Don't Work
 
-Luau's `ipairs()` performs a preliminary check for `table[1]` existence **before** invoking the `__ipairs` metamethod. Since reactive proxies are empty tables with all data stored in a separate internal table (accessed via `__index`), this check fails and iteration terminates immediately.
+Luau does not support the `__pairs` or `__ipairs` metamethods, and `ipairs()`/`pairs()` read the
+table directly. A reactive proxy is an empty table that forwards reads to the real data through
+`__index`, so both functions see nothing. The same applies to `table.insert`, `table.remove`, and
+`table.find`, which operate on the raw proxy: write `list[#list + 1] = value` instead.
 
-**Technical explanation:** The proxy table structure separates the proxy (empty `{}`) from the actual data (stored in `tbl`). While `proxy[1]` triggers `__index` to return `tbl[1]`, the raw `table[1]` check in `ipairs()` sees the empty proxy table and returns before `__ipairs` can be called.
+#### ✅ Correct Pattern: Generalized Iteration
+
+```lua
+local state = reactive({ a = 1, b = 2 })
+
+-- ✅ Uses the proxy's __iter metamethod: tracks key additions/removals, wraps nested tables
+for key, value in state do
+    print(key, value)
+end
+```
 
 #### ✅ Correct Pattern: Numeric Iteration
 
@@ -380,7 +393,7 @@ for i, v in ipairs(items) do
 end
 ```
 
-**Why this fails:** `ipairs()` checks if `table[1]` exists in the raw proxy table before calling `__ipairs`. Since the proxy is empty, iteration stops immediately.
+**Why this fails:** `ipairs()` reads the raw proxy table, which is empty, and Luau never consults `__ipairs`.
 
 #### Alternative: Rivue Helper
 
@@ -3648,44 +3661,42 @@ Rivue (ModuleScript)
 
 ## Type Reference Summary
 
+All public types live in `runtime/types.luau` and are re-exported from `main`:
+
 ```lua
--- Core types
-type Ref<T> = { value: T, _is_ref: true }
-type ComputedRef<T> = { value: T, get: () -> T }
-type Effect = { run: () -> (), stop: () -> (), active: boolean }
+local Types = require(ReplicatedStorage.Rivue.runtime.types)
 
-type VNode = {
-    type: string | table | function,
-    props: { [string]: any }?,
-    children: { VNode | string }?,
-    key: any?,
-    el: Instance?
-}
-
-type ComponentDefinition = {
-    __is_component: true,
-    setup: ((props, ctx) -> (() -> VNode))?,
-    render: ((props) -> VNode)?,
-    props: PropSchema?,
-    __name: string?
-}
-
-type App = {
-    mount: (container: Instance) -> any,
-    unmount: () -> (),
-    rerender: (newRoot?: VNode) -> any,
-    swapRoot: (newRoot: VNode) -> any,
-    mountToPlayerGui: (player: Player) -> ()
-}
-
-type DirectiveHooks = {
-    mounted: ((el: Instance, value: any) -> any)?,
-    updated: ((el: Instance, value: any, cleanup: any) -> any)?,
-    unmounted: ((el: Instance, cleanup: any) -> ())?
-}
+local count: Types.Ref<number> = Rivue.ref(0)
+local doubled: Types.ComputedRef<number> = Rivue.computed(function()
+    return count.value * 2
+end)
 ```
 
----
+| Type | Shape |
+| --- | --- |
+| `Ref<T>` | `{ value: T }` |
+| `ComputedRef<T>` | `{ value: T, get: () -> T }` |
+| `MaybeRef<T>` | `T \| Ref<T>` |
+| `FlushMode` | `"pre" \| "post" \| "sync"` |
+| `WatchOptions` | `{ immediate: boolean?, deep: boolean?, flush: FlushMode? }` |
+| `WatchCallback<T>` | `(new: T, old: T?, onCleanup) -> ()` |
+| `WatchSource<T>` | `(() -> T) \| Ref<T>` |
+| `QueueMode` | `"micro" \| "render" \| "heartbeat"` |
+| `VNode` | `{ type: VNodeType, props: Props?, children: { Child }, key: unknown?, el: Instance? }` |
+| `ComponentDef` | `{ __is_component: true, __name: string?, props: PropSchema?, setup: ..., render: ... }` |
+| `PropSpec` | `{ type: PropTypeName?, required: boolean?, default: unknown?, validator: ... }` |
+| `SetupContext` | `{ emit, provide, inject, slots, attrs, expose, onUnmounted }` |
+| `Directive` | `{ mounted: ..., updated: ..., unmounted: ... }` |
+| `App` | `{ mount, unmount, rerender, swapRoot, mountToPlayerGui }` |
+
+Typing conventions used in the runtime:
+
+- **Generics** keep caller types: `ref<T>`, `computed<T>`, `watch<T>`, `hFor<T>`, `vModelProp<T>`.
+- **Generic type packs** keep argument lists: `utils.debounce<A...>(fn: (A...) -> ())`, `debug.measure<R...>`.
+- **`unknown`** for values Rivue never inspects (network data, provide/inject values, prop defaults); refine with `type()`/`typeof()` before use.
+- **Singleton types** for closed sets (`FlushMode`, `QueueMode`, `PropTypeName`, lifecycle hook-list names).
+- **`const`** for module constants (requires StyLua 2.6+, luau-lsp 1.70+, darklua 0.19+; Selene does not parse it yet).
+- **`any`** only where Luau can't express the shape: proxies presenting as `T`, dynamic Instance property access, heterogeneous prop bags.
 
 ## Performance Considerations
 
