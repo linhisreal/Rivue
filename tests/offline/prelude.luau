@@ -138,6 +138,8 @@ tick = function()
 	return now
 end
 local realOs = os
+-- Real wall clock for benchmarks (os.clock is virtual here)
+__realClock = realOs.clock
 os = setmetatable({
 	clock = function()
 		return now

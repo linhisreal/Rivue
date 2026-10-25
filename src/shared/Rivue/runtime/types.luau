@@ -53,6 +53,8 @@ export type Effect = {
 	deps: { Dep },
 	active: boolean,
 	run: () -> (),
+	-- run() that skips stopped effects, used for queued runs
+	job: () -> (),
 	stop: (self: Effect) -> (),
 }
 

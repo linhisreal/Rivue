@@ -173,6 +173,7 @@ local componentAPI = require(script.Parent:WaitForChild("component"))
 local hModule = require(script.Parent:WaitForChild("h"))
 local _reactivity = require(script.Parent:WaitForChild("reactivity"))
 local Pool = require(script.Parent:WaitForChild("pool"))
+local scheduler = require(script.Parent:WaitForChild("scheduler"))
 local _utils = require(script.Parent:WaitForChild("utils"))
 local directives = require(script.Parent:WaitForChild("directives"))
 
@@ -1096,8 +1097,17 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 		end)
 	end
 
-	local pendingRender = false
-	local renderEffect = _reactivity.effect(function()
+	local renderEffect: Effect
+	local updateJob = {
+		id = inst.uid,
+		run = function()
+			-- Skip if the component was unmounted after this update was queued
+			if renderEffect.active then
+				renderEffect.run()
+			end
+		end,
+	}
+	renderEffect = _reactivity.effect(function()
 		local render = inst.render
 		local ok, sub = pcall(function(): unknown
 			return if render then render() else nil
@@ -1146,15 +1156,9 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 		end
 	end, {
 		lazy = true,
-		scheduler = function(run)
-			-- Batch updates into one re-render
-			if not pendingRender then
-				pendingRender = true
-				task.defer(function()
-					pendingRender = false
-					run()
-				end)
-			end
+		scheduler = function()
+			-- Batched with other components, parents first
+			scheduler.queueUpdate(updateJob)
 		end,
 	})
 

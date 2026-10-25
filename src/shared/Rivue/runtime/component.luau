@@ -154,6 +154,8 @@ local ComponentInstance = {}
 ComponentInstance.__index = ComponentInstance
 
 type InstanceData = {
+	-- Creation order, used to update parents before children
+	uid: number,
 	vnode: VNode,
 	type: ComponentDef,
 	props: Props,
@@ -191,6 +193,7 @@ export type ComponentInstance = typeof(setmetatable({} :: InstanceData, Componen
 const IS_STUDIO = RunService:IsStudio()
 
 local currentInstance: ComponentInstance? = nil
+local uidCounter = 0
 
 -- Used when a component is mounted outside createApp (e.g. renderer.patch directly)
 const EMPTY_APP_CONTEXT: AppContext = { provides = {}, config = {} }
@@ -576,7 +579,9 @@ local function createComponentInstance(
 	-- Reactive too, so fallthrough attrs re-render the component when they change
 	local reactiveAttrs = _reactivity.shallowReactive(attrs)
 
+	uidCounter += 1
 	local data: InstanceData = {
+		uid = uidCounter,
 		vnode = vnode,
 		type = def,
 		props = props,
