@@ -217,6 +217,13 @@ services = {
 		GetFocusedTextBox = function()
 			return nil
 		end,
+		GetLastInputType = function()
+			return Enum.UserInputType.MouseMovement
+		end,
+		LastInputTypeChanged = makeSignal(),
+		TouchEnabled = false,
+		KeyboardEnabled = true,
+		GamepadEnabled = false,
 	},
 	Players = { LocalPlayer = nil },
 }
@@ -342,9 +349,31 @@ UDim2 = {
 		return UDim2.new(x, 0, y, 0)
 	end,
 }
+VECTOR2_MT = {
+	__rbxtype = "Vector2",
+	__eq = function(a, b)
+		return a.X == b.X and a.Y == b.Y
+	end,
+}
 Vector2 = {
 	new = function(x, y)
-		return { X = x or 0, Y = y or 0 }
+		return setmetatable({ X = x or 0, Y = y or 0 }, VECTOR2_MT)
+	end,
+}
+UDIM_MT = {
+	__rbxtype = "UDim",
+	__eq = function(a, b)
+		return a.Scale == b.Scale and a.Offset == b.Offset
+	end,
+}
+UDim = {
+	new = function(scale, offset)
+		return setmetatable({ Scale = scale or 0, Offset = offset or 0 }, UDIM_MT)
+	end,
+}
+TweenInfo = {
+	new = function(time, style, direction)
+		return { Time = time or 1, EasingStyle = style or "Quad", EasingDirection = direction or "Out" }
 	end,
 }
 Enum = setmetatable({}, {
@@ -370,6 +399,8 @@ local GUI_PROPS = {
 	AutomaticSize = "None",
 	ClipsDescendants = false,
 	Active = false,
+	AbsoluteSize = Vector2.new(100, 100),
+	Selectable = false,
 }
 local TEXT_PROPS = {
 	Text = "",
@@ -385,7 +416,10 @@ local IMAGE_PROPS = { Image = "", ImageTransparency = 0, ImageColor3 = Color3.ne
 local CLASSES = {
 	Folder = { bases = {}, props = {} },
 	Frame = { bases = { "GuiObject", "GuiBase2d" }, props = { GUI_PROPS } },
-	ScrollingFrame = { bases = { "GuiObject", "GuiBase2d" }, props = { GUI_PROPS, { CanvasSize = UDim2.new() } } },
+	ScrollingFrame = {
+		bases = { "GuiObject", "GuiBase2d" },
+		props = { GUI_PROPS, { CanvasSize = UDim2.new(), CanvasPosition = Vector2.new(), ScrollingDirection = "XY" } },
+	},
 	TextLabel = { bases = { "GuiObject", "GuiBase2d" }, props = { GUI_PROPS, TEXT_PROPS } },
 	TextButton = {
 		bases = { "GuiObject", "GuiButton", "GuiBase2d" },
@@ -432,7 +466,10 @@ local CLASSES = {
 	CanvasGroup = { bases = { "GuiObject", "GuiBase2d" }, props = { GUI_PROPS, { GroupTransparency = 0 } } },
 	UICorner = { bases = {}, props = { { CornerRadius = 0 } } },
 	UIStroke = { bases = {}, props = { { Thickness = 1, Transparency = 0, Color = Color3.new(0, 0, 0) } } },
-	UIPadding = { bases = {}, props = { { PaddingTop = 0, PaddingLeft = 0 } } },
+	UIPadding = { bases = {}, props = { { PaddingTop = 0, PaddingLeft = 0, PaddingBottom = 0, PaddingRight = 0 } } },
+	UIAspectRatioConstraint = { bases = {}, props = { { AspectRatio = 1 } } },
+	Camera = { bases = {}, props = { { ViewportSize = Vector2.new(1280, 720) } } },
+	Workspace = { bases = {}, props = { { CurrentCamera = false } } },
 }
 local COMMON_EVENTS = {
 	"Changed",
@@ -704,8 +741,81 @@ do
 	pg.Name = "PlayerGui"
 	pg.Parent = player
 	services.Players = { LocalPlayer = player, PlayerRemoving = makeSignal(), PlayerAdded = makeSignal() }
-	workspace = Instance.new("Folder")
+	workspace = Instance.new("Workspace")
 	services.Workspace = workspace
+	local camera = Instance.new("Camera")
+	camera.Parent = workspace
+	workspace.CurrentCamera = camera
+
+	-- GuiService: SelectedObject with a change signal, fixed top bar inset
+	local guiSignals = {}
+	local selected = nil
+	services.GuiService = setmetatable({
+		GetGuiInset = function()
+			return Vector2.new(0, 58), Vector2.new(0, 0)
+		end,
+		GetPropertyChangedSignal = function(_, prop)
+			guiSignals[prop] = guiSignals[prop] or makeSignal()
+			return guiSignals[prop]
+		end,
+	}, {
+		__index = function(_, k)
+			if k == "SelectedObject" then
+				return selected
+			end
+			return nil
+		end,
+		__newindex = function(_, k, v)
+			if k == "SelectedObject" then
+				if selected ~= v then
+					selected = v
+					if guiSignals.SelectedObject then
+						guiSignals.SelectedObject:Fire()
+					end
+				end
+				return
+			end
+			rawset(services.GuiService, k, v)
+		end,
+	})
+
+	-- TweenService on virtual time: tweens finish after info.Time worth of frames
+	services.TweenService = {
+		GetValue = function(_, alpha)
+			return alpha
+		end,
+		Create = function(_, inst, info, goals)
+			local tween = { Completed = makeSignal(), PlaybackState = "Begin" }
+			local conn
+			function tween:Play()
+				local start = {}
+				for k in goals do
+					start[k] = inst[k]
+				end
+				local elapsed = 0
+				tween.PlaybackState = "Playing"
+				conn = heartbeat:Connect(function(dt)
+					elapsed += dt
+					if elapsed >= info.Time then
+						conn:Disconnect()
+						for k, v in goals do
+							inst[k] = v
+						end
+						tween.PlaybackState = Enum.PlaybackState.Completed
+						tween.Completed:Fire(Enum.PlaybackState.Completed)
+					end
+				end)
+			end
+			function tween:Cancel()
+				if conn then
+					conn:Disconnect()
+				end
+				tween.PlaybackState = Enum.PlaybackState.Cancelled
+				tween.Completed:Fire(Enum.PlaybackState.Cancelled)
+			end
+			return tween
+		end,
+	}
 	local tags, added, removed = {}, {}, {}
 	local function sigFor(t, name)
 		t[name] = t[name] or makeSignal()

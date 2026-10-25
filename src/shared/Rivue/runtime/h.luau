@@ -47,6 +47,11 @@ type Child = Types.Child
 
 local debugModule = require(script.Parent:WaitForChild("debug"))
 local utils = require(script.Parent:WaitForChild("utils"))
+local componentModule = require(script.Parent:WaitForChild("component"))
+
+const IS_STUDIO = game:GetService("RunService"):IsStudio()
+
+local warnedMissingKey = false
 
 --- Normalizes children to an array format
 --- @param children unknown -- Child nodes (string, number, array, function, or nil)
@@ -132,6 +137,8 @@ local function h(type_: VNodeType, propsIn: Props?, children: Types.Children?): 
 		slots = slots,
 		key = props.key,
 		_uid = vnodeIdCounter,
+		-- String refs resolve on the component that rendered them
+		_owner = if type(props.ref) == "string" then componentModule.getRenderingInstance() else nil,
 	}
 end
 
@@ -169,6 +176,11 @@ local function hFor<T>(list: { T }, mapper: (item: T, index: number) -> VNode?):
 		if node then
 			table.insert(out, node)
 		end
+	end
+
+	if IS_STUDIO and not warnedMissingKey and count > 1 and out[1] and out[1].key == nil then
+		warnedMissingKey = true
+		warn("[Rivue] hFor() items have no `key`, so reordering the list re-patches every item")
 	end
 
 	if profileName then

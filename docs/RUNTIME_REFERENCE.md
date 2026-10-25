@@ -2518,6 +2518,77 @@ h(Card, { title = "Hello" }, {
 - Slot functions run inside the child's render, so reactive reads in them re-render the child.
 - Slot functions are only read for components; element children are always a list.
 
+### Emits
+
+Declare events to keep their listeners out of `attrs` (so they don't fall through to the root
+element). In Studio, emitting an undeclared event or failing a validator warns.
+
+```lua
+Rivue.defineComponent({
+    emits = { "select" },
+    -- or with validators: emits = { select = function(id) return type(id) == "number" end },
+    setup = function(props, ctx)
+        return function()
+            return h("TextButton", { onClick = function() ctx.emit("select", 3) end })
+        end
+    end,
+})
+
+h(Picker, { onSelect = function(id) print(id) end })
+```
+
+### App Components and Globals
+
+```lua
+local app = Rivue.createApp(h(Root))
+app:component("Badge", Badge)            -- h("Badge") now renders the component anywhere in the app
+app.config.globalProperties.locale = "en" -- read in setup through ctx.globals.locale
+```
+
+### Instance Helpers
+
+- `Rivue.getCurrentInstance()` returns the component instance during setup.
+- `Rivue.useId()` returns an id unique to the session (`"r12-1"`), handy for Instance names.
+- `Rivue.onActivated(fn)` / `Rivue.onDeactivated(fn)` run inside KeepAlive.
+
+### Roblox Composables
+
+| Function | Returns |
+|----------|---------|
+| `useViewportSize()` | `Ref<Vector2>`, follows the camera's ViewportSize |
+| `useInputType()` | `Ref<"keyboard" \| "gamepad" \| "touch">`, from the last input |
+| `useSafeArea()` | `Ref<{ top, left, bottom, right }>` from `GuiService:GetGuiInset()` |
+| `useSelection()` | `selected: Ref<GuiObject?>, select: (GuiObject?) -> ()` for gamepad selection |
+| `useTween(source, tweenInfo)` | `Ref<T>` that tweens to `source` (number, UDim2, Color3, Vector2, CFrame...) |
+| `useSpring(source, { speed?, damping? })` | `Ref<T>` that springs to `source` (number, Vector2, Vector3) |
+
+The first four share one connection for the whole session; treat their refs as read only.
+`useTween`/`useSpring` stop when the component (or effect scope) is disposed.
+
+```lua
+setup = function()
+    local open = Rivue.ref(false)
+    local x = Rivue.useSpring(function() return if open.value then 0 else -300 end)
+    local input = Rivue.useInputType()
+    return function()
+        return h("Frame", {
+            Position = UDim2.fromOffset(x.value, 0),
+            Visible = input.value ~= "touch",
+        })
+    end
+end
+```
+
+The `select` directive gives an element gamepad selection while its value is truthy:
+`__directives = { { name = "select", value = isFirst } }`.
+
+### Watch Handles
+
+`watch()` and `watchEffect()` return a handle: call it (or `handle.stop()`) to stop,
+`handle.pause()` / `handle.resume()` to suspend. Changes made while paused run once on resume.
+`Rivue.onWatcherCleanup(fn)` registers a cleanup from inside a watch callback, and `watchEffect`
+passes `onCleanup` to its function.
+
 
 ### Prop Validation
 
@@ -2812,28 +2883,172 @@ Efficiently patches children using keys:
 
 ### Transitions
 
-#### `runTransition(inst: Instance, transition, phase: "enter" | "leave")`
+Enter and leave animations use TweenService. Leave tweens never block rendering: the element is
+detached from the vnode tree right away, keeps playing, and is destroyed when the tween completes.
 
-Runs a TweenService animation:
+#### `Rivue.Transition`
+
+Wraps a single child. Toggle the child with `hIf` and the Transition stays mounted:
 
 ```lua
-type Transition = {
-    info: TweenInfo | tweenInfo: TweenInfo,
-    enterGoals: { [string]: any } | goals: { [string]: any },
-    leaveGoals: { [string]: any }?
-}
+h(Rivue.Transition, {
+    tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad),
+    -- Hidden state: applied before enter, tweened to on leave
+    from = { BackgroundTransparency = 1 },
+    appear = false,       -- animate the first render too
+    mode = "out-in",      -- optional: wait for the old child to leave before showing the new one
+    onAfterLeave = function(el) end,
+}, {
+    Rivue.hIf(open.value, h("Frame", { BackgroundTransparency = 0.2 })),
+})
 ```
 
-**Example:**
+Without explicit `enterGoals`, enter tweens from `from` back to the element's own prop values.
+Other props: `enterInfo`, `leaveInfo`, `enterFrom`, `enterGoals`, `leaveGoals`,
+`onBeforeEnter`, `onAfterEnter`, `onBeforeLeave`. A component child animates its root element.
+
+#### `Rivue.TransitionGroup`
+
+Same props (no `mode`), for keyed lists. Added items enter, removed items leave. Pass `tag` (and
+`tagProps`) to wrap the list in an element, otherwise children render straight into the parent.
+
+```lua
+h(Rivue.TransitionGroup, { tweenInfo = TweenInfo.new(0.15), from = { Size = UDim2.new() } },
+    Rivue.hFor(items.value, function(item)
+        return h("TextLabel", { key = item.id, Text = item.name })
+    end))
+```
+
+#### `transition` prop
+
+The low-level form, set per element. `enter`/`leave` turn each phase on:
+
 ```lua
 h("Frame", {
     transition = {
-        info = TweenInfo.new(0.5, Enum.EasingStyle.Quad),
-        enterGoals = { BackgroundTransparency = 0 },
-        leaveGoals = { BackgroundTransparency = 1 }
-    }
+        tweenInfo = TweenInfo.new(0.5),
+        from = { BackgroundTransparency = 1 },
+        enter = true,
+        leave = true,
+    },
 })
 ```
+
+`onTransition(name, fn)` in a component's setup runs for transitions on that component's root
+(`"before-enter"`, `"enter"`, `"after-enter"`, `"before-leave"`, `"leave"`, `"after-leave"`).
+
+---
+
+### Mount Order
+
+Elements are parented after their children are built, so the engine lays out each subtree
+once. `onMounted`, directive `mounted` hooks, template refs and enter tweens run after the
+outermost patch finishes, so they always see the whole tree parented (children before parents,
+like Vue).
+
+---
+
+### Memo
+
+`memo = { deps... }` on an element or component skips patching it (and its children) while every
+dep is the same as last render. Useful on rows of a long `hFor` list:
+
+```lua
+Rivue.hFor(rows.value, function(row)
+    return h(Row, { key = row.id, row = row, memo = { row.id, row.version } })
+end)
+```
+
+---
+
+### Template Refs
+
+`ref` accepts a Ref, a function, or a name:
+
+```lua
+setup = function()
+    local input = Rivue.useTemplateRef("input")
+    Rivue.onMounted(function()
+        (input.value :: TextBox):CaptureFocus()
+    end)
+    return function()
+        return h("Frame", nil, {
+            h("TextBox", { ref = "input" }),
+            h("Frame", { ref = function(el) print("mounted or nil", el) end }),
+        })
+    end
+end
+```
+
+On a component, the ref gets its `expose()`d table (or the instance).
+
+---
+
+### Modifier Props
+
+GuiObjects accept props that manage the matching UI modifier child for you:
+
+| Prop | Creates | Value |
+|------|---------|-------|
+| `cornerRadius` | UICorner | number (pixels) or UDim |
+| `padding` | UIPadding | number/UDim for all sides, or `{ top, right, bottom, left }` / `{ x, y }` |
+| `stroke` | UIStroke | Color3, number (Thickness), or a table of UIStroke properties |
+| `aspectRatio` | UIAspectRatioConstraint | number |
+
+```lua
+h("Frame", { cornerRadius = 8, padding = { x = 12, y = 8 }, stroke = Color3.new(1, 1, 1) })
+```
+
+Removing the prop destroys the child.
+
+---
+
+### KeepAlive
+
+`Rivue.KeepAlive` caches the component it wraps instead of unmounting it. Its Instances are
+detached (Parent = nil) and come back as-is, state included. Renders triggered while cached are
+deferred until it comes back. `onActivated` runs on mount and on every return, `onDeactivated`
+when it's cached. Props: `include`, `exclude` (component names), `max` (default 10, LRU).
+
+```lua
+h(Rivue.KeepAlive, { max = 5 }, {
+    if tab.value == "inventory" then h(Inventory) else h(Settings),
+})
+```
+
+---
+
+### Teleport
+
+`h(Rivue.Teleport, { to = instanceOrGetter, disabled = false }, children)` renders children into
+another Instance. Children update in place, move when `to` changes, render in place while
+`disabled`, and are removed on unmount.
+
+---
+
+### VirtualList
+
+A ScrollingFrame that only renders the rows in view (fixed row size). Undeclared props go to the
+ScrollingFrame.
+
+```lua
+h(Rivue.VirtualList, {
+    Size = UDim2.fromScale(1, 1),
+    items = inventory,          -- plain or reactive array
+    itemSize = 40,
+    key = function(item) return item.id end,
+    render = function(item, index) return h(ItemRow, { item = item }) end,
+    overscan = 2,
+    horizontal = false,
+})
+```
+
+---
+
+### Dev Warnings
+
+In Studio the renderer warns once per case about unknown Instance properties, duplicate keys in
+a children list, a missing Teleport target, and `hFor()` items without a `key`.
 
 ---
 

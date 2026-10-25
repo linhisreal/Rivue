@@ -30,7 +30,8 @@ type Dep = Types.Dep
 type WatchOptions = Types.WatchOptions
 type WatchCallback<T> = Types.WatchCallback<T>
 type WatchSource<T> = Types.WatchSource<T>
-type WatchStopHandle = Types.WatchStopHandle
+type WatchHandle = Types.WatchHandle
+type OnCleanup = Types.OnCleanup
 type CustomRefFactory<T> = Types.CustomRefFactory<T>
 
 type RawTable = { [unknown]: unknown }
@@ -748,12 +749,49 @@ local function arrayShallowEqual(a: { unknown }?, b: { unknown }?): boolean
 	return true
 end
 
+-- Calling a handle stops it, like the old stop function
+local WatchHandleMT = {
+	__call = function(self: any)
+		self.stop()
+	end,
+}
+
+--- Builds the handle watch()/watchEffect() return
+--- @param stop () -> () -- Stops for good
+--- @param pause () -> () -- Ignores changes until resume
+--- @param resume () -> () -- Runs once if something changed while paused
+--- @return WatchHandle -- Callable handle with stop/pause/resume
+local function createWatchHandle(stop: () -> (), pause: () -> (), resume: () -> ()): WatchHandle
+	return setmetatable({
+		stop = function(_: any?)
+			stop()
+		end,
+		pause = pause,
+		resume = resume,
+	}, WatchHandleMT) :: any
+end
+
+-- Cleanup registrar of the watcher callback that's running, for onWatcherCleanup()
+local activeWatcherCleanup: OnCleanup? = nil
+
+--- Registers a cleanup for the running watch callback or watchEffect
+--- @param fn () -> () -- Runs before the next run and on stop
+--- @param failSilently boolean? -- Don't warn outside a watcher
+local function onWatcherCleanup(fn: () -> (), failSilently: boolean?)
+	local register = activeWatcherCleanup
+	if register then
+		register(fn)
+	elseif not failSilently then
+		warn("[Rivue] onWatcherCleanup() was called outside a watcher callback")
+	end
+end
+
 --- Watches a reactive source and executes callback when it changes
 --- @param source WatchSource<T> -- Reactive source to watch (getter function, Ref, or reactive object)
 --- @param cb WatchCallback<T> -- Callback (newValue, oldValue, onCleanup) => void
 --- @param opts WatchOptions? -- Options: immediate (run immediately), deep (traverse nested objects), flush
---- @return WatchStopHandle -- Function to stop watching
-local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: WatchOptions?): WatchStopHandle
+--- @return WatchHandle -- Callable stop handle with pause/resume
+local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: WatchOptions?): WatchHandle
 	local options: WatchOptions = opts or {}
 	local deep = options.deep == true
 	local isMultiSource = false
@@ -807,7 +845,9 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 	-- Set by the effect so the getter only runs once per change
 	local currentValue: T
 
-	local stop: WatchStopHandle
+	local stop: () -> ()
+	local paused = false
+	local dirty = false
 
 	local function hasChanged(new: T): boolean
 		-- Deep watchers fire even if the table is the same
@@ -835,10 +875,35 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 		oldValue = new
 		if shouldCall then
 			runCleanups()
-			cb(new, old, onCleanup)
+			local prevCleanup = activeWatcherCleanup
+			activeWatcherCleanup = onCleanup
+			local ok, err = pcall(cb :: (T, T?, OnCleanup) -> ...unknown, new, old, onCleanup)
+			activeWatcherCleanup = prevCleanup
+			if not ok then
+				error(err, 0)
+			end
 			if options.once then
 				stop()
 			end
+		end
+	end
+
+	local function onTrigger(run: () -> ())
+		if paused then
+			dirty = true
+			return
+		end
+		-- Refresh dependencies, then run the callback based on flush mode
+		run()
+
+		if flushMode == "sync" then
+			job()
+		elseif flushMode == "post" then
+			-- Execute after render (heartbeat mode)
+			scheduler.queueJob(job, { mode = "heartbeat" })
+		else
+			-- Execute before render (default - micro mode)
+			scheduler.queueJob(job, { mode = "micro" })
 		end
 	end
 
@@ -850,20 +915,7 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 	end, {
 		-- Lazy, run manually below
 		lazy = true,
-		scheduler = function(run)
-			-- Refresh dependencies, then run the callback based on flush mode
-			run()
-
-			if flushMode == "sync" then
-				job()
-			elseif flushMode == "post" then
-				-- Execute after render (heartbeat mode)
-				scheduler.queueJob(job, { mode = "heartbeat" })
-			else
-				-- Execute before render (default - micro mode)
-				scheduler.queueJob(job, { mode = "micro" })
-			end
-		end,
+		scheduler = onTrigger,
 	})
 	stop = function()
 		stopped = true
@@ -875,7 +927,15 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 	eff.run()
 	job()
 
-	return stop
+	return createWatchHandle(stop, function()
+		paused = true
+	end, function()
+		paused = false
+		if dirty and not stopped then
+			dirty = false
+			onTrigger(eff.run)
+		end
+	end)
 end
 
 --- Creates and runs a reactive effect
@@ -888,41 +948,73 @@ end
 
 --- Runs a reactive effect with automatic dependency tracking and immediate execution
 --- Simpler alternative to watch() when you don't need the old/new value comparison
---- @param fn () -> () -- Effect function to execute (dependencies are auto-tracked)
+--- @param fn (onCleanup: OnCleanup) -> () -- Effect function to execute (dependencies are auto-tracked)
 --- @param opts WatchOptions? -- flush: "pre" (default, deferred), "post" (Heartbeat), "sync"
---- @return WatchStopHandle -- Function to stop the effect
-local function watchEffect(fn: () -> (), opts: WatchOptions?): WatchStopHandle
+--- @return WatchHandle -- Callable stop handle with pause/resume
+local function watchEffect(fn: (onCleanup: OnCleanup) -> (), opts: WatchOptions?): WatchHandle
 	local flushMode = if opts then opts.flush else nil
-	local eff: Effect
-	local effectScheduler: EffectScheduler? = nil
-	if flushMode == "sync" then
-		effectScheduler = function(run)
-			run()
+	local cleanups: { () -> () } = {}
+	local function onCleanup(cleanup: () -> ())
+		table.insert(cleanups, cleanup)
+	end
+	local function runCleanups()
+		for _, cleanup in cleanups do
+			pcall(cleanup)
 		end
-	elseif flushMode == "post" then
-		effectScheduler = function()
+		table.clear(cleanups)
+	end
+
+	local eff: Effect
+	local paused = false
+	local dirty = false
+	local function onTrigger(run: () -> ())
+		if paused then
+			dirty = true
+		elseif flushMode == "sync" then
+			run()
+		elseif flushMode == "post" then
 			scheduler.queueJob(eff.job, { mode = "heartbeat" })
+		else
+			scheduler.queueEffect(eff.job)
 		end
 	end
-	eff = createEffect(fn, { lazy = true, scheduler = effectScheduler })
+	eff = createEffect(function()
+		runCleanups()
+		local prevCleanup = activeWatcherCleanup
+		activeWatcherCleanup = onCleanup
+		local ok, err = pcall(fn :: (OnCleanup) -> ...unknown, onCleanup)
+		activeWatcherCleanup = prevCleanup
+		if not ok then
+			error(err, 0)
+		end
+	end, { lazy = true, scheduler = onTrigger })
 	-- Run now so dependencies are tracked
 	eff.run()
-	return function()
+	return createWatchHandle(function()
 		eff:stop()
-	end
+		runCleanups()
+	end, function()
+		paused = true
+	end, function()
+		paused = false
+		if dirty and eff.active then
+			dirty = false
+			onTrigger(eff.run)
+		end
+	end)
 end
 
 --- watchEffect() that re-runs on Heartbeat (after renders)
 --- @param fn () -> () -- Effect function
---- @return WatchStopHandle -- Stop handle
-local function watchPostEffect(fn: () -> ()): WatchStopHandle
+--- @return WatchHandle -- Stop handle
+local function watchPostEffect(fn: (onCleanup: OnCleanup) -> ()): WatchHandle
 	return watchEffect(fn, { flush = "post" })
 end
 
 --- watchEffect() that re-runs immediately on every change
 --- @param fn () -> () -- Effect function
---- @return WatchStopHandle -- Stop handle
-local function watchSyncEffect(fn: () -> ()): WatchStopHandle
+--- @return WatchHandle -- Stop handle
+local function watchSyncEffect(fn: (onCleanup: OnCleanup) -> ()): WatchHandle
 	return watchEffect(fn, { flush = "sync" })
 end
 
@@ -1085,6 +1177,7 @@ return {
 	watchEffect = watchEffect,
 	watchPostEffect = watchPostEffect,
 	watchSyncEffect = watchSyncEffect,
+	onWatcherCleanup = onWatcherCleanup,
 	effect = effect,
 
 	-- Type checking utilities

@@ -88,6 +88,16 @@ export type WatchSource<T> = (() -> T) | Ref<T>
 
 export type WatchStopHandle = () -> ()
 
+-- Callable like a stop handle, plus pause/resume
+export type WatchHandle = typeof(setmetatable(
+	{} :: {
+		stop: (...any) -> (),
+		pause: () -> (),
+		resume: () -> (),
+	},
+	{} :: { __call: (self: any) -> () }
+))
+
 export type CustomRefAccessor<T> = {
 	get: () -> T,
 	set: (value: T) -> (),
@@ -142,6 +152,39 @@ export type VNode = {
 	_dirs: { [string]: unknown }?,
 	_touched: { [string]: boolean }?,
 	_fnTree: VNode?,
+	-- Component that rendered this vnode, for string refs
+	_owner: unknown?,
+	-- Set by <Transition>/<TransitionGroup>
+	_transition: TransitionConfig?,
+	_transitionHooks: { [string]: { (el: Instance) -> () } }?,
+	-- Running enter tween, cancelled if the element leaves first
+	_tween: Tween?,
+	-- Generated UICorner/UIPadding/... children
+	_sugar: { [string]: Instance }?,
+	-- KeepAlive bookkeeping
+	_keepAlive: { disposed: boolean }?,
+	_kept: boolean?,
+	_teleportTarget: Instance?,
+}
+
+-- Tween-based enter/leave animation, as the `transition` prop or from <Transition>
+export type TransitionConfig = {
+	tweenInfo: TweenInfo?,
+	info: TweenInfo?,
+	enterInfo: TweenInfo?,
+	leaveInfo: TweenInfo?,
+	-- Applied before enter and tweened to on leave (the "hidden" state)
+	from: { [string]: any }?,
+	enterFrom: { [string]: any }?,
+	enterGoals: { [string]: any }?,
+	leaveGoals: { [string]: any }?,
+	goals: { [string]: any }?,
+	enter: boolean?,
+	leave: boolean?,
+	onBeforeEnter: ((el: Instance) -> ())?,
+	onAfterEnter: ((el: Instance) -> ())?,
+	onBeforeLeave: ((el: Instance) -> ())?,
+	onAfterLeave: ((el: Instance) -> ())?,
 }
 
 -- ===== Components =====
@@ -168,6 +211,8 @@ export type SetupContext = {
 	renderSlot: (name: string, scope: any?, fallback: { Child }?) -> { Child },
 	hasSlot: (name: string) -> boolean,
 	attrs: Props,
+	-- app.config.globalProperties
+	globals: { [string]: unknown },
 	expose: (exposed: { [string]: unknown }?) -> (),
 	onUnmounted: (fn: () -> ()) -> (),
 }
@@ -176,9 +221,13 @@ export type RenderFunction = () -> VNode?
 
 export type SetupResult = RenderFunction | { render: RenderFunction, [string]: unknown }
 
+-- Event names, or event name -> payload validator
+export type EmitsOptions = { string } | { [string]: (...any) -> boolean }
+
 export type ComponentOptions = {
 	name: string?,
 	props: PropSchema?,
+	emits: EmitsOptions?,
 	setup: ((props: Props, ctx: SetupContext) -> SetupResult)?,
 	render: ((props: Props) -> VNode?)?,
 	inheritAttrs: boolean?,
@@ -188,6 +237,9 @@ export type ComponentDef = {
 	__is_component: true,
 	__name: string?,
 	props: PropSchema?,
+	emits: EmitsOptions?,
+	-- Renderer keeps this component's children alive (KeepAlive)
+	__isKeepAlive: true?,
 	setup: ((props: Props, ctx: SetupContext) -> SetupResult)?,
 	render: ((props: Props) -> VNode?)?,
 	inheritAttrs: boolean?,
@@ -226,11 +278,15 @@ export type PoolOptions = {
 export type AppConfig = {
 	-- Called for errors no onErrorCaptured handler stopped
 	errorHandler: ((err: string, instance: unknown, info: string) -> ())?,
+	-- Shared values every component can read through ctx.globals
+	globalProperties: { [string]: unknown }?,
 }
 
 export type AppContext = {
 	provides: { [unknown]: unknown },
 	config: AppConfig,
+	-- Registered with app:component(), used for string types in h()
+	components: { [string]: ComponentDef },
 }
 
 export type PoolConfig = {
