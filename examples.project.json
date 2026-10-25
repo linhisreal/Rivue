@@ -1,0 +1,24 @@
+{
+  "name": "Rivue Examples",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "Rivue": {
+        "$path": "rivue.project.json"
+      },
+      "Examples": {
+        "$path": "examples/components"
+      }
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "ExamplesRunner": {
+          "$path": "examples/place/ExamplesRunner.client.luau"
+        }
+      }
+    }
+  }
+}

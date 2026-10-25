@@ -221,6 +221,9 @@ services = {
 			return Enum.UserInputType.MouseMovement
 		end,
 		LastInputTypeChanged = makeSignal(),
+		InputBegan = makeSignal(),
+		InputEnded = makeSignal(),
+		InputChanged = makeSignal(),
 		TouchEnabled = false,
 		KeyboardEnabled = true,
 		GamepadEnabled = false,

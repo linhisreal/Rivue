@@ -277,6 +277,7 @@ export type JobHandle = Types.JobHandle
 export type VNode = Types.VNode
 export type Props = Types.Props
 export type Child = Types.Child
+export type ChildInput = Types.ChildInput
 export type Children = Types.Children
 export type ComponentDef = Types.ComponentDef
 export type ComponentOptions = Types.ComponentOptions

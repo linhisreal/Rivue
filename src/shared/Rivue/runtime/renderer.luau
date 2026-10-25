@@ -811,6 +811,51 @@ end
 -- Props handled by the renderer, not set on the Instance
 const RESERVED_PROPS = table.freeze({ __directives = true, key = true, ref = true, transition = true, memo = true })
 
+const LAYOUT_CLASSES =
+	table.freeze({ UIListLayout = true, UIGridLayout = true, UIPageLayout = true, UITableLayout = true })
+
+--- True if a children list renders a layout object
+--- @param children { Child } -- Children
+--- @return boolean -- Has a UI*Layout child
+local function hasLayoutChild(children: { Child }): boolean
+	for _, child in children do
+		if type(child) == "table" and LAYOUT_CLASSES[child.type :: any] then
+			return true
+		end
+	end
+	return false
+end
+
+--- Gives children LayoutOrder = their position, so a layout shows them in list order.
+--- Fragments (nested lists) are counted through. A child that sets LayoutOrder keeps it.
+--- @param children { Child } -- Mounted children
+--- @param start number? -- Position before the first child
+--- @return number -- Position of the last child
+local function syncLayoutOrder(children: { Child }, start: number?): number
+	local order = start or 0
+	for i = 1, table.maxn(children) do
+		local child = children[i]
+		if type(child) ~= "table" then
+			continue
+		end
+		if child.type == Fragment then
+			order = syncLayoutOrder(child.children, order)
+			continue
+		end
+		order += 1
+		local props = child.props
+		if props and props.LayoutOrder ~= nil then
+			continue
+		end
+		local inst = child._instance :: ComponentInstance?
+		local el = child.el or (if inst then inst.el else nil)
+		if el and el:IsA("GuiObject") and el.LayoutOrder ~= order then
+			el.LayoutOrder = order
+		end
+	end
+	return order
+end
+
 --- Mounts a VNode as a new Instance in the DOM
 --- @param vnode RenderVNode -- Element VNode (type is a ClassName)
 --- @param container Instance -- Parent Instance
@@ -909,6 +954,10 @@ local function mountElement(vnode: RenderVNode, container: Instance, poolOpt: Po
 		elseif type(child) == "table" then
 			patch(nil, child, inst, poolOpt)
 		end
+	end
+
+	if hasLayoutChild(children) then
+		syncLayoutOrder(children)
 	end
 
 	-- Parent last so the engine lays out the finished subtree once
@@ -1122,22 +1171,6 @@ local function indexChildrenByKey(parent: Instance): { [unknown]: Instance }
 	return byKey
 end
 
---- Checks if parent has a UILayout component (affects manual positioning)
---- @param parent Instance? -- Parent Instance to check
---- @return boolean -- True if UILayout found
-local function parentHasUILayout(parent: Instance?): boolean
-	if not parent then
-		return false
-	end
-	for _, c in ipairs(parent:GetChildren()) do
-		if c:IsA("UIListLayout") or c:IsA("UIGridLayout") then
-			return true
-		end
-	end
-
-	return false
-end
-
 --- Renders a large list of items into a parent
 --- @deprecated Renders synchronously, use hFor() children instead
 --- @param items any -- Array of items to render
@@ -1181,13 +1214,13 @@ local function patchKeyedChildren(
 		end
 	end
 
-	local useLayout = parentHasUILayout(parent)
-
 	-- Built only when needed
 	local existingByKey: { [unknown]: Instance }? = nil
 	local seenKeys: { [unknown]: true }? = if IS_STUDIO then {} else nil
+	local reusedUnkeyed: { [number]: true } = {}
 
-	for i, nc in newList do
+	for i = 1, table.maxn(newList) do
+		local nc = newList[i]
 		if type(nc) ~= "table" then
 			continue
 		end
@@ -1217,14 +1250,15 @@ local function patchKeyedChildren(
 					patch(nil, nc, parent, poolOpt)
 				end
 			end
-
-			local el = nc.el
-			if useLayout and el and el:IsA("GuiObject") and el.LayoutOrder ~= i then
-				el.LayoutOrder = i
-			end
 		else
+			-- Unkeyed children match by position, never a keyed old child (the key map owns those)
 			local oc = oldList[i]
-			patch(if type(oc) == "table" then oc else nil, nc, parent, poolOpt)
+			if type(oc) == "table" and oc.key == nil then
+				reusedUnkeyed[i] = true
+				patch(oc, nc, parent, poolOpt)
+			else
+				patch(nil, nc, parent, poolOpt)
+			end
 		end
 	end
 
@@ -1232,10 +1266,10 @@ local function patchKeyedChildren(
 		unmountVNode(v, poolOpt)
 	end
 
-	-- Unmount leftover unkeyed children
-	for i = #newList + 1, #oldList do
+	-- Unmount old unkeyed children nothing reused
+	for i = 1, table.maxn(oldList) do
 		local oc = oldList[i]
-		if type(oc) == "table" and oc.key == nil then
+		if type(oc) == "table" and oc.key == nil and not reusedUnkeyed[i] then
 			unmountVNode(oc, poolOpt)
 		end
 	end
@@ -1719,6 +1753,13 @@ local function patchElement(oldVNode: RenderVNode, newVNode: RenderVNode, poolOp
 	local propsChanged = not _utils.shallowEqual(oldVNode.props, newVNode.props)
 	local childrenChanged = oldVNode.children ~= newVNode.children
 	if not propsChanged and not childrenChanged then
+		-- A controlled TextBox still follows its Text prop if the player typed over it
+		if newProps and newProps.onTextChanged ~= nil and newProps.Text ~= nil and el:IsA("TextBox") then
+			local box = el :: TextBox
+			if box.Text ~= newProps.Text then
+				box.Text = newProps.Text
+			end
+		end
 		return
 	end
 
@@ -1728,13 +1769,22 @@ local function patchElement(oldVNode: RenderVNode, newVNode: RenderVNode, poolOp
 		end
 		if childrenChanged and not trySetOnlyText(el, newVNode.children) then
 			patchKeyedChildren(oldVNode.children, newVNode.children, el, poolOpt)
+			if hasLayoutChild(newVNode.children) then
+				syncLayoutOrder(newVNode.children)
+			end
 		end
 	end
 
 	if el:IsA("TextBox") then
 		local oldText = if oldVNode.props then oldVNode.props.Text else nil
-		local newText = if newVNode.props then newVNode.props.Text else nil
-		withPreservedTextState(el, update, newText ~= oldText)
+		local newProps = newVNode.props
+		local newText = if newProps then newProps.Text else nil
+		-- With onTextChanged (or model) the state owns Text, otherwise only a new Text prop wins
+		local controlled = newProps ~= nil and newProps.onTextChanged ~= nil and newText ~= nil
+		withPreservedTextState(el, update, controlled or newText ~= oldText)
+		if controlled and (el :: TextBox).Text ~= newText then
+			(el :: TextBox).Text = newText
+		end
 	else
 		update()
 	end

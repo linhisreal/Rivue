@@ -63,6 +63,7 @@ local function runAllTests(): TestRunResult
 		{ name = "VueFeatures", moduleName = "VueFeatures" },
 		{ name = "UIFeatures", moduleName = "UIFeatures" },
 		{ name = "DevExperience", moduleName = "DevExperience" },
+		{ name = "Examples", moduleName = "Examples" },
 	}
 
 	for _, suite in ipairs(testSuites) do

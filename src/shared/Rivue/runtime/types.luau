@@ -138,11 +138,16 @@ export type Props = { [string]: any }
 export type Child = VNode | string | number | () -> VNode?
 
 -- Named/scoped slot: receives the scope passed to ctx.renderSlot()
-export type SlotFunction = (scope: any) -> ({ Child } | Child)?
+export type SlotFunction = (scope: any) -> ({ ChildInput } | Child)?
 export type Slots = { [string]: SlotFunction }
 
--- An array (default slot), a single child, or for components a table of named slot functions
-export type Children = { Child } | Child | Slots
+-- What h() accepts as a child: nested lists ({ header, hFor(...) }) and nil/false (from hIf
+-- or `cond and h(...)`) are fine
+export type ChildInput = (Child | { ChildInput } | boolean)?
+
+-- A list of ChildInput (default slot), a single child, or for components a table of named slot
+-- functions. Typed as any table so mixed list literals type-check under the old solver.
+export type Children = { [unknown]: unknown } | string | number | () -> VNode?
 
 export type FunctionalComponent = (props: Props) -> VNode?
 

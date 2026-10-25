@@ -54,6 +54,11 @@ const IS_STUDIO = game:GetService("RunService"):IsStudio()
 
 local warnedMissingKey = false
 
+local vnodeIdCounter = 0
+
+-- Groups children without creating a wrapper Instance: h(Fragment, nil, { ... })
+local Fragment: Types.FragmentType = table.freeze({ __fragment = true :: true, __name = "Fragment" :: "Fragment" })
+
 --- True for a children list nested inside another list (a table that isn't a vnode)
 --- @param child unknown -- Child entry
 --- @return boolean -- Is a nested list
@@ -61,43 +66,34 @@ local function isNestedList(child: unknown): boolean
 	return type(child) == "table" and (child :: { [unknown]: unknown }).type == nil
 end
 
---- Copies a children list, splicing nested lists in place: { header, hFor(...) }
+--- Copies a children list. A nested list ({ header, hFor(...), footer }) becomes a Fragment,
+--- so its keyed diff stays separate and its siblings keep their positions.
 --- @param list { [number]: unknown } -- Children list (may have holes from hIf)
 --- @return { Child } -- New list
 local function copyChildren(list: { [number]: unknown }): { Child }
-	local count = table.maxn(list)
-	local nested = false
-	for i = 1, count do
-		if isNestedList(list[i]) then
-			nested = true
-			break
+	-- Copy so a reused array (like ctx.slots) can't change an already-rendered vnode
+	local out = table.clone(list) :: { [number]: unknown }
+	for i = 1, table.maxn(out) do
+		local child = out[i]
+		if isNestedList(child) then
+			vnodeIdCounter += 1
+			out[i] = {
+				type = Fragment,
+				props = {},
+				children = copyChildren(child :: { [number]: unknown }),
+				key = nil,
+				_uid = vnodeIdCounter,
+			}
 		end
 	end
-	if not nested then
-		-- Copy so a reused array (like ctx.slots) can't change an already-rendered vnode
-		return table.clone(list :: { Child })
-	end
-
-	local out: { Child } = {}
-	local function append(source: { [number]: unknown })
-		for i = 1, table.maxn(source) do
-			local child = source[i]
-			if isNestedList(child) then
-				append(child :: { [number]: unknown })
-			elseif child ~= nil and child ~= false then
-				table.insert(out, child :: Child)
-			end
-		end
-	end
-	append(list)
-	return out
+	return out :: { Child }
 end
 
 --- Normalizes children to an array format
 --- @param children unknown -- Child nodes (string, number, array, function, or nil)
 --- @return { Child } -- Normalized array of children
 local function normalizeChildren(children: unknown): { Child }
-	if children == nil then
+	if children == nil or children == false then
 		return {}
 	end
 	local t = type(children)
@@ -140,8 +136,6 @@ local function splitSlots(children: { [unknown]: unknown }): ({ Child }, Types.S
 	list = copyChildren(positional)
 	return list, slots
 end
-
-local vnodeIdCounter = 0
 
 --- Turns a directive prop name into the registered directive: vClickOutside -> "click-outside"
 --- @param key string -- Prop name
@@ -243,9 +237,6 @@ local function expandProps(isElement: boolean, props: Props): Props
 
 	return out or props
 end
-
--- Groups children without creating a wrapper Instance: h(Fragment, nil, { ... })
-local Fragment: Types.FragmentType = table.freeze({ __fragment = true :: true, __name = "Fragment" :: "Fragment" })
 
 --- Creates a virtual DOM node
 --- @param type_ VNodeType -- ClassName ("Frame"), component definition, or functional component

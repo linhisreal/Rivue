@@ -158,8 +158,9 @@ local function runTests()
 			Rivue.hIf(false, h("Frame")),
 			h("Frame", { Name = "Footer" }),
 		})
-		assertEquals(#vnode.children, 4, "Nested lists are spliced in, nils dropped")
-		assertEquals(vnode.children[2].key, "a", "Order is kept")
+		assertEquals(vnode.children[2].type, Rivue.Fragment, "A nested list becomes a Fragment")
+		assertEquals(vnode.children[2].children[1].key, "a", "Its items keep their order")
+		assertEquals(vnode.children[4].props.Name, "Footer", "Siblings keep their positions")
 		local container = Instance.new("Frame")
 		renderer.patch(nil, vnode, container)
 		local frame = container:FindFirstChildOfClass("Frame") :: Frame
