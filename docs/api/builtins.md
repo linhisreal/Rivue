@@ -26,6 +26,80 @@ local h = Rivue.h
 Animates one element in when it appears and out before it's removed, using TweenService. Wrap the
 element you toggle, and describe its hidden state with `from`.
 
+- **Example**
+
+  A panel that fades and slides in when opened, and back out when closed:
+
+  ```lua
+  local SettingsPanel = Rivue.defineComponent({
+  	name = "SettingsPanel",
+  	setup = function()
+  		local open = Rivue.ref(false)
+  		return {
+  			open = open,
+  			toggle = function()
+  				open.value = not open.value
+  			end,
+  		}
+  	end,
+  	render = function(ctx)
+  		return h("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 }, {
+  			h("TextButton", { Text = "Settings", onClick = ctx.toggle }),
+  			h(Rivue.Transition, {
+  				tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad),
+  				-- The hidden state: tweened from when it appears, back to before it's destroyed
+  				from = { BackgroundTransparency = 1, Position = UDim2.fromScale(0.5, 0.55) },
+  			}, {
+  				Rivue.hIf(
+  					ctx.open,
+  					h("Frame", {
+  						AnchorPoint = Vector2.new(0.5, 0.5),
+  						Position = UDim2.fromScale(0.5, 0.5),
+  						Size = UDim2.fromOffset(300, 200),
+  					})
+  				),
+  			}),
+  		})
+  	end,
+  })
+  ```
+
+  Switching tabs, the old one fading out before the new one fades in (`mode = "out-in"`):
+
+  ```lua
+  local tab = Rivue.ref("Shop")
+
+  h(Rivue.Transition, { mode = "out-in", tweenInfo = TweenInfo.new(0.15), from = { GroupTransparency = 1 } }, {
+  	-- A new key means a new child, so changing tabs plays leave, then enter
+  	h("CanvasGroup", { key = tab.value, Size = UDim2.fromScale(1, 1) }),
+  })
+  ```
+
+  The same animation on a single element, with the `transition` prop:
+
+  ```lua
+  h("Frame", {
+  	transition = {
+  		tweenInfo = TweenInfo.new(0.3),
+  		from = { BackgroundTransparency = 1 },
+  		enter = true,
+  		leave = true,
+  	},
+  })
+  ```
+
+- **Details**
+
+  - **What triggers it.** Keep the `Transition` mounted and toggle its child (with `hIf`, an
+    `if` expression, or a changing `key`).
+  - **Entering.** The child starts at `from` and tweens back to its own prop values.
+  - **Leaving.** The child tweens to `from`, stays on screen until the tween finishes, and is
+    then destroyed. Leaving never blocks rendering.
+  - **Component children.** A component child animates its root element.
+
+  The same config can also be set per element with the `transition` prop. There, `enter = true`
+  and `leave = true` turn each phase on.
+
 - **Props**
 
   ```lua
@@ -46,94 +120,12 @@ element you toggle, and describe its hidden state with `from`.
   }
   ```
 
-- **Details**
-
-  - **What triggers it.** Keep the `Transition` mounted and toggle its child (with `hIf`, an
-    `if` expression, or a changing `key`).
-  - **Entering.** The child starts at `from` and tweens back to its own prop values.
-  - **Leaving.** The child tweens to `from`, stays on screen until the tween finishes, and is
-    then destroyed. Leaving never blocks rendering.
-  - **Component children.** A component child animates its root element.
-
-  The same config can also be set per element with the `transition` prop. There, `enter = true`
-  and `leave = true` turn each phase on.
-
-- **Example**
-
-  ```lua
-  local Panel = Rivue.defineComponent(function()
-  	local open = Rivue.ref(false)
-  	return function()
-  		return h("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 }, {
-  			h("TextButton", {
-  				Text = "Toggle",
-  				onClick = function()
-  					open.value = not open.value
-  				end,
-  			}),
-  			h(Rivue.Transition, {
-  				tweenInfo = TweenInfo.new(0.2, Enum.EasingStyle.Quad),
-  				from = { BackgroundTransparency = 1, Position = UDim2.fromScale(0.5, 0.55) },
-  			}, {
-  				Rivue.hIf(
-  					open.value,
-  					h("Frame", {
-  						AnchorPoint = Vector2.new(0.5, 0.5),
-  						Position = UDim2.fromScale(0.5, 0.5),
-  						Size = UDim2.fromOffset(300, 200),
-  					})
-  				),
-  			}),
-  		})
-  	end
-  end, { name = "Panel" })
-  ```
-
-  Switching between tabs, one at a time:
-
-  ```lua
-  local tab = Rivue.ref("Shop")
-
-  h(Rivue.Transition, { mode = "out-in", tweenInfo = TweenInfo.new(0.15), from = { GroupTransparency = 1 } }, {
-  	h("CanvasGroup", { key = tab.value, Size = UDim2.fromScale(1, 1) }),
-  })
-  ```
-
-  The `transition` prop on one element:
-
-  ```lua
-  h("Frame", {
-  	transition = {
-  		tweenInfo = TweenInfo.new(0.3),
-  		from = { BackgroundTransparency = 1 },
-  		enter = true,
-  		leave = true,
-  	},
-  })
-  ```
-
 ---
 
 ## TransitionGroup
 
 Transition for lists: each keyed item animates in when it's added and out when it's removed. Good
 for notifications, chat messages and inventories.
-
-- **Props**
-
-  Same as [Transition](#transition) except `mode`, plus:
-
-  ```lua
-  type TransitionGroupProps = TransitionProps & {
-  	tag: string?, -- wrap the items in this element (default: no wrapper)
-  	tagProps: Props?, -- props for that element
-  }
-  ```
-
-- **Details**
-
-  Every child must have a unique `key`. Added items enter, removed items leave, and items that
-  stay are moved without animating.
 
 - **Example**
 
@@ -155,6 +147,22 @@ for notifications, chat messages and inventories.
   })
   ```
 
+- **Details**
+
+  Every child must have a unique `key`. Added items enter, removed items leave, and items that
+  stay are moved without animating.
+
+- **Props**
+
+  Same as [Transition](#transition) except `mode`, plus:
+
+  ```lua
+  type TransitionGroupProps = TransitionProps & {
+  	tag: string?, -- wrap the items in this element (default: no wrapper)
+  	tagProps: Props?, -- props for that element
+  }
+  ```
+
 ---
 
 ## KeepAlive
@@ -162,14 +170,25 @@ for notifications, chat messages and inventories.
 Keeps a component alive when it's switched out, instead of destroying it. Tabs and menus come back
 exactly as the player left them: scroll position, typed text and state included.
 
-- **Props**
+- **Example**
+
+  Tabs that keep their scroll position and state, except Settings, which always starts fresh:
 
   ```lua
-  type KeepAliveProps = {
-  	include: { string }?, -- only cache these component names
-  	exclude: { string }?, -- never cache these
-  	max: number?, -- most entries to keep, least recently used dropped first (default 10)
-  }
+  local Inventory = Rivue.defineComponent({ name = "Inventory", render = function() return h("ScrollingFrame") end })
+  local Settings = Rivue.defineComponent({ name = "Settings", render = function() return h("Frame") end })
+
+  local Menu = Rivue.defineComponent({
+  	name = "Menu",
+  	setup = function()
+  		return { tab = Rivue.ref("inventory") }
+  	end,
+  	render = function(ctx)
+  		return h(Rivue.KeepAlive, { max = 5, exclude = { "Settings" } }, {
+  			if ctx.tab == "inventory" then h(Inventory) else h(Settings),
+  		})
+  	end,
+  })
   ```
 
 - **Details**
@@ -183,20 +202,14 @@ exactly as the player left them: scroll position, typed text and state included.
   Cached components get [`onActivated`](lifecycle.md#onactivated) and
   [`onDeactivated`](lifecycle.md#ondeactivated).
 
-- **Example**
+- **Props**
 
   ```lua
-  local Inventory = Rivue.defineComponent({ name = "Inventory", render = function() return h("Frame") end })
-  local Settings = Rivue.defineComponent({ name = "Settings", render = function() return h("Frame") end })
-
-  local Menu = Rivue.defineComponent(function()
-  	local tab = Rivue.ref("inventory")
-  	return function()
-  		return h(Rivue.KeepAlive, { max = 5, exclude = { "Settings" } }, {
-  			if tab.value == "inventory" then h(Inventory) else h(Settings),
-  		})
-  	end
-  end, { name = "Menu" })
+  type KeepAliveProps = {
+  	include: { string }?, -- only cache these component names
+  	exclude: { string }?, -- never cache these
+  	max: number?, -- most entries to keep, least recently used dropped first (default 10)
+  }
   ```
 
 ---
@@ -206,14 +219,36 @@ exactly as the player left them: scroll position, typed text and state included.
 Renders part of a component somewhere else in the game, usually a ScreenGui with a higher
 DisplayOrder. Use it for modals, tooltips and dropdowns that must appear above everything.
 
-- **Props**
+- **Example**
+
+  A confirm dialog that opens from inside a clipped shop frame but draws above everything:
 
   ```lua
-  type TeleportProps = {
-  	to: Instance | () -> Instance?, -- where to render (must be parented)
-  	disabled: boolean?, -- render in place instead
-  	defer: boolean?, -- wait until the rest of the tree is mounted to resolve `to`
-  }
+  local overlay = Instance.new("ScreenGui")
+  overlay.DisplayOrder = 100
+  overlay.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+
+  local Shop = Rivue.defineComponent({
+  	name = "Shop",
+  	setup = function()
+  		local confirming = Rivue.ref(false)
+  		return {
+  			confirming = confirming,
+  			ask = function()
+  				confirming.value = true
+  			end,
+  		}
+  	end,
+  	render = function(ctx)
+  		return h("Frame", { ClipsDescendants = true, Size = UDim2.fromOffset(300, 300) }, {
+  			h("TextButton", { Text = "Buy", onClick = ctx.ask }),
+  			-- Rendered into the overlay, so the shop's clipping doesn't cut it off
+  			h(Rivue.Teleport, { to = overlay }, {
+  				Rivue.hIf(ctx.confirming, h("Frame", { Name = "ConfirmDialog", Size = UDim2.fromOffset(240, 120) })),
+  			}),
+  		})
+  	end,
+  })
   ```
 
 - **Details**
@@ -225,30 +260,14 @@ DisplayOrder. Use it for modals, tooltips and dropdowns that must appear above e
   - Children are removed when the Teleport unmounts.
   - With `defer = true`, `to` can point at something rendered later in the same tree.
 
-- **Example**
+- **Props**
 
   ```lua
-  local Players = game:GetService("Players")
-  local overlay = Instance.new("ScreenGui")
-  overlay.DisplayOrder = 100
-  overlay.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
-
-  local Shop = Rivue.defineComponent(function()
-  	local confirming = Rivue.ref(false)
-  	return function()
-  		return h("Frame", { ClipsDescendants = true, Size = UDim2.fromOffset(300, 300) }, {
-  			h("TextButton", {
-  				Text = "Buy",
-  				onClick = function()
-  					confirming.value = true
-  				end,
-  			}),
-  			h(Rivue.Teleport, { to = overlay }, {
-  				Rivue.hIf(confirming.value, h("Frame", { Name = "ConfirmDialog" })),
-  			}),
-  		})
-  	end
-  end, { name = "Shop" })
+  type TeleportProps = {
+  	to: Instance | () -> Instance?, -- where to render (must be parented)
+  	disabled: boolean?, -- render in place instead
+  	defer: boolean?, -- wait until the rest of the tree is mounted to resolve `to`
+  }
   ```
 
 ---
@@ -257,25 +276,6 @@ DisplayOrder. Use it for modals, tooltips and dropdowns that must appear above e
 
 Shows something else (a spinner, "Loading...") while the async components inside it are still
 loading, then swaps in the real content.
-
-- **Props**
-
-  ```lua
-  type SuspenseProps = {
-  	fallback: VNode?, -- shown while loading (default: a "Loading..." label)
-  	timeout: number?, -- ms before showing an error (default 5000)
-  }
-  ```
-
-- **Details**
-
-  - **While loading.** The children are mounted inside a hidden Frame, so async components can
-    load, and the fallback shows on top.
-  - **When everything has loaded,** the content becomes visible.
-  - **On failure or timeout,** an error message is shown.
-
-  Components made with [`defineAsyncComponent()`](component.md#defineasynccomponent) register
-  themselves automatically.
 
 - **Example**
 
@@ -295,33 +295,31 @@ loading, then swaps in the real content.
   })
   ```
 
+- **Details**
+
+  - **While loading.** The children are mounted inside a hidden Frame, so async components can
+    load, and the fallback shows on top.
+  - **When everything has loaded,** the content becomes visible.
+  - **On failure or timeout,** an error message is shown.
+
+  Components made with [`defineAsyncComponent()`](component.md#defineasynccomponent) register
+  themselves automatically.
+
+- **Props**
+
+  ```lua
+  type SuspenseProps = {
+  	fallback: VNode?, -- shown while loading (default: a "Loading..." label)
+  	timeout: number?, -- ms before showing an error (default 5000)
+  }
+  ```
+
 ---
 
 ## VirtualList
 
 A scrolling list that only creates the rows you can see, so a list of 5,000 items costs about as
 much as one of 20. Rows must all have the same height.
-
-- **Props**
-
-  ```lua
-  type VirtualListProps<T> = {
-  	items: { T }, -- plain or reactive array (required)
-  	itemSize: number, -- row height in pixels, or width when horizontal (required)
-  	render: (item: T, index: number) -> VNode, -- (required)
-  	key: ((item: T, index: number) -> unknown)?, -- default: the index
-  	overscan: number?, -- extra rows rendered above and below (default 2)
-  	horizontal: boolean?,
-  	-- Any other prop (Size, Position, ...) goes to the ScrollingFrame
-  }
-  ```
-
-- **Details**
-
-  - **Fixed size.** Every row has the same size, and Rivue sets each row's `Position` and `key`.
-    Make rows fill the cross axis (`Size = UDim2.new(1, 0, 0, itemSize)`).
-  - **Cost.** Scrolling re-renders only the rows coming into view, so a list of 10,000 items
-    costs about as much as the ones on screen.
 
 - **Example**
 
@@ -342,6 +340,27 @@ much as one of 20. Rows must all have the same height.
   		return h("TextLabel", { Size = UDim2.new(1, 0, 0, 40), Text = item.name })
   	end,
   })
+  ```
+
+- **Details**
+
+  - **Fixed size.** Every row has the same size, and Rivue sets each row's `Position` and `key`.
+    Make rows fill the cross axis (`Size = UDim2.new(1, 0, 0, itemSize)`).
+  - **Cost.** Scrolling re-renders only the rows coming into view, so a list of 10,000 items
+    costs about as much as the ones on screen.
+
+- **Props**
+
+  ```lua
+  type VirtualListProps<T> = {
+  	items: { T }, -- plain or reactive array (required)
+  	itemSize: number, -- row height in pixels, or width when horizontal (required)
+  	render: (item: T, index: number) -> VNode, -- (required)
+  	key: ((item: T, index: number) -> unknown)?, -- default: the index
+  	overscan: number?, -- extra rows rendered above and below (default 2)
+  	horizontal: boolean?,
+  	-- Any other prop (Size, Position, ...) goes to the ScrollingFrame
+  }
   ```
 
 ---

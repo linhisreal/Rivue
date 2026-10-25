@@ -27,10 +27,13 @@ Lower-level reactivity APIs for performance and library code. All examples assum
 A ref that only notices when you replace `.value`, not when you change things inside it. Use it for
 big data you swap out wholesale, like a server response or a 1,000-row table.
 
-- **Type**
+- **Example**
 
   ```lua
-  function shallowRef<T>(value: T): Ref<T>
+  local state = Rivue.shallowRef({ count = 1 })
+
+  state.value.count = 2 -- does NOT trigger anything
+  state.value = { count = 2 } -- triggers
   ```
 
 - **Details**
@@ -40,13 +43,10 @@ big data you swap out wholesale, like a server response or a 1,000-row table.
   - for values that shouldn't be proxied: Instances, component definitions, data from the
     server.
 
-- **Example**
+- **Type**
 
   ```lua
-  local state = Rivue.shallowRef({ count = 1 })
-
-  state.value.count = 2 -- does NOT trigger anything
-  state.value = { count = 2 } -- triggers
+  function shallowRef<T>(value: T): Ref<T>
   ```
 
 - **See also** [`triggerRef()`](#triggerref)
@@ -57,12 +57,6 @@ big data you swap out wholesale, like a server response or a 1,000-row table.
 
 Tells everything using a [`shallowRef`](#shallowref) to update, after you changed what's inside it
 without replacing `.value`.
-
-- **Type**
-
-  ```lua
-  function triggerRef<T>(ref: Ref<T>)
-  ```
 
 - **Example**
 
@@ -77,26 +71,18 @@ without replacing `.value`.
   Rivue.triggerRef(inventory) -- prints 2
   ```
 
+- **Type**
+
+  ```lua
+  function triggerRef<T>(ref: Ref<T>)
+  ```
+
 ---
 
 ## customRef()
 
 Builds a ref with your own rules for when it updates. The classic use is a debounced value that only
 updates after the player stops typing.
-
-- **Type**
-
-  ```lua
-  function customRef<T>(factory: (track: () -> (), trigger: () -> ()) -> {
-  	get: () -> T,
-  	set: (value: T) -> (),
-  }): Ref<T>
-  ```
-
-- **Details**
-
-  `factory` receives `track` and `trigger`. Call `track()` in `get` and `trigger()` when the
-  value should be considered changed.
 
 - **Example**
 
@@ -127,22 +113,26 @@ updates after the player stops typing.
   local search = useDebouncedRef("", 0.3)
   ```
 
+- **Details**
+
+  `factory` receives `track` and `trigger`. Call `track()` in `get` and `trigger()` when the
+  value should be considered changed.
+
+- **Type**
+
+  ```lua
+  function customRef<T>(factory: (track: () -> (), trigger: () -> ()) -> {
+  	get: () -> T,
+  	set: (value: T) -> (),
+  }): Ref<T>
+  ```
+
 ---
 
 ## shallowReactive()
 
 Like [`reactive()`](reactivity-core.md#reactive), but only the top-level keys are watched. Nested
 tables are left as plain tables.
-
-- **Type**
-
-  ```lua
-  function shallowReactive<T>(target: T): T
-  ```
-
-- **Details**
-
-  Nested tables are returned as they are, without proxies. Component props are shallow reactive.
 
 - **Example**
 
@@ -154,17 +144,21 @@ tables are left as plain tables.
   state.nested = { bar = 10 } -- reactive (top-level key)
   ```
 
+- **Details**
+
+  Nested tables are returned as they are, without proxies. Component props are shallow reactive.
+
+- **Type**
+
+  ```lua
+  function shallowReactive<T>(target: T): T
+  ```
+
 ---
 
 ## shallowReadonly()
 
 Like [`readonly()`](reactivity-core.md#readonly), but only the top-level keys are protected.
-
-- **Type**
-
-  ```lua
-  function shallowReadonly<T>(target: T): T
-  ```
 
 - **Example**
 
@@ -175,17 +169,17 @@ Like [`readonly()`](reactivity-core.md#readonly), but only the top-level keys ar
   state.nested.bar += 1 -- works
   ```
 
+- **Type**
+
+  ```lua
+  function shallowReadonly<T>(target: T): T
+  ```
+
 ---
 
 ## isShallow()
 
 Tells you whether a table came from `shallowReactive()` or `shallowReadonly()`.
-
-- **Type**
-
-  ```lua
-  function isShallow(value: unknown): boolean
-  ```
 
 - **Example**
 
@@ -194,23 +188,18 @@ Tells you whether a table came from `shallowReactive()` or `shallowReadonly()`.
   print(Rivue.isShallow(Rivue.reactive({}))) -- false
   ```
 
+- **Type**
+
+  ```lua
+  function isShallow(value: unknown): boolean
+  ```
+
 ---
 
 ## toRaw()
 
 Gets the plain table behind a reactive one. Use it to read or pass data without tracking, for
 example when sending state to the server.
-
-- **Type**
-
-  ```lua
-  function toRaw<T>(proxy: T): T
-  ```
-
-- **Details**
-
-  Reading or writing the raw table bypasses tracking and triggering. It's also what to pass to
-  `table.*` functions, which don't work through proxies.
 
 - **Example**
 
@@ -224,23 +213,23 @@ example when sending state to the server.
   table.sort(sorted)
   ```
 
+- **Details**
+
+  Reading or writing the raw table bypasses tracking and triggering. It's also what to pass to
+  `table.*` functions, which don't work through proxies.
+
+- **Type**
+
+  ```lua
+  function toRaw<T>(proxy: T): T
+  ```
+
 ---
 
 ## markRaw()
 
 Tells Rivue to never make a table reactive. Use it for things that shouldn't be watched, like
 Instances, class objects or large static data.
-
-- **Type**
-
-  ```lua
-  function markRaw<T>(value: T): T
-  ```
-
-- **Details**
-
-  Use it for big static data, or for tables owned by another library, so they aren't wrapped
-  when they end up inside reactive state.
 
 - **Example**
 
@@ -251,38 +240,23 @@ Instances, class objects or large static data.
   print(Rivue.isReactive(state.items)) -- false
   ```
 
+- **Details**
+
+  Use it for big static data, or for tables owned by another library, so they aren't wrapped
+  when they end up inside reactive state.
+
+- **Type**
+
+  ```lua
+  function markRaw<T>(value: T): T
+  ```
+
 ---
 
 ## effect()
 
 The low-level building block under watchers and component renders: a function that re-runs when what
 it read changes. Prefer [`watchEffect()`](reactivity-core.md#watcheffect) in app code.
-
-- **Type**
-
-  ```lua
-  function effect(fn: () -> (), options: EffectOptions?): Effect
-
-  type EffectOptions = {
-  	scheduler: ((run: () -> ()) -> ())?, -- called instead of running on change
-  	lazy: boolean?, -- don't run until effect.run() is called
-  	onTrack: ((event: DebuggerEvent) -> ())?,
-  	onTrigger: ((event: DebuggerEvent) -> ())?,
-  	allowRecurse: boolean?,
-  }
-
-  type Effect = { run: () -> (), stop: (self: Effect) -> (), active: boolean }
-  type DebuggerEvent = { target: unknown, key: unknown }
-  ```
-
-- **Details**
-
-  Prefer [`watchEffect()`](reactivity-core.md#watcheffect) in app code. In a component's
-  `setup()`, the effect stops on unmount.
-
-  Unlike Vue's `effect()`, the first run is deferred to the next flush. With a `scheduler` it's
-  passed to the scheduler right away, and with `lazy = true` nothing runs until you call
-  `effect.run()`.
 
 - **Example**
 
@@ -303,29 +277,38 @@ it read changes. Prefer [`watchEffect()`](reactivity-core.md#watcheffect) in app
   runner:stop()
   ```
 
+- **Details**
+
+  Prefer [`watchEffect()`](reactivity-core.md#watcheffect) in app code. In a component's
+  `setup()`, the effect stops on unmount.
+
+  Unlike Vue's `effect()`, the first run is deferred to the next flush. With a `scheduler` it's
+  passed to the scheduler right away, and with `lazy = true` nothing runs until you call
+  `effect.run()`.
+
+- **Type**
+
+  ```lua
+  function effect(fn: () -> (), options: EffectOptions?): Effect
+
+  type EffectOptions = {
+  	scheduler: ((run: () -> ()) -> ())?, -- called instead of running on change
+  	lazy: boolean?, -- don't run until effect.run() is called
+  	onTrack: ((event: DebuggerEvent) -> ())?,
+  	onTrigger: ((event: DebuggerEvent) -> ())?,
+  	allowRecurse: boolean?,
+  }
+
+  type Effect = { run: () -> (), stop: (self: Effect) -> (), active: boolean }
+  type DebuggerEvent = { target: unknown, key: unknown }
+  ```
+
 ---
 
 ## effectScope()
 
 A container that collects the computeds and watchers created inside it, so you can stop them all at
 once. Useful for state that lives outside components.
-
-- **Type**
-
-  ```lua
-  function effectScope(detached: boolean?): EffectScope
-
-  type EffectScope = {
-  	run: (self: EffectScope, fn: () -> unknown) -> unknown,
-  	stop: (self: EffectScope) -> (),
-  	active: boolean,
-  }
-  ```
-
-- **Details**
-
-  A scope created inside another scope is stopped with its parent unless `detached` is true.
-  Each component's `setup()` runs in its own scope.
 
 - **Example**
 
@@ -350,17 +333,28 @@ once. Useful for state that lives outside components.
   scope:stop()
   ```
 
+- **Details**
+
+  A scope created inside another scope is stopped with its parent unless `detached` is true.
+  Each component's `setup()` runs in its own scope.
+
+- **Type**
+
+  ```lua
+  function effectScope(detached: boolean?): EffectScope
+
+  type EffectScope = {
+  	run: (self: EffectScope, fn: () -> unknown) -> unknown,
+  	stop: (self: EffectScope) -> (),
+  	active: boolean,
+  }
+  ```
+
 ---
 
 ## getCurrentScope()
 
 The effect scope that's active right now, if any.
-
-- **Type**
-
-  ```lua
-  function getCurrentScope(): EffectScope?
-  ```
 
 - **Example**
 
@@ -380,24 +374,18 @@ The effect scope that's active right now, if any.
   end
   ```
 
+- **Type**
+
+  ```lua
+  function getCurrentScope(): EffectScope?
+  ```
+
 ---
 
 ## onScopeDispose()
 
 Runs your clean-up when the current scope stops. Inside a component, that's when it unmounts, which
 makes it the composable-friendly version of `onUnmounted`.
-
-- **Type**
-
-  ```lua
-  function onScopeDispose(fn: () -> (), failSilently: boolean?)
-  ```
-
-- **Details**
-
-  This is the composable-friendly version of `onUnmounted`. It works in a component's `setup()`
-  (the component's scope stops on unmount) and inside `effectScope():run()`. Outside a scope it
-  does nothing.
 
 - **Example**
 
@@ -408,6 +396,18 @@ makes it the composable-friendly version of `onUnmounted`.
   		conn:Disconnect()
   	end)
   end
+  ```
+
+- **Details**
+
+  This is the composable-friendly version of `onUnmounted`. It works in a component's `setup()`
+  (the component's scope stops on unmount) and inside `effectScope():run()`. Outside a scope it
+  does nothing.
+
+- **Type**
+
+  ```lua
+  function onScopeDispose(fn: () -> (), failSilently: boolean?)
   ```
 
 ---
