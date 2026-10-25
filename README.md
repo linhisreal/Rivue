@@ -558,6 +558,18 @@ local TestRunner = require(game.ReplicatedStorage.TestRunner)
 TestRunner.run("Reactivity")
 ```
 
+### Run Without Studio
+
+The suites also run with the standalone [Luau CLI](https://github.com/luau-lang/luau/releases) using small Roblox stand-ins (see `tests/offline/`). CI runs this on every push.
+
+```bash
+scripts/test-offline.sh                           # all suites
+scripts/test-offline.sh tests/Reactivity.test.luau  # one suite
+LUAU=/path/to/luau scripts/test-offline.sh        # if luau isn't on PATH
+```
+
+Needs `python3`. Engine behavior is simulated, so still check UI changes in Studio.
+
 ### Current Test Coverage
 
 - ✅ **API Validation** (45 comprehensive API tests)
@@ -572,8 +584,9 @@ TestRunner.run("Reactivity")
 - ✅ **Utilities** (debounce, throttle, nextTick, iterArray)
 - ✅ **Remote Communication** (network utilities)
 - ✅ **Debug Tools** (development mode, error handling)
+- ✅ **Vue Features** (writable computed, watch sources, provide/inject, Fragment, nextTick, app plugins)
 
-**Total: 16 test suites with comprehensive coverage** ✅
+**Total: 17 test suites, plus an offline-only Remote server suite** ✅
 
 ---
 
