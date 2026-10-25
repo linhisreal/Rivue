@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <title>Rivue</title>
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1d2440"/>
+      <stop offset="1" stop-color="#0f1426"/>
+    </linearGradient>
+    <linearGradient id="outer" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5eead4"/>
+      <stop offset="1" stop-color="#10b981"/>
+    </linearGradient>
+    <linearGradient id="inner" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#e2fff6"/>
+      <stop offset="1" stop-color="#a7f3d0"/>
+    </linearGradient>
+    <mask id="gap" maskUnits="userSpaceOnUse" x="0" y="0" width="512" height="512">
+      <rect width="512" height="512" fill="#fff"/>
+      <path d="M208 172 L256 254 L304 172" fill="none" stroke="#000" stroke-width="58"
+            stroke-linecap="round" stroke-linejoin="round"/>
+    </mask>
+  </defs>
+
+  <!-- Tilted tile: the Roblox screen the UI lives on -->
+  <rect x="64" y="64" width="384" height="384" rx="92" fill="url(#tile)" transform="rotate(-12 256 256)"/>
+
+  <!-- Layered chevron: an outer V with a lighter V nested inside, with a gap between them -->
+  <path d="M150 168 L256 352 L362 168" fill="none" stroke="url(#outer)" stroke-width="56"
+        stroke-linecap="round" stroke-linejoin="round" mask="url(#gap)"/>
+  <path d="M208 172 L256 254 L304 172" fill="none" stroke="url(#inner)" stroke-width="30"
+        stroke-linecap="round" stroke-linejoin="round"/>
+
+  <!-- Reactive spark -->
+  <circle cx="370" cy="352" r="22" fill="#5eead4"/>
+</svg>
