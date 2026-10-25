@@ -60,6 +60,7 @@ local function runAllTests(): TestRunResult
 		{ name = "SchedulerEnhancements", moduleName = "SchedulerEnhancements" },
 		{ name = "PoolEnhancements", moduleName = "PoolEnhancements" },
 		{ name = "AttributeRefEnhancements", moduleName = "AttributeRefEnhancements" },
+		{ name = "VueFeatures", moduleName = "VueFeatures" },
 	}
 
 	for _, suite in ipairs(testSuites) do
