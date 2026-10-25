@@ -262,11 +262,16 @@ function ReplicatedStorage:WaitForChild(n, timeout)
 	return assert(self._children[n], "missing " .. n)
 end
 services.ReplicatedStorage = ReplicatedStorage
-game = {
+game = setmetatable({
 	GetService = function(_, n)
 		return services[n] or {}
 	end,
-}
+}, {
+	-- game.ReplicatedStorage, game.Players, ...
+	__index = function(_, k)
+		return services[k]
+	end,
+})
 local rivueScript = makeFolder("Rivue", ReplicatedStorage)
 ReplicatedStorage._children.Rivue = rivueScript
 local runtimeFolder = makeFolder("runtime", rivueScript)
@@ -457,8 +462,9 @@ local CLASSES = {
 	},
 	ScreenGui = {
 		bases = { "LayerCollector", "GuiBase2d" },
-		props = { { ResetOnSpawn = true, Enabled = true, IgnoreGuiInset = false } },
+		props = { { ResetOnSpawn = true, Enabled = true, IgnoreGuiInset = false, DisplayOrder = 0 } },
 	},
+	SurfaceGui = { bases = { "LayerCollector", "GuiBase2d" }, props = { { Enabled = true } } },
 	UIListLayout = {
 		bases = { "UIGridStyleLayout", "UILayout" },
 		props = { { Padding = 0, SortOrder = "LayoutOrder", FillDirection = "Vertical" } },

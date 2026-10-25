@@ -206,7 +206,18 @@ end
 --- @param value unknown -- Value to check
 --- @return boolean -- True if value is a reactive proxy
 local function isReactive(value: unknown): boolean
-	return type(value) == "table" and reactiveMarker[value] ~= nil
+	if type(value) ~= "table" then
+		return false
+	end
+	local target = reactiveMarker[value]
+	if target == nil then
+		return false
+	end
+	-- A readonly view is only reactive when what it wraps is
+	if readonlyMarker[value] then
+		return isReactive(target)
+	end
+	return true
 end
 
 --- Checks if a value is a readonly proxy

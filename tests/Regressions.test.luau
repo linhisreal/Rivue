@@ -246,6 +246,12 @@ local function runTests()
 		assertEquals(table.concat(names, ","), "A1,A2,B1,B2", "Both lists intact")
 	end
 
+	print("isReactive() of a readonly plain table is false")
+	do
+		assertEquals(Rivue.isReactive(Rivue.readonly({})), false, "readonly(plain) isn't reactive")
+		assertEquals(Rivue.isReactive(Rivue.readonly(Rivue.reactive({}))), true, "readonly(reactive) is")
+	end
+
 	print("Verbose debug logging is off by default")
 	do
 		assertEquals(Rivue.debug.enabled, false, "debug.enabled defaults to false")
