@@ -76,7 +76,7 @@ local function h(type_: VNodeType, propsIn: Props?, children: Types.Children?): 
 	local ch = normalizeChildren(children)
 	vnodeIdCounter += 1
 
-	-- h() is the hottest call in the framework: never build log payloads unless debugging
+	-- Hot path, only build the log payload when debugging
 	if debugModule.enabled then
 		debugModule.log("H", "Creating VNode", {
 			type = if type(type_) == "string" then type_ elseif type(type_) == "table" then type_.__name else "function",
@@ -122,7 +122,7 @@ local function hFor<T>(list: { T }, mapper: (item: T, index: number) -> VNode?):
 		utils.profiler:start(profileName)
 	end
 
-	-- Numeric loop so reactive arrays work: ipairs() bypasses proxies (and their tracking) in Luau
+	-- Numeric loop so reactive arrays work (ipairs skips proxies)
 	local out: { VNode } = table.create(count)
 	for i = 1, count do
 		local node = mapper(list[i], i)
@@ -138,8 +138,7 @@ local function hFor<T>(list: { T }, mapper: (item: T, index: number) -> VNode?):
 	return out
 end
 
---- List rendering helper for large lists that also assigns keys
---- (Kept for API compatibility; rendering is serial, see renderer.patchChildrenParallel.)
+--- List rendering helper that also assigns keys
 --- @param items { T } -- Array of items to render
 --- @param mapper (item: T, index: number) -> VNode? -- Map function; nil skips the item
 --- @param keyFn ((item: T) -> unknown)? -- Optional key function
@@ -166,8 +165,6 @@ local function hForParallel<T>(
 		end
 	end
 
-	-- (The old `out.__parallel = true` marker was never read, and it put a string key into
-	-- the children array that every children loop then had to skip.)
 	return out
 end
 

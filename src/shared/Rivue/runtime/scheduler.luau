@@ -61,15 +61,15 @@ local isFlushingMicro: boolean = false
 local reentrancyDepth = 0
 const MAX_REENTRANCY_DEPTH = 100 -- Prevent infinite loops
 
--- Shared handle for deduplicated jobs (nothing to cancel)
+-- Returned for deduplicated jobs
 local NOOP_HANDLE: JobHandle = table.freeze({ cancel = function() end })
 
--- Frame-based queues share one connection per mode instead of one connection per job
+-- One connection per mode, not per job
 type FrameMode = "render" | "heartbeat"
 local frameQueues: { [FrameMode]: { Job } } = { render = {}, heartbeat = {} }
 local frameConns: { [FrameMode]: RBXScriptConnection? } = {}
 
---- Runs every job queued for a frame mode, then releases the connection until more work arrives
+--- Runs queued jobs for a frame mode
 --- @param mode FrameMode -- Which frame queue to flush
 local function flushFrame(mode: FrameMode): ()
 	local conn = frameConns[mode]
@@ -78,7 +78,7 @@ local function flushFrame(mode: FrameMode): ()
 		frameConns[mode] = nil
 	end
 
-	-- Swap first: jobs queued while flushing run next frame, matching per-job connection behaviour
+	-- Swap first, jobs queued during flush run next frame
 	local q = frameQueues[mode]
 	frameQueues[mode] = {}
 

@@ -87,7 +87,6 @@ end
 
 directives.register("focus", {
 	mounted = function(el, val)
-		-- Only TextBoxes can take focus
 		if val and el:IsA("TextBox") then
 			debugModule.log("Directives", "Applying focus directive", { elementName = el.Name })
 			el:CaptureFocus()
@@ -285,7 +284,7 @@ directives.register("fade-in", {
 
 				-- Handle text transparency for text elements
 				if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
-					-- The old solver can't index a class union; TextLabel stands in (all share TextTransparency)
+					-- Cast for the type checker, all three have TextTransparency
 					local textObj = obj :: TextLabel
 					textTransparencyMap[obj] = textObj.TextTransparency
 					textObj.TextTransparency = 1

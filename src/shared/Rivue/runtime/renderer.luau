@@ -220,11 +220,10 @@ export type MountedState = {
 	poolOpt: PoolOptions,
 }
 
---- Forward declaration: mountElement/patchKeyedChildren recurse into patch, defined further down.
---- (Previously `function patch` was assigned as a global.)
+-- Forward declared, defined below
 local patch: (oldVNode: RenderVNode?, newVNode: RenderVNode?, container: Instance, poolOpt: PoolOptions?) -> ()
 
---- The component instance whose render is currently patching (parent for nested components)
+-- Component currently rendering, used as parent for nested components
 local currentRenderingInstance: ComponentInstance? = nil
 
 local eventAlias: { [string]: { string } } = {
@@ -234,7 +233,7 @@ local eventAlias: { [string]: { string } } = {
 	onTouched = { "Touched" },
 }
 
--- Event signal cache to reduce reflection overhead (false = known to have no matching signal)
+-- Event signal cache to reduce reflection overhead (false = no signal)
 local eventSignalCache: { [string]: { [string]: string | false } } = {}
 
 local classPropCache: { [string]: { [string]: boolean } } = {}
@@ -259,8 +258,7 @@ local function classHasProp(inst: Instance, prop: string): boolean
 		return cached
 	end
 
-	-- A successful read means the member exists, even when its current value is nil
-	-- (e.g. NextSelectionUp, ObjectValue.Value). Checking `~= nil` cached those as missing per class.
+	-- Read can succeed with a nil value (e.g. NextSelectionUp)
 	local has = pcall(function()
 		return (inst :: any)[prop]
 	end)
@@ -311,11 +309,10 @@ local function connectEvent(inst: Instance, propName: string, handler: (...any) 
 	-- If we've cached the signal name for this prop on this class, use it directly
 	local cachedSignalName = classCache[propName]
 	if cachedSignalName == false then
-		-- Already tried and failed for this class
+		-- Already tried and failed
 		return nil
 	elseif type(cachedSignalName) == "string" then
 		local signal = tryGetSignal(inst, cachedSignalName)
-		-- Connect directly: handler errors surface in the output with a traceback instead of being swallowed
 		return if signal then signal:Connect(handler) else nil
 	end
 
@@ -348,8 +345,7 @@ local function connectEvent(inst: Instance, propName: string, handler: (...any) 
 	return nil
 end
 
---- Writes a property by name. Instance properties are only known at runtime, so this is the one
---- place the renderer indexes an Instance dynamically (hence the `any` cast).
+--- Sets an Instance property by name
 --- @param inst Instance -- Target Instance
 --- @param prop string -- Property name
 --- @param value unknown -- Value to assign
@@ -390,7 +386,6 @@ local function setProp(inst: Instance, key: string, value: any, vnode: RenderVNo
 		end
 
 		if key == "onTextChanged" and (inst:IsA("TextBox") or inst:IsA("TextLabel") or inst:IsA("TextButton")) then
-			-- All three text classes share `Text`; TextBox stands in for the union here
 			local textInst = inst :: TextBox
 			conns[key] = textInst:GetPropertyChangedSignal("Text"):Connect(function()
 				value(textInst.Text)
@@ -408,7 +403,7 @@ local function setProp(inst: Instance, key: string, value: any, vnode: RenderVNo
 	if classHasProp(inst, key) then
 		local ok, err = writeProp(inst, key, value)
 		if ok then
-			-- Remembered so a pooled Instance can restore this prop to its class default
+			-- Tracked so the pool can reset it
 			touched[key] = true
 		else
 			debugModule.log("Renderer", `Failed to set prop {key}: {err}`)
@@ -416,7 +411,7 @@ local function setProp(inst: Instance, key: string, value: any, vnode: RenderVNo
 		return
 	end
 
-	-- Accept camelCase prop names for PascalCase Instance properties (size -> Size)
+	-- Allow camelCase props (size -> Size)
 	local pascalKey = key:sub(1, 1):upper() .. key:sub(2)
 	if classHasProp(inst, pascalKey) then
 		local ok, err = writeProp(inst, pascalKey, value)
@@ -443,7 +438,6 @@ local function clearVNodeConns(vnode: RenderVNode?)
 
 	local conns = vnode._conns
 	if conns then
-		-- Disconnect() is a no-op on already-disconnected connections, so no guards needed
 		for _, conn in conns do
 			conn:Disconnect()
 		end
@@ -533,14 +527,13 @@ local function runTransition(inst: Instance, transition: TransitionConfig?, phas
 
 	tween:Play()
 
-	-- Only "leave" needs to wait (the Instance is destroyed afterwards). Waiting on "enter"
-	-- yielded the whole mount/render effect for the tween's duration.
+	-- Only wait on leave, the instance is destroyed after
 	if phase == "leave" then
 		tween.Completed:Wait()
 	end
 end
 
---- Returns the template ref stored in a vnode's props, if any
+--- Gets the template ref from props, if any
 --- @param props Props? -- VNode props
 --- @return { value: unknown }? -- The ref (anything flagged `_is_ref`)
 local function getTemplateRef(props: Props?): { value: unknown }?
@@ -551,7 +544,7 @@ local function getTemplateRef(props: Props?): { value: unknown }?
 	return nil
 end
 
---- Narrows a vnode's type to a component definition
+--- Returns the component definition if the vnode type is one
 --- @param vnodeType unknown -- vnode.type
 --- @return ComponentDef? -- The definition when it's a component
 local function asComponent(vnodeType: unknown): ComponentDef?
@@ -561,7 +554,7 @@ local function asComponent(vnodeType: unknown): ComponentDef?
 	return nil
 end
 
---- Props consumed by the renderer itself (never forwarded to the Instance)
+-- Props handled by the renderer, not set on the Instance
 const RESERVED_PROPS = table.freeze({ __directives = true, key = true, ref = true, transition = true })
 
 --- Mounts a VNode as a new Instance in the DOM
@@ -589,13 +582,11 @@ local function mountElement(vnode: RenderVNode, container: Instance, poolOpt: Po
 		if ok then
 			inst = created
 		else
-			-- Keep rendering, but don't hide typos like h("Fram") behind a silent Frame
 			warn(`[Rivue] Unknown element type '{tag}', falling back to Frame`)
 			inst = Instance.new("Frame")
 		end
 	end
 
-	-- Attribute values must be primitives; keys that aren't are matched by vnode instead
 	local key = vnode.key
 	if key ~= nil then
 		pcall(inst.SetAttribute, inst, "__vkey", key)
@@ -621,8 +612,7 @@ local function mountElement(vnode: RenderVNode, container: Instance, poolOpt: Po
 		end
 	end
 
-	-- Parent after props: each property write on a parented Instance pays for layout/replication work.
-	-- Still before children, so child components' onMounted hooks see a live ancestry.
+	-- Parent after props, before children
 	inst.Parent = container
 
 	for _, child in vnode.children do
@@ -644,14 +634,13 @@ local function mountElement(vnode: RenderVNode, container: Instance, poolOpt: Po
 	end
 
 	if props then
-		-- Directives run once the element is fully built and parented (matches Vue's `mounted`),
-		-- so hooks see final props, children, and ancestry
+		-- Directives run after the element is built and parented
 		local vnodeDirectives = props.__directives
 		if type(vnodeDirectives) == "table" then
 			setProp(inst, "__directives", vnodeDirectives, vnode)
 		end
 
-		-- Enter transition (non-blocking)
+		-- Handle enter transition
 		local transition = props.transition
 		if type(transition) == "table" and transition.enter then
 			pcall(runTransition, inst, transition, "enter" :: "enter")
@@ -705,7 +694,7 @@ local function unmountVNode(vnode: RenderVNode?, poolOpt: PoolOptions?)
 		return
 	end
 
-	-- Functional component: its Instances belong to the output tree
+	-- Functional component, unmount its rendered tree
 	if type(vnode.type) == "function" then
 		unmountVNode(vnode._fnTree, poolOpt)
 		vnode._fnTree = nil
@@ -736,7 +725,7 @@ local function unmountVNode(vnode: RenderVNode?, poolOpt: PoolOptions?)
 	end
 end
 
---- Builds a key -> Instance map of a parent's keyed children (one pass instead of a scan per key)
+--- Maps __vkey -> child Instance for a parent
 --- @param parent Instance -- Parent Instance to index
 --- @return { [any]: Instance } -- Children by their __vkey attribute
 local function indexChildrenByKey(parent: Instance): { [unknown]: Instance }
@@ -767,9 +756,7 @@ local function parentHasUILayout(parent: Instance?): boolean
 end
 
 --- Renders a large list of items into a parent
---- Kept for API compatibility: the previous task.desynchronize()/synchronize() chunking errored
---- outside an Actor and, inside one, waited a full frame per chunk without running anything in parallel.
---- Instance creation must happen in serial anyway, so this renders synchronously.
+--- (Kept for compatibility, renders synchronously)
 --- @param items any -- Array of items to render
 --- @param renderFn function -- Render function (item, index) -> VNode
 --- @param parent Instance -- Parent container
@@ -813,7 +800,7 @@ local function patchKeyedChildren(
 
 	local useLayout = parentHasUILayout(parent)
 
-	-- Built lazily: only needed when a new key has no old vnode
+	-- Built only when needed
 	local existingByKey: { [unknown]: Instance }? = nil
 
 	for i, nc in newList do
@@ -855,7 +842,7 @@ local function patchKeyedChildren(
 		unmountVNode(v, poolOpt)
 	end
 
-	-- Unkeyed old children past the new list's end were never patched against anything
+	-- Unmount leftover unkeyed children
 	for i = #newList + 1, #oldList do
 		local oc = oldList[i]
 		if type(oc) == "table" and oc.key == nil then
@@ -866,7 +853,7 @@ end
 
 type DirectiveBinding = { name: string, value: unknown }
 
---- Mounts, updates, or unmounts directives by diffing old and new bindings
+--- Diffs directive bindings and calls mounted/updated/unmounted
 --- @param el Instance -- Element the directives are bound to
 --- @param oldBindings { DirectiveBinding }? -- Previous __directives
 --- @param newBindings { DirectiveBinding }? -- New __directives
@@ -883,7 +870,7 @@ local function patchDirectives(
 	local newList: { DirectiveBinding } = newBindings or {}
 	local oldList: { DirectiveBinding } = oldBindings or {}
 
-	-- Mounted-ness comes from the previous bindings: hooks may legitimately return no state
+	-- Hooks can return nil, so check old bindings instead
 	local wasBound: { [string]: true } = {}
 	for _, d in oldList do
 		wasBound[d.name] = true
@@ -901,7 +888,6 @@ local function patchDirectives(
 				dirs[d.name] = hook.mounted(el, d.value)
 			end
 		elseif hook.updated then
-			-- Built-in hooks (show, tooltip, memo, ...) were defined but never called on re-render
 			local nextState = hook.updated(el, d.value, dirs[d.name])
 			if nextState ~= nil then
 				dirs[d.name] = nextState
@@ -952,7 +938,7 @@ local function patchProps(el: Instance, oldPropsIn: Props?, newPropsIn: Props?, 
 				conns[k] = nil
 			end
 		elseif classHasProp(el, k) then
-			-- Most Instance properties reject nil; restore the class default instead
+			-- Most properties can't be nil, reset to default instead
 			local removed = removedProps or {}
 			removedProps = removed
 			removed[k] = true
@@ -974,7 +960,7 @@ local function patchProps(el: Instance, oldPropsIn: Props?, newPropsIn: Props?, 
 	end
 end
 
---- Runs fn with `inst` as the parent for any components mounted inside it
+--- Runs fn with inst as the parent for nested components
 --- @param inst ComponentInstance -- Component whose subtree is being patched
 --- @param fn () -> () -- Patch work
 local function withRenderingInstance(inst: ComponentInstance, fn: () -> ())
@@ -987,10 +973,9 @@ local function withRenderingInstance(inst: ComponentInstance, fn: () -> ())
 	end
 end
 
---- Shape of the value an async component's render returns
 type AsyncRenderResult = { __async: true, promise: () -> VNode? }
 
---- Mounts a Teleport: renders children into `props.to` instead of the current container
+--- Renders Teleport children into props.to
 --- @param vnode RenderVNode -- Teleport vnode
 --- @param poolOpt PoolOptions? -- Pool options
 local function mountTeleport(vnode: RenderVNode, poolOpt: PoolOptions?)
@@ -1009,13 +994,11 @@ local function mountTeleport(vnode: RenderVNode, poolOpt: PoolOptions?)
 	end
 end
 
---- Mounts a component vnode and wires its render into a reactive effect
+--- Mounts a component and wraps its render in an effect
 --- @param vnode RenderVNode -- Component vnode
 --- @param container Instance -- Parent Instance
 --- @param poolOpt PoolOptions? -- Pool options
 local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: PoolOptions?)
-	-- Parent = the component currently rendering (enables provide/inject and error propagation;
-	-- previously always nil, so inject() could never see an ancestor's provide())
 	local inst = componentAPI.createComponentInstance(vnode, currentRenderingInstance)
 	vnode._instance = inst
 	inst:setupComponent()
@@ -1058,7 +1041,7 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 			if type(onError) == "function" then
 				pcall(onError, res)
 			end
-			-- Keep showing the fallback as the error state
+			-- Keep the fallback as the error state
 			local fallback = props.fallback
 			if fallback then
 				task.defer(function()
@@ -1080,7 +1063,6 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 			if props.fallback then
 				patch(nil, props.fallback, container, poolOpt)
 			else
-				-- Routed to onErrorCaptured handlers up the (now real) parent chain
 				inst:handleError(tostring(sub), "render")
 			end
 			return
@@ -1108,16 +1090,16 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 			commit(nextTree)
 			inst:runMounted()
 
-			-- Component template ref receives the exposed API (or the instance)
+			-- Template ref gets the exposed API or the instance
 			local templateRef = getTemplateRef(vnode.props)
 			if templateRef then
 				templateRef.value = inst.exposed or inst
 			end
 		end
 	end, {
-		lazy = true, -- run() is called manually below for a synchronous first render
+		lazy = true,
 		scheduler = function(run)
-			-- Batch: many dependency changes in one frame cause one re-render
+			-- Batch updates into one re-render
 			if not pendingRender then
 				pendingRender = true
 				task.defer(function()
@@ -1128,12 +1110,12 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 		end,
 	})
 
-	-- Synchronous first render so dependencies are tracked immediately
+	-- First render now so dependencies are tracked
 	renderEffect.run()
 	inst._renderEffect = renderEffect
 end
 
---- Sets a text-capable element's Text when its only child is a string
+--- Sets Text when the only child is a string
 --- @param el Instance -- Element
 --- @param children { Child } -- New children
 --- @return boolean -- True if handled as text
@@ -1149,7 +1131,7 @@ local function trySetOnlyText(el: Instance, children: { Child }): boolean
 	return false
 end
 
---- Diffs two element vnodes of the same ClassName and updates the Instance in place
+--- Patches an element in place
 --- @param oldVNode RenderVNode -- Mounted vnode
 --- @param newVNode RenderVNode -- Next vnode
 --- @param poolOpt PoolOptions? -- Pool options
@@ -1160,7 +1142,7 @@ local function patchElement(oldVNode: RenderVNode, newVNode: RenderVNode, poolOp
 		return
 	end
 
-	-- Transfer connection/directive/touched state so old handlers can still be disconnected
+	-- Transfer state so old handlers can still be disconnected
 	newVNode._conns = oldVNode._conns or {}
 	newVNode._dirs = oldVNode._dirs or {}
 	newVNode._touched = oldVNode._touched
@@ -1226,17 +1208,15 @@ function patch(oldVNode: RenderVNode?, newVNode: RenderVNode?, container: Instan
 	end
 
 	if def then
-		-- The child's own render effect handles its re-render; we only hand over the vnode and props
+		-- The child's render effect handles re-rendering
 		local inst = oldVNode._instance :: ComponentInstance?
 		newVNode._instance = inst
 		if inst then
 			inst.vnode = newVNode
-			-- Writes only changed keys into the reactive props; the child re-renders if it read them
 			componentAPI.updateComponentProps(inst, newVNode.props)
 		end
 	elseif type(newType) == "function" then
-		-- Diff previous output against new output (patching the function vnode itself against its
-		-- output was a type mismatch that remounted the whole subtree on every update)
+		-- Diff the previous output against the new one
 		local res = newType(newVNode.props or {})
 		newVNode._fnTree = res
 		patch(oldVNode._fnTree, res, container, poolOpt)
@@ -1317,7 +1297,7 @@ local function createApp(rootVNode: VNode, opts: AppOptions?): App
 	end
 
 	function api.rerender(self: App, newRoot: VNode?): MountedState
-		-- Capture before unmount(), which clears mounted.container
+		-- unmount() clears mounted.container
 		local container = mounted.container or error("no previous container", 2)
 		self:unmount()
 		rootVNode = newRoot or rootVNode
@@ -1336,7 +1316,6 @@ local function createApp(rootVNode: VNode, opts: AppOptions?): App
 			error("mountToPlayerGui expects a Player", 2)
 		end
 
-		-- ResetOnSpawn = false keeps the GUI across respawns, so no CharacterAdded remount is needed
 		local screenGui = Instance.new("ScreenGui")
 		screenGui.Name = "AppRoot"
 		screenGui.ResetOnSpawn = false

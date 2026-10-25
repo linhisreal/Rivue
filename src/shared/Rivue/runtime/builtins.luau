@@ -164,7 +164,7 @@ builtins.Suspense = createSuspense()
 ]=]
 builtins.KeepAlive = nil :: ComponentDef?
 
---- Returns true if `name` is listed in an include/exclude array
+--- Checks if a name is in an include/exclude list
 --- @param list unknown -- Prop value ({ string } expected)
 --- @param name string -- Component name
 --- @return boolean -- True when listed
@@ -182,10 +182,9 @@ local function createKeepAlive(): ComponentDef
 			max = { type = "number" :: "number", default = 10 },
 		},
 		setup = function(props: Props, context: SetupContext)
-			-- Plain tables on purpose: this is bookkeeping, not render state. As refs, render both read
-			-- and wrote them (re-triggering itself), and table.insert/remove bypassed the proxy anyway.
+			-- Plain tables, not refs: render reads and writes these
 			local cache: { [string]: VNode } = {}
-			local keys: { string } = {} -- LRU order, oldest first
+			local keys: { string } = {} -- oldest first
 
 			local function shouldCache(name: string): boolean
 				if props.include and not listContains(props.include, name) then
@@ -238,14 +237,13 @@ local function createKeepAlive(): ComponentDef
 
 				local cached = cache[name]
 				if cached then
-					-- Move to the end (most recently used)
+					-- Move to end (LRU)
 					local index = table.find(keys, name)
 					if index then
 						table.remove(keys, index)
 					end
 					table.insert(keys, name)
 
-					-- Reuse the cached vnode with fresh props
 					cached.props = child.props
 					return cached
 				end
@@ -294,7 +292,7 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, opts: AsyncCo
 		__is_component = true,
 		__name = "AsyncComponent",
 		setup = function(props: Props, context: SetupContext)
-			-- shallowRef: a deep ref would wrap the component definition itself in a reactive proxy
+			-- shallowRef so the component definition isn't wrapped in a proxy
 			local component = shallowRef(nil :: ComponentDef?)
 			local loading = ref(false)
 			local error = ref(nil :: string?)

@@ -67,7 +67,7 @@ export type RemoteRequest = {
 	id: string?,
 }
 
---- Responses arrive over the network, so `data` is `unknown`: refine it before use
+--- `data` comes from the network, check its type before use
 export type RemoteResponse = {
 	id: string,
 	ok: boolean,
@@ -202,7 +202,7 @@ function Remote.request(actionName: string, payload: unknown, timeout: number?):
 	local conn: RBXScriptConnection? = nil
 	local timeoutThread: thread? = nil
 
-	-- Settles the request exactly once and wakes the yielded caller (no polling loop)
+	-- Resolves once and resumes the waiting thread
 	local function settle(resp: RemoteResponse?, fromTimeout: boolean)
 		if done then
 			return
@@ -229,7 +229,7 @@ function Remote.request(actionName: string, payload: unknown, timeout: number?):
 
 	reqEv:FireServer({ action = actionName, payload = payload, id = reqId })
 
-	-- The response may already have arrived synchronously; only yield if still pending
+	-- Response may already be here
 	if not done then
 		waiting = true
 		coroutine.yield()

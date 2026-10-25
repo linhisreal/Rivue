@@ -52,8 +52,7 @@ function composables.useSlots(): { Child }
 	return instance.slots
 end
 
---- defineModel: Creates a writable ref for v-model style two-way binding
---- Reads the prop, and writes emit the update event to the parent
+--- defineModel: Creates a ref for v-model binding
 --- @param options ModelOptions? -- Prop and event names
 --- @return (props: Props, context: SetupContext) -> Ref<T> -- Call inside setup with (props, ctx)
 function composables.defineModel<T>(options: ModelOptions?): (props: Props, context: SetupContext) -> Ref<T>
