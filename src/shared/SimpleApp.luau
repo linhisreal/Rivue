@@ -142,7 +142,7 @@ local SimpleApp = defineComponent({
 			local newName = input.value ~= "" and input.value or ("Item " .. tostring(newId))
 			-- Create a new array to trigger reactivity
 			-- NOTE: Numeric iteration is the standard pattern for reactive arrays.
-			-- See docs/RUNTIME_REFERENCE.md "Iterating Reactive Arrays" section.
+			-- See "Iterating proxies" in docs/API.md.
 			local newTbl = {}
 			for i = 1, #oldTbl do
 				table.insert(newTbl, oldTbl[i])

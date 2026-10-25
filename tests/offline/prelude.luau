@@ -428,7 +428,7 @@ local CLASSES = {
 	},
 	TextBox = {
 		bases = { "GuiObject", "GuiBase2d" },
-		props = { GUI_PROPS, TEXT_PROPS, { PlaceholderText = "", ClearTextOnFocus = true } },
+		props = { GUI_PROPS, TEXT_PROPS, { PlaceholderText = "", ClearTextOnFocus = true, CursorPosition = -1 } },
 		events = { "FocusLost", "Focused" },
 	},
 	ImageLabel = { bases = { "GuiObject", "GuiBase2d" }, props = { GUI_PROPS, IMAGE_PROPS } },
@@ -642,6 +642,8 @@ function Instance.new(className, parent)
 		end
 		destroyed = true
 	end
+	function methods:CaptureFocus() end
+	function methods:ReleaseFocus() end
 	function methods:Clone()
 		return Instance.new(className)
 	end

@@ -575,6 +575,48 @@ local function runTests()
 		assertTrue(GuiService.SelectedObject == nil, "Selection cleared on unmount")
 	end
 
+	-- Test 18: Property change handlers get the new value
+	print("Test 18: onXChanged handlers")
+	do
+		local container = Instance.new("Frame")
+		local size: UDim2? = nil
+		local seen: unknown = nil
+		renderer.patch(
+			nil,
+			h("Frame", {
+				Name = "Sized",
+				onSizeChanged = function(value: UDim2)
+					size = value
+				end,
+				onVisible = function(value: boolean)
+					seen = value
+				end,
+			}),
+			container
+		)
+		local el = container:FindFirstChild("Sized") :: Frame
+		el.Size = UDim2.fromOffset(10, 20)
+		assertEquals(size, UDim2.fromOffset(10, 20), "onSizeChanged receives the new Size")
+		el.Visible = false
+		assertEquals(seen, false, "onVisible receives the new Visible")
+	end
+
+	-- Test 19: TextBox keeps typed text, but takes Text from props when it changes
+	print("Test 19: TextBox text on re-render")
+	do
+		local container = Instance.new("Frame")
+		local v1 = h("TextBox", { Name = "Input", Text = "", PlaceholderText = "a" })
+		renderer.patch(nil, v1, container)
+		local box = container:FindFirstChild("Input") :: TextBox
+		box.Text = "typed"
+		local v2 = h("TextBox", { Name = "Input", Text = "", PlaceholderText = "b" })
+		renderer.patch(v1, v2, container)
+		assertEquals(box.Text, "typed", "Typed text survives an unrelated re-render")
+		local v3 = h("TextBox", { Name = "Input", Text = "cleared", PlaceholderText = "b" })
+		renderer.patch(v2, v3, container)
+		assertEquals(box.Text, "cleared", "New Text from props is applied")
+	end
+
 	print("\n========== UI FEATURES TESTS COMPLETE ==========\n")
 end
 

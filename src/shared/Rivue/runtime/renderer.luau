@@ -354,8 +354,9 @@ local eventAlias: { [string]: { string } } = {
 	onTouched = { "Touched" },
 }
 
--- Event signal cache to reduce reflection overhead (false = no signal)
-local eventSignalCache: { [string]: { [string]: string | false } } = {}
+-- Prop name -> how to connect it on a class (false = no signal)
+type SignalTarget = { name: string, isProperty: boolean }
+local eventSignalCache: { [string]: { [string]: SignalTarget | false } } = {}
 
 local classPropCache: { [string]: { [string]: boolean } } = {}
 --- Checks if an Instance class has a specific property (cached)
@@ -388,24 +389,48 @@ local function classHasProp(inst: Instance, prop: string): boolean
 	return has
 end
 
---- Attempts to get an RBXScriptSignal from an Instance
+--- Attempts to get an event, or a property's changed signal, from an Instance
 --- @param inst Instance -- Instance to get signal from
---- @param evName string -- Signal/event name
+--- @param evName string -- Event or property name
 --- @return RBXScriptSignal? -- Signal if found, nil otherwise
-local function tryGetSignal(inst: Instance, evName: string): RBXScriptSignal?
-	if (inst :: any)[evName] and typeof((inst :: any)[evName]) == "RBXScriptSignal" then
+--- @return boolean -- True when it's a property changed signal
+local function tryGetSignal(inst: Instance, evName: string): (RBXScriptSignal?, boolean)
+	local ok, member = pcall(function()
 		return (inst :: any)[evName]
+	end)
+	if ok and typeof(member) == "RBXScriptSignal" then
+		return member, false
 	end
 
-	local ok, signal = pcall(function()
+	local okProp, signal = pcall(function()
 		return inst:GetPropertyChangedSignal(evName)
 	end)
 
-	if ok and signal then
-		return signal :: RBXScriptSignal
+	if okProp and signal then
+		return signal :: RBXScriptSignal, true
 	end
 
-	return nil
+	return nil, false
+end
+
+--- Connects a handler to a cached signal target
+--- @param inst Instance -- Instance
+--- @param target SignalTarget -- Event or property
+--- @param handler (...any) -> () -- Handler
+--- @return RBXScriptConnection? -- Connection
+local function connectTarget(inst: Instance, target: SignalTarget, handler: (...any) -> ()): RBXScriptConnection?
+	local signal = tryGetSignal(inst, target.name)
+	if not signal then
+		return nil
+	end
+	if target.isProperty then
+		-- Property changed signals pass nothing, hand the new value over
+		local name = target.name
+		return signal:Connect(function()
+			handler((inst :: any)[name])
+		end)
+	end
+	return signal:Connect(handler)
 end
 
 --- Connects an event handler to an Instance event with aliasing support
@@ -427,14 +452,13 @@ local function connectEvent(inst: Instance, propName: string, handler: (...any) 
 
 	local classCache = eventSignalCache[className]
 
-	-- If we've cached the signal name for this prop on this class, use it directly
-	local cachedSignalName = classCache[propName]
-	if cachedSignalName == false then
+	-- If we've resolved this prop on this class before, use it directly
+	local cached = classCache[propName]
+	if cached == false then
 		-- Already tried and failed
 		return nil
-	elseif type(cachedSignalName) == "string" then
-		local signal = tryGetSignal(inst, cachedSignalName)
-		return if signal then signal:Connect(handler) else nil
+	elseif cached then
+		return connectTarget(inst, cached :: SignalTarget, handler)
 	end
 
 	local aliases = eventAlias[propName]
@@ -449,15 +473,20 @@ local function connectEvent(inst: Instance, propName: string, handler: (...any) 
 		if eventName then
 			table.insert(names, eventName)
 			table.insert(names, eventName:sub(1, 1):upper() .. eventName:sub(2))
+			-- onSizeChanged -> Size changed signal
+			local property = eventName:match("^(.+)Changed$")
+			if property then
+				table.insert(names, property:sub(1, 1):upper() .. property:sub(2))
+			end
 		end
 	end
 
 	for _, evName in ipairs(names) do
-		local signal = tryGetSignal(inst, evName)
+		local signal, isProperty = tryGetSignal(inst, evName)
 		if signal then
-			-- Cache the successful signal name
-			classCache[propName] = evName
-			return signal:Connect(handler)
+			local target = { name = evName, isProperty = isProperty }
+			classCache[propName] = target
+			return connectTarget(inst, target, handler)
 		end
 	end
 
@@ -583,41 +612,34 @@ local function clearVNodeConns(vnode: RenderVNode?)
 	end
 end
 
---- Executes a function while preserving TextBox state (focus, text, selection)
+--- Runs a patch on a TextBox, keeping what the player typed, the cursor and focus
 --- @param el Instance -- Element (should be TextBox)
---- @param fn () -> any -- Function to execute
---- @return any -- Result of fn()
-local function withPreservedTextState(el: Instance, fn: () -> ()): ()
-	if not el or not el.IsA or not el:IsA("TextBox") then
-		return fn()
+--- @param fn () -> () -- Patch work
+--- @param textFromProps boolean -- The patch sets a new Text, so that one wins
+local function withPreservedTextState(el: Instance, fn: () -> (), textFromProps: boolean)
+	if not el:IsA("TextBox") then
+		fn()
+		return
 	end
 
-	local focused = UserInputService:GetFocusedTextBox()
-	local text = (el :: any).Text
-	local sel
-	local result
+	local box = el :: TextBox
+	local focused = UserInputService:GetFocusedTextBox() == box
+	local text = box.Text
+	local cursor = box.CursorPosition
 
-	pcall(function()
-		sel = (el :: any).SelectionStart
-	end)
+	fn()
 
-	result = fn()
-
-	pcall(function()
-		(el :: any).Text = text
-
-		if sel then
-			(el :: any).SelectionStart = sel
+	if not textFromProps and box.Text ~= text then
+		box.Text = text
+	end
+	if focused then
+		if box.Text == text then
+			box.CursorPosition = cursor
 		end
-	end)
-
-	if focused == el then
-		pcall(function()
-			(el :: any):CaptureFocus()
-		end)
+		if UserInputService:GetFocusedTextBox() ~= box then
+			box:CaptureFocus()
+		end
 	end
-
-	return result
 end
 
 --- Gets a vnode's transition config (<Transition> or the transition prop)
@@ -1656,7 +1678,9 @@ local function patchElement(oldVNode: RenderVNode, newVNode: RenderVNode, poolOp
 	end
 
 	if el:IsA("TextBox") then
-		withPreservedTextState(el, update)
+		local oldText = if oldVNode.props then oldVNode.props.Text else nil
+		local newText = if newVNode.props then newVNode.props.Text else nil
+		withPreservedTextState(el, update, newText ~= oldText)
 	else
 		update()
 	end
