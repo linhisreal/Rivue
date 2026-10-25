@@ -112,7 +112,13 @@ export type JobHandle = {
 export type Props = { [string]: any }
 
 export type Child = VNode | string | number | () -> VNode?
-export type Children = { Child } | Child
+
+-- Named/scoped slot: receives the scope passed to ctx.renderSlot()
+export type SlotFunction = (scope: any) -> ({ Child } | Child)?
+export type Slots = { [string]: SlotFunction }
+
+-- An array (default slot), a single child, or for components a table of named slot functions
+export type Children = { Child } | Child | Slots
 
 export type FunctionalComponent = (props: Props) -> VNode?
 
@@ -124,6 +130,8 @@ export type VNodeType = string | ComponentDef | FunctionalComponent | FragmentTy
 export type VNode = {
 	type: VNodeType,
 	props: Props?,
+	-- Named slot functions passed to a component
+	slots: Slots?,
 	children: { Child },
 	key: unknown?,
 	_uid: number,
@@ -154,7 +162,11 @@ export type SetupContext = {
 	emit: (eventName: string, ...any) -> (),
 	provide: (key: string, value: unknown) -> (),
 	inject: (key: string, default: unknown?) -> unknown?,
+	-- Default slot children (array children passed to the component)
 	slots: { Child },
+	-- Renders a named or scoped slot, falling back to `fallback` when it wasn't passed
+	renderSlot: (name: string, scope: any?, fallback: { Child }?) -> { Child },
+	hasSlot: (name: string) -> boolean,
 	attrs: Props,
 	expose: (exposed: { [string]: unknown }?) -> (),
 	onUnmounted: (fn: () -> ()) -> (),

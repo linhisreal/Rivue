@@ -176,6 +176,7 @@ type InstanceData = {
 	unmountedCbs: { () -> () },
 	errorCapturedCbs: { ErrorCapturedHook },
 	slots: { Child },
+	namedSlots: Types.Slots,
 	render: RenderFunction?,
 	setupState: { render: RenderFunction, [string]: unknown }?,
 	exposed: { [string]: unknown }?,
@@ -511,6 +512,18 @@ function ComponentInstance.handleError(self: ComponentInstance, err: string, inf
 	debugModule.log("Component", `Unhandled component error: {err}`, { info = info })
 end
 
+--- Normalizes what a slot function returned to a list of children
+--- @param result unknown -- Slot return value
+--- @return { Child } -- Children list
+local function toChildList(result: unknown): { Child }
+	if result == nil then
+		return {}
+	elseif type(result) == "table" and (result :: { [unknown]: unknown }).type == nil then
+		return result :: { Child }
+	end
+	return { result :: Child }
+end
+
 --- Creates the setup() context for an instance
 --- @param instance ComponentInstance -- Owning instance
 --- @return SetupContext -- Context passed as setup's second argument
@@ -535,6 +548,18 @@ local function createSetupContext(instance: ComponentInstance): SetupContext
 			return if provided ~= nil then provided else default
 		end,
 		slots = instance.slots,
+		renderSlot = function(name: string, scope: any?, fallback: { Child }?): { Child }
+			local slotFn = instance.namedSlots[name]
+			if slotFn then
+				return toChildList(slotFn(scope))
+			elseif name == "default" and #instance.slots > 0 then
+				return table.clone(instance.slots)
+			end
+			return if fallback then fallback else {}
+		end,
+		hasSlot = function(name: string): boolean
+			return instance.namedSlots[name] ~= nil or (name == "default" and #instance.slots > 0)
+		end,
 		attrs = instance.attrs,
 		expose = function(exposed: { [string]: unknown }?): ()
 			instance.exposed = exposed
@@ -601,6 +626,7 @@ local function createComponentInstance(
 		unmountedCbs = {},
 		errorCapturedCbs = {},
 		slots = vnode.children,
+		namedSlots = if vnode.slots then table.clone(vnode.slots) else {},
 		render = nil,
 		setupState = nil,
 		exposed = nil,
@@ -659,15 +685,23 @@ end
 
 --- Replaces a component's slots in place (ctx.slots points at the same table)
 --- @param instance ComponentInstance -- Mounted component instance
---- @param children { Child } -- New children from the parent's vnode
+--- @param children { Child } -- New default children from the parent's vnode
+--- @param slots Types.Slots? -- New named slot functions
 --- @return boolean -- True if the component had or now has slot content
-local function updateComponentSlots(instance: ComponentInstance, children: { Child }): boolean
-	local slots = instance.slots
-	if #slots == 0 and #children == 0 then
+local function updateComponentSlots(instance: ComponentInstance, children: { Child }, slots: Types.Slots?): boolean
+	local defaultSlots = instance.slots
+	local namedSlots = instance.namedSlots
+	if #defaultSlots == 0 and #children == 0 and next(namedSlots) == nil and slots == nil then
 		return false
 	end
-	table.clear(slots)
-	table.move(children, 1, #children, 1, slots)
+	table.clear(defaultSlots)
+	table.move(children, 1, #children, 1, defaultSlots)
+	table.clear(namedSlots)
+	if slots then
+		for name, fn in slots do
+			namedSlots[name] = fn
+		end
+	end
 	return true
 end
 
