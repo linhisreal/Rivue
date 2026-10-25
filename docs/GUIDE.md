@@ -1,5 +1,12 @@
 [Docs](README.md) › **Guide**
 
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/guide-lockup-dark.svg">
+    <img src="assets/guide-lockup.svg" height="72" alt="Rivue Guide">
+  </picture>
+</p>
+
 # Rivue Guide
 
 Build Roblox UI with Rivue, one idea per chapter. Chapters 1–9 teach the framework; 10 and 11

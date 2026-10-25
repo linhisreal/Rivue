@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <title>Rivue Guide</title>
+  <rect x="24" y="24" width="208" height="208" rx="48" fill="#000000" transform="rotate(-15 128 128)"/>
+  <g fill="#ffffff" stroke="#ffffff" stroke-width="8" stroke-linejoin="round">
+    <path d="M58.6 82 L124 178 L124 194 L58.6 160 Z"/>
+    <path d="M197.4 82 L132 178 L132 194 L197.4 160 Z"/>
+  </g>
+  <path d="M101.4 104 L128 150 L154.6 104" fill="none" stroke="#ffffff" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

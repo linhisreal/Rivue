@@ -1,3 +1,10 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/guide-lockup-dark.svg">
+    <img src="assets/guide-lockup.svg" height="72" alt="Rivue Guide">
+  </picture>
+</p>
+
 # Rivue docs
 
 Everything you need to build Roblox UI with Rivue, in the order you'll need it.
