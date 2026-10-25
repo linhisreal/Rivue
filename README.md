@@ -109,7 +109,7 @@ Start at the **[docs home](docs/README.md)**: it has the learning path and an "I
 
 | | |
 |---|---|
-| [Guide](docs/GUIDE.md) | Eleven short chapters, from the first component to organising a real project |
+| [Guide](docs/GUIDE.md) | Short chapters, from the first component to composables, performance and testing |
 | [Examples](examples) | Todo list, inventory, modal, tabs, shop and HUD, all tested |
 | [Coming from Vue](docs/VUE.md) | Template-to-Luau cheat sheet and the differences |
 | [API reference](docs/API.md) | Every function, prop and component, each with an example |

@@ -19,15 +19,16 @@
 
 ```mermaid
 flowchart LR
-    G["<b>1. Guide</b><br/>11 short chapters,<br/>concepts, then projects"] --> E["<b>2. Examples</b><br/>complete components<br/>to read and copy"]
+    G["<b>1. Guide</b><br/>16 short chapters,<br/>basics, then advanced"] --> E["<b>2. Examples</b><br/>complete components<br/>to read and copy"]
     E --> A["<b>3. API reference</b><br/>every function and prop,<br/>keep it open while you build"]
     V["Coming from Vue?<br/>Vue cheat sheet"] -.-> G
     A -.-> R["Contributing?<br/>Architecture"]
 ```
 
-1. **[Guide](GUIDE.md)**: start here. Eleven chapters of about ten minutes each: the framework
-   from your first component to debugging (1–9), then how to organise a real project and the
-   style rules (10–11). Every chapter ends with an example and the API it used.
+1. **[Guide](GUIDE.md)**: start here. Chapters of about ten minutes each: the framework
+   from your first component to debugging (1–9), how to organise a real project and the
+   style rules (10–11), then advanced topics: composables, component patterns, state
+   architecture, performance and testing (12–16). Every chapter ends with the API it used.
 2. **[Examples](../examples)**: a todo list, inventory, modal, tabs, shop and HUD. Each is tested,
    and each one shows a few features well.
 3. **[API reference](API.md)**: every function, prop and component, each with an example. Each
@@ -51,9 +52,12 @@ Also: **[Rivue for Vue developers](VUE.md)** maps Vue templates to Rivue, and
 | support phones and controllers | [Guide 6](guide/06-styling-and-layout.md#different-devices) | [Roblox composables](api/roblox.md) | [Hud](../examples/components/Hud.luau) |
 | run code when something changes | [Guide 7](guide/07-effects-and-animation.md) | [watch()](api/reactivity-core.md#watch) | [Hud](../examples/components/Hud.luau) |
 | animate things in and out | [Guide 7](guide/07-effects-and-animation.md#animation) | [Transition](api/builtins.md#transition) | [Modal](../examples/components/Modal.luau) |
-| share state across the game | [Guide 8](guide/08-state-and-server.md) | [provide()](api/component.md#provide), [readonly()](api/reactivity-core.md#readonly) | |
+| share state across the game | [Guide 8](guide/08-state-and-server.md), [14](guide/14-state-architecture.md) | [provide()](api/component.md#provide), [readonly()](api/reactivity-core.md#readonly) | |
 | load data from the server | [Guide 8](guide/08-state-and-server.md#talking-to-the-server) | [Remote](api/remote.md) | [Shop](../examples/components/Shop.luau) |
-| show a long list fast | [Guide 9](guide/09-performance-and-debugging.md) | [VirtualList](api/builtins.md#virtuallist) | [Inventory](../examples/components/Inventory.luau) |
+| show a long list fast | [Guide 9](guide/09-performance-and-debugging.md), [15](guide/15-performance-in-depth.md) | [VirtualList](api/builtins.md#virtuallist) | [Inventory](../examples/components/Inventory.luau) |
 | organise files once there are many screens | [Guide 10](guide/10-organising-a-project.md) | [components](api/component.md#components) | [Demo app](../src/shared/Demo) |
 | check my code follows the conventions | [Guide 11](guide/11-style-rules.md) | | |
+| reuse logic between components | [Guide 12](guide/12-writing-composables.md) | [toValue()](api/reactivity-utilities.md#tovalue), [onScopeDispose()](api/reactivity-advanced.md#onscopedispose) | |
+| build tabs, menus or modals that fit together | [Guide 13](guide/13-advanced-components.md) | [provide()](api/component.md#provide), [Teleport](api/builtins.md#teleport) | [Tabs](../examples/components/Tabs.luau) |
+| test my UI | [Guide 16](guide/16-testing-ui.md) | [testing.trigger()](api/utilities.md#testingtrigger) | |
 | find out why something broke | [Guide 9](guide/09-performance-and-debugging.md#debugging) | [Utilities and debugging](api/utilities.md) | |
