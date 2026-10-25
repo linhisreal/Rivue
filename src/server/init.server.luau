@@ -1,6 +1,3 @@
-print("Hello, world!...")
-print("November 4th.")
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
 

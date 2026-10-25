@@ -291,6 +291,50 @@ local function runTests()
 		assertEquals(grid.CellPadding, UDim2.fromOffset(4, 4), "grid gap")
 	end
 
+	print('Test 8: model = "name" binds setup state')
+	do
+		local Form = Rivue.defineComponent({
+			name = "Form",
+			setup = function()
+				return { draft = Rivue.ref("hi") }
+			end,
+			render = function(ctx)
+				return h("TextBox", { model = "draft", PlaceholderText = ctx.draft })
+			end,
+		})
+		local container = Instance.new("Frame")
+		Rivue.createApp(Form):mount(container)
+		local box = container:FindFirstChild("Form") :: TextBox
+		assertEquals(box.Text, "hi", "Reads the ref")
+		box.Text = "typed"
+		task.wait()
+		assertEquals(box.PlaceholderText, "typed", "Typing writes the ref")
+
+		local Broken = Rivue.defineComponent({
+			name = "Broken",
+			setup = function()
+				return {}
+			end,
+			render = function()
+				return h("TextBox", { model = "missing" })
+			end,
+		})
+		local warnings: { string } = {}
+		local realWarn = warn
+		warn = function(...: any)
+			table.insert(warnings, table.concat({ ... }, " "))
+		end :: any
+		Rivue.createApp(Broken):mount(Instance.new("Frame"))
+		warn = realWarn
+		local mentioned = false
+		for _, line in warnings do
+			if string.find(line, "didn't return a ref named 'missing'", 1, true) then
+				mentioned = true
+			end
+		end
+		assertTrue(mentioned, "A missing ref is reported clearly")
+	end
+
 	print("\n========== READABILITY TESTS COMPLETE ==========\n")
 end
 

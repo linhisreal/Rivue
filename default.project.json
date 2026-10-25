@@ -1,5 +1,5 @@
 {
-  "name": "vue",
+  "name": "Rivue Test Place",
   "tree": {
     "$className": "DataModel",
 
@@ -131,17 +131,8 @@
           "$path": "tests/Readability.test.luau"
         }
       },
-      "App": {
-        "$path": "src/shared/App.luau"
-      },
-      "SimpleApp": {
-        "$path": "src/shared/SimpleApp.luau"
-      },
-      "TestApp": {
-        "$path": "src/shared/TestApp.luau"
-      },
-      "Test4": {
-        "$path": "src/shared/TestEnhancements.luau"
+      "Demo": {
+        "$path": "src/shared/Demo"
       }
     },
 
@@ -155,8 +146,14 @@
       "$className": "StarterPlayer",
       "StarterPlayerScripts": {
         "$className": "StarterPlayerScripts",
-        "main": {
+        "TestRunner": {
           "$path": "src/client/TestRunner.client.luau"
+        },
+        "Demo": {
+          "$path": "src/client/Demo.client.luau"
+        },
+        "Stress": {
+          "$path": "src/client/stress.client.luau"
         }
       }
     },

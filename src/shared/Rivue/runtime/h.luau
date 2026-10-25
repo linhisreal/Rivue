@@ -186,6 +186,16 @@ local function expandProps(isElement: boolean, props: Props): Props
 		local target: Props = out or table.clone(props)
 		out = target
 		target.model = nil
+		if type(model) == "string" then
+			-- model = "draft": the rendering component's setup state, like v-model="draft"
+			local owner = componentModule.getRenderingInstance()
+			local state = if owner then owner.setupState else nil
+			local found = if state then (state :: any)[model] else nil
+			if type(found) ~= "table" or not found._is_ref then
+				error(`[Rivue] model = "{model}": setup() didn't return a ref named '{model}'`, 3)
+			end
+			model = found
+		end
 		local r = model :: Types.Ref<any>
 		if isElement then
 			-- Two-way Text binding, keeps any onTextChanged of its own
