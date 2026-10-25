@@ -26,7 +26,6 @@ local vnodeIdCounter = 0
 -- Groups children without creating a wrapper Instance: h(Fragment, nil, { ... })
 local Fragment: Types.FragmentType = table.freeze({ __fragment = true :: true, __name = "Fragment" :: "Fragment" })
 
---- True for a children list nested inside another list (a table that isn't a vnode)
 local function isNestedList(child: unknown): boolean
 	return type(child) == "table" and (child :: { [unknown]: unknown }).type == nil
 end
@@ -52,8 +51,6 @@ local function copyChildren(list: { [number]: unknown }): { Child }
 	return out :: { Child }
 end
 
---- Normalizes children to an array format
---- `children`: child nodes (string, number, array, function, or nil)
 local function normalizeChildren(children: unknown): { Child }
 	if children == nil or children == false then
 		return {}
@@ -71,7 +68,6 @@ local function normalizeChildren(children: unknown): { Child }
 	return { tostring(children) }
 end
 
---- Splits a component's children table into default children and named slot functions
 local function splitSlots(children: { [unknown]: unknown }): ({ Child }, Types.Slots?)
 	local slots: Types.Slots? = nil
 	local list: { Child } = {}
@@ -96,8 +92,7 @@ local function splitSlots(children: { [unknown]: unknown }): ({ Child }, Types.S
 	return list, slots
 end
 
---- Turns a directive prop name into the registered directive: vClickOutside -> "click-outside"
---- Returns the directive name, nil when the prop isn't a registered directive
+--- vClickOutside -> "click-outside", nil when no such directive is registered
 local function directiveName(key: string): string?
 	-- "v" followed by an uppercase letter
 	local second = string.byte(key, 2)
@@ -111,8 +106,7 @@ local function directiveName(key: string): string?
 	return if directives.get(name) then name else nil
 end
 
---- Applies the props sugar h() understands: style, model and v* directive props
---- Returns the props to store (a copy if anything changed)
+--- Expands style, model and v* props. Copies props only when something changes
 local function expandProps(isElement: boolean, props: Props): Props
 	local out: Props? = nil
 
@@ -204,8 +198,7 @@ local function expandProps(isElement: boolean, props: Props): Props
 	return out or props
 end
 
---- Creates a virtual DOM node
---- `type_`: className ("Frame"), component definition, or functional component
+--- type_ is a ClassName ("Frame"), a component, a component name or a function component
 local function h(type_: VNodeType, propsIn: Props?, children: Types.Children?): VNode
 	if type(type_) == "string" then
 		-- Components registered on the rendering component (components = { ... })
@@ -252,8 +245,7 @@ local function h(type_: VNodeType, propsIn: Props?, children: Types.Children?): 
 	}
 end
 
---- Merges props tables left to right. Event handlers are chained (both run), directives
---- and styles are combined, everything else is overwritten.
+--- Later tables win, except event handlers (both run), directives and styles (combined)
 local function mergeProps(...: Props?): Props
 	local out: Props = {}
 	for i = 1, select("#", ...) do
@@ -289,12 +281,10 @@ local function mergeProps(...: Props?): Props
 	return out
 end
 
---- True for vnodes made by h()
 local function isVNode(value: unknown): boolean
 	return type(value) == "table" and (value :: VNode)._uid ~= nil and (value :: VNode).type ~= nil
 end
 
---- Copies a vnode, optionally merging extra props in (see mergeProps)
 local function cloneVNode(vnode: VNode, extraProps: Props?): VNode
 	local props = if extraProps then mergeProps(vnode.props, extraProps) else table.clone(vnode.props or {})
 	local copy = h(vnode.type, props, nil)
@@ -305,7 +295,6 @@ local function cloneVNode(vnode: VNode, extraProps: Props?): VNode
 	return copy
 end
 
---- Conditionally renders a VNode
 local function hIf(cond: boolean, vnode: VNode?): VNode?
 	if cond then
 		return vnode
@@ -313,7 +302,6 @@ local function hIf(cond: boolean, vnode: VNode?): VNode?
 	return nil
 end
 
---- Maps a list to VNodes
 local function hFor<T>(list: { T }, mapper: (item: T, index: number) -> VNode?): { VNode }
 	local count = #list
 	if debugModule.enabled then
@@ -349,7 +337,6 @@ end
 local warnedParallel = false
 
 --- @deprecated Use hFor() and set `key` in the mapper. Kept so existing code keeps working.
---- List rendering helper that also assigns keys
 local function hForParallel<T>(
 	items: { T },
 	mapper: (item: T, index: number) -> VNode?,

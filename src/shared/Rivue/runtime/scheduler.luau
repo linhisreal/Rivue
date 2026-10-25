@@ -34,7 +34,6 @@ type FrameMode = "render" | "heartbeat"
 local frameQueues: { [FrameMode]: { Job } } = { render = {}, heartbeat = {} }
 local frameConns: { [FrameMode]: RBXScriptConnection? } = {}
 
---- Runs queued jobs for a frame mode
 local function flushFrame(mode: FrameMode): ()
 	local conn = frameConns[mode]
 	if conn then
@@ -56,7 +55,6 @@ local function flushFrame(mode: FrameMode): ()
 	end
 end
 
---- Queues a job onto the next RenderStepped/Heartbeat frame
 local function queueFrameJob(mode: FrameMode, job: Job): ()
 	table.insert(frameQueues[mode], job)
 	if not frameConns[mode] then
@@ -67,7 +65,6 @@ local function queueFrameJob(mode: FrameMode, job: Job): ()
 	end
 end
 
---- Flushes all queued micro jobs
 local function flushMicro(): ()
 	if isFlushingMicro then
 		debugModule.log("Scheduler", "Already flushing micro queue, deferring")
@@ -115,7 +112,6 @@ local function flushMicro(): ()
 	end
 end
 
---- Queues a job for execution
 function scheduler.queueJob(fn: () -> (), opts: QueueOptions?): JobHandle
 	local mode = if opts and opts.mode then opts.mode else "micro"
 	if mode == "micro" and microQueueSet[fn] then
@@ -190,7 +186,6 @@ local function byId(a: UpdateJob, b: UpdateJob): boolean
 	return a.id < b.id
 end
 
---- Runs queued component updates, parents first
 local function flushUpdates(): ()
 	updateScheduled = false
 	local passes = 0

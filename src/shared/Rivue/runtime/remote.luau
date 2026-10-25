@@ -53,17 +53,14 @@ local function findOrCreate(parent: Instance, className: string, name: string): 
 	return created
 end
 
---- Gets the RemoteEvents folder in ReplicatedStorage
 local function getFolder(): Folder
 	return findOrCreate(ReplicatedStorage, "Folder", "RemoteEvents") :: Folder
 end
 
---- Gets the Request RemoteEvent
 local function getRequestEvent(): RemoteEvent
 	return findOrCreate(getFolder(), "RemoteEvent", "Request") :: RemoteEvent
 end
 
---- Gets the Response RemoteEvent
 local function getResponseEvent(): RemoteEvent
 	return findOrCreate(getFolder(), "RemoteEvent", "Response") :: RemoteEvent
 end
@@ -132,7 +129,6 @@ end
 local pendingRequests: { [string]: (resp: RemoteResponse) -> () } = {}
 local responseConn: RBXScriptConnection? = nil
 
---- Connects the shared response listener once
 local function listenForResponses()
 	if responseConn then
 		return
@@ -149,8 +145,7 @@ local function listenForResponses()
 	end)
 end
 
---- Sends a request to server and waits for response with timeout
---- `timeout`: optional timeout in seconds (default: 10)
+--- Yields until the server answers or `timeout` seconds pass (default 10)
 --- Returns the response data, unchecked: refine it before use
 function Remote.request(actionName: string, payload: unknown, timeout: number?): (unknown?, string?)
 	if debugModule.enabled then
@@ -225,14 +220,12 @@ function Remote.request(actionName: string, payload: unknown, timeout: number?):
 	end
 end
 
---- Fires a one-way event to server (no response expected)
 function Remote.fire(actionName: string, payload: unknown): ()
 	debugModule.log("Remote", "Firing one-way event to server", { action = actionName })
 	local reqEv = getRequestEvent()
 	reqEv:FireServer({ action = actionName, payload = payload })
 end
 
---- Listens for server events on a named RemoteEvent
 function Remote.on(name: string, fn: (...any) -> ()): RBXScriptConnection
 	debugModule.log("Remote", "Registering server event listener", { eventName = name })
 	local ev = findOrCreate(getFolder(), "RemoteEvent", name) :: RemoteEvent
@@ -285,7 +278,6 @@ function Remote.setupServer(): ()
 	getResponseEvent()
 end
 
---- Registers a server handler for an action sent with Remote.request/fire
 --- The handler's return value is sent back as the response data.
 function Remote.handle(actionName: string, handler: RequestHandler, opts: HandleOptions?): ()
 	assert(RunService:IsServer(), "Remote.handle() must be called on the server")

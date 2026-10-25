@@ -104,7 +104,6 @@ Pool.instanceMetadata = {}
 Pool._debugMode = false
 Pool._typeCheckCache = {}
 
---- Gets cached type information for a class
 local function getTypeInfo(className: string): { isGuiObject: boolean, isText: boolean, isImage: boolean }
 	if not Pool._typeCheckCache[className] then
 		local success, testInst = pcall(Instance.new, className)
@@ -126,7 +125,6 @@ local function getTypeInfo(className: string): { isGuiObject: boolean, isText: b
 	return Pool._typeCheckCache[className]
 end
 
---- Checks if an instance is valid (not destroyed)
 local function isInstanceValid(inst: Instance): boolean
 	-- Destroyed instances have a locked Parent
 	return pcall(function()
@@ -134,7 +132,6 @@ local function isInstanceValid(inst: Instance): boolean
 	end)
 end
 
---- Evicts old instances based on TTL
 local function evictStaleInstances(className: string): ()
 	if not Pool.config.defaultTTL then
 		return
@@ -188,8 +185,6 @@ end
 -- One untouched instance per class, used for default property values
 local defaultTemplates: { [string]: Instance | false } = {}
 
---- Restores touched properties to their class defaults
---- `touched`: property names that were set while it was mounted
 local function restoreTouchedProps(inst: Instance, touched: { [string]: boolean }): ()
 	local className = inst.ClassName
 	local template = defaultTemplates[className]
@@ -212,8 +207,7 @@ local function restoreTouchedProps(inst: Instance, touched: { [string]: boolean 
 	end
 end
 
---- Resets an Instance to its default state
---- `touched`: properties set while mounted (restored to class defaults)
+--- touched: properties set while mounted, put back to the class defaults
 local function resetInstance(inst: Instance, touched: { [string]: boolean }?): ()
 	if not inst then
 		return
@@ -275,12 +269,10 @@ local function resetInstance(inst: Instance, touched: { [string]: boolean }?): (
 	end)
 end
 
---- Restores the given properties to their class defaults
 function Pool.restoreDefaults(inst: Instance, props: { [string]: boolean }): ()
 	restoreTouchedProps(inst, props)
 end
 
---- Acquires an Instance from the pool
 function Pool.acquire(className: string): Instance
 	if Pool.config.enableMetrics then
 		Pool.metrics.acquires += 1
@@ -361,7 +353,6 @@ function Pool.acquire(className: string): Instance
 	return inst
 end
 
---- Acquires multiple instances from the pool
 function Pool.acquireMultiple(className: string, count: number): { Instance }
 	local instances = table.create(count)
 	for i = 1, count do
@@ -370,7 +361,6 @@ function Pool.acquireMultiple(className: string, count: number): { Instance }
 	return instances
 end
 
---- Releases an Instance back to the pool
 function Pool.release(inst: Instance, touched: { [string]: boolean }?): ()
 	if not inst or not inst.ClassName then
 		warn("[Pool] Attempted to release invalid instance")
@@ -466,15 +456,13 @@ function Pool.release(inst: Instance, touched: { [string]: boolean }?): ()
 	end
 end
 
---- Releases multiple instances back to the pool
 function Pool.releaseMultiple(instances: { Instance }): ()
 	for _, inst in ipairs(instances) do
 		Pool.release(inst)
 	end
 end
 
---- Clears Instances from the pool
---- `className`: optional class name to clear (nil = clear all)
+--- Without a className, clears every class
 function Pool.clear(className: string?): ()
 	local totalCleared = 0
 
@@ -522,7 +510,6 @@ function Pool.clear(className: string?): ()
 	end
 end
 
---- Updates pool configuration
 function Pool.configure(config: PoolConfig): ()
 	for key, value in pairs(config) do
 		if Pool.config[key] ~= nil then
@@ -537,7 +524,6 @@ function Pool.configure(config: PoolConfig): ()
 	end
 end
 
---- Pre-populates the pool with instances
 function Pool.warmup(className: string, count: number): ()
 	Pool.store[className] = Pool.store[className] or {}
 	local list = Pool.store[className]
@@ -569,7 +555,6 @@ function Pool.warmup(className: string, count: number): ()
 	end
 end
 
---- Gets detailed pool statistics
 function Pool.getStatistics(): PoolStatistics
 	local totalInstances = 0
 	local poolsByClass = {}
@@ -592,7 +577,7 @@ function Pool.getStatistics(): PoolStatistics
 	}
 end
 
---- Validates pool health and removes invalid instances
+--- Drops destroyed Instances from the pool
 function Pool.validateHealth(): boolean
 	local removedCount = 0
 	local totalChecked = 0
@@ -636,7 +621,6 @@ function Pool.validateHealth(): boolean
 	return isHealthy
 end
 
---- Creates a snapshot of the current pool state
 function Pool.createSnapshot(): { [string]: { Instance } }
 	local snapshot = {}
 	for className, list in pairs(Pool.store) do
@@ -659,7 +643,6 @@ function Pool.createSnapshot(): { [string]: { Instance } }
 	return snapshot
 end
 
---- Restores pool from a snapshot
 function Pool.restoreSnapshot(snapshot: { [string]: { Instance } }): ()
 	Pool.clear()
 
@@ -682,7 +665,6 @@ function Pool.restoreSnapshot(snapshot: { [string]: { Instance } }): ()
 	end
 end
 
---- Sets a custom reset handler for a class
 function Pool.setResetHandler(className: string, handler: ResetHandler): ()
 	Pool.customResetHandlers[className] = handler
 
@@ -693,8 +675,7 @@ function Pool.setResetHandler(className: string, handler: ResetHandler): ()
 	end
 end
 
---- Sets an event hook
---- `hookName`: hook name (onAcquire, onRelease, onClear, onEvict)
+--- hookName: onAcquire, onRelease, onClear or onEvict
 function Pool.setEventHook(hookName: string, handler: (...any) -> ()): ()
 	if hookName == "onAcquire" or hookName == "onRelease" or hookName == "onClear" or hookName == "onEvict" then
 		(Pool.eventHooks :: any)[hookName] = handler

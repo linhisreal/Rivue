@@ -22,7 +22,6 @@ export type ModelOptions = {
 
 local composables = {}
 
---- Undeclared props (fallthrough attrs) of the current component. Call in setup()
 function composables.useAttrs(): Props
 	local instance = componentModule.getCurrentInstance()
 	if not instance then
@@ -31,7 +30,6 @@ function composables.useAttrs(): Props
 	return instance.attrs
 end
 
---- Slot content passed to the current component. Call in setup()
 function composables.useSlots(): { Child }
 	local instance = componentModule.getCurrentInstance()
 	if not instance then
@@ -40,7 +38,7 @@ function composables.useSlots(): { Child }
 	return instance.slots
 end
 
---- Returns a function that gives setup() a ref bound to the `model` prop
+--- The returned function gives setup() a ref bound to the `model` prop
 function composables.defineModel<T>(options: ModelOptions?): (props: Props, context: SetupContext) -> Ref<T>
 	local opts: ModelOptions = options or {}
 	local propName = opts.name or "modelValue"
@@ -62,7 +60,6 @@ function composables.defineModel<T>(options: ModelOptions?): (props: Props, cont
 	end
 end
 
---- The nearest theme provided by an ancestor, or nil
 function composables.useTheme<T>(): T?
 	local current = componentModule.getCurrentInstance()
 
@@ -77,8 +74,7 @@ function composables.useTheme<T>(): T?
 	return nil
 end
 
---- Styles computed from the current theme, recomputed when it changes
---- `styleFactory`: builds styles from the theme (empty table when none)
+--- styleFactory gets an empty table when no theme is provided
 function composables.useStyles<Theme, Styles>(styleFactory: (theme: Theme) -> Styles): ComputedRef<Styles>
 	local themeRef = reactivity.ref(composables.useTheme() :: Theme?)
 

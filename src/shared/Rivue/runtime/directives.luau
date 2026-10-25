@@ -17,7 +17,6 @@ local debugModule = require("./debug")
 local directives = {}
 local registry: { [string]: DirectiveHooks } = {}
 
---- Registers a custom directive with lifecycle hooks
 function directives.register(name: string, hooks: DirectiveHooks): ()
 	local hookCount = 0
 	if hooks.mounted then
@@ -33,7 +32,6 @@ function directives.register(name: string, hooks: DirectiveHooks): ()
 	registry[name] = hooks
 end
 
---- Gets a registered directive's hooks by name
 function directives.get(name: string): DirectiveHooks?
 	debugModule.log("Directives", "Getting directive", { name = name, found = registry[name] ~= nil })
 	return registry[name]
@@ -56,7 +54,7 @@ directives.register("focus", {
 	end,
 })
 
---- v-select: gamepad selection when the value turns on, cleared when it turns off
+-- vSelect: selects for gamepad when the value turns on, clears when it turns off
 directives.register("select", {
 	mounted = function(el, val)
 		if val and el:IsA("GuiObject") then
@@ -134,7 +132,6 @@ directives.register("click-outside", {
 
 type DragState = { RBXScriptConnection }
 
---- Starts dragging a GuiObject with mouse or touch
 local function startDrag(el: GuiObject): DragState
 	local dragging = false
 	local dragInput: InputObject?
@@ -183,7 +180,6 @@ local function startDrag(el: GuiObject): DragState
 	}
 end
 
---- Disconnects a drag
 local function stopDrag(state: DragState?)
 	if state then
 		for _, conn in state do
@@ -192,7 +188,7 @@ local function stopDrag(state: DragState?)
 	end
 end
 
---- v-drag: drag with mouse or touch while the value is truthy
+-- vDrag: draggable with mouse or touch while the value is truthy
 directives.register("drag", {
 	mounted = function(el, enabled): DragState | false
 		if not enabled or not el:IsA("GuiObject") then
@@ -283,7 +279,6 @@ directives.register("fade-in", {
 				obj.BackgroundTransparency = 1
 
 				if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
-					-- Cast for the type checker, all three have TextTransparency
 					local textObj = obj :: TextLabel
 					textTransparencyMap[obj] = textObj.TextTransparency
 					textObj.TextTransparency = 1
@@ -410,8 +405,8 @@ directives.register("fade-in", {
 	end,
 })
 
---- Two-way binding helper for TextBox.Text property with optional debounce
---- `opts.debounce`: delay in ms before the ref is written
+--- Props binding a TextBox's Text to a ref
+--- With opts.debounce (ms), writes to the ref wait until typing pauses
 function directives.vModelText(
 	r: Ref<string>,
 	opts: { debounce: number? }?
@@ -444,8 +439,8 @@ function directives.vModelText(
 	end
 end
 
---- Generic two-way binding helper for any property
---- `eventName`: optional event name (defaults to 'on' + capitalized propName)
+--- Props binding any property to a ref
+--- eventName defaults to "on" .. PropName (Value -> onValue)
 function directives.vModelProp<T>(r: Ref<T>, propName: string, eventName: string?): Types.Props
 	if not reactivity.isRef(r) then
 		error("vModelProp expects a ref")

@@ -26,7 +26,7 @@ type SuspenseContext = Types.SuspenseContext
 
 local builtins = {}
 
--- Suspense: shows `fallback` until async components inside have loaded (docs/api/builtins.md)
+-- Shows `fallback` until the async components inside have loaded
 builtins.Suspense = nil :: ComponentDef?
 
 local function createSuspense(): ComponentDef
@@ -126,15 +126,13 @@ end
 
 builtins.Suspense = createSuspense()
 
--- KeepAlive: keeps switched-out children mounted but detached, LRU-capped by `max`
+-- Switched-out children stay mounted but detached, up to `max` (least recently used goes first)
 builtins.KeepAlive = nil :: ComponentDef?
 
---- Checks if a name is in an include/exclude list
 local function listContains(list: unknown, name: string): boolean
 	return type(list) == "table" and table.find(list :: { string }, name) ~= nil
 end
 
---- Returns the first vnode in a children list
 local function firstVNode(list: { Child }): VNode?
 	for _, child in list do
 		if type(child) == "table" then
@@ -237,7 +235,6 @@ end
 
 builtins.KeepAlive = createKeepAlive()
 
---- Builds the transition config <Transition>/<TransitionGroup> hands to the renderer
 --- `mounted`: whether the first render already happened (appear)
 local function transitionConfig(props: Props, mounted: boolean, afterLeave: ((el: Instance) -> ())?): TransitionConfig
 	local onAfterLeave = props.onAfterLeave
@@ -267,13 +264,12 @@ local function transitionConfig(props: Props, mounted: boolean, afterLeave: ((el
 	}
 end
 
---- True if the vnode put an Instance on screen
 local function hasElement(vnode: VNode): boolean
 	local inst = vnode._instance :: any
 	return vnode.el ~= nil or (inst ~= nil and inst.el ~= nil)
 end
 
--- Transition: tweens its child in on appear and out before it's destroyed
+-- Tweens its child in when it appears and out before it's destroyed
 builtins.Transition = table.freeze({
 	__is_component = true :: true,
 	__name = "Transition",
@@ -318,7 +314,7 @@ builtins.Transition = table.freeze({
 	end,
 }) :: ComponentDef
 
--- TransitionGroup: Transition for keyed lists, optionally wrapped in a `tag` element
+-- Transition for keyed lists, optionally wrapped in a `tag` element
 builtins.TransitionGroup = table.freeze({
 	__is_component = true :: true,
 	__name = "TransitionGroup",
@@ -346,7 +342,7 @@ builtins.TransitionGroup = table.freeze({
 	end,
 }) :: ComponentDef
 
--- VirtualList: a ScrollingFrame that only renders the fixed-size rows in view
+-- Only the fixed-size rows in view are rendered
 local virtualList: ComponentDef = {
 	__is_component = true :: true,
 	__name = "VirtualList",

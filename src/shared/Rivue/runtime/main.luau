@@ -1,7 +1,7 @@
 --!strict
 --!optimize 2
 
--- Assembles the public Rivue API from the runtime modules. Studio-only checks key off Rivue.dev.
+-- Assembles the public Rivue API from the runtime modules.
 
 local Types = require("./types")
 local reactivity = require("./reactivity")
@@ -100,7 +100,8 @@ Rivue.getCurrentScope = reactivity.getCurrentScope
 Rivue.onScopeDispose = reactivity.onScopeDispose
 Rivue.onWatcherCleanup = reactivity.onWatcherCleanup
 
---- Tracks a stop handle/effect on the current component for cleanup on unmount
+-- watch, effect, watchEffect and queueJob below stop what they create when the component
+-- that called them unmounts
 local function trackForCleanup(handle: WatchHandle | Effect)
 	local currentInstance = componentAPI.getCurrentInstance()
 	if currentInstance then
@@ -108,34 +109,28 @@ local function trackForCleanup(handle: WatchHandle | Effect)
 	end
 end
 
---- watch(), stopped automatically when called in a component's setup()
---- The handle stops it when called (or .stop()), and has .pause()/.resume()
 function Rivue.watch<T>(source: WatchSource<T> | T, callback: WatchCallback<T>, options: WatchOptions?): WatchHandle
 	local stopHandle = reactivity.watch(source, callback, options)
 	trackForCleanup(stopHandle)
 	return stopHandle
 end
 
---- Runs an effect now and again when its dependencies change
 function Rivue.watchEffect(fn: (onCleanup: OnCleanup) -> (), opts: WatchOptions?): WatchHandle
 	local stopHandle = reactivity.watchEffect(fn, opts)
 	trackForCleanup(stopHandle)
 	return stopHandle
 end
 
---- effect(), stopped automatically when called in a component's setup()
 function Rivue.effect(fn: () -> (), opts: Types.EffectOptions?): Effect
 	local eff = reactivity.effect(fn, opts)
 	trackForCleanup(eff)
 	return eff
 end
 
---- watchEffect() that re-runs on Heartbeat, after renders (auto-cleanup in components)
 function Rivue.watchPostEffect(fn: (onCleanup: OnCleanup) -> ()): WatchHandle
 	return Rivue.watchEffect(fn, { flush = "post" })
 end
 
---- watchEffect() that re-runs immediately on every change (auto-cleanup in components)
 function Rivue.watchSyncEffect(fn: (onCleanup: OnCleanup) -> ()): WatchHandle
 	return Rivue.watchEffect(fn, { flush = "sync" })
 end
@@ -152,8 +147,7 @@ Rivue.mergeProps = hModule.mergeProps
 Rivue.cloneVNode = hModule.cloneVNode
 Rivue.isVNode = hModule.isVNode
 
---- Looks up a component registered with app:component() (call in setup or render)
---- Returns the component, nil if it isn't registered
+--- Call in setup or render: it needs the current app
 function Rivue.resolveComponent(name: string): ComponentDef?
 	local inst = componentAPI.getCurrentInstance() or componentAPI.getRenderingInstance()
 	if not inst then
@@ -167,7 +161,6 @@ function Rivue.resolveComponent(name: string): ComponentDef?
 	return def
 end
 
---- Prints (and returns) the tree under a mounted vnode, like app:printTree()
 function Rivue.printTree(vnode: VNode): string
 	local tree = renderer.formatTree(vnode)
 	print(tree)
@@ -176,8 +169,6 @@ end
 
 type SetupFunction = (props: Props, ctx: SetupContext) -> Types.SetupResult
 
---- Defines a component from options, or from a setup function plus options
---- `extra`: options when the first argument is a setup function
 function Rivue.defineComponent(opts: ComponentOptions | SetupFunction, extra: ComponentOptions?): ComponentDef
 	local options: ComponentOptions
 	if type(opts) == "function" then
@@ -222,7 +213,7 @@ Rivue.provide = componentAPI.provide
 Rivue.inject = componentAPI.inject
 Rivue.hasInjectionContext = componentAPI.hasInjectionContext
 
--- Instance helpers
+-- Instances
 Rivue.getCurrentInstance = componentAPI.getCurrentInstance
 Rivue.useId = componentAPI.useId
 Rivue.useTemplateRef = componentAPI.useTemplateRef
@@ -246,8 +237,7 @@ Rivue.useStyles = composables.useStyles
 -- Scheduler
 Rivue.scheduler = schedulerModule
 
---- Queues a job (auto-cancelled on unmount when called in setup)
---- `opts`: queue mode ("micro" | "render" | "heartbeat")
+--- Cancelled automatically when the component calling it unmounts
 function Rivue.queueJob(fn: () -> (), opts: QueueOptions?): JobHandle
 	local jobHandle = schedulerModule.queueJob(fn, opts)
 	local currentInstance = componentAPI.getCurrentInstance()
@@ -282,7 +272,6 @@ Rivue.useSpring = robloxUtils.useSpring
 -- Apps
 Rivue.createApp = renderer.createApp
 
---- Shorthand for createApp(root, opts):mount(parent)
 function Rivue.mount(componentOrVNode: ComponentDef | VNode, parent: Instance, opts: AppOptions?): App
 	local vnode: VNode = if (componentOrVNode :: ComponentDef).__is_component
 		then hModule.h(componentOrVNode :: ComponentDef)

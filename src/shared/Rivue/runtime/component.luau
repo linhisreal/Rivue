@@ -36,7 +36,6 @@ type HookList =
 	| "renderTrackedCbs"
 	| "renderTriggeredCbs"
 
--- Shared methods for component instances
 local ComponentInstance = {}
 ComponentInstance.__index = ComponentInstance
 
@@ -110,30 +109,24 @@ local uidCounter = 0
 const EMPTY_APP_CONTEXT: AppContext =
 	{ provides = {}, config = { globalProperties = {} }, components = {}, styles = {} }
 
---- Sets the current active component instance for lifecycle hook registration
 local function setCurrentInstance(i: ComponentInstance?): ()
 	currentInstance = i
 end
 
---- Gets the currently active component instance
 local function getCurrentInstance(): ComponentInstance?
 	return currentInstance
 end
 
---- Sets the component whose render() is running
 local function setRenderingInstance(i: ComponentInstance?): ComponentInstance?
 	local prev = currentRenderingInstance
 	currentRenderingInstance = i
 	return prev
 end
 
---- Gets the component whose render() is running
 local function getRenderingInstance(): ComponentInstance?
 	return currentRenderingInstance
 end
 
---- Creates a lifecycle hook registrar (onMounted, onUpdated, ...)
---- `list`: instance callback list the hook appends to
 local function createHook(hookName: string, list: HookList): (fn: () -> ()) -> ()
 	return function(fn: () -> ())
 		if type(fn) ~= "function" then
@@ -176,7 +169,6 @@ local onRenderTriggered =
 -- App context set by app:runWithContext(), so inject() works outside components
 local injectionContext: AppContext? = nil
 
---- Runs fn with an app's provides available to inject()
 local function runWithInjectionContext<T>(context: AppContext, fn: () -> T): T
 	local prev = injectionContext
 	injectionContext = context
@@ -206,7 +198,7 @@ end
 
 local idCounter = 0
 
---- Returns an id that's unique for this app session, handy for Instance names
+--- Unique for this session, handy for Instance names
 local function useId(): string
 	local inst = currentInstance
 	if inst then
@@ -217,8 +209,7 @@ local function useId(): string
 	return `r0-{idCounter}`
 end
 
---- Gets a ref filled with the element rendered with `ref = name` (call in setup)
---- The ref holds the Instance (or the component's exposed API) while mounted
+--- Call in setup. The ref holds the element rendered with `ref = name` while it's mounted
 local function useTemplateRef<T>(name: string): Types.Ref<T?>
 	local inst = currentInstance
 	if not inst then
@@ -229,7 +220,6 @@ local function useTemplateRef<T>(name: string): Types.Ref<T?>
 	return r
 end
 
---- Provides a value to all descendants (call in setup)
 local function provide(key: unknown, value: unknown): ()
 	local inst = currentInstance
 	if not inst then
@@ -238,7 +228,6 @@ local function provide(key: unknown, value: unknown): ()
 	inst.provides[key] = value
 end
 
---- Gets a value provided by an ancestor or the app (call in setup)
 local function inject<T>(key: unknown, default: T?): T?
 	local inst = currentInstance
 	local provided: unknown
@@ -252,8 +241,7 @@ local function inject<T>(key: unknown, default: T?): T?
 	return if provided ~= nil then provided :: T else default
 end
 
---- Registers an error handler to catch errors in child components
---- `fn`: error handler (return true to stop propagation)
+--- Return true from fn to stop the error going further up
 local function onErrorCaptured(fn: ErrorCapturedHook): ()
 	local inst = currentInstance
 	if not inst then
@@ -263,7 +251,6 @@ local function onErrorCaptured(fn: ErrorCapturedHook): ()
 	table.insert(inst.errorCapturedCbs, fn)
 end
 
---- Applies default values to props based on schema
 local function applyPropDefaults(schema: PropSchema, props: Props): ()
 	for name, spec in schema do
 		local defaultVal = spec.default
@@ -281,8 +268,7 @@ end
 -- def -> handler prop names of its declared emits
 local emitKeysCache: { [ComponentDef]: { [string]: string } } = setmetatable({}, { __mode = "k" }) :: any
 
---- Gets the handler props ("onSelect") of a component's declared emits
---- Maps handler prop -> event name, nil when emits isn't declared
+--- Handler prop ("onSelect") -> event name, nil when emits isn't declared
 local function getEmitKeys(def: ComponentDef): { [string]: string }?
 	local emits = def.emits
 	if emits == nil then
@@ -332,7 +318,6 @@ local function separatePropsAndAttrs(def: ComponentDef, allProps: Props): (Props
 	return props, attrs
 end
 
---- Validates props against schema (only in Studio mode)
 local function validateProps(schema: PropSchema?, props: Props): (boolean, string?)
 	if not schema then
 		return true, nil
@@ -366,7 +351,6 @@ local function validateProps(schema: PropSchema?, props: Props): (boolean, strin
 			end
 		end
 
-		-- Run custom validator if provided
 		local validator = spec.validator
 		if val ~= nil and validator then
 			local ok, result = pcall(validator, val)
@@ -384,7 +368,6 @@ local function validateProps(schema: PropSchema?, props: Props): (boolean, strin
 	return true, nil
 end
 
---- Runs lifecycle callbacks, reporting errors through handleError
 local function runCallbacks(self: ComponentInstance, callbacks: { () -> () }, info: string)
 	for _, fn in callbacks do
 		local ok, err = pcall(fn :: () -> ...unknown)
@@ -428,7 +411,6 @@ function createRenderContext(self: ComponentInstance): { [string]: any }
 	}) :: any
 end
 
---- Runs setup() and resolves the render function
 function ComponentInstance.setupComponent(self: ComponentInstance)
 	-- Restored after, setup can mount other components
 	local prevInstance = currentInstance
@@ -437,11 +419,9 @@ function ComponentInstance.setupComponent(self: ComponentInstance)
 	local def = self.type
 	local schema = def.props
 
-	-- Apply default prop values
 	if schema then
 		applyPropDefaults(schema, self.props)
 
-		-- Validate props in Studio mode
 		if IS_STUDIO then
 			local ok, err = validateProps(schema, self.props)
 			if not ok then
@@ -540,7 +520,6 @@ function ComponentInstance.runBeforeUnmount(self: ComponentInstance)
 	runCallbacks(self, self.beforeUnmountCbs, "beforeUnmount hook")
 end
 
---- Runs unmounted callbacks and cleans up effects/jobs
 function ComponentInstance.runUnmounted(self: ComponentInstance)
 	if debugModule.enabled then
 		debugModule.log("Component", "Running unmounted callbacks and cleanup", {
@@ -601,7 +580,6 @@ function ComponentInstance.handleError(self: ComponentInstance, err: string, inf
 	warn(`[Rivue] Error in {info} of {formatComponentTrace(self)}: {err}`)
 end
 
---- Normalizes what a slot function returned to a list of children
 local function toChildList(result: unknown): { Child }
 	if result == nil then
 		return {}
@@ -611,7 +589,6 @@ local function toChildList(result: unknown): { Child }
 	return { result :: Child }
 end
 
---- Creates the setup() context for an instance
 local function createSetupContext(instance: ComponentInstance): SetupContext
 	return {
 		emit = function(eventName: string, ...: any): ()
@@ -672,8 +649,7 @@ local function createSetupContext(instance: ComponentInstance): SetupContext
 	}
 end
 
---- Creates a new component instance with lifecycle management
---- `appContext`: app context for root components (children inherit the parent's)
+--- appContext is only passed for roots, children inherit their parent's
 local function createComponentInstance(
 	vnode: VNode,
 	parent: ComponentInstance?,
@@ -695,7 +671,6 @@ local function createComponentInstance(
 		{ __index = if parent then parent.provides else context.provides }
 	) :: any
 
-	-- Separate declared props from attrs
 	local declaredProps, attrs = separatePropsAndAttrs(def, vnode.props or {})
 	-- Shallow reactive so the component re-renders on new props
 	local props = _reactivity.shallowReactive(table.clone(declaredProps))
@@ -753,7 +728,6 @@ local function createComponentInstance(
 	return instance, instance.ctx
 end
 
---- Applies new incoming props to a mounted component instance
 local function updateComponentProps(instance: ComponentInstance, rawProps: Props?): ()
 	local schema = instance.type.props
 	local nextProps, nextAttrs = separatePropsAndAttrs(instance.type, rawProps or {})
@@ -810,8 +784,7 @@ local function updateComponentSlots(instance: ComponentInstance, children: { Chi
 	return true
 end
 
---- Registers a transition hook to run before/after element transitions
---- `name`: "before-enter", "enter", "after-enter", "before-leave", "leave", "after-leave"
+--- name: "before-enter", "enter", "after-enter", "before-leave", "leave" or "after-leave"
 local function onTransition(name: string, fn: (el: Instance) -> ()): ()
 	local inst = currentInstance
 	if not inst then

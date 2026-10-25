@@ -19,13 +19,11 @@ local debugModule = require("./debug")
 
 local utils = {}
 
---- Values below 1 are treated as seconds
+--- ms values below 1 are read as seconds
 local function toMilliseconds(ms: number): number
 	return if ms > 0 and ms < 1 then ms * 1000 else ms
 end
 
---- Creates a debounced function that delays execution until after ms milliseconds
---- `ms`: delay in milliseconds (values < 1 auto-converted from seconds)
 function utils.debounce<A...>(fn: (A...) -> (), ms: number): (A...) -> DebouncedHandle
 	local delayMs = toMilliseconds(ms)
 	local timer: thread? = nil
@@ -50,8 +48,7 @@ function utils.debounce<A...>(fn: (A...) -> (), ms: number): (A...) -> Debounced
 	end
 end
 
---- Creates a throttled function that executes at most once per interval
---- `ms`: interval in milliseconds (values < 1 auto-converted from seconds)
+--- Runs at most once per interval, the last call in an interval runs at its end
 function utils.throttle<A...>(fn: (A...) -> (), ms: number): (A...) -> ()
 	local intervalMs = toMilliseconds(ms)
 	local last = -math.huge
@@ -81,19 +78,16 @@ function utils.throttle<A...>(fn: (A...) -> (), ms: number): (A...) -> ()
 	end
 end
 
---- Defers execution to next micro-task
 function utils.nextTick(fn: () -> ()): ()
 	task.defer(fn)
 end
 
---- Defers execution to next Heartbeat frame
 function utils.nextFrame(fn: () -> ()): ()
 	RunService.Heartbeat:Once(function()
 		pcall(fn)
 	end)
 end
 
---- Runs a function every RenderStepped frame
 function utils.useRaf(fn: (dt: number) -> ()): RafHandle
 	if debugModule.enabled then
 		debugModule.log("Utils", "Starting RenderStepped RAF")
@@ -111,8 +105,7 @@ function utils.useRaf(fn: (dt: number) -> ()): RafHandle
 	}
 end
 
---- Filters text using TextService for safe display to players
---- Returns filtered text (original if filtering fails)
+--- Falls back to the original text if filtering fails
 function utils.filterForClient(player: Player, str: string): string
 	local ok, result = pcall(TextService.FilterStringAsync, TextService, str, player.UserId)
 	if not ok then
@@ -142,8 +135,7 @@ local profiler: Profiler = {
 }
 utils.profiler = profiler
 
---- Iterator for reactive arrays that provides ipairs-like syntax with reactivity tracking
---- Works around Luau's ipairs() limitation with reactive proxies
+--- ipairs() skips proxies, this iterates a reactive array and tracks it
 function utils.iterArray<T>(array: { T }): () -> (number?, T?)
 	local i = 0
 	return function(): (number?, T?)
@@ -156,8 +148,6 @@ function utils.iterArray<T>(array: { T }): () -> (number?, T?)
 	end
 end
 
---- Performs shallow equality comparison between two tables
---- Only compares top-level keys and values (no deep comparison)
 function utils.shallowEqual(a: unknown, b: unknown): boolean
 	if a == b then
 		return true

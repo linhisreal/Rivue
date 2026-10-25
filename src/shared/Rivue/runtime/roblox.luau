@@ -32,8 +32,7 @@ export type SpringOptions = {
 --- A ref synced with an Instance attribute. Outside a component, call `_cleanup()` to disconnect.
 export type AttributeRef<T> = Types.Ref<T> & { _cleanup: (() -> ())? }
 
---- A ref that reads and writes an Instance attribute, both ways
---- `opts.throttle`: minimum ms between updates for attributes that change often
+--- opts.throttle: minimum ms between updates, for attributes that change often
 local function attributeRef<T>(
 	instance: Instance,
 	attributeName: string,
@@ -108,8 +107,7 @@ local function attributeRef<T>(
 	return r
 end
 
---- Registers callbacks for instances with a CollectionService tag
---- `onAdded`: callback when instance is tagged (returns optional cleanup)
+--- onAdded may return a cleanup, which runs when the tag is removed
 local function useTag(tagName: string, onAdded: (instance: Instance) -> (() -> ())?): ()
 	if not onAdded then
 		return
@@ -156,7 +154,6 @@ local function useTag(tagName: string, onAdded: (instance: Instance) -> (() -> (
 	end, true)
 end
 
---- Registers a callback for RunService.RenderStepped
 local function onRenderStepped(callback: (deltaTime: number) -> ()): ()
 	debugModule.log("Roblox", "Registering RenderStepped callback")
 	local currentInstance = componentAPI.getCurrentInstance()
@@ -171,7 +168,6 @@ local function onRenderStepped(callback: (deltaTime: number) -> ()): ()
 	end)
 end
 
---- Registers a callback for RunService.Heartbeat
 local function onHeartbeat(callback: (deltaTime: number) -> ()): ()
 	debugModule.log("Roblox", "Registering Heartbeat callback")
 	local currentInstance = componentAPI.getCurrentInstance()
@@ -186,7 +182,6 @@ local function onHeartbeat(callback: (deltaTime: number) -> ()): ()
 	end)
 end
 
---- Registers a callback for RunService.Stepped
 local function onStepped(callback: (time: number, deltaTime: number) -> ()): ()
 	debugModule.log("Roblox", "Registering Stepped callback")
 	local currentInstance = componentAPI.getCurrentInstance()
@@ -335,7 +330,6 @@ end
 -- Per-frame signal for animations (RenderStepped only exists on the client)
 local frameSignal: RBXScriptSignal = if RunService:IsClient() then RunService.RenderStepped else RunService.Heartbeat
 
---- Reads a ref or getter
 local function toGetter<T>(source: Ref<T> | () -> T): () -> T
 	if type(source) == "function" then
 		return source
@@ -355,8 +349,7 @@ local function lerp<T>(a: T, b: T, t: number): T
 end
 
 --- A ref that tweens toward its source whenever the source changes
---- `source`: target value (number, UDim2, Color3, Vector2, CFrame, ...)
---- `info`: time, EasingStyle and EasingDirection are used
+--- Works for numbers and anything with :Lerp. Only info's time, style and direction are used
 local function useTween<T>(source: Ref<T> | () -> T, info: TweenInfo): Ref<T>
 	local getter = toGetter(source)
 	local out = reactivity.ref(getter())
@@ -400,7 +393,6 @@ local function useTween<T>(source: Ref<T> | () -> T, info: TweenInfo): Ref<T>
 	return out
 end
 
---- Distance left for a spring value
 local function magnitude(v: unknown): number
 	return if type(v) == "number" then math.abs(v) else (v :: Vector3).Magnitude
 end

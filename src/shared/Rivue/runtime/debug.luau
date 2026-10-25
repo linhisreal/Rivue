@@ -23,8 +23,6 @@ debug.enabled = false
 
 const IS_STUDIO = RunService:IsStudio()
 
---- Logs a debug message for a specific component
---- Only logs when debug.enabled is true
 function debug.log(component: string, message: string, data: unknown?)
 	if not debug.enabled then
 		return
@@ -39,8 +37,7 @@ function debug.log(component: string, message: string, data: unknown?)
 	end
 end
 
---- Measures execution time of a function (only when debug.enabled)
---- Logs the duration automatically
+--- Logs how long fn took, when debug.enabled is on
 function debug.measure<R...>(name: string, fn: () -> R...): R...
 	if not debug.enabled then
 		return fn()
@@ -55,7 +52,6 @@ function debug.measure<R...>(name: string, fn: () -> R...): R...
 	return (table.unpack :: any)(results, 1, results.n)
 end
 
---- Unwraps a reactive proxy to its raw table
 local function unwrapProxy(value: unknown): unknown
 	local toRaw = debug._toRaw
 	if toRaw and type(value) == "table" then
@@ -64,18 +60,14 @@ local function unwrapProxy(value: unknown): unknown
 	return value
 end
 
---- Formats a table key for display
---- Returns `name` for string keys, `[key]` otherwise
 local function formatKey(key: unknown): string
 	return if type(key) == "string" then key else `[{tostring(key)}]`
 end
 
---- Formats a non-table value for display
 local function formatScalar(v: unknown): string
 	return if type(v) == "string" then `"{v}"` else tostring(v)
 end
 
---- Pretty-prints a value with proper formatting, unwrapping proxies
 function debug.prettyPrint(value: unknown, options: PrettyPrintOptions?)
 	local opts: PrettyPrintOptions = options or {}
 	local indent = opts.indent or 0
@@ -113,7 +105,6 @@ function debug.prettyPrint(value: unknown, options: PrettyPrintOptions?)
 	printValue(value, indent, 0)
 end
 
---- A readable string for a value, seeing through proxies
 function debug.inspect(value: unknown, depth: number?): string
 	local maxDepth = depth or 3
 	local visited: { [unknown]: true } = {}
@@ -148,14 +139,13 @@ function debug.inspect(value: unknown, depth: number?): string
 	return inspectValue(value, 0, "")
 end
 
---- Asserts an invariant in Studio. Throws if condition is false.
+--- Only checked in Studio
 function debug.assertInvariant(condition: boolean, message: string)
 	if (IS_STUDIO or debug.enabled) and not condition then
 		error("[Rivue:Invariant] " .. message, 2)
 	end
 end
 
---- Creates a formatted error message with context
 function debug.formatError(component: string, message: string, context: unknown?): string
 	local parts = { "[Rivue:" .. component .. "] " .. message }
 
