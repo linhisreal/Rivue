@@ -1,13 +1,19 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="assets/guide-lockup-dark.svg">
-    <img src="assets/guide-lockup.svg" height="72" alt="Rivue Guide">
-  </picture>
+  <img src="assets/guide-icon.svg" width="128" height="128" alt="Rivue Guide logo">
 </p>
 
-# Rivue docs
+<h1 align="center">Rivue Guide</h1>
 
-Everything you need to build Roblox UI with Rivue, in the order you'll need it.
+<p align="center">
+  Everything you need to build Roblox UI with Rivue, in the order you'll need it.
+</p>
+
+<p align="center">
+  <a href="GUIDE.md">Guide</a> ·
+  <a href="../examples">Examples</a> ·
+  <a href="API.md">API reference</a> ·
+  <a href="VUE.md">Coming from Vue</a>
+</p>
 
 ## Learning path
 
