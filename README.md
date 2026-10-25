@@ -161,25 +161,23 @@ component in the Explorer, and `app:printTree()` prints the live tree.
 
 ## Development
 
-Tools are pinned in `aftman.toml` (Rojo, StyLua, Selene, luau-lsp, darklua).
+Tools are pinned in `rokit.toml` (Rojo, Lune, darklua, StyLua, luau-lsp). Install
+[Rokit](https://github.com/rojo-rbx/rokit), then:
 
 ```sh
-aftman install
-rojo serve                     # sync the test place into Studio
+rokit install
+rojo serve                        # sync the test place into Studio
 rojo serve examples.project.json  # or the examples place
-stylua src tests examples      # format
-scripts/test-offline.sh        # run every test suite with the Luau CLI, no Studio needed
-python3 scripts/check-docs.py  # check doc links and run every API example
+lune run test                     # every test suite, no Studio needed
+lune run test tests/Renderer.test.luau
+lune run check-docs               # doc links resolve and every API example runs
+lune run build                    # build/Rivue.rbxm and the places (add `minify` for Rivue.min.rbxm)
+stylua src tests examples .lune   # format
 ```
 
-`scripts/test-offline.sh` needs the [Luau CLI](https://github.com/luau-lang/luau/releases) on
-`PATH` (or set `LUAU=/path/to/luau`). Pass test files to run only those:
-`scripts/test-offline.sh tests/Renderer.test.luau`.
-
-In Studio, the `TestRunner` LocalScript runs the same suites when you play the place.
-
-CI checks formatting, lints, type checks with luau-lsp, and runs the offline suites on every
-push.
+In Studio, the `TestRunner` LocalScript runs the same suites when you play the place. CI runs
+the format check, luau-lsp type check, tests, docs check and build on every push. Opening the
+repo in VS Code suggests the Rojo, luau-lsp and StyLua extensions.
 
 ### Layout
 
@@ -187,9 +185,10 @@ push.
 src/shared/Rivue/          the library (Rivue.luau + runtime/)
 src/shared/Demo/           demo app, laid out as the Style Guide recommends
 src/client, src/server     test place scripts (Demo, TestRunner, opt-in stress test)
-.vscode/                   snippets: rcomponent, rview, rcomposable, rstyles, ...
+.vscode/                   editor settings and snippets (rcomponent, rview, rstyles, ...)
 examples/                  example components and the examples place
-tests/                     test suites (*.test.luau), tests/offline has the CLI harness
+tests/                     test suites (*.test.luau), tests/offline has the offline harness
+.lune/                     Lune scripts: test, check-docs, build
 docs/                      guide, API reference, Vue cheat sheet, architecture
 ```
 

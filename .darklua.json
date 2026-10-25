@@ -1,34 +1,11 @@
 {
   "generator": "retain_lines",
   "rules": [
-    {
-      "rule": "remove_comments"
-    },
-    {
-      "rule": "remove_spaces"
-    },
-    {
-      "rule": "convert_require",
-      "current": {
-        "name": "path"
-      },
-      "target": {
-        "name": "roblox",
-        "rojo_sourcemap": "./sourcemap.json",
-        "indexing_style": "wait_for_child"
-      }
-    },
-    {
-      "rule": "compute_expression"
-    },
-    {
-      "rule": "remove_unused_if_branch"
-    },
-    {
-      "rule": "remove_unused_while"
-    },
-    {
-      "rule": "filter_after_early_return"
-    }
+    "remove_comments",
+    "remove_spaces",
+    "compute_expression",
+    "remove_unused_if_branch",
+    "remove_unused_while",
+    "filter_after_early_return"
   ]
 }

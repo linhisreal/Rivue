@@ -446,7 +446,8 @@ The old Luau type solver can't type mixed children lists (`{ header, Rivue.hFor(
 - **Snippets.** `.vscode/rivue.code-snippets` adds `rcomponent`, `rview`, `rcomposable`,
   `rstyles`, `rwatch` and `rcomputed` to VS Code in this workspace. Copy the file into your own
   project's `.vscode/` folder to use them there.
-- **Formatting.** StyLua with the repo's `.stylua.toml`.
+- **Toolchain.** `rokit install` installs the pinned Rojo, Lune, darklua, StyLua and luau-lsp.
+- **Formatting.** StyLua with the repo's `.stylua.toml`. The committed VS Code settings format
+  on save.
 - **Type checking.** luau-lsp with the Roblox definitions, as in CI.
-- **Linting.** Selene doesn't support Luau's `const` yet (still true in 0.30), so it reports parse
-  errors on files that use it.
+- **Tests.** `lune run test`, and `lune run check-docs` for the docs.

@@ -1,166 +1,56 @@
-name: Rivue Framework Build
+name: CI
 
 on:
   push:
-    branches: [ main, test ]
+    branches: [main, test]
   pull_request:
-    branches: [ main, test ]
+    branches: [main, test]
   workflow_dispatch:
 
 jobs:
-  lint:
-    name: Luau Lint & Type Check
-    runs-on: windows-latest
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Aftman
-      uses: ok-nick/setup-aftman@v0.4.1
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        
-    - name: Install dependencies
-      run: aftman install
-      
-    - name: Generate Rojo sourcemap
-      run: rojo sourcemap default.project.json --output sourcemap.json
-      
-    - name: Check code formatting with StyLua
-      run: stylua --check src/ tests/ examples/
-      continue-on-error: false
-      
-    - name: Run Selene (Linter)
-      run: |
-        if (Test-Path "$HOME/.aftman/bin/selene.exe") {
-          & "$HOME/.aftman/bin/selene" src/ tests/ examples/
-        } else {
-          Write-Host "Selene not installed, skipping..."
-        }
-      shell: powershell
-      continue-on-error: true
-      
-    - name: Download Roblox Type Definitions
-      run: |
-        Write-Host "Downloading Roblox type definitions..."
-        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/refs/heads/main/scripts/globalTypes.d.luau" -OutFile "globalTypes.d.luau"
-        Write-Host "Type definitions downloaded successfully"
-      shell: powershell
-      
-    - name: Run Luau Type Checker
-      run: |
-        Write-Host "Running Luau type analysis with Roblox definitions..."
-        & "$HOME/.aftman/bin/luau-lsp" analyze --sourcemap=sourcemap.json --definitions=globalTypes.d.luau src/ examples/
-      shell: powershell
-      continue-on-error: false
-
-  test:
-    name: Offline Tests
+  check:
+    name: Format, types, tests, docs
     runs-on: ubuntu-latest
-
+    timeout-minutes: 15
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-    - name: Install Luau CLI
-      run: |
-        curl -sSL -o luau.zip https://github.com/luau-lang/luau/releases/download/0.744/luau-ubuntu.zip
-        unzip -q luau.zip -d luau-cli
-        echo "$PWD/luau-cli" >> "$GITHUB_PATH"
+      - uses: CompeyDev/setup-rokit@v0.2.1
+        with:
+          cache: true
 
-    - name: Run test suites
-      run: scripts/test-offline.sh
+      - name: Format
+        run: stylua --check src tests examples .lune
 
-    - name: Check docs (links, and every API example runs)
-      run: python3 scripts/check-docs.py
+      - name: Type check
+        run: |
+          rojo sourcemap default.project.json -o sourcemap.json
+          curl -sSfL -o globalTypes.d.luau https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/main/scripts/globalTypes.d.luau
+          luau-lsp analyze --sourcemap=sourcemap.json --definitions=globalTypes.d.luau src/ examples/
+          lune setup
+          luau-lsp analyze --platform=standard .lune
+
+      - name: Tests
+        run: lune run test
+
+      - name: Docs (links resolve, every API example runs)
+        run: lune run check-docs
 
   build:
-    name: Build Distributable
-    runs-on: windows-latest
-    needs: [lint, test]
-    
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Setup Aftman
-      uses: ok-nick/setup-aftman@v0.4.1
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
-        
-    - name: Install dependencies
-      run: aftman install
-      
-    - name: Generate Rojo sourcemap
-      run: rojo sourcemap default.project.json --output sourcemap.json
-      
-    - name: Download Roblox Type Definitions
-      run: |
-        Write-Host "Downloading Roblox type definitions..."
-        Invoke-WebRequest -Uri "https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/refs/heads/main/scripts/globalTypes.d.luau" -OutFile "globalTypes.d.luau"
-        Write-Host "Type definitions downloaded successfully"
-      shell: powershell
-      
-    - name: Run Type Check (Optional Validation)
-      run: |
-        Write-Host "Running Luau type validation..."
-        & "$HOME/.aftman/bin/luau-lsp" analyze --sourcemap=sourcemap.json --definitions=globalTypes.d.luau src/
-      shell: powershell
-      continue-on-error: true
-      
-    - name: Create build directory
-      run: New-Item -ItemType Directory -Force -Path build
-      shell: powershell
-      
-    - name: Build production rbxl
-      run: rojo build default.project.json -o build/vue-framework.rbxl
-      
-    - name: Build model file
-      run: rojo build default.project.json -o build/VueFramework.rbxm
-      
-    - name: Create bundled version with darklua
-      run: |
-        Write-Host "Creating optimized bundle..."
-        New-Item -ItemType Directory -Force -Path build/bundle
-        darklua process src/shared/Rivue build/bundle/Rivue --config .darklua.json
-        Write-Host "Bundle created successfully"
-      shell: powershell
-      continue-on-error: true
-      
-    - name: Upload build artifacts
-      uses: actions/upload-artifact@v4
-      with:
-        name: vue-framework-build
-        path: build/
-        retention-days: 30
-
-  docs:
-    name: Validate Documentation
+    name: Build
     runs-on: ubuntu-latest
-    
+    needs: check
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-      
-    - name: Check for broken links in docs
-      uses: gaurav-nelson/github-action-markdown-link-check@v1
-      with:
-        use-quiet-mode: 'yes'
-        folder-path: 'docs/'
-        file-extension: '.md'
-      continue-on-error: true
-        
-    - name: Validate API.md structure
-      run: |
-        if [ ! -f "docs/API.md" ]; then
-          echo "Error: API.md not found!"
-          exit 1
-        fi
-        echo "API.md found - validation passed"
+      - uses: actions/checkout@v4
 
+      - uses: CompeyDev/setup-rokit@v0.2.1
+        with:
+          cache: true
 
-# Future improvements:
-# - Add performance benchmarks
-# - Auto-generate API docs from source
-# - Integrate visual regression testing
+      - run: lune run build minify
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rivue
+          path: build/*.rbx*
+          retention-days: 30
