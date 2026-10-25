@@ -363,6 +363,20 @@ Vector2 = {
 		return setmetatable({ X = x or 0, Y = y or 0 }, VECTOR2_MT)
 	end,
 }
+VECTOR3_MT = {
+	__rbxtype = "Vector3",
+	__sub = function(a, b)
+		return Vector3.new(a.X - b.X, a.Y - b.Y, a.Z - b.Z)
+	end,
+	__eq = function(a, b)
+		return a.X == b.X and a.Y == b.Y and a.Z == b.Z
+	end,
+}
+Vector3 = {
+	new = function(x, y, z)
+		return setmetatable({ X = x or 0, Y = y or 0, Z = z or 0 }, VECTOR3_MT)
+	end,
+}
 UDIM_MT = {
 	__rbxtype = "UDim",
 	__eq = function(a, b)
@@ -403,6 +417,7 @@ local GUI_PROPS = {
 	ClipsDescendants = false,
 	Active = false,
 	AbsoluteSize = Vector2.new(100, 100),
+	AbsolutePosition = Vector2.new(0, 0),
 	Selectable = false,
 }
 local TEXT_PROPS = {
@@ -645,7 +660,9 @@ function Instance.new(className, parent)
 		end
 		destroyed = true
 	end
-	function methods:CaptureFocus() end
+	function methods:CaptureFocus()
+		__focusCalls = (__focusCalls or 0) + 1
+	end
 	function methods:ReleaseFocus() end
 	function methods:Clone()
 		return Instance.new(className)
@@ -655,6 +672,10 @@ function Instance.new(className, parent)
 		{
 			__rbxtype = "Instance",
 			__index = function(_, k)
+				__instanceOps = (__instanceOps or 0) + 1
+				if __opKeys then
+					__opKeys["get " .. tostring(k)] = (__opKeys["get " .. tostring(k)] or 0) + 1
+				end
 				if k == "Parent" then
 					return parent_
 				end
@@ -677,6 +698,10 @@ function Instance.new(className, parent)
 				error(tostring(k) .. " is not a valid member of " .. className, 2)
 			end,
 			__newindex = function(_, k, v)
+				__instanceOps = (__instanceOps or 0) + 1
+				if __opKeys then
+					__opKeys["set " .. tostring(k)] = (__opKeys["set " .. tostring(k)] or 0) + 1
+				end
 				if k == "Parent" then
 					if destroyed then
 						error("The Parent property of " .. props.Name .. " is locked")

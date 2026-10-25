@@ -243,6 +243,7 @@ local function createEffect(fn: () -> (), opts: EffectOptions?): Effect
 		active = true,
 		onTrack = options.onTrack,
 		onTrigger = options.onTrigger,
+		allowRecurse = options.allowRecurse,
 	}
 	local typedEffect: Effect = effect :: any
 
@@ -374,7 +375,8 @@ local function trigger(target: unknown, key: unknown)
 	for i = 1, count do
 		local eff = effects[i]
 		effects[i] = nil
-		if not eff.active then
+		-- An effect writing state it reads doesn't re-trigger itself (same as Vue)
+		if not eff.active or (eff == activeEffect and not eff.allowRecurse) then
 			continue
 		end
 		local onTrigger = eff.onTrigger
@@ -418,7 +420,8 @@ local shallowReadonlyCache: { [RawTable]: RawTable } = weakKeyed()
 local function reactive<T>(target: T): T
 	assert(type(target) == "table", "reactive expects a table")
 	local tbl: RawTable = target :: any
-	if rawMarker[tbl] then
+	-- Already a proxy (reactive or readonly), or marked raw
+	if rawMarker[tbl] or reactiveMarker[tbl] or readonlyMarker[tbl] then
 		return target
 	end
 	local cached = proxyCache[tbl]
@@ -481,7 +484,7 @@ end
 local function shallowReactive<T>(target: T): T
 	assert(type(target) == "table", "shallowReactive expects a table")
 	local tbl: RawTable = target :: any
-	if rawMarker[tbl] then
+	if rawMarker[tbl] or reactiveMarker[tbl] or readonlyMarker[tbl] then
 		return target
 	end
 	local cached = shallowProxyCache[tbl]
@@ -1038,7 +1041,7 @@ end
 --- @param shallow boolean -- Only the top level is readonly
 --- @return T -- Readonly proxy
 local function createReadonly<T>(target: T, shallow: boolean): T
-	if type(target) ~= "table" or rawMarker[target] then
+	if type(target) ~= "table" or rawMarker[target] or readonlyMarker[target] then
 		return target
 	end
 

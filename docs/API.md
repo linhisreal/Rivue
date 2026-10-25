@@ -799,7 +799,11 @@ Possible `err` values:
 - `"rate_limited"`,
 - `"handler_error"`,
 - `"invalid_action_name"`,
-- a payload validation message (payloads are limited to 20 KB and 10 levels of nesting).
+- `"payload_unsafe_type"` for values RemoteEvents can't carry (functions, threads),
+- `"payload_too_large"` or `"payload_too_deep"` (about 20 KB, 10 levels of nesting).
+
+Payloads can contain strings, numbers, booleans, tables, Instances, and Roblox datatypes such as
+Vector3, CFrame, Color3, UDim2 and EnumItem.
 
 ---
 
@@ -831,7 +835,7 @@ Released Instances have the properties Rivue set reset to their defaults.
 | `utils.shallowEqual(a, b)` | Shallow table comparison |
 | `iterArray(array)` | Index iterator for reactive arrays |
 | `Rivue.dev` | `true` in Studio |
-| `debug.enabled` | Verbose runtime logging (on in Studio) |
+| `debug.enabled` | Verbose runtime logging, off by default (`Rivue.debug.enabled = true`) |
 | `debug.inspect(value, depth?)` / `prettyPrint(value)` | Readable dump, unwraps proxies |
 | `debug.measure(name, fn)` | Times `fn` and logs it |
 | `debug.assertInvariant(cond, msg)` | Errors in Studio when `cond` is false |

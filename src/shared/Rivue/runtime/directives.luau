@@ -87,40 +87,42 @@ function directives.get(name: string): DirectiveHooks?
 	return registry[name]
 end
 
+-- focus and select only act when the value turns on, so re-renders don't steal focus back
 directives.register("focus", {
 	mounted = function(el, val)
 		if val and el:IsA("TextBox") then
-			debugModule.log("Directives", "Applying focus directive", { elementName = el.Name })
 			el:CaptureFocus()
 		end
-		return nil
+		return { on = val and true or false }
 	end,
-	updated = function(el, val)
-		if val and el:IsA("TextBox") then
+	updated = function(el, val, state)
+		local on = val and true or false
+		if on and not (state and state.on) and el:IsA("TextBox") then
 			el:CaptureFocus()
 		end
-		return nil
+		return { on = on }
 	end,
 })
 
---- v-select: gamepad selection follows the value (true selects, false clears if selected)
+--- v-select: gamepad selection when the value turns on, cleared when it turns off
 directives.register("select", {
 	mounted = function(el, val)
 		if val and el:IsA("GuiObject") then
 			GuiService.SelectedObject = el
 		end
-		return nil
+		return { on = val and true or false }
 	end,
-	updated = function(el, val)
-		if not el:IsA("GuiObject") then
-			return nil
+	updated = function(el, val, state)
+		local on = val and true or false
+		local was = state and state.on
+		if el:IsA("GuiObject") then
+			if on and not was then
+				GuiService.SelectedObject = el
+			elseif not on and was and GuiService.SelectedObject == el then
+				GuiService.SelectedObject = nil
+			end
 		end
-		if val then
-			GuiService.SelectedObject = el
-		elseif GuiService.SelectedObject == el then
-			GuiService.SelectedObject = nil
-		end
-		return nil
+		return { on = on }
 	end,
 	unmounted = function(el)
 		if GuiService.SelectedObject == el then
@@ -129,13 +131,15 @@ directives.register("select", {
 	end,
 })
 
+type ClickOutsideState = { conn: RBXScriptConnection, fn: () -> () }
+
 directives.register("click-outside", {
-	mounted = function(el, fn)
+	mounted = function(el, fn): ClickOutsideState?
 		if type(fn) ~= "function" then
-			return
+			return nil
 		end
 
-		debugModule.log("Directives", "Setting up click-outside listener", { elementName = el.Name })
+		local state: ClickOutsideState
 		-- Ignores gameProcessed on purpose: clicking another button is still "outside"
 		local conn = UserInputService.InputBegan:Connect(function(input)
 			-- Only clicks/taps, not key presses
@@ -154,38 +158,47 @@ directives.register("click-outside", {
 				end
 			end
 
-			pcall(fn)
+			-- The latest handler, inline closures change every render
+			local ok, err = pcall(state.fn :: () -> ...unknown)
+			if not ok then
+				warn(`[Rivue] click-outside handler failed: {err}`)
+			end
 		end)
-
-		return conn
+		state = { conn = conn, fn = fn }
+		return state
 	end,
-	unmounted = function(_el, conn)
-		if conn and conn.Disconnect then
-			pcall(function()
-				conn:Disconnect()
-			end)
+	updated = function(_el, fn, state: ClickOutsideState?)
+		if state and type(fn) == "function" then
+			state.fn = fn
+		end
+		return state
+	end,
+	unmounted = function(_el, state: ClickOutsideState?)
+		if state then
+			state.conn:Disconnect()
 		end
 	end,
 })
 
-directives.register("drag", {
-	mounted = function(el, enabled)
-		if not enabled or not el:IsA("GuiObject") then
-			return
-		end
+type DragState = { RBXScriptConnection }
 
-		local dragging = false
-		local dragInput: InputObject?
-		local dragStart: Vector3
-		local startPos: UDim2
+--- Starts dragging a GuiObject with mouse or touch
+--- @param el GuiObject -- Element to drag
+--- @return DragState -- Connections to disconnect
+local function startDrag(el: GuiObject): DragState
+	local dragging = false
+	local dragInput: InputObject?
+	local dragStart: Vector3
+	local startPos: UDim2
 
-		local function update(input: InputObject)
-			local delta = input.Position - dragStart
-			el.Position =
-				UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-		end
+	local function update(input: InputObject)
+		local delta = input.Position - dragStart
+		el.Position =
+			UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+	end
 
-		local inputBeganConn = el.InputBegan:Connect(function(input)
+	return {
+		el.InputBegan:Connect(function(input)
 			if
 				input.UserInputType == Enum.UserInputType.MouseButton1
 				or input.UserInputType == Enum.UserInputType.Touch
@@ -194,54 +207,62 @@ directives.register("drag", {
 				dragStart = input.Position
 				startPos = el.Position
 			end
-		end)
-
+		end),
 		-- One shared connection instead of connecting to every input's Changed signal
-		local inputEndedConn = UserInputService.InputEnded:Connect(function(input)
+		UserInputService.InputEnded:Connect(function(input)
 			if
 				input.UserInputType == Enum.UserInputType.MouseButton1
 				or input.UserInputType == Enum.UserInputType.Touch
 			then
 				dragging = false
 			end
-		end)
-
-		local inputChangedConn = el.InputChanged:Connect(function(input)
+		end),
+		el.InputChanged:Connect(function(input)
 			if
 				input.UserInputType == Enum.UserInputType.MouseMovement
 				or input.UserInputType == Enum.UserInputType.Touch
 			then
 				dragInput = input
 			end
-		end)
-
-		local inputChangedGlobalConn = UserInputService.InputChanged:Connect(function(input)
+		end),
+		UserInputService.InputChanged:Connect(function(input)
 			if input == dragInput and dragging then
 				update(input)
 			end
-		end)
+		end),
+	}
+end
 
-		return {
-			inputBeganConn = inputBeganConn,
-			inputEndedConn = inputEndedConn,
-			inputChangedConn = inputChangedConn,
-			inputChangedGlobalConn = inputChangedGlobalConn,
-		}
+--- Disconnects a drag
+--- @param state DragState? -- Connections from startDrag
+local function stopDrag(state: DragState?)
+	if state then
+		for _, conn in state do
+			conn:Disconnect()
+		end
+	end
+end
+
+--- v-drag: drag with mouse or touch while the value is truthy
+directives.register("drag", {
+	mounted = function(el, enabled): DragState | false
+		if not enabled or not el:IsA("GuiObject") then
+			return false
+		end
+		return startDrag(el)
 	end,
-	unmounted = function(_el, cleanup)
-		if cleanup then
-			if cleanup.inputBeganConn then
-				cleanup.inputBeganConn:Disconnect()
-			end
-			if cleanup.inputEndedConn then
-				cleanup.inputEndedConn:Disconnect()
-			end
-			if cleanup.inputChangedConn then
-				cleanup.inputChangedConn:Disconnect()
-			end
-			if cleanup.inputChangedGlobalConn then
-				cleanup.inputChangedGlobalConn:Disconnect()
-			end
+	updated = function(el, enabled, state: (DragState | false)?): DragState | false
+		if enabled and not state and el:IsA("GuiObject") then
+			return startDrag(el)
+		elseif not enabled and state then
+			stopDrag(state)
+			return false
+		end
+		return state or false
+	end,
+	unmounted = function(_el, state: (DragState | false)?)
+		if state then
+			stopDrag(state)
 		end
 	end,
 })

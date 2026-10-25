@@ -295,8 +295,7 @@ local Rivue = {}
 -- detect studio/dev mode without writing to global environment
 Rivue.dev = RunService:IsStudio()
 
--- Sync dev mode to debug module
-debugModule.enabled = Rivue.dev
+-- Verbose logging stays opt-in: Rivue.debug.enabled = true
 
 -- Provide toRaw to debug module (avoid circular dependency)
 debugModule._toRaw = reactivity.toRaw
