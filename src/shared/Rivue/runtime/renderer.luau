@@ -778,7 +778,7 @@ local function parentHasUILayout(parent: Instance?): boolean
 end
 
 --- Renders a large list of items into a parent
---- (Kept for compatibility, renders synchronously)
+--- @deprecated Renders synchronously, use hFor() children instead
 --- @param items any -- Array of items to render
 --- @param renderFn function -- Render function (item, index) -> VNode
 --- @param parent Instance -- Parent container

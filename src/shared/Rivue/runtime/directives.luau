@@ -165,12 +165,16 @@ directives.register("drag", {
 				dragging = true
 				dragStart = input.Position
 				startPos = el.Position
+			end
+		end)
 
-				input.Changed:Connect(function()
-					if input.UserInputState == Enum.UserInputState.End then
-						dragging = false
-					end
-				end)
+		-- One shared connection instead of connecting to every input's Changed signal
+		local inputEndedConn = UserInputService.InputEnded:Connect(function(input)
+			if
+				input.UserInputType == Enum.UserInputType.MouseButton1
+				or input.UserInputType == Enum.UserInputType.Touch
+			then
+				dragging = false
 			end
 		end)
 
@@ -191,6 +195,7 @@ directives.register("drag", {
 
 		return {
 			inputBeganConn = inputBeganConn,
+			inputEndedConn = inputEndedConn,
 			inputChangedConn = inputChangedConn,
 			inputChangedGlobalConn = inputChangedGlobalConn,
 		}
@@ -199,6 +204,9 @@ directives.register("drag", {
 		if cleanup then
 			if cleanup.inputBeganConn then
 				cleanup.inputBeganConn:Disconnect()
+			end
+			if cleanup.inputEndedConn then
+				cleanup.inputEndedConn:Disconnect()
 			end
 			if cleanup.inputChangedConn then
 				cleanup.inputChangedConn:Disconnect()
