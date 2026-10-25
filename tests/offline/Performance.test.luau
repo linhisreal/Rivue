@@ -95,6 +95,20 @@ return function()
 		"Reversing 1000 rows (one LayoutOrder write each)"
 	)
 
+	assertAtMost(
+		engineCalls(function()
+			local raw = Rivue.toRaw(items.value)
+			local renamed = table.create(#raw)
+			for i, item in raw do
+				renamed[i] = { id = item.id, name = `Renamed {item.id}` }
+			end
+			items.value = renamed
+			Rivue.nextTick()
+		end),
+		rows + 20,
+		"Changing every row's text (one Text write each, no IsA per row)"
+	)
+
 	app:unmount()
 	print("\n========== PERFORMANCE TESTS COMPLETE ==========\n")
 end

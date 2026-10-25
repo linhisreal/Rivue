@@ -110,6 +110,26 @@ local function toUDim(v: unknown): UDim
 	return if type(v) == "number" then UDim.new(0, v) else v :: UDim
 end
 
+-- IsA is an engine call. Element vnodes carry their ClassName, so these answer from it
+local guiObjectClasses: { [string]: boolean } = {}
+
+local function isGuiObject(el: Instance, className: string?): boolean
+	local cn = className or el.ClassName
+	local cached = guiObjectClasses[cn]
+	if cached == nil then
+		cached = el:IsA("GuiObject")
+		guiObjectClasses[cn] = cached
+	end
+	return cached
+end
+
+-- No subclasses, so the ClassName alone decides
+const TEXT_CLASSES = table.freeze({ TextLabel = true, TextButton = true, TextBox = true })
+
+local function isTextObject(el: Instance, className: string?): boolean
+	return TEXT_CLASSES[className or el.ClassName] == true
+end
+
 -- classFor picks the class from the value when it varies (layout = "grid" makes a UIGridLayout)
 type SugarSpec = {
 	className: string,
@@ -467,7 +487,7 @@ local function setProp(inst: Instance, key: string, value: any, vnode: RenderVNo
 			end
 		end
 
-		if key == "onTextChanged" and (inst:IsA("TextBox") or inst:IsA("TextLabel") or inst:IsA("TextButton")) then
+		if key == "onTextChanged" and isTextObject(inst, className) then
 			local textInst = inst :: TextBox
 			conns[key] = textInst:GetPropertyChangedSignal("Text"):Connect(function()
 				invoke(textInst.Text)
@@ -482,7 +502,7 @@ local function setProp(inst: Instance, key: string, value: any, vnode: RenderVNo
 		return
 	end
 
-	if SUGAR_PROPS[key] and inst:IsA("GuiObject") then
+	if SUGAR_PROPS[key] and isGuiObject(inst, className) then
 		setSugarProp(inst, key, value, vnode)
 		return
 	end
@@ -758,17 +778,6 @@ end
 
 -- LayoutOrder Rivue last wrote per Instance, so unchanged positions skip the engine calls
 local appliedLayoutOrder: { [Instance]: number } = setmetatable({}, { __mode = "k" }) :: any
-local guiObjectClasses: { [string]: boolean } = {}
-
-local function isGuiObject(el: Instance, className: string?): boolean
-	local cn = className or el.ClassName
-	local cached = guiObjectClasses[cn]
-	if cached == nil then
-		cached = el:IsA("GuiObject")
-		guiObjectClasses[cn] = cached
-	end
-	return cached
-end
 
 --- Gives children increasing LayoutOrder in list order, so a layout shows them as rendered.
 --- Values that are already in order are kept (removing a row renumbers nothing), only
@@ -885,7 +894,7 @@ local function mountElement(vnode: RenderVNode, container: Instance, poolOpt: Po
 
 		if type(child) == "string" or type(child) == "number" then
 			local text = tostring(child)
-			if inst:IsA("TextLabel") or inst:IsA("TextButton") or inst:IsA("TextBox") then
+			if isTextObject(inst, tag) then
 				(inst :: TextLabel).Text = text
 			else
 				local tl = Instance.new("TextLabel")
@@ -1567,8 +1576,8 @@ local function onlyText(children: { Child }): string?
 	return nil
 end
 
-local function trySetOnlyText(el: Instance, children: { Child }, oldChildren: { Child }): boolean
-	if not (el:IsA("TextLabel") or el:IsA("TextButton") or el:IsA("TextBox")) then
+local function trySetOnlyText(el: Instance, className: string, children: { Child }, oldChildren: { Child }): boolean
+	if not isTextObject(el, className) then
 		return false
 	end
 	local text = onlyText(children)
@@ -1618,6 +1627,7 @@ end
 
 local function patchElement(oldVNode: RenderVNode, newVNode: RenderVNode, poolOpt: PoolOptions?)
 	local el = oldVNode.el
+	local className = newVNode.type :: string
 	newVNode.el = el
 	if not el then
 		return
@@ -1652,7 +1662,7 @@ local function patchElement(oldVNode: RenderVNode, newVNode: RenderVNode, poolOp
 	local childrenChanged = oldChildren ~= newChildren and (next(oldChildren) ~= nil or next(newChildren) ~= nil)
 	if not propsChanged and not childrenChanged then
 		-- A controlled TextBox still follows its Text prop if the player typed over it
-		if newProps and newProps.onTextChanged ~= nil and newProps.Text ~= nil and el:IsA("TextBox") then
+		if newProps and newProps.onTextChanged ~= nil and newProps.Text ~= nil and className == "TextBox" then
 			local box = el :: TextBox
 			if box.Text ~= newProps.Text then
 				box.Text = newProps.Text
@@ -1665,7 +1675,7 @@ local function patchElement(oldVNode: RenderVNode, newVNode: RenderVNode, poolOp
 		if propsChanged then
 			patchProps(el, oldVNode.props, newVNode.props, newVNode)
 		end
-		if childrenChanged and not trySetOnlyText(el, newVNode.children, oldVNode.children) then
+		if childrenChanged and not trySetOnlyText(el, className, newVNode.children, oldVNode.children) then
 			patchKeyedChildren(oldVNode.children, newVNode.children, el, poolOpt)
 			if
 				hasLayoutChild(newVNode.children) or (newVNode.props ~= nil and (newVNode.props :: Props).layout ~= nil)
@@ -1675,7 +1685,7 @@ local function patchElement(oldVNode: RenderVNode, newVNode: RenderVNode, poolOp
 		end
 	end
 
-	if el:IsA("TextBox") then
+	if className == "TextBox" then
 		local oldText = if oldVNode.props then oldVNode.props.Text else nil
 		local textProps = newVNode.props
 		local newText = if textProps then textProps.Text else nil
