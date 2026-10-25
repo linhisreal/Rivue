@@ -1,11 +1,6 @@
 --!strict
---[[
-	UI Features Unit Tests
-	======================
-
-	Tests for Transition/TransitionGroup, KeepAlive, Teleport, memo, template refs, emits,
-	app components, watch handles, modifier props, VirtualList and the Roblox composables
-]]
+-- Tests for Transition/TransitionGroup, KeepAlive, Teleport, memo, template refs, emits, app
+-- components, watch handles, modifier props, VirtualList and the Roblox composables
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GuiService = game:GetService("GuiService")

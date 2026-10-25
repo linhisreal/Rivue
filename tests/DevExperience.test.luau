@@ -1,12 +1,7 @@
 --!strict
---[[
-	Developer Experience Unit Tests
-	===============================
-
-	Tests for directive props, model, nested children, style, mergeProps/cloneVNode, createApp
-	with a component, defineComponent(setup), Explorer names, printTree, render debug hooks,
-	error reporting, Teleport defer and the app context helpers
-]]
+-- Tests for directive props, model, nested children, style, mergeProps/cloneVNode, createApp with a
+-- component, defineComponent(setup), Explorer names, printTree, render debug hooks, error
+-- reporting, Teleport defer and the app context helpers
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))

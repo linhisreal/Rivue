@@ -1,10 +1,5 @@
 --!strict
---[[
-	Pool Unit Tests
-	===============
-	
-	Tests for pool.luau - Object pooling system for Instance recycling
-]]
+-- Tests for pool.luau - Object pooling system for Instance recycling
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Pool = require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("pool"))

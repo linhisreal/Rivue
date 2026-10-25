@@ -1,63 +1,8 @@
 --!strict
 --!optimize 2
 
--- Debug & Development Utilities
--- ==============================
---
--- Unified debugging, logging, and development utilities for the Rivue.
--- Combines performance measurement, pretty-printing, inspection, and assertions.
---
--- @module debug
--- @author Rivue
--- @version 2.0.0
---
--- Public API:
--- -----------
---
--- Logging & Performance:
--- 	debug.enabled: boolean
--- 		--- Global debug flag. Set to true to enable verbose logging.
--- 		--- Automatically set to RunService:IsStudio() by default.
---
--- 	debug.log(component: string, message: string, data: any?)
--- 		--- Logs a debug message for a specific component.
--- 		--- Only logs when debug.enabled is true.
---
--- 	debug.measure(name: string, fn: () -> T) -> T
--- 		--- Measures execution time of a function (only when debug.enabled).
---
--- Pretty Printing & Inspection:
--- 	debug.prettyPrint(value: any, options: PrettyPrintOptions?)
--- 		--- Pretty-prints any value, unwrapping reactive proxies automatically.
--- 		--- Works with nested tables, proxies, and circular references.
---
--- 	debug.inspect(value: any, depth: number?) -> string
--- 		--- Returns a string representation of a value for debugging.
---
--- Assertions & Error Formatting:
--- 	debug.assertInvariant(condition: boolean, message: string)
--- 		--- Asserts an invariant in dev mode. Throws if condition is false.
---
--- 	debug.formatError(component: string, message: string, context: any?) -> string
--- 		--- Creates a formatted error message with context.
---
--- Usage Example:
--- --------------
---
--- 	local debug = require(script.Parent.debug)
---
--- 	-- Logging & Performance
--- 	debug.enabled = true
--- 	debug.log("Scheduler", "Flushing micro queue", { jobCount = 5 })
--- 	local result = debug.measure("FlushMicro", function() return 42 end)
---
--- 	-- Pretty Printing
--- 	local state = Rivue.reactive({ user = { name = "Alice" } })
--- 	debug.prettyPrint(state)
--- 	print(debug.inspect(state, 2))
---
--- 	-- Assertions
--- 	debug.assertInvariant(state.user.name == "Alice", "Name must be Alice")
+-- Rivue.debug: opt-in verbose logging, measure(), prettyPrint()/inspect() that see through
+-- proxies, assertInvariant() and formatError().
 
 local RunService = game:GetService("RunService")
 
@@ -69,25 +14,17 @@ type PrettyPrintOptions = {
 	unwrapProxies: boolean?,
 }
 
--- Internal reference to toRaw function (set by main.luau to avoid circular dependency)
+-- Set by main (requiring reactivity here would be circular)
 debug._toRaw = nil :: ((unknown) -> unknown)?
 
--- Automatically enable debug mode in Studio, disable in published games
 -- Verbose runtime logging. Off by default: it prints for every vnode, mount and job.
 -- Studio warnings (unknown props, bad keys, ...) don't depend on it.
 debug.enabled = false
 
 const IS_STUDIO = RunService:IsStudio()
 
--- =============================================================================
--- LOGGING & PERFORMANCE
--- =============================================================================
-
 --- Logs a debug message for a specific component
 --- Only logs when debug.enabled is true
---- @param component string -- Component name (e.g., "Scheduler", "Reactivity")
---- @param message string -- Debug message
---- @param data unknown? -- Optional additional data to log
 function debug.log(component: string, message: string, data: unknown?)
 	if not debug.enabled then
 		return
@@ -104,9 +41,6 @@ end
 
 --- Measures execution time of a function (only when debug.enabled)
 --- Logs the duration automatically
---- @param name string -- Name for the measurement
---- @param fn () -> R... -- Function to measure
---- @return R... -- Return values of fn (generic pack, so callers keep their types)
 function debug.measure<R...>(name: string, fn: () -> R...): R...
 	if not debug.enabled then
 		return fn()
@@ -114,20 +48,14 @@ function debug.measure<R...>(name: string, fn: () -> R...): R...
 
 	local startTime = os.clock()
 	local results = table.pack(fn())
-	local duration = (os.clock() - startTime) * 1000 -- Convert to milliseconds
+	local duration = (os.clock() - startTime) * 1000
 
 	debug.log("Performance", `{name} took {string.format("%.3f", duration)}ms`)
 
 	return (table.unpack :: any)(results, 1, results.n)
 end
 
--- =============================================================================
--- PRETTY PRINTING & INSPECTION
--- =============================================================================
-
 --- Unwraps a reactive proxy to its raw table
---- @param value unknown -- Value to unwrap
---- @return unknown -- Raw value or the original value
 local function unwrapProxy(value: unknown): unknown
 	local toRaw = debug._toRaw
 	if toRaw and type(value) == "table" then
@@ -137,22 +65,17 @@ local function unwrapProxy(value: unknown): unknown
 end
 
 --- Formats a table key for display
---- @param key unknown -- Table key
---- @return string -- `name` for string keys, `[key]` otherwise
+--- Returns `name` for string keys, `[key]` otherwise
 local function formatKey(key: unknown): string
 	return if type(key) == "string" then key else `[{tostring(key)}]`
 end
 
 --- Formats a non-table value for display
---- @param v unknown -- Value
---- @return string -- Display text
 local function formatScalar(v: unknown): string
 	return if type(v) == "string" then `"{v}"` else tostring(v)
 end
 
 --- Pretty-prints a value with proper formatting, unwrapping proxies
---- @param value unknown -- Value to print
---- @param options PrettyPrintOptions? -- Formatting options
 function debug.prettyPrint(value: unknown, options: PrettyPrintOptions?)
 	local opts: PrettyPrintOptions = options or {}
 	local indent = opts.indent or 0
@@ -190,10 +113,7 @@ function debug.prettyPrint(value: unknown, options: PrettyPrintOptions?)
 	printValue(value, indent, 0)
 end
 
---- Returns a string representation of a value for debugging
---- @param value unknown -- Value to inspect
---- @param depth number? -- Maximum depth (default: 3)
---- @return string -- String representation
+--- A readable string for a value, seeing through proxies
 function debug.inspect(value: unknown, depth: number?): string
 	local maxDepth = depth or 3
 	local visited: { [unknown]: true } = {}
@@ -229,8 +149,6 @@ function debug.inspect(value: unknown, depth: number?): string
 end
 
 --- Asserts an invariant in Studio. Throws if condition is false.
---- @param condition boolean -- Condition that must be true
---- @param message string -- Error message if condition fails
 function debug.assertInvariant(condition: boolean, message: string)
 	if (IS_STUDIO or debug.enabled) and not condition then
 		error("[Rivue:Invariant] " .. message, 2)
@@ -238,10 +156,6 @@ function debug.assertInvariant(condition: boolean, message: string)
 end
 
 --- Creates a formatted error message with context
---- @param component string -- Component name
---- @param message string -- Error message
---- @param context any? -- Optional context data
---- @return string -- Formatted error message
 function debug.formatError(component: string, message: string, context: unknown?): string
 	local parts = { "[Rivue:" .. component .. "] " .. message }
 

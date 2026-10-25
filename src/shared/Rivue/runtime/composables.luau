@@ -1,21 +1,11 @@
 --!strict
 --!optimize 2
 
---[[
-	composables.luau
-	================
-	
-	Composition API utilities and helper functions.
-	Provides Vue 3-compatible composables for enhanced DX.
-	
-	@module composables
-	@author Rivue
-	@version 1.0.0
-]]
+-- Composition helpers for setup(): useAttrs, useSlots, defineModel, useTheme and useStyles.
 
-local Types = require(script.Parent:WaitForChild("types"))
-local componentModule = require(script.Parent:WaitForChild("component"))
-local reactivity = require(script.Parent:WaitForChild("reactivity"))
+local Types = require("./types")
+local componentModule = require("./component")
+local reactivity = require("./reactivity")
 
 type Props = Types.Props
 type Child = Types.Child
@@ -32,8 +22,7 @@ export type ModelOptions = {
 
 local composables = {}
 
---- useAttrs: Returns non-declared props (fallthrough attributes)
---- Must be called during setup()
+--- Undeclared props (fallthrough attrs) of the current component. Call in setup()
 function composables.useAttrs(): Props
 	local instance = componentModule.getCurrentInstance()
 	if not instance then
@@ -42,8 +31,7 @@ function composables.useAttrs(): Props
 	return instance.attrs
 end
 
---- useSlots: Returns slots (child content) passed to component
---- Must be called during setup()
+--- Slot content passed to the current component. Call in setup()
 function composables.useSlots(): { Child }
 	local instance = componentModule.getCurrentInstance()
 	if not instance then
@@ -52,9 +40,7 @@ function composables.useSlots(): { Child }
 	return instance.slots
 end
 
---- defineModel: Creates a ref for v-model binding
---- @param options ModelOptions? -- Prop and event names
---- @return (props: Props, context: SetupContext) -> Ref<T> -- Call inside setup with (props, ctx)
+--- Returns a function that gives setup() a ref bound to the `model` prop
 function composables.defineModel<T>(options: ModelOptions?): (props: Props, context: SetupContext) -> Ref<T>
 	local opts: ModelOptions = options or {}
 	local propName = opts.name or "modelValue"
@@ -76,13 +62,10 @@ function composables.defineModel<T>(options: ModelOptions?): (props: Props, cont
 	end
 end
 
---- useTheme: Injects theme from ancestor component
---- Returns nil if no theme is provided
---- @return T? -- Provided theme (caller states its shape via the type argument)
+--- The nearest theme provided by an ancestor, or nil
 function composables.useTheme<T>(): T?
 	local current = componentModule.getCurrentInstance()
 
-	-- Walk up the component tree looking for theme
 	while current do
 		local theme = current.provides.theme
 		if theme ~= nil then
@@ -94,10 +77,8 @@ function composables.useTheme<T>(): T?
 	return nil
 end
 
---- useStyles: Creates computed styles based on theme
---- Returns a computed ref that updates when theme changes
---- @param styleFactory (theme: Theme) -> Styles -- Builds styles from the theme (empty table when none)
---- @return ComputedRef<Styles> -- Computed styles
+--- Styles computed from the current theme, recomputed when it changes
+--- `styleFactory`: builds styles from the theme (empty table when none)
 function composables.useStyles<Theme, Styles>(styleFactory: (theme: Theme) -> Styles): ComputedRef<Styles>
 	local themeRef = reactivity.ref(composables.useTheme() :: Theme?)
 

@@ -1,10 +1,5 @@
 --!strict
---[[
-	Regression Tests
-	================
-
-	One test per bug that was found and fixed, so they stay fixed.
-]]
+-- One test per bug that was found and fixed, so they stay fixed.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GuiService = game:GetService("GuiService")

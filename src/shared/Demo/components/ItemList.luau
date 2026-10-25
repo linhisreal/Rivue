@@ -6,7 +6,7 @@ local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
 local h = Rivue.h
 local array = Rivue.array
 
-local ListItem = require(script.Parent.ListItem)
+local ListItem = require("./ListItem")
 
 type Item = { id: number, name: string }
 

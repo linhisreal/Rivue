@@ -1,26 +1,9 @@
 --!strict
 --!optimize 2
 
---[[
-	types.luau
-	==========
+-- Shared types for the runtime, re-exported from main.
 
-	Shared types for the runtime. Also re-exported from main.
-
-	Usage:
-	------
-
-		local Types = require(ReplicatedStorage.Rivue.runtime.types)
-		local count: Types.Ref<number> = Rivue.ref(0)
-
-	@module types
-
-	@author Rivue
-
-	@version 1.0.0
-]]
-
--- ===== Reactivity =====
+-- Reactivity
 
 export type Ref<T> = {
 	value: T,
@@ -122,7 +105,7 @@ export type CustomRefAccessor<T> = {
 
 export type CustomRefFactory<T> = (track: () -> (), trigger: () -> ()) -> CustomRefAccessor<T>
 
--- ===== Scheduler =====
+-- Scheduler
 
 export type QueueMode = "micro" | "render" | "heartbeat"
 
@@ -134,7 +117,7 @@ export type JobHandle = {
 	cancel: () -> (),
 }
 
--- ===== Virtual DOM =====
+-- Virtual DOM
 
 export type Props = { [string]: any }
 
@@ -215,7 +198,7 @@ export type TransitionConfig = {
 	onAfterLeave: ((el: Instance) -> ())?,
 }
 
--- ===== Components =====
+-- Components
 
 -- type() or typeof() name: "string", "number", "table", "UDim2", "Color3", "Instance", ...
 export type PropTypeName = string
@@ -302,7 +285,7 @@ export type SuspenseContext = {
 	reject: (err: string) -> (),
 }
 
--- ===== Directives =====
+-- Directives
 
 -- Whatever mounted/updated return is passed back to later hooks
 export type Directive = {
@@ -311,7 +294,7 @@ export type Directive = {
 	unmounted: ((el: Instance, state: any) -> ())?,
 }
 
--- ===== App =====
+-- App
 
 export type PoolOptions = {
 	usePool: boolean?,

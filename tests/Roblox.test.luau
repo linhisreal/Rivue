@@ -1,10 +1,5 @@
 --!strict
---[[
-	Roblox Utils Unit Tests
-	=======================
-	
-	Tests for roblox.luau - attributeRef, useTag, RunService hooks
-]]
+-- Tests for roblox.luau - attributeRef, useTag, RunService hooks
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
@@ -163,12 +158,8 @@ local function runTests()
 		CollectionService:AddTag(obj1, "TestTag")
 		task.wait(0.2) -- Longer wait for CollectionService events
 
-		if #detected > 0 then
-			assertTrue(#detected > 0, "Should detect tagged instance")
-			assertTrue(detected[1] == "Tagged1", "Should call callback with correct instance")
-		else
-			print("  ⚠️ Note: useTag detection not working in test environment")
-		end
+		assertTrue(#detected > 0, "Should detect tagged instance")
+		assertTrue(detected[1] == "Tagged1", "Should call callback with correct instance")
 
 		app:unmount()
 		container:Destroy()
@@ -209,11 +200,7 @@ local function runTests()
 		CollectionService:RemoveTag(obj, "CleanupTag")
 		task.wait(0.2)
 
-		if cleanedUp then
-			assertTrue(cleanedUp, "Should call cleanup on tag removal")
-		else
-			print("  ⚠️ Note: useTag cleanup not working in test environment")
-		end
+		assertTrue(cleanedUp, "Should call cleanup on tag removal")
 
 		app:unmount()
 		container:Destroy()

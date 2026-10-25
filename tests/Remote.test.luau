@@ -1,10 +1,5 @@
 --!strict
---[[
-	Remote Communication Unit Tests
-	================================
-	
-	Tests for remote.luau - request/response patterns and event handling
-]]
+-- Tests for remote.luau - request/response patterns and event handling
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Remote = require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("remote"))
@@ -87,7 +82,7 @@ local function runTests()
 		local customEvent = folder and folder:FindFirstChild("CustomEvent")
 		assertTrue(customEvent ~= nil, "Should create custom RemoteEvent")
 		assertTrue(customEvent and customEvent:IsA("RemoteEvent") or false, "Should be a RemoteEvent")
-		-- Note: Cannot test FireClient from client - would need server-side test
+		-- FireClient needs a server, covered by tests/offline/RemoteServer.test.luau
 		conn:Disconnect()
 	end
 
@@ -146,7 +141,7 @@ local function runTests()
 		local event = folder and folder:FindFirstChild("MultiEvent")
 
 		assertTrue(event ~= nil, "Should create event for multiple listeners")
-		-- Note: Cannot test firing from client - would need server-side test
+		-- Firing to clients needs a server, covered by tests/offline/RemoteServer.test.luau
 		conn1:Disconnect()
 		conn2:Disconnect()
 	end

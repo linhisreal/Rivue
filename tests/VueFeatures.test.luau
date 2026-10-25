@@ -1,10 +1,5 @@
 --!strict
---[[
-	Vue Features Unit Tests
-	=======================
-	
-	Tests for writable computed, watch sources/once, provide/inject, app API, Fragment, nextTick
-]]
+-- Tests for writable computed, watch sources/once, provide/inject, app API, Fragment, nextTick
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))

@@ -38,6 +38,10 @@ StarterPlayerScripts/
   loading, input handling.
 - **Styles** live in style tables, not inline in render functions.
 
+Require modules inside `UI/` by path, relative to the file: `require("./ItemRow")` for a sibling,
+`require("../components/ItemRow")` from `views/`. Require Rivue itself through its Instance,
+`require(ReplicatedStorage.Rivue)`, since it lives in another service.
+
 `src/shared/Demo` in this repo follows this layout.
 
 ---
@@ -47,7 +51,7 @@ StarterPlayerScripts/
 Write the parts of a component in this order, so every file reads the same way:
 
 ```lua
-local ItemRow = require(script.Parent.ItemRow)
+local ItemRow = require("./ItemRow")
 
 return Rivue.defineComponent({
 	name = "Inventory",              -- 1. name

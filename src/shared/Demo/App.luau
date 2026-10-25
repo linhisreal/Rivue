@@ -5,8 +5,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
 local h = Rivue.h
 
-local Counter = require(script.Parent.components.Counter)
-local ItemList = require(script.Parent.components.ItemList)
+local Counter = require("./components/Counter")
+local ItemList = require("./components/ItemList")
 
 return Rivue.defineComponent({
 	name = "DemoApp",

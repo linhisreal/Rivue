@@ -22,7 +22,10 @@ local function moduleName(file: string): string
 end
 
 local function defineModule(out: { string }, parentVar: string, name: string, source: string)
-	table.insert(out, `__defineModule({parentVar}, "{name}", function(script)\n{source}\nend)`)
+	table.insert(
+		out,
+		`__defineModule({parentVar}, "{name}", function(script)\nlocal require = __requireFrom(script)\n{source}\nend)`
+	)
 end
 
 -- Mirrors a folder of ModuleScripts (and subfolders) under parentVar

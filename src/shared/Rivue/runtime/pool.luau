@@ -1,164 +1,10 @@
 --!strict
 --!optimize 2
 
---[[
-	Pool.luau
-    =========
-	
-	Advanced object pooling system for Roblox Instances to reduce GC pressure.
-	
-	@module pool
+-- Instance pool: reuses released GUI Instances instead of creating new ones, resetting changed
+-- properties back to their defaults on release.
 
-	@author Rivue
-
-	@version 2.0.0
-	
-	Type Definitions:
-    -----------------
-
-		type PoolConfig = {
-			maxPoolSize: number?,
-			maxTotalSize: number?,
-			enableMetrics: boolean?,
-			enableDebug: boolean?,
-			defaultTTL: number?,
-			enableAutoWarmup: boolean?
-		}
-
-		type PoolMetrics = {
-			acquires: number,
-			releases: number,
-			creates: number,
-			hits: number,
-			misses: number,
-			destroyed: number,
-			evictions: number
-		}
-
-		type PoolStatistics = {
-			totalInstances: number,
-			poolsByClass: { [string]: number },
-			metrics: PoolMetrics,
-			hitRate: number
-		}
-
-		type ResetHandler = (inst: Instance) -> ()
-
-		type PoolEventHooks = {
-			onAcquire: ((inst: Instance, fromPool: boolean) -> ())?,
-			onRelease: ((inst: Instance, pooled: boolean) -> ())?,
-			onClear: ((totalCleared: number) -> ())?,
-			onEvict: ((inst: Instance, reason: string) -> ())?
-		}
-
-		type Pool = {
-			store: { [string]: { Instance } },
-			config: PoolConfig,
-			metrics: PoolMetrics,
-			customResetHandlers: { [string]: ResetHandler },
-			eventHooks: PoolEventHooks,
-			instanceMetadata: { [Instance]: { acquiredAt: number, releasedAt: number? } },
-			
-			acquire: (className: string) -> Instance,
-			acquireMultiple: (className: string, count: number) -> { Instance },
-			release: (inst: Instance, touched: { [string]: boolean }?) -> (),
-			releaseMultiple: (instances: { Instance }) -> (),
-			clear: (className: string?) -> (),
-			
-			configure: (config: PoolConfig) -> (),
-			warmup: (className: string, count: number) -> (),
-			getStatistics: () -> PoolStatistics,
-			validateHealth: () -> boolean,
-			createSnapshot: () -> { [string]: { Instance } },
-			restoreSnapshot: (snapshot: { [string]: { Instance } }) -> (),
-			
-			setResetHandler: (className: string, handler: ResetHandler) -> (),
-			setEventHook: (hookName: string, handler: (...any) -> ()) -> (),
-			
-			_debugMode: boolean,
-			_typeCheckCache: { [string]: { isGuiObject: boolean, isText: boolean, isImage: boolean } }
-		}
-	
-	Public API:
-    -----------
-
-		acquire(className: string) -> Instance
-			Gets an Instance from the pool or creates a new one
-			
-		acquireMultiple(className: string, count: number) -> { Instance }
-			Bulk acquire multiple instances
-			
-		release(inst: Instance)
-			Returns an Instance to the pool after resetting it
-			
-		releaseMultiple(instances: { Instance })
-			Bulk release multiple instances
-			
-		clear(className: string?)
-			Destroys pooled Instances (all or specific class)
-			
-		configure(config: PoolConfig)
-			Update pool configuration
-			
-		warmup(className: string, count: number)
-			Pre-populate pool with instances
-			
-		getStatistics() -> PoolStatistics
-			Get detailed pool statistics and metrics
-			
-		validateHealth() -> boolean
-			Check pool health and remove invalid instances
-			
-		createSnapshot() -> { [string]: { Instance } }
-			Create a snapshot of current pool state
-			
-		restoreSnapshot(snapshot)
-			Restore pool from a snapshot
-			
-		setResetHandler(className: string, handler: ResetHandler)
-			Set custom reset logic for a class
-			
-		setEventHook(hookName: string, handler: function)
-			Register event callbacks (onAcquire, onRelease, onClear, onEvict)
-		
-	Usage:
-    ------
-		
-		-- Basic usage
-		local frame = Pool.acquire("Frame")
-		Pool.release(frame)
-		
-		-- Configuration
-		Pool.configure({
-			maxPoolSize = 50,
-			maxTotalSize = 500,
-			enableMetrics = true,
-			defaultTTL = 300
-		})
-		
-		-- Warmup
-		Pool.warmup("Frame", 10)
-		
-		-- Bulk operations
-		local frames = Pool.acquireMultiple("Frame", 5)
-		Pool.releaseMultiple(frames)
-		
-		-- Custom reset handler
-		Pool.setResetHandler("Frame", function(inst)
-			inst.BackgroundColor3 = Color3.new(1, 1, 1)
-		end)
-		
-		-- Event hooks
-		Pool.setEventHook("onAcquire", function(inst, fromPool)
-			print("Acquired:", inst.ClassName, "from pool:", fromPool)
-		end)
-		
-		-- Statistics
-		local stats = Pool.getStatistics()
-		print("Hit rate:", stats.hitRate)
-]]
-
-local Types = require(script.Parent:WaitForChild("types"))
+local Types = require("./types")
 
 export type PoolConfig = Types.PoolConfig
 
@@ -218,14 +64,13 @@ type PoolType = {
 	_typeCheckCache: { [string]: { isGuiObject: boolean, isText: boolean, isImage: boolean } },
 }
 
-local debugModule = require(script.Parent:WaitForChild("debug"))
+local debugModule = require("./debug")
 
--- Default configuration
 local DEFAULT_CONFIG: PoolConfig = {
 	maxPoolSize = 50, -- Max instances per class
 	maxTotalSize = 500, -- Max total instances across all classes
 	enableMetrics = true, -- Track usage statistics
-	enableDebug = false, -- Enhanced debug logging
+	enableDebug = false, -- Log acquire/release events
 	defaultTTL = nil, -- Time-to-live in seconds (nil = infinite)
 	enableAutoWarmup = false, -- Auto-warmup on first acquire
 }
@@ -260,8 +105,6 @@ Pool._debugMode = false
 Pool._typeCheckCache = {}
 
 --- Gets cached type information for a class
---- @param className string -- Class name to check
---- @return table -- Cached type info
 local function getTypeInfo(className: string): { isGuiObject: boolean, isText: boolean, isImage: boolean }
 	if not Pool._typeCheckCache[className] then
 		local success, testInst = pcall(Instance.new, className)
@@ -284,8 +127,6 @@ local function getTypeInfo(className: string): { isGuiObject: boolean, isText: b
 end
 
 --- Checks if an instance is valid (not destroyed)
---- @param inst Instance -- Instance to check
---- @return boolean -- True if valid
 local function isInstanceValid(inst: Instance): boolean
 	-- Destroyed instances have a locked Parent
 	return pcall(function()
@@ -294,7 +135,6 @@ local function isInstanceValid(inst: Instance): boolean
 end
 
 --- Evicts old instances based on TTL
---- @param className string -- Class name to check
 local function evictStaleInstances(className: string): ()
 	if not Pool.config.defaultTTL then
 		return
@@ -313,7 +153,6 @@ local function evictStaleInstances(className: string): ()
 		if metadata and metadata.releasedAt then
 			local age = now - metadata.releasedAt
 			if age > Pool.config.defaultTTL then
-				-- Evict stale instance
 				table.remove(list, i)
 				pooledCount -= 1
 				Pool.instanceMetadata[inst] = nil
@@ -350,8 +189,7 @@ end
 local defaultTemplates: { [string]: Instance | false } = {}
 
 --- Restores touched properties to their class defaults
---- @param inst Instance -- Instance being pooled
---- @param touched { [string]: boolean } -- Property names that were set while it was mounted
+--- `touched`: property names that were set while it was mounted
 local function restoreTouchedProps(inst: Instance, touched: { [string]: boolean }): ()
 	local className = inst.ClassName
 	local template = defaultTemplates[className]
@@ -375,8 +213,7 @@ local function restoreTouchedProps(inst: Instance, touched: { [string]: boolean 
 end
 
 --- Resets an Instance to its default state
---- @param inst Instance -- Instance to reset
---- @param touched { [string]: boolean }? -- Properties set while mounted (restored to class defaults)
+--- `touched`: properties set while mounted (restored to class defaults)
 local function resetInstance(inst: Instance, touched: { [string]: boolean }?): ()
 	if not inst then
 		return
@@ -386,21 +223,17 @@ local function resetInstance(inst: Instance, touched: { [string]: boolean }?): (
 		restoreTouchedProps(inst, touched)
 	end
 
-	-- Use custom handler if available
 	local handler = Pool.customResetHandlers[inst.ClassName]
 	if handler then
 		pcall(handler, inst)
 		return
 	end
 
-	-- Get cached type information
 	local typeInfo = getTypeInfo(inst.ClassName)
 
 	pcall(function()
-		-- Clear parent first
 		inst.Parent = nil
 
-		-- Destroy all children
 		local children = inst:GetChildren()
 		for _, child in ipairs(children) do
 			pcall(function()
@@ -408,17 +241,14 @@ local function resetInstance(inst: Instance, touched: { [string]: boolean }?): (
 			end)
 		end
 
-		-- Clear text properties (using cached type check)
 		if typeInfo.isText then
 			(inst :: TextLabel).Text = ""
 		end
 
-		-- Clear image properties (using cached type check)
 		if typeInfo.isImage then
 			(inst :: ImageLabel).Image = ""
 		end
 
-		-- Reset GuiObject properties in a single pcall
 		if typeInfo.isGuiObject then
 			local guiObj = inst :: GuiObject
 			guiObj.LayoutOrder = 0
@@ -432,7 +262,6 @@ local function resetInstance(inst: Instance, touched: { [string]: boolean }?): (
 		-- Back to the default name, a reused Instance shouldn't show up as "PooledFrame"
 		inst.Name = inst.ClassName
 
-		-- Clear all attributes (synchronous for immediate cleanup)
 		if inst.GetAttributes then
 			pcall(function()
 				local attrs = inst:GetAttributes()
@@ -447,21 +276,16 @@ local function resetInstance(inst: Instance, touched: { [string]: boolean }?): (
 end
 
 --- Restores the given properties to their class defaults
---- @param inst Instance -- Instance to update
---- @param props { [string]: boolean } -- Property names to restore
 function Pool.restoreDefaults(inst: Instance, props: { [string]: boolean }): ()
 	restoreTouchedProps(inst, props)
 end
 
 --- Acquires an Instance from the pool
---- @param className string -- Class name to acquire
---- @return Instance -- Acquired or newly created Instance
 function Pool.acquire(className: string): Instance
 	if Pool.config.enableMetrics then
 		Pool.metrics.acquires += 1
 	end
 
-	-- Auto-warmup on first acquire
 	if Pool.config.enableAutoWarmup and not Pool.store[className] then
 		Pool.warmup(className, 5)
 	end
@@ -469,7 +293,6 @@ function Pool.acquire(className: string): Instance
 	Pool.store[className] = Pool.store[className] or {}
 	local list = Pool.store[className]
 
-	-- Evict stale instances if TTL is enabled
 	if Pool.config.defaultTTL then
 		evictStaleInstances(className)
 	end
@@ -478,7 +301,6 @@ function Pool.acquire(className: string): Instance
 	local inst: Instance
 
 	if #list > 0 then
-		-- Try to get from pool, validate it's not destroyed
 		local attempts = 0
 		while #list > 0 and attempts < 3 do
 			inst = table.remove(list) :: Instance
@@ -490,7 +312,6 @@ function Pool.acquire(className: string): Instance
 				end
 				break
 			else
-				-- Instance was destroyed, try next
 				Pool.instanceMetadata[inst] = nil
 				attempts += 1
 				if Pool.config.enableMetrics then
@@ -501,7 +322,6 @@ function Pool.acquire(className: string): Instance
 	end
 
 	if not fromPool then
-		-- Create new instance
 		if Pool.config.enableMetrics then
 			Pool.metrics.misses += 1
 			Pool.metrics.creates += 1
@@ -518,13 +338,11 @@ function Pool.acquire(className: string): Instance
 		end
 	end
 
-	-- Track metadata
 	Pool.instanceMetadata[inst] = {
 		acquiredAt = os.clock(),
 		releasedAt = nil,
 	}
 
-	-- Fire event hook
 	if Pool.eventHooks.onAcquire then
 		pcall(function()
 			Pool.eventHooks.onAcquire(inst, fromPool)
@@ -544,9 +362,6 @@ function Pool.acquire(className: string): Instance
 end
 
 --- Acquires multiple instances from the pool
---- @param className string -- Class name to acquire
---- @param count number -- Number of instances to acquire
---- @return { Instance } -- Array of acquired instances
 function Pool.acquireMultiple(className: string, count: number): { Instance }
 	local instances = table.create(count)
 	for i = 1, count do
@@ -556,7 +371,6 @@ function Pool.acquireMultiple(className: string, count: number): { Instance }
 end
 
 --- Releases an Instance back to the pool
---- @param inst Instance -- Instance to release
 function Pool.release(inst: Instance, touched: { [string]: boolean }?): ()
 	if not inst or not inst.ClassName then
 		warn("[Pool] Attempted to release invalid instance")
@@ -567,7 +381,6 @@ function Pool.release(inst: Instance, touched: { [string]: boolean }?): ()
 		Pool.metrics.releases += 1
 	end
 
-	-- Validate instance is not destroyed
 	if not isInstanceValid(inst) then
 		Pool.instanceMetadata[inst] = nil
 		if Pool.config.enableMetrics then
@@ -590,7 +403,6 @@ function Pool.release(inst: Instance, touched: { [string]: boolean }?): ()
 	Pool.store[inst.ClassName] = Pool.store[inst.ClassName] or {}
 	local list = Pool.store[inst.ClassName]
 
-	-- Check pool size limits
 	local shouldPool = true
 	local evictionReason = ""
 
@@ -603,7 +415,6 @@ function Pool.release(inst: Instance, touched: { [string]: boolean }?): ()
 	end
 
 	if shouldPool then
-		-- Update metadata
 		if not Pool.instanceMetadata[inst] then
 			Pool.instanceMetadata[inst] = {
 				acquiredAt = os.clock(),
@@ -612,7 +423,6 @@ function Pool.release(inst: Instance, touched: { [string]: boolean }?): ()
 		end
 		Pool.instanceMetadata[inst].releasedAt = os.clock()
 
-		-- Reset and pool
 		resetInstance(inst, touched)
 		table.insert(list, inst)
 		pooledCount += 1
@@ -624,7 +434,6 @@ function Pool.release(inst: Instance, touched: { [string]: boolean }?): ()
 			})
 		end
 	else
-		-- Destroy instead of pooling
 		Pool.instanceMetadata[inst] = nil
 		pcall(function()
 			inst:Destroy()
@@ -650,7 +459,6 @@ function Pool.release(inst: Instance, touched: { [string]: boolean }?): ()
 		end
 	end
 
-	-- Fire release event hook
 	if Pool.eventHooks.onRelease then
 		pcall(function()
 			Pool.eventHooks.onRelease(inst, shouldPool)
@@ -659,7 +467,6 @@ function Pool.release(inst: Instance, touched: { [string]: boolean }?): ()
 end
 
 --- Releases multiple instances back to the pool
---- @param instances { Instance } -- Array of instances to release
 function Pool.releaseMultiple(instances: { Instance }): ()
 	for _, inst in ipairs(instances) do
 		Pool.release(inst)
@@ -667,12 +474,11 @@ function Pool.releaseMultiple(instances: { Instance }): ()
 end
 
 --- Clears Instances from the pool
---- @param className string? -- Optional class name to clear (nil = clear all)
+--- `className`: optional class name to clear (nil = clear all)
 function Pool.clear(className: string?): ()
 	local totalCleared = 0
 
 	if className then
-		-- Clear specific class
 		local list = Pool.store[className]
 		if list then
 			totalCleared = #list
@@ -685,7 +491,6 @@ function Pool.clear(className: string?): ()
 			Pool.store[className] = {}
 		end
 	else
-		-- Clear all
 		for cls, list in pairs(Pool.store) do
 			totalCleared += #list
 			for _, inst in ipairs(list) do
@@ -703,7 +508,6 @@ function Pool.clear(className: string?): ()
 		Pool.metrics.destroyed += totalCleared
 	end
 
-	-- Fire event hook
 	if Pool.eventHooks.onClear then
 		pcall(function()
 			Pool.eventHooks.onClear(totalCleared)
@@ -719,7 +523,6 @@ function Pool.clear(className: string?): ()
 end
 
 --- Updates pool configuration
---- @param config PoolConfig -- Configuration options
 function Pool.configure(config: PoolConfig): ()
 	for key, value in pairs(config) do
 		if Pool.config[key] ~= nil then
@@ -735,8 +538,6 @@ function Pool.configure(config: PoolConfig): ()
 end
 
 --- Pre-populates the pool with instances
---- @param className string -- Class name to warmup
---- @param count number -- Number of instances to create
 function Pool.warmup(className: string, count: number): ()
 	Pool.store[className] = Pool.store[className] or {}
 	local list = Pool.store[className]
@@ -769,7 +570,6 @@ function Pool.warmup(className: string, count: number): ()
 end
 
 --- Gets detailed pool statistics
---- @return PoolStatistics -- Current statistics
 function Pool.getStatistics(): PoolStatistics
 	local totalInstances = 0
 	local poolsByClass = {}
@@ -793,7 +593,6 @@ function Pool.getStatistics(): PoolStatistics
 end
 
 --- Validates pool health and removes invalid instances
---- @return boolean -- True if pool is healthy
 function Pool.validateHealth(): boolean
 	local removedCount = 0
 	local totalChecked = 0
@@ -838,7 +637,6 @@ function Pool.validateHealth(): boolean
 end
 
 --- Creates a snapshot of the current pool state
---- @return { [string]: { Instance } } -- Pool snapshot
 function Pool.createSnapshot(): { [string]: { Instance } }
 	local snapshot = {}
 	for className, list in pairs(Pool.store) do
@@ -862,12 +660,9 @@ function Pool.createSnapshot(): { [string]: { Instance } }
 end
 
 --- Restores pool from a snapshot
---- @param snapshot { [string]: { Instance } } -- Pool snapshot to restore
 function Pool.restoreSnapshot(snapshot: { [string]: { Instance } }): ()
-	-- Clear current pool
 	Pool.clear()
 
-	-- Restore from snapshot
 	for className, list in pairs(snapshot) do
 		Pool.store[className] = table.clone(list)
 	end
@@ -888,8 +683,6 @@ function Pool.restoreSnapshot(snapshot: { [string]: { Instance } }): ()
 end
 
 --- Sets a custom reset handler for a class
---- @param className string -- Class name
---- @param handler ResetHandler -- Custom reset function
 function Pool.setResetHandler(className: string, handler: ResetHandler): ()
 	Pool.customResetHandlers[className] = handler
 
@@ -901,8 +694,7 @@ function Pool.setResetHandler(className: string, handler: ResetHandler): ()
 end
 
 --- Sets an event hook
---- @param hookName string -- Hook name (onAcquire, onRelease, onClear, onEvict)
---- @param handler function -- Callback function
+--- `hookName`: hook name (onAcquire, onRelease, onClear, onEvict)
 function Pool.setEventHook(hookName: string, handler: (...any) -> ()): ()
 	if hookName == "onAcquire" or hookName == "onRelease" or hookName == "onClear" or hookName == "onEvict" then
 		(Pool.eventHooks :: any)[hookName] = handler

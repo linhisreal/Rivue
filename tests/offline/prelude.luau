@@ -286,6 +286,31 @@ require = function(obj)
 	end
 	return cache[obj]
 end
+-- String requires, resolved like Roblox does: "./x" from the module's parent, "../x" one level
+-- up, "@self/x" from the module itself
+function __requireFrom(script)
+	return function(target)
+		if type(target) ~= "string" then
+			return require(target)
+		end
+		local node, rest
+		if string.sub(target, 1, 6) == "@self/" then
+			node, rest = script, string.sub(target, 7)
+		elseif string.sub(target, 1, 2) == "./" or string.sub(target, 1, 3) == "../" then
+			node, rest = script.Parent, target
+		else
+			error("unsupported require path " .. target, 2)
+		end
+		for _, part in string.split(rest, "/") do
+			if part == ".." then
+				node = node.Parent
+			elseif part ~= "." and part ~= "" then
+				node = node._children[part] or error(`require("{target}"): no module '{part}'`, 2)
+			end
+		end
+		return require(node)
+	end
+end
 function __defineModule(parent, name, fn)
 	local obj = parent and makeFolder(name, parent) or rivueScript
 	obj.__load = fn
@@ -332,7 +357,7 @@ function __finish()
 	end
 end
 
--- ===== Minimal Instance stub =====
+-- Minimal Instance stub
 UDIM2_MT = {
 	__eq = function(a, b)
 		return a.X.Scale == b.X.Scale
@@ -793,7 +818,7 @@ typeof = function(v)
 end
 -- Folder-like stubs created by makeFolder() must also accept Instance children
 
--- ===== Players / CollectionService / workspace stubs =====
+-- Players / CollectionService / workspace stubs
 do
 	local player = Instance.new("Player")
 	player.Name = "LocalPlayer"

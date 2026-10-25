@@ -1,10 +1,5 @@
 --!strict
---[[
-	Renderer Unit Tests
-	===================
-	
-	Tests for renderer.luau - VNode patching, mounting, unmounting, lifecycle, and pooling
-]]
+-- Tests for renderer.luau - VNode patching, mounting, unmounting, lifecycle, and pooling
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
