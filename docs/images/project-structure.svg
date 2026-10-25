@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 400" width="760" height="400">
+<title>project structure</title>
+<rect width="760" height="400" rx="12" fill="#ffffff" stroke="#d0d7de"/>
+<text x="30" y="40" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#1f6feb" font-weight="700">ReplicatedStorage/</text>
+<text x="56" y="64" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#1f6feb" font-weight="700">Rivue/</text>
+<text x="330" y="64" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#59636e">the library</text>
+<text x="56" y="88" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#1f6feb" font-weight="700">UI/</text>
+<text x="82" y="112" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#1f2328" font-weight="400">App.luau</text>
+<text x="330" y="112" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#59636e">root component: picks the current view</text>
+<text x="82" y="136" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#1f2328" font-weight="400">styles.luau</text>
+<text x="330" y="136" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#59636e">app-wide styles, registered with app:styles()</text>
+<text x="82" y="160" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#1f6feb" font-weight="700">views/</text>
+<text x="330" y="160" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#59636e">screens: own a screen's state, lay out components</text>
+<text x="108" y="184" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#1f2328" font-weight="400">Shop.luau</text>
+<text x="108" y="208" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#1f2328" font-weight="400">Inventory.luau</text>
+<text x="82" y="232" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#1f6feb" font-weight="700">components/</text>
+<text x="330" y="232" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#59636e">reusable pieces: take props, emit events</text>
+<text x="108" y="256" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#1f2328" font-weight="400">ItemRow.luau</text>
+<text x="108" y="280" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#1f2328" font-weight="400">Modal.luau</text>
+<text x="82" y="304" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#1f6feb" font-weight="700">composables/</text>
+<text x="330" y="304" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#59636e">shared logic: use* functions, no UI</text>
+<text x="108" y="328" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#1f2328" font-weight="400">useCountdown.luau</text>
+<text x="30" y="352" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#1f6feb" font-weight="700">StarterPlayerScripts/</text>
+<text x="56" y="376" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14" fill="#1f2328" font-weight="400">UI.client.luau</text>
+<text x="330" y="376" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#59636e">createApp(App):styles(styles):mountToPlayerGui(player)</text>
+</svg>

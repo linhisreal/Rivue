@@ -2,7 +2,8 @@
 
 # Rivue Guide
 
-Build Roblox UI with Rivue, one idea per chapter. Each chapter takes about ten minutes, ends with
+Build Roblox UI with Rivue, one idea per chapter. Chapters 1–9 teach the framework; 10 and 11
+cover organising a real project. Each chapter takes about ten minutes, ends with
 an example to read and links to the API it used. Read them in order the first time.
 
 | | Chapter | You'll learn |
@@ -16,6 +17,8 @@ an example to read and links to the API it used. Read them in order the first ti
 | 7 | [Effects and animation](guide/07-effects-and-animation.md) | watchers, cleanup, update timing, transitions, springs |
 | 8 | [Sharing state and the server](guide/08-state-and-server.md) | provide/inject, store modules, `Remote` |
 | 9 | [Performance and debugging](guide/09-performance-and-debugging.md) | what's slow, finding out why, common mistakes |
+| 10 | [Organising a project](guide/10-organising-a-project.md) | folders, component anatomy, splitting, composables |
+| 11 | [Style rules](guide/11-style-rules.md) | the habits that prevent bugs and keep code readable |
 
 Know Vue already? Skim [Rivue for Vue developers](VUE.md) first, then jump to chapter 6, where
 Rivue differs most.

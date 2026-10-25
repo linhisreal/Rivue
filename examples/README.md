@@ -5,7 +5,7 @@
 Small, complete components that show how Rivue is meant to be used. Every one is mounted and
 clicked through by `tests/Examples.test.luau`, so they stay working.
 
-They all follow the [Style Guide](../docs/STYLE_GUIDE.md): state and functions in `setup()`,
+They all follow the [style rules](../docs/guide/11-style-rules.md): state and functions in `setup()`,
 markup in `render(ctx)`, visuals in a `styles` table applied with `class`, and `layout` instead of
 absolute positions. For a multi-file app (views, components, app-wide styles), see
 [src/shared/Demo](../src/shared/Demo).

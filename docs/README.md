@@ -6,20 +6,18 @@ Everything you need to build Roblox UI with Rivue, in the order you'll need it.
 
 ```mermaid
 flowchart LR
-    G["<b>1. Guide</b><br/>9 short chapters,<br/>concepts in order"] --> E["<b>2. Examples</b><br/>complete components<br/>to read and copy"]
-    E --> S["<b>3. Style Guide</b><br/>how to organise<br/>a real project"]
-    S --> A["<b>4. API reference</b><br/>every function and prop,<br/>keep it open while you build"]
+    G["<b>1. Guide</b><br/>11 short chapters,<br/>concepts, then projects"] --> E["<b>2. Examples</b><br/>complete components<br/>to read and copy"]
+    E --> A["<b>3. API reference</b><br/>every function and prop,<br/>keep it open while you build"]
     V["Coming from Vue?<br/>Vue cheat sheet"] -.-> G
     A -.-> R["Contributing?<br/>Architecture"]
 ```
 
-1. **[Guide](GUIDE.md)**: start here. Nine chapters of about ten minutes each, from your first
-   component to debugging a real screen. Every chapter ends with an example and the API it used.
+1. **[Guide](GUIDE.md)**: start here. Eleven chapters of about ten minutes each: the framework
+   from your first component to debugging (1–9), then how to organise a real project and the
+   style rules (10–11). Every chapter ends with an example and the API it used.
 2. **[Examples](../examples)**: a todo list, inventory, modal, tabs, shop and HUD. Each is tested,
    and each one shows a few features well.
-3. **[Style Guide](STYLE_GUIDE.md)**: folder layout, the order of a component's parts, and rules
-   that keep UI code flat and readable as the game grows.
-4. **[API reference](API.md)**: every function, prop and component, each with an example. Each
+3. **[API reference](API.md)**: every function, prop and component, each with an example. Each
    page links back to the Guide chapter that explains it.
 
 Also: **[Rivue for Vue developers](VUE.md)** maps Vue templates to Rivue, and
@@ -43,4 +41,6 @@ Also: **[Rivue for Vue developers](VUE.md)** maps Vue templates to Rivue, and
 | share state across the game | [Guide 8](guide/08-state-and-server.md) | [provide()](api/component.md#provide), [readonly()](api/reactivity-core.md#readonly) | |
 | load data from the server | [Guide 8](guide/08-state-and-server.md#talking-to-the-server) | [Remote](api/remote.md) | [Shop](../examples/components/Shop.luau) |
 | show a long list fast | [Guide 9](guide/09-performance-and-debugging.md) | [VirtualList](api/builtins.md#virtuallist) | [Inventory](../examples/components/Inventory.luau) |
+| organise files once there are many screens | [Guide 10](guide/10-organising-a-project.md) | [components](api/component.md#components) | [Demo app](../src/shared/Demo) |
+| check my code follows the conventions | [Guide 11](guide/11-style-rules.md) | | |
 | find out why something broke | [Guide 9](guide/09-performance-and-debugging.md#debugging) | [Utilities and debugging](api/utilities.md) | |

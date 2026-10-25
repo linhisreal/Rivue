@@ -56,10 +56,7 @@ Rivue is fast by default. These cover the cases where it isn't:
 
 ---
 
-**You've finished the Guide.** Next, read the [Style Guide](../STYLE_GUIDE.md) for how to
-organise a real project, and keep the [API reference](../API.md) open while you build.
-
 **Reference:** [VirtualList](../api/builtins.md#virtuallist) · [printTree()](../api/utilities.md#printtree) ·
 [onRenderTriggered()](../api/lifecycle.md#onrendertriggered) · [Pooling options](../api/application.md#pooling-options)
 
-[← 8. Sharing state and the server](08-state-and-server.md) · [Guide contents](../GUIDE.md)
+[← 8. Sharing state and the server](08-state-and-server.md) · [Guide contents](../GUIDE.md) · [10. Organising a project →](10-organising-a-project.md)

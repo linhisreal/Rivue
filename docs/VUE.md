@@ -124,7 +124,7 @@ local Counter = Rivue.defineComponent({
   proxy, so use [`Rivue.array`](api/array.md) (`push`, `splice`, `removeWhere`, `sort`, ...) in
   place of JavaScript's array methods.
 - **No templates, no compiler.** That means no compile-time props destructuring, no `<style>`,
-  and no SFCs (one ModuleScript per component instead, see the [Style Guide](STYLE_GUIDE.md)).
+  and no SFCs (one ModuleScript per component instead, see [Organising a project](guide/10-organising-a-project.md)).
   The `defineProps` and `defineEmits` macros are the `props` and `emits` options.
   Every render re-creates its vnodes. Rivue's diff is shallow on props, and `memo` and keys do
   what the compiler's static hoisting does in Vue.

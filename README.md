@@ -109,9 +109,8 @@ Start at the **[docs home](docs/README.md)**: it has the learning path and an "I
 
 | | |
 |---|---|
-| [Guide](docs/GUIDE.md) | Nine short chapters, from the first component to debugging a real screen |
+| [Guide](docs/GUIDE.md) | Eleven short chapters, from the first component to organising a real project |
 | [Examples](examples) | Todo list, inventory, modal, tabs, shop and HUD, all tested |
-| [Style Guide](docs/STYLE_GUIDE.md) | Project layout and conventions that keep UI code readable |
 | [Coming from Vue](docs/VUE.md) | Template-to-Luau cheat sheet and the differences |
 | [API reference](docs/API.md) | Every function, prop and component, each with an example |
 | [Architecture](docs/ARCHITECTURE.md) | How it works inside, for contributors |
@@ -138,7 +137,7 @@ every push. When you fix a bug, add a test that fails without the fix.
 
 ```
 src/shared/Rivue/    the library: Rivue.luau and runtime/
-src/shared/Demo/     a demo app, laid out as the Style Guide recommends
+src/shared/Demo/     a demo app, laid out as Guide chapter 10 recommends
 src/client/          test place scripts: Demo, TestRunner, opt-in Stress test
 examples/            example components and their own place
 tests/               test suites; tests/offline holds the Lune harness
