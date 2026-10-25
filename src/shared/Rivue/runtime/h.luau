@@ -57,7 +57,8 @@ local function normalizeChildren(children: unknown): { Child }
 	end
 	local t = type(children)
 	if t == "table" then
-		return children :: { Child }
+		-- Copy so a reused array (like ctx.slots) can't change an already-rendered vnode
+		return table.clone(children :: { Child })
 	elseif t == "function" then
 		return { children :: () -> VNode? }
 	end

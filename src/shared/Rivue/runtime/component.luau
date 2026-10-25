@@ -131,6 +131,7 @@ local Types = require(script.Parent:WaitForChild("types"))
 local _reactivity = require(script.Parent:WaitForChild("reactivity"))
 local RunService = game:GetService("RunService")
 local debugModule = require(script.Parent:WaitForChild("debug"))
+local utils = require(script.Parent:WaitForChild("utils"))
 
 type VNode = Types.VNode
 type Props = Types.Props
@@ -574,7 +575,8 @@ end
 --- Applies new incoming props to a mounted component instance
 --- @param instance ComponentInstance -- Mounted component instance
 --- @param rawProps Props? -- New props from the parent's vnode
-local function updateComponentProps(instance: ComponentInstance, rawProps: Props?): ()
+--- @return boolean -- True if attrs changed (props trigger their own re-render)
+local function updateComponentProps(instance: ComponentInstance, rawProps: Props?): boolean
 	local schema = instance.type.props
 	local nextProps, nextAttrs = separatePropsAndAttrs(schema, rawProps or {})
 	local props = instance.props
@@ -599,11 +601,30 @@ local function updateComponentProps(instance: ComponentInstance, rawProps: Props
 		props[key] = value
 	end
 
+	if utils.shallowEqual(instance.attrs, nextAttrs) then
+		return false
+	end
+
 	-- Update in place, ctx.attrs points at this table
 	table.clear(instance.attrs)
 	for key, value in nextAttrs do
 		instance.attrs[key] = value
 	end
+	return true
+end
+
+--- Replaces a component's slots in place (ctx.slots points at the same table)
+--- @param instance ComponentInstance -- Mounted component instance
+--- @param children { Child } -- New children from the parent's vnode
+--- @return boolean -- True if the component had or now has slot content
+local function updateComponentSlots(instance: ComponentInstance, children: { Child }): boolean
+	local slots = instance.slots
+	if #slots == 0 and #children == 0 then
+		return false
+	end
+	table.clear(slots)
+	table.move(children, 1, #children, 1, slots)
+	return true
 end
 
 --- Registers a transition hook to run before/after element transitions
@@ -635,6 +656,7 @@ local Teleport: ComponentDef = table.freeze({
 return {
 	createComponentInstance = createComponentInstance,
 	updateComponentProps = updateComponentProps,
+	updateComponentSlots = updateComponentSlots,
 	onBeforeMount = onBeforeMount,
 	onMounted = onMounted,
 	onBeforeUpdate = onBeforeUpdate,

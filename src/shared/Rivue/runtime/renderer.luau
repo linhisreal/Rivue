@@ -1234,7 +1234,13 @@ function patch(oldVNode: RenderVNode?, newVNode: RenderVNode?, container: Instan
 		newVNode._instance = inst
 		if inst then
 			inst.vnode = newVNode
-			componentAPI.updateComponentProps(inst, newVNode.props)
+			local attrsChanged = componentAPI.updateComponentProps(inst, newVNode.props)
+			local slotsChanged = componentAPI.updateComponentSlots(inst, newVNode.children)
+			-- Slots and attrs aren't reactive, so queue the child's re-render ourselves
+			local renderEffect = inst._renderEffect
+			if (attrsChanged or slotsChanged) and renderEffect and renderEffect.scheduler then
+				renderEffect.scheduler(renderEffect.run)
+			end
 		end
 	elseif type(newType) == "function" then
 		-- Diff the previous output against the new one
