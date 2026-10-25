@@ -156,6 +156,8 @@ type HookList =
 	| "unmountedCbs"
 	| "activatedCbs"
 	| "deactivatedCbs"
+	| "renderTrackedCbs"
+	| "renderTriggeredCbs"
 
 -- Shared methods for component instances
 local ComponentInstance = {}
@@ -192,6 +194,9 @@ type InstanceData = {
 	unmountedCbs: { () -> () },
 	activatedCbs: { () -> () },
 	deactivatedCbs: { () -> () },
+	-- Debug hooks, called with what a render read / what made it re-render
+	renderTrackedCbs: { (event: Types.DebuggerEvent) -> () },
+	renderTriggeredCbs: { (event: Types.DebuggerEvent) -> () },
 	errorCapturedCbs: { ErrorCapturedHook },
 	slots: { Child },
 	namedSlots: Types.Slots,
@@ -258,9 +263,15 @@ end
 --- @return (fn: () -> ()) -> () -- Registration function
 local function createHook(hookName: string, list: HookList): (fn: () -> ()) -> ()
 	return function(fn: () -> ())
+		if type(fn) ~= "function" then
+			error(`{hookName}() expects a function`, 2)
+		end
 		local inst = currentInstance
 		if not inst then
-			error(`{hookName} must be called in setup`, 2)
+			error(
+				`{hookName}() must be called inside a component's setup(), it registers on the component being set up`,
+				2
+			)
 		end
 
 		if debugModule.enabled then
@@ -283,6 +294,48 @@ local onUnmounted = createHook("onUnmounted", "unmountedCbs")
 -- KeepAlive: runs on mount and every time the component comes back from the cache
 local onActivated = createHook("onActivated", "activatedCbs")
 local onDeactivated = createHook("onDeactivated", "deactivatedCbs")
+-- Debugging: what the render read, and what made it re-render
+local onRenderTracked =
+	createHook("onRenderTracked", "renderTrackedCbs") :: (fn: (event: Types.DebuggerEvent) -> ()) -> ()
+local onRenderTriggered =
+	createHook("onRenderTriggered", "renderTriggeredCbs") :: (fn: (event: Types.DebuggerEvent) -> ()) -> ()
+
+-- App context set by app:runWithContext(), so inject() works outside components
+local injectionContext: AppContext? = nil
+
+--- Runs fn with an app's provides available to inject()
+--- @param context AppContext -- App context
+--- @param fn () -> T -- Work
+--- @return T -- fn's result
+local function runWithInjectionContext<T>(context: AppContext, fn: () -> T): T
+	local prev = injectionContext
+	injectionContext = context
+	local ok, result = pcall(fn)
+	injectionContext = prev
+	if not ok then
+		error(result, 0)
+	end
+	return result
+end
+
+--- True when inject() can be called here (in setup, or inside app:runWithContext())
+--- @return boolean -- Has an injection context
+local function hasInjectionContext(): boolean
+	return currentInstance ~= nil or injectionContext ~= nil
+end
+
+--- Formats the component chain for error messages: <Button> in <Toolbar> in <App>
+--- @param inst ComponentInstance? -- Innermost component
+--- @return string -- Readable trace
+local function formatComponentTrace(inst: ComponentInstance?): string
+	local parts: { string } = {}
+	local cur = inst
+	while cur and #parts < 12 do
+		table.insert(parts, `<{cur.type.__name or "Anonymous"}>`)
+		cur = cur.parent
+	end
+	return if #parts > 0 then table.concat(parts, " in ") else "<root>"
+end
 
 local idCounter = 0
 
@@ -328,10 +381,14 @@ end
 --- @return T? -- Provided value or default
 local function inject<T>(key: unknown, default: T?): T?
 	local inst = currentInstance
-	if not inst then
-		error("inject() must be called in setup", 2)
+	local provided: unknown
+	if inst then
+		provided = inst.provides[key]
+	elseif injectionContext then
+		provided = injectionContext.provides[key]
+	else
+		error("inject() must be called inside setup() or app:runWithContext()", 2)
 	end
-	local provided = inst.provides[key]
 	return if provided ~= nil then provided :: T else default
 end
 
@@ -441,8 +498,22 @@ local function validateProps(schema: PropSchema?, props: Props): (boolean, strin
 		end
 
 		local expected = spec.type
-		if val ~= nil and expected and type(val) ~= expected then
-			table.insert(errs, `prop '{name}' expected {expected} got {type(val)}`)
+		if val ~= nil and expected then
+			local actual = typeof(val)
+			local allowed: { string } = if type(expected) == "table"
+				then expected :: { string }
+				else { expected :: string }
+			local matches = false
+			for _, t in allowed do
+				-- type() names ("table") and typeof() names ("UDim2", "Instance") both work
+				if t == actual or t == type(val) then
+					matches = true
+					break
+				end
+			end
+			if not matches then
+				table.insert(errs, `prop '{name}' should be {table.concat(allowed, " | ")}, got {actual}`)
+			end
 		end
 
 		-- Run custom validator if provided
@@ -493,7 +564,7 @@ function ComponentInstance.setupComponent(self: ComponentInstance)
 		if IS_STUDIO then
 			local ok, err = validateProps(schema, self.props)
 			if not ok then
-				debugModule.log("Component", `Prop validation failed: {err}`)
+				warn(`[Rivue] Invalid props for {formatComponentTrace(self)}: {err}`)
 			end
 		end
 	end
@@ -516,7 +587,7 @@ function ComponentInstance.setupComponent(self: ComponentInstance)
 		end)
 		if setupErr ~= nil then
 			setCurrentInstance(prevInstance)
-			error(setupErr, 0)
+			error(`[Rivue] setup() of {formatComponentTrace(self)} failed: {setupErr}`, 0)
 		end
 	end
 	setCurrentInstance(prevInstance)
@@ -533,7 +604,7 @@ function ComponentInstance.setupComponent(self: ComponentInstance)
 			return render(self.props)
 		end
 	else
-		error("Component must provide setup() or render()")
+		error(`[Rivue] {formatComponentTrace(self)} has no setup() or render()`, 0)
 	end
 end
 
@@ -640,8 +711,8 @@ function ComponentInstance.handleError(self: ComponentInstance, err: string, inf
 		end
 		warn(`[Rivue] app.config.errorHandler failed: {handlerErr}`)
 	end
-	-- If no handler consumed it, log it
-	debugModule.log("Component", `Unhandled component error: {err}`, { info = info })
+	-- Nothing handled it, always report
+	warn(`[Rivue] Error in {info} of {formatComponentTrace(self)}: {err}`)
 end
 
 --- Normalizes what a slot function returned to a list of children
@@ -780,6 +851,8 @@ local function createComponentInstance(
 		unmountedCbs = {},
 		activatedCbs = {},
 		deactivatedCbs = {},
+		renderTrackedCbs = {},
+		renderTriggeredCbs = {},
 		errorCapturedCbs = {},
 		slots = vnode.children,
 		namedSlots = if vnode.slots then table.clone(vnode.slots) else {},
@@ -902,6 +975,11 @@ return {
 	onUnmounted = onUnmounted,
 	onActivated = onActivated,
 	onDeactivated = onDeactivated,
+	onRenderTracked = onRenderTracked,
+	onRenderTriggered = onRenderTriggered,
+	runWithInjectionContext = runWithInjectionContext,
+	hasInjectionContext = hasInjectionContext,
+	formatComponentTrace = formatComponentTrace,
 	useId = useId,
 	useTemplateRef = useTemplateRef,
 	onErrorCaptured = onErrorCaptured,

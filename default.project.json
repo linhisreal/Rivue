@@ -111,6 +111,9 @@
         },
         "UIFeatures": {
           "$path": "tests/UIFeatures.test.luau"
+        },
+        "DevExperience": {
+          "$path": "tests/DevExperience.test.luau"
         }
       },
       "App": {

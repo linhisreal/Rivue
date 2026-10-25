@@ -6,6 +6,11 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 LUAU="${LUAU:-luau}"
+# A suite that hangs fails instead of blocking CI
+RUNNER=()
+if command -v timeout >/dev/null 2>&1; then
+	RUNNER=(timeout 120)
+fi
 BUNDLE="$(mktemp -t rivue-tests-XXXXXX.luau)"
 trap 'rm -f "$BUNDLE"' EXIT
 
@@ -18,7 +23,7 @@ fi
 status=0
 for file in "${FILES[@]}"; do
 	python3 tests/offline/bundle.py "$file" > "$BUNDLE"
-	if output="$("$LUAU" "$BUNDLE" 2>&1)"; then
+	if output="$(${RUNNER[@]+"${RUNNER[@]}"} "$LUAU" "$BUNDLE" 2>&1)"; then
 		printf '%-40s ok\n' "$(basename "$file")"
 	else
 		printf '%-40s FAILED\n' "$(basename "$file")"

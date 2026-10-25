@@ -241,6 +241,8 @@ local function createEffect(fn: () -> (), opts: EffectOptions?): Effect
 		scheduler = options.scheduler,
 		deps = {} :: { Dep },
 		active = true,
+		onTrack = options.onTrack,
+		onTrigger = options.onTrigger,
 	}
 	local typedEffect: Effect = effect :: any
 
@@ -273,7 +275,8 @@ local function createEffect(fn: () -> (), opts: EffectOptions?): Effect
 		end
 
 		if not ok then
-			debugModule.log("Reactivity", "Reactive effect error", { error = err })
+			-- Always reported, a silent effect is a nightmare to debug
+			warn(`[Rivue] Error in effect: {err}`)
 		end
 	end
 
@@ -333,6 +336,10 @@ local function track(target: unknown, key: unknown)
 	if not dep[current] then
 		dep[current] = true
 		table.insert(current.deps, dep)
+		local onTrack = current.onTrack
+		if onTrack then
+			onTrack({ target = target, key = key })
+		end
 	end
 end
 
@@ -369,6 +376,10 @@ local function trigger(target: unknown, key: unknown)
 		effects[i] = nil
 		if not eff.active then
 			continue
+		end
+		local onTrigger = eff.onTrigger
+		if onTrigger then
+			onTrigger({ target = target, key = key })
 		end
 		local effectScheduler = eff.scheduler
 		if effectScheduler then
@@ -682,8 +693,9 @@ end
 --- @param value T -- Value to traverse
 --- @param seen { [unknown]: true }? -- Set of already-seen tables to prevent infinite loops
 --- @return T -- The traversed value
-local function _traverse<T>(value: T, seen: { [unknown]: true }?): T
-	if type(value) ~= "table" then
+local function _traverse<T>(value: T, seen: { [unknown]: true }?, depth: number?): T
+	local remaining = depth or math.huge
+	if type(value) ~= "table" or remaining <= 0 then
 		return value
 	end
 	local seenTables: { [unknown]: true } = seen or {}
@@ -694,7 +706,7 @@ local function _traverse<T>(value: T, seen: { [unknown]: true }?): T
 	local proxyOrRaw: RawTable = value :: any
 	-- Read through the proxy so nested keys get tracked
 	for k in toRaw(proxyOrRaw) do
-		_traverse(proxyOrRaw[k], seenTables)
+		_traverse(proxyOrRaw[k], seenTables, remaining - 1)
 	end
 	return value
 end
@@ -793,7 +805,10 @@ end
 --- @return WatchHandle -- Callable stop handle with pause/resume
 local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: WatchOptions?): WatchHandle
 	local options: WatchOptions = opts or {}
-	local deep = options.deep == true
+	local deepOption = options.deep
+	local deep = deepOption == true or (type(deepOption) == "number" and deepOption > 0)
+	-- deep = 2 only traverses two levels
+	local deepLevels: number? = if type(deepOption) == "number" then deepOption else nil
 	local isMultiSource = false
 	local getter: () -> T
 	if type(source) == "function" then
@@ -805,7 +820,7 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 		end
 	elseif isReactive(source) then
 		-- Same as Vue: watching a reactive object is deep, otherwise it never looks changed
-		deep = options.deep ~= false
+		deep = deepOption ~= false and deepOption ~= 0
 		getter = function(): T
 			return source :: T
 		end
@@ -910,7 +925,7 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 	local eff = createEffect(function()
 		currentValue = getter()
 		if deep then
-			_traverse(currentValue, nil)
+			_traverse(currentValue, nil, deepLevels)
 		end
 	end, {
 		-- Lazy, run manually below

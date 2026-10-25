@@ -259,6 +259,8 @@ local RunService = game:GetService("RunService")
 export type Ref<T> = Types.Ref<T>
 export type ComputedRef<T> = Types.ComputedRef<T>
 export type MaybeRef<T> = Types.MaybeRef<T>
+export type MaybeRefOrGetter<T> = Types.MaybeRefOrGetter<T>
+export type DebuggerEvent = Types.DebuggerEvent
 export type Effect = Types.Effect
 export type EffectScope = Types.EffectScope
 export type FlushMode = Types.FlushMode
@@ -402,12 +404,52 @@ Rivue.Fragment = hModule.Fragment
 Rivue.hIf = hModule.hIf
 Rivue.hFor = hModule.hFor
 Rivue.hForParallel = hModule.hForParallel
+Rivue.mergeProps = hModule.mergeProps
+Rivue.cloneVNode = hModule.cloneVNode
+Rivue.isVNode = hModule.isVNode
+
+--- Looks up a component registered with app:component() (call in setup or render)
+--- @param name string -- Registered name
+--- @return ComponentDef? -- The component, nil if it isn't registered
+function Rivue.resolveComponent(name: string): ComponentDef?
+	local inst = componentAPI.getCurrentInstance() or componentAPI.getRenderingInstance()
+	if not inst then
+		error("resolveComponent() must be called in setup() or a render function", 2)
+	end
+	local def = inst.appContext.components[name]
+	if not def and Rivue.dev then
+		warn(`[Rivue] Component '{name}' isn't registered, use app:component("{name}", Component)`)
+	end
+	return def
+end
+
+--- Prints (and returns) the tree under a mounted vnode, like app:printTree()
+--- @param vnode VNode -- Mounted vnode
+--- @return string -- Outline
+function Rivue.printTree(vnode: VNode): string
+	local tree = renderer.formatTree(vnode)
+	print(tree)
+	return tree
+end
+
+type SetupFunction = (props: Props, ctx: SetupContext) -> Types.SetupResult
 
 --- Defines a component with setup, render, props, and lifecycle hooks
---- @param opts ComponentOptions? -- Component options (setup, render, props, name, inheritAttrs)
+--- @param opts ComponentOptions | SetupFunction -- Options, or just the setup function
+--- @param extra ComponentOptions? -- Options when the first argument is a setup function
 --- @return ComponentDef -- Component definition object
-function Rivue.defineComponent(opts: ComponentOptions?): ComponentDef
-	local options: ComponentOptions = opts or {}
+function Rivue.defineComponent(opts: ComponentOptions | SetupFunction, extra: ComponentOptions?): ComponentDef
+	local options: ComponentOptions
+	if type(opts) == "function" then
+		-- defineComponent(function(props, ctx) ... end, { name = "Counter" })
+		options = if extra then table.clone(extra) else {}
+		options.setup = opts
+	else
+		options = (opts or {}) :: ComponentOptions
+	end
+	if Rivue.dev and options.setup == nil and options.render == nil then
+		warn(`[Rivue] defineComponent({options.name or "Anonymous"}) needs a setup() or render()`)
+	end
 	return {
 		__is_component = true :: true,
 		__name = options.name,
@@ -428,12 +470,15 @@ Rivue.onBeforeUnmount = componentAPI.onBeforeUnmount
 Rivue.onUnmounted = componentAPI.onUnmounted
 Rivue.onActivated = componentAPI.onActivated
 Rivue.onDeactivated = componentAPI.onDeactivated
+Rivue.onRenderTracked = componentAPI.onRenderTracked
+Rivue.onRenderTriggered = componentAPI.onRenderTriggered
 Rivue.onErrorCaptured = componentAPI.onErrorCaptured
 Rivue.onTransition = componentAPI.onTransition
 
 -- provide/inject
 Rivue.provide = componentAPI.provide
 Rivue.inject = componentAPI.inject
+Rivue.hasInjectionContext = componentAPI.hasInjectionContext
 
 -- Instance helpers
 Rivue.getCurrentInstance = componentAPI.getCurrentInstance

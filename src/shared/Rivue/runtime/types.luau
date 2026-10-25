@@ -37,12 +37,23 @@ export type WritableComputedOptions<T> = {
 }
 
 export type MaybeRef<T> = T | Ref<T>
+export type MaybeRefOrGetter<T> = T | Ref<T> | () -> T
 
 export type EffectScheduler = (run: () -> ()) -> ()
+
+-- What a debug hook (onTrack/onTrigger, onRenderTracked/onRenderTriggered) receives
+export type DebuggerEvent = {
+	-- The reactive table (raw) or ref that was read or written
+	target: unknown,
+	key: unknown,
+}
 
 export type EffectOptions = {
 	scheduler: EffectScheduler?,
 	lazy: boolean?,
+	-- Debug hooks: a dependency was tracked / triggered this effect
+	onTrack: ((event: DebuggerEvent) -> ())?,
+	onTrigger: ((event: DebuggerEvent) -> ())?,
 }
 
 export type Dep = { [Effect]: true }
@@ -56,6 +67,8 @@ export type Effect = {
 	-- run() that skips stopped effects, used for queued runs
 	job: () -> (),
 	stop: (self: Effect) -> (),
+	onTrack: ((event: DebuggerEvent) -> ())?,
+	onTrigger: ((event: DebuggerEvent) -> ())?,
 }
 
 export type EffectScope = {
@@ -74,7 +87,8 @@ export type FlushMode = "pre" | "post" | "sync"
 
 export type WatchOptions = {
 	immediate: boolean?,
-	deep: boolean?,
+	-- true, or how many levels to traverse
+	deep: (boolean | number)?,
 	flush: FlushMode?,
 	-- Stop after the first callback
 	once: boolean?,
@@ -165,6 +179,8 @@ export type VNode = {
 	_keepAlive: { disposed: boolean }?,
 	_kept: boolean?,
 	_teleportTarget: Instance?,
+	-- Teleport with defer, waiting for the post-mount flush
+	_deferred: boolean?,
 }
 
 -- Tween-based enter/leave animation, as the `transition` prop or from <Transition>
@@ -189,10 +205,12 @@ export type TransitionConfig = {
 
 -- ===== Components =====
 
-export type PropTypeName = "string" | "number" | "boolean" | "table" | "function"
+-- type() or typeof() name: "string", "number", "table", "UDim2", "Color3", "Instance", ...
+export type PropTypeName = string
 
 export type PropSpec = {
-	type: PropTypeName?,
+	-- One type name or a list of allowed ones
+	type: (PropTypeName | { PropTypeName })?,
 	required: boolean?,
 	-- Use a function for table defaults
 	default: unknown?,
@@ -280,6 +298,8 @@ export type AppConfig = {
 	errorHandler: ((err: string, instance: unknown, info: string) -> ())?,
 	-- Shared values every component can read through ctx.globals
 	globalProperties: { [string]: unknown }?,
+	-- Receives Studio warnings instead of warn(): (message, instance, componentTrace)
+	warnHandler: ((message: string, instance: unknown, trace: string) -> ())?,
 }
 
 export type AppContext = {

@@ -48,10 +48,50 @@ type Child = Types.Child
 local debugModule = require(script.Parent:WaitForChild("debug"))
 local utils = require(script.Parent:WaitForChild("utils"))
 local componentModule = require(script.Parent:WaitForChild("component"))
+local directives = require(script.Parent:WaitForChild("directives"))
 
 const IS_STUDIO = game:GetService("RunService"):IsStudio()
 
 local warnedMissingKey = false
+
+--- True for a children list nested inside another list (a table that isn't a vnode)
+--- @param child unknown -- Child entry
+--- @return boolean -- Is a nested list
+local function isNestedList(child: unknown): boolean
+	return type(child) == "table" and (child :: { [unknown]: unknown }).type == nil
+end
+
+--- Copies a children list, splicing nested lists in place: { header, hFor(...) }
+--- @param list { [number]: unknown } -- Children list (may have holes from hIf)
+--- @return { Child } -- New list
+local function copyChildren(list: { [number]: unknown }): { Child }
+	local count = table.maxn(list)
+	local nested = false
+	for i = 1, count do
+		if isNestedList(list[i]) then
+			nested = true
+			break
+		end
+	end
+	if not nested then
+		-- Copy so a reused array (like ctx.slots) can't change an already-rendered vnode
+		return table.clone(list :: { Child })
+	end
+
+	local out: { Child } = {}
+	local function append(source: { [number]: unknown })
+		for i = 1, table.maxn(source) do
+			local child = source[i]
+			if isNestedList(child) then
+				append(child :: { [number]: unknown })
+			elseif child ~= nil and child ~= false then
+				table.insert(out, child :: Child)
+			end
+		end
+	end
+	append(list)
+	return out
+end
 
 --- Normalizes children to an array format
 --- @param children unknown -- Child nodes (string, number, array, function, or nil)
@@ -66,8 +106,7 @@ local function normalizeChildren(children: unknown): { Child }
 		if (children :: { [unknown]: unknown }).type ~= nil then
 			return { children :: VNode }
 		end
-		-- Copy so a reused array (like ctx.slots) can't change an already-rendered vnode
-		return table.clone(children :: { Child })
+		return copyChildren(children :: { [number]: unknown })
 	elseif t == "function" then
 		return { children :: () -> VNode? }
 	end
@@ -92,13 +131,118 @@ local function splitSlots(children: { [unknown]: unknown }): ({ Child }, Types.S
 		end
 	end
 	if not slots then
-		return table.clone(children :: { Child }), nil
+		return copyChildren(children :: { [number]: unknown }), nil
 	end
-	table.move(children :: { Child }, 1, #children, 1, list)
+	local positional: { [number]: unknown } = {}
+	for i = 1, table.maxn(children :: { [number]: unknown }) do
+		positional[i] = children[i]
+	end
+	list = copyChildren(positional)
 	return list, slots
 end
 
 local vnodeIdCounter = 0
+
+--- Turns a directive prop name into the registered directive: vClickOutside -> "click-outside"
+--- @param key string -- Prop name
+--- @return string? -- Directive name, nil when the prop isn't a registered directive
+local function directiveName(key: string): string?
+	-- "v" followed by an uppercase letter
+	local second = string.byte(key, 2)
+	if string.byte(key, 1) ~= 118 or not second or second < 65 or second > 90 then
+		return nil
+	end
+	local name = string.lower(string.sub(key, 2, 2))
+		.. string.gsub(string.sub(key, 3), "%u", function(c: string)
+			return "-" .. string.lower(c)
+		end)
+	return if directives.get(name) then name else nil
+end
+
+--- Applies the props sugar h() understands: style, model and v* directive props
+--- @param isElement boolean -- type is a ClassName
+--- @param props Props -- Props as passed (not modified)
+--- @return Props -- Props to store (a copy if anything changed)
+local function expandProps(isElement: boolean, props: Props): Props
+	local out: Props? = nil
+
+	-- style = { base, isActive and active }: merged in order, the vnode's own props win
+	local style = props.style
+	if type(style) == "table" then
+		local merged: Props = {}
+		local list = if (style :: { unknown })[1] ~= nil or next(style) == nil then style else { style }
+		for i = 1, table.maxn(list) do
+			local entry = list[i]
+			if type(entry) == "table" then
+				for k, v in entry do
+					merged[k] = v
+				end
+			end
+		end
+		for k, v in props do
+			if k ~= "style" then
+				merged[k] = v
+			end
+		end
+		out = merged
+	end
+
+	local model = props.model
+	if model ~= nil then
+		local target: Props = out or table.clone(props)
+		out = target
+		target.model = nil
+		local r = model :: Types.Ref<any>
+		if isElement then
+			-- Two-way Text binding, keeps any onTextChanged of its own
+			local own = target.onTextChanged
+			target.Text = r.value
+			target.onTextChanged = function(text: string)
+				r.value = text
+				if own then
+					own(text)
+				end
+			end
+		else
+			-- Same contract as defineModel(): modelValue + update:modelValue
+			target.modelValue = r.value
+			target["onUpdate:modelValue"] = function(value: unknown)
+				r.value = value
+			end
+		end
+	end
+
+	if isElement then
+		local bindings: { { name: string, value: unknown } }? = nil
+		local bound: { string }? = nil
+		for key, value in out or props do
+			local name = if type(key) == "string" then directiveName(key) else nil
+			if name then
+				local list = bindings or {}
+				local keys = bound or {}
+				bindings, bound = list, keys
+				table.insert(list, { name = name, value = value })
+				table.insert(keys, key)
+			end
+		end
+		if bindings and bound then
+			local target: Props = out or table.clone(props)
+			out = target
+			for _, key in bound do
+				target[key] = nil
+			end
+			local existing = target.__directives
+			if type(existing) == "table" then
+				for _, binding in existing do
+					table.insert(bindings, binding)
+				end
+			end
+			target.__directives = bindings
+		end
+	end
+
+	return out or props
+end
 
 -- Groups children without creating a wrapper Instance: h(Fragment, nil, { ... })
 local Fragment: Types.FragmentType = table.freeze({ __fragment = true :: true, __name = "Fragment" :: "Fragment" })
@@ -110,6 +254,9 @@ local Fragment: Types.FragmentType = table.freeze({ __fragment = true :: true, _
 --- @return VNode -- Virtual DOM node
 local function h(type_: VNodeType, propsIn: Props?, children: Types.Children?): VNode
 	local props: Props = propsIn or {}
+	if propsIn and (props.style ~= nil or props.model ~= nil or type(type_) == "string") then
+		props = expandProps(type(type_) == "string", props)
+	end
 	local ch: { Child }
 	local slots: Types.Slots? = nil
 	if type(type_) ~= "string" and type(children) == "table" and (children :: { [unknown]: unknown }).type == nil then
@@ -140,6 +287,66 @@ local function h(type_: VNodeType, propsIn: Props?, children: Types.Children?): 
 		-- String refs resolve on the component that rendered them
 		_owner = if type(props.ref) == "string" then componentModule.getRenderingInstance() else nil,
 	}
+end
+
+--- Merges props tables left to right. Event handlers are chained (both run), directives
+--- and styles are combined, everything else is overwritten.
+--- @param ... Props? -- Props tables (nil is skipped)
+--- @return Props -- New props table
+local function mergeProps(...: Props?): Props
+	local out: Props = {}
+	for i = 1, select("#", ...) do
+		local props = select(i, ...)
+		if not props then
+			continue
+		end
+		for k, v in props do
+			local existing = out[k]
+			if existing == nil or existing == v then
+				out[k] = v
+			elseif k == "__directives" then
+				local combined = table.clone(existing)
+				table.move(v, 1, #v, #combined + 1, combined)
+				out[k] = combined
+			elseif k == "style" then
+				out[k] = { existing, v }
+			elseif
+				type(k) == "string"
+				and string.sub(k, 1, 2) == "on"
+				and type(v) == "function"
+				and type(existing) == "function"
+			then
+				out[k] = function(...)
+					existing(...)
+					v(...)
+				end
+			else
+				out[k] = v
+			end
+		end
+	end
+	return out
+end
+
+--- True for vnodes made by h()
+--- @param value unknown -- Anything
+--- @return boolean -- Is a vnode
+local function isVNode(value: unknown): boolean
+	return type(value) == "table" and (value :: VNode)._uid ~= nil and (value :: VNode).type ~= nil
+end
+
+--- Copies a vnode, optionally merging extra props in (see mergeProps)
+--- @param vnode VNode -- Vnode to copy (mounted or not)
+--- @param extraProps Props? -- Props to merge over its own
+--- @return VNode -- New, unmounted vnode
+local function cloneVNode(vnode: VNode, extraProps: Props?): VNode
+	local props = if extraProps then mergeProps(vnode.props, extraProps) else table.clone(vnode.props or {})
+	local copy = h(vnode.type, props, nil)
+	copy.children = table.clone(vnode.children)
+	copy.slots = vnode.slots
+	copy._owner = vnode._owner
+	copy._transition = vnode._transition
+	return copy
 end
 
 --- Conditionally renders a VNode
@@ -231,6 +438,9 @@ end
 return {
 	h = h,
 	Fragment = Fragment,
+	mergeProps = mergeProps,
+	cloneVNode = cloneVNode,
+	isVNode = isVNode,
 	hIf = hIf,
 	hFor = hFor,
 	hForParallel = hForParallel,
