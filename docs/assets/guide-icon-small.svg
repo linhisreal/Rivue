@@ -2,8 +2,8 @@
   <title>Rivue Guide</title>
   <rect x="24" y="24" width="208" height="208" rx="48" fill="#1f6feb" transform="rotate(-15 128 128)"/>
   <g fill="#ffffff" stroke="#ffffff" stroke-width="8" stroke-linejoin="round">
-    <path d="M58.6 82 L122 178 L122 194 L58.6 160 Z"/>
-    <path d="M197.4 82 L134 178 L134 194 L197.4 160 Z"/>
+    <path d="M58.6 82 L122 178 L122 194 L58.6 157.4 Z"/>
+    <path d="M197.4 82 L134 178 L134 194 L197.4 157.4 Z"/>
   </g>
   <path d="M103.8 104 L128 146 L152.2 104" fill="none" stroke="#7ee8c0" stroke-width="22" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>
