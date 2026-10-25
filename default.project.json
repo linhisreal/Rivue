@@ -12,6 +12,9 @@
           "main": {
             "$path": "src/shared/Rivue/runtime/main.luau"
           },
+          "array": {
+            "$path": "src/shared/Rivue/runtime/array.luau"
+          },
           "scheduler": {
             "$path": "src/shared/Rivue/runtime/scheduler.luau"
           },
@@ -123,6 +126,9 @@
         },
         "Regressions": {
           "$path": "tests/Regressions.test.luau"
+        },
+        "Readability": {
+          "$path": "tests/Readability.test.luau"
         }
       },
       "App": {

@@ -244,6 +244,15 @@ end
 --- @param children Children? -- Child nodes (array, single child, or text)
 --- @return VNode -- Virtual DOM node
 local function h(type_: VNodeType, propsIn: Props?, children: Types.Children?): VNode
+	if type(type_) == "string" then
+		-- Components registered on the rendering component (components = { ... })
+		local owner = componentModule.getRenderingInstance()
+		local localComponents = if owner then owner.type.components else nil
+		local resolved = if localComponents then localComponents[type_] else nil
+		if resolved then
+			type_ = resolved
+		end
+	end
 	local props: Props = propsIn or {}
 	if propsIn and (props.style ~= nil or props.model ~= nil or type(type_) == "string") then
 		props = expandProps(type(type_) == "string", props)

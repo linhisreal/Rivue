@@ -467,8 +467,33 @@ local CLASSES = {
 	SurfaceGui = { bases = { "LayerCollector", "GuiBase2d" }, props = { { Enabled = true } } },
 	UIListLayout = {
 		bases = { "UIGridStyleLayout", "UILayout" },
-		props = { { Padding = 0, SortOrder = "LayoutOrder", FillDirection = "Vertical" } },
+		props = {
+			{
+				Padding = 0,
+				SortOrder = "LayoutOrder",
+				FillDirection = "Vertical",
+				HorizontalAlignment = "Left",
+				VerticalAlignment = "Top",
+				Wraps = false,
+				HorizontalFlex = "None",
+				VerticalFlex = "None",
+			},
+		},
 	},
+	UIGridLayout = {
+		bases = { "UIGridStyleLayout", "UILayout" },
+		props = {
+			{
+				CellSize = UDim2.new(),
+				CellPadding = UDim2.new(),
+				SortOrder = "LayoutOrder",
+				FillDirection = "Horizontal",
+				HorizontalAlignment = "Left",
+				VerticalAlignment = "Top",
+			},
+		},
+	},
+	UIFlexItem = { bases = {}, props = { { FlexMode = "None", GrowRatio = 1, ShrinkRatio = 1 } } },
 	RemoteEvent = { bases = {}, props = {}, events = { "OnClientEvent", "OnServerEvent" }, methods = true },
 	RemoteFunction = { bases = {}, props = {}, methods = true },
 	BindableEvent = { bases = {}, props = {}, events = { "Event" } },

@@ -9,7 +9,9 @@
 sourcemap.json
 globalTypes.d.luau
 node_modules
-.vscode
+# Editor settings stay local, the shared snippets are committed
+.vscode/*
+!.vscode/rivue.code-snippets
 .DS_Store
 *.zip
 .rojo

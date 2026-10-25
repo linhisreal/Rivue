@@ -201,6 +201,7 @@ export type App = {
 	use: (self: App, plugin: Plugin, ...any) -> App,
 	directive: (self: App, name: string, hooks: Types.Directive) -> App,
 	component: (self: App, name: string, def: ComponentDef) -> App,
+	styles: (self: App, styles: { [string]: Props }) -> App,
 	onUnmount: (self: App, fn: () -> ()) -> App,
 	runWithContext: <T>(self: App, fn: () -> T) -> T,
 	printTree: (self: App) -> string,
@@ -276,10 +277,102 @@ local function toUDim(v: unknown): UDim
 	return if type(v) == "number" then UDim.new(0, v) else v :: UDim
 end
 
-type SugarSpec = { className: string, apply: (child: Instance, value: any) -> () }
+-- classFor picks the class from the value when it varies (layout = "grid" makes a UIGridLayout)
+type SugarSpec = {
+	className: string,
+	classFor: ((value: any) -> string)?,
+	apply: (child: Instance, value: any) -> (),
+}
+
+type LayoutOptions = {
+	direction: ("vertical" | "horizontal")?,
+	gap: (number | UDim)?,
+	align: string?,
+	justify: string?,
+	wrap: boolean?,
+	grid: UDim2?,
+}
+
+--- Normalizes the layout prop: "vertical", "horizontal", "grid" or a table of options
+--- @param value any -- Prop value
+--- @return LayoutOptions -- Options
+local function layoutOptions(value: any): LayoutOptions
+	if value == "grid" then
+		return { grid = UDim2.fromOffset(100, 100), direction = "horizontal" }
+	elseif type(value) == "string" then
+		return { direction = value :: any }
+	end
+	return value :: LayoutOptions
+end
+
+-- "start"/"center"/"end" on each axis
+const HORIZONTAL_ALIGN = table.freeze({
+	start = Enum.HorizontalAlignment.Left,
+	center = Enum.HorizontalAlignment.Center,
+	["end"] = Enum.HorizontalAlignment.Right,
+})
+const VERTICAL_ALIGN = table.freeze({
+	start = Enum.VerticalAlignment.Top,
+	center = Enum.VerticalAlignment.Center,
+	["end"] = Enum.VerticalAlignment.Bottom,
+})
+-- How free space on the main axis is shared (UIListLayout flex)
+const FLEX_JUSTIFY = table.freeze({
+	["space-between"] = Enum.UIFlexAlignment.SpaceBetween,
+	["space-around"] = Enum.UIFlexAlignment.SpaceAround,
+	["space-evenly"] = Enum.UIFlexAlignment.SpaceEvenly,
+	fill = Enum.UIFlexAlignment.Fill,
+})
+const FLEX_MODES = table.freeze({
+	fill = Enum.UIFlexMode.Fill,
+	grow = Enum.UIFlexMode.Grow,
+	shrink = Enum.UIFlexMode.Shrink,
+	none = Enum.UIFlexMode.None,
+})
+
+--- Applies layout options to a UIListLayout or UIGridLayout
+--- @param layout Instance -- Layout object
+--- @param options LayoutOptions -- Options
+local function applyLayout(layout: Instance, options: LayoutOptions)
+	local horizontal = options.direction == "horizontal"
+	local list = layout :: UIListLayout
+	list.SortOrder = Enum.SortOrder.LayoutOrder
+	list.FillDirection = if horizontal then Enum.FillDirection.Horizontal else Enum.FillDirection.Vertical
+
+	local gap = options.gap
+	local gapUDim = if type(gap) == "number" then UDim.new(0, gap) else (gap :: UDim?) or UDim.new(0, 0)
+
+	-- align is the cross axis, justify the main axis, like CSS flexbox
+	local alongX = if horizontal then options.justify else options.align
+	local alongY = if horizontal then options.align else options.justify
+	if alongX and HORIZONTAL_ALIGN[alongX] then
+		list.HorizontalAlignment = HORIZONTAL_ALIGN[alongX]
+	end
+	if alongY and VERTICAL_ALIGN[alongY] then
+		list.VerticalAlignment = VERTICAL_ALIGN[alongY]
+	end
+
+	if layout:IsA("UIGridLayout") then
+		local grid = layout :: UIGridLayout
+		grid.CellSize = options.grid or UDim2.fromOffset(100, 100)
+		grid.CellPadding = UDim2.new(gapUDim.Scale, gapUDim.Offset, gapUDim.Scale, gapUDim.Offset)
+		return
+	end
+
+	list.Padding = gapUDim
+	list.Wraps = options.wrap == true
+	local flex = options.justify and FLEX_JUSTIFY[options.justify]
+	if flex then
+		if horizontal then
+			list.HorizontalFlex = flex
+		else
+			list.VerticalFlex = flex
+		end
+	end
+end
 
 -- Props that manage a UI modifier child: cornerRadius = 8, padding = 12, stroke = Color3, aspectRatio = 1
-const SUGAR_PROPS: { [string]: SugarSpec } = table.freeze({
+local sugarSpecs: { [string]: SugarSpec } = {
 	cornerRadius = {
 		className = "UICorner",
 		apply = function(c: Instance, v: any)
@@ -323,7 +416,36 @@ const SUGAR_PROPS: { [string]: SugarSpec } = table.freeze({
 			(c :: UIAspectRatioConstraint).AspectRatio = v
 		end,
 	},
-})
+	-- layout = "vertical" | "horizontal" | "grid" | { direction, gap, align, justify, wrap, grid }
+	layout = {
+		className = "UIListLayout",
+		classFor = function(v: any): string
+			return if layoutOptions(v).grid then "UIGridLayout" else "UIListLayout"
+		end,
+		apply = function(c: Instance, v: any)
+			applyLayout(c, layoutOptions(v))
+		end,
+	},
+	-- flex = "fill" | "grow" | "shrink" | number (grow ratio) | UIFlexItem properties
+	flex = {
+		className = "UIFlexItem",
+		apply = function(c: Instance, v: any)
+			local item = c :: UIFlexItem
+			if type(v) == "number" then
+				item.FlexMode = Enum.UIFlexMode.Custom
+				item.GrowRatio = v
+				item.ShrinkRatio = v
+			elseif type(v) == "string" then
+				item.FlexMode = FLEX_MODES[v] or error(`unknown flex mode '{v}'`)
+			else
+				for k, x in v do
+					(item :: any)[k] = x
+				end
+			end
+		end,
+	},
+}
+const SUGAR_PROPS = table.freeze(sugarSpecs)
 
 --- Creates, updates or removes (value nil) the modifier child behind a sugar prop
 --- @param inst Instance -- GuiObject the prop is on
@@ -343,9 +465,16 @@ local function setSugarProp(inst: Instance, key: string, value: unknown, vnode: 
 	end
 
 	local spec = SUGAR_PROPS[key]
+	local classFor = spec.classFor
+	local className = if classFor then classFor(value) else spec.className
+	if child and child.ClassName ~= className then
+		-- e.g. layout switched from a list to a grid
+		child:Destroy()
+		child = nil
+	end
 	local created = false
 	if not child then
-		child = Instance.new(spec.className)
+		child = Instance.new(className)
 		sugar[key] = child
 		created = true
 	end
@@ -826,7 +955,67 @@ local function asComponent(vnodeType: unknown): ComponentDef?
 end
 
 -- Props handled by the renderer, not set on the Instance
-const RESERVED_PROPS = table.freeze({ __directives = true, key = true, ref = true, transition = true, memo = true })
+const RESERVED_PROPS =
+	table.freeze({ __directives = true, key = true, ref = true, transition = true, memo = true, class = true })
+
+--- Collects class names from a string ("a b"), a list ({ "a", cond and "b" }) or a map ({ a = cond })
+--- @param value unknown -- class prop
+--- @param out { string } -- Names, in order
+local function collectClassNames(value: unknown, out: { string })
+	if type(value) == "string" then
+		for name in string.gmatch(value, "%S+") do
+			table.insert(out, name)
+		end
+	elseif type(value) == "table" then
+		local list = value :: { [unknown]: unknown }
+		for i = 1, table.maxn(list :: { unknown }) do
+			collectClassNames(list[i], out)
+		end
+		-- Map entries: sorted so the result doesn't depend on table order
+		local keyed: { string } = {}
+		for key, enabled in list do
+			if type(key) == "string" and enabled then
+				table.insert(keyed, key)
+			end
+		end
+		table.sort(keyed)
+		table.move(keyed, 1, #keyed, #out + 1, out)
+	end
+end
+
+--- Merges the styles named by props.class under the element's own props
+--- @param props Props -- Element props (class included)
+--- @param owner ComponentInstance? -- Component rendering it (its styles option comes first)
+--- @param appContext AppContext? -- App (app:styles())
+--- @return Props -- New props table
+local function applyClasses(props: Props, owner: ComponentInstance?, appContext: AppContext?): Props
+	local names: { string } = {}
+	collectClassNames(props.class, names)
+	if #names == 0 then
+		return props
+	end
+	local localStyles = if owner then owner.type.styles else nil
+	local appStyles = if appContext then appContext.styles else nil
+	local fromClasses: Props = {}
+	for _, name in names do
+		local style = (localStyles and localStyles[name]) or (appStyles and appStyles[name])
+		if style then
+			for k, v in style do
+				fromClasses[k] = v
+			end
+		elseif IS_STUDIO then
+			devWarn(`Unknown class '{name}', register it with app:styles() or the component's styles option`)
+		end
+	end
+	-- The element's own props win over its classes
+	local merged = table.clone(props)
+	for k, v in fromClasses do
+		if merged[k] == nil then
+			merged[k] = v
+		end
+	end
+	return merged
+end
 
 const LAYOUT_CLASSES =
 	table.freeze({ UIListLayout = true, UIGridLayout = true, UIPageLayout = true, UITableLayout = true })
@@ -999,7 +1188,7 @@ local function mountElement(vnode: RenderVNode, container: Instance, poolOpt: Po
 		end
 	end
 
-	if hasLayoutChild(children) then
+	if hasLayoutChild(children) or (props ~= nil and props.layout ~= nil) then
 		syncLayoutOrder(children)
 	end
 
@@ -1505,6 +1694,14 @@ local function applyFallthroughAttrs(props: Props?, attrs: Props): Props?
 			(merged :: Props)[key] = value
 		end
 	end
+	-- A class from the parent adds to the root's own classes (later ones win)
+	local parentClass = attrs.class
+	if parentClass ~= nil then
+		local result: Props = merged or (if props then table.clone(props) else {})
+		merged = result
+		local own = if props then props.class else nil
+		result.class = if own ~= nil then { own, parentClass } else parentClass
+	end
 	return merged or props
 end
 
@@ -1857,7 +2054,9 @@ local function patchElement(oldVNode: RenderVNode, newVNode: RenderVNode, poolOp
 		end
 		if childrenChanged and not trySetOnlyText(el, newVNode.children, oldVNode.children) then
 			patchKeyedChildren(oldVNode.children, newVNode.children, el, poolOpt)
-			if hasLayoutChild(newVNode.children) then
+			if
+				hasLayoutChild(newVNode.children) or (newVNode.props ~= nil and (newVNode.props :: Props).layout ~= nil)
+			then
 				syncLayoutOrder(newVNode.children)
 			end
 		end
@@ -1923,6 +2122,17 @@ local function patchInner(oldVNode: RenderVNode?, newVNode: RenderVNode?, contai
 		if registered then
 			newVNode.type = registered
 			newType = registered
+		end
+	end
+	if type(newType) == "string" then
+		local props = newVNode.props
+		if props and props.class ~= nil and not newVNode._classApplied then
+			newVNode._classApplied = true
+			newVNode.props = applyClasses(
+				props,
+				currentRenderingInstance,
+				if currentRenderingInstance then currentRenderingInstance.appContext else currentAppContext
+			)
 		end
 	end
 	local def = asComponent(newType)
@@ -2143,7 +2353,7 @@ local function createApp(root: VNode | ComponentDef, opts: AppOptions?): App
 	end
 
 	local mounted: MountedState = { vnode = nil, container = nil, poolOpt = poolOpt }
-	local appContext: AppContext = { provides = {}, config = { globalProperties = {} }, components = {} }
+	local appContext: AppContext = { provides = {}, config = { globalProperties = {} }, components = {}, styles = {} }
 
 	local api = { config = appContext.config } :: App
 
@@ -2168,6 +2378,14 @@ local function createApp(root: VNode | ComponentDef, opts: AppOptions?): App
 	--- Registers a directive (directives are global, this is for plugin convenience)
 	function api.directive(self: App, name: string, hooks: Types.Directive): App
 		directives.register(name, hooks)
+		return self
+	end
+
+	--- Registers named styles for the class prop: app:styles({ card = { ... }, title = { ... } })
+	function api.styles(self: App, styles: { [string]: Props }): App
+		for name, style in styles do
+			appContext.styles[name] = style
+		end
 		return self
 	end
 
