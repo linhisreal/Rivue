@@ -25,8 +25,8 @@ local h = Rivue.h
 
 ## ref()
 
-Takes an inner value and returns a reactive, mutable ref object, with a single property `.value`
-that points to the inner value.
+Holds a single value that the UI can follow: a number, a string, a table. Read and write it through
+`.value`, and anything that read it updates when it changes.
 
 - **Type**
 
@@ -58,8 +58,8 @@ that points to the inner value.
 
 ## computed()
 
-Takes a getter function and returns a readonly ref for its result. It can also take an object with
-`get` and `set` functions to make a writable ref.
+A value worked out from other state, like a total or a filtered list. It's cached and only
+recalculated when something it used changes.
 
 - **Type**
 
@@ -110,7 +110,8 @@ Takes a getter function and returns a readonly ref for its result. It can also t
 
 ## reactive()
 
-Returns a reactive proxy of a table.
+Makes a whole table reactive, nested tables included. You read and write fields directly, no
+`.value`. Use it for objects you update field by field, like a player's stats.
 
 - **Type**
 
@@ -146,7 +147,8 @@ Returns a reactive proxy of a table.
 
 ## readonly()
 
-Takes a table (plain or reactive) or a ref and returns a readonly proxy to it.
+A view of some state that can be read but not changed. Hand it out when other code should see the
+state but only your module should change it.
 
 - **Type**
 
@@ -179,8 +181,8 @@ Takes a table (plain or reactive) or a ref and returns a readonly proxy to it.
 
 ## watchEffect()
 
-Runs a function immediately while tracking what it reads, and runs it again whenever any of that
-changes.
+Runs a function now, and again whenever anything it read changes. Use it for side effects that
+follow state, like saving settings or playing a sound.
 
 - **Type**
 
@@ -259,7 +261,8 @@ changes.
 
 ## watchPostEffect()
 
-Alias of [`watchEffect()`](#watcheffect) with `flush = "post"`.
+`watchEffect()` that waits until after the UI has updated, on the next Heartbeat. Use it when you
+need to see the new Instances.
 
 - **Type**
 
@@ -284,7 +287,7 @@ Alias of [`watchEffect()`](#watcheffect) with `flush = "post"`.
 
 ## watchSyncEffect()
 
-Alias of [`watchEffect()`](#watcheffect) with `flush = "sync"`.
+`watchEffect()` that runs immediately on every change, with no batching. Rarely needed.
 
 - **Type**
 
@@ -310,7 +313,8 @@ Alias of [`watchEffect()`](#watcheffect) with `flush = "sync"`.
 
 ## watch()
 
-Watches one or more reactive sources and calls a callback when they change.
+Calls your function when specific state changes, with the new and old values. Use it when you care
+exactly what changed, like loading a profile when the selected user changes.
 
 - **Type**
 
@@ -408,7 +412,8 @@ Watches one or more reactive sources and calls a callback when they change.
 
 ## onWatcherCleanup()
 
-Registers a cleanup for the watch callback or `watchEffect` that's currently running.
+Registers clean-up for the watcher that's running, which runs before it runs again or stops. Use it
+to cancel the previous request or timer.
 
 - **Type**
 

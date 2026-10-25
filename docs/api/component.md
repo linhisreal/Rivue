@@ -35,7 +35,8 @@ local h = Rivue.h
 
 ## defineComponent()
 
-Defines a component.
+Creates a component: a reusable piece of UI with its own state, props and events. Every component in
+your game starts here.
 
 - **Type**
 
@@ -109,7 +110,8 @@ Defines a component.
 
 ## props
 
-Declares the props a component accepts.
+The inputs a component accepts from its parent, like function parameters. Declaring them lets Rivue
+check types and required props in Studio, and fill in defaults.
 
 - **Type**
 
@@ -171,7 +173,8 @@ Declares the props a component accepts.
 
 ## emits
 
-Declares the events a component emits.
+The events a component can send to its parent, like `"select"` or `"close"`. The parent listens with
+`onSelect`, `onClose` and so on.
 
 - **Type**
 
@@ -219,7 +222,8 @@ Declares the events a component emits.
 
 ## setup()
 
-The component's entry point. Runs once per instance, before the first render.
+Where a component's state and logic live. It runs once, when the component appears, and returns what
+the render function needs.
 
 - **Type**
 
@@ -277,8 +281,8 @@ The component's entry point. Runs once per instance, before the first render.
 
 ## render()
 
-Builds the component's UI. Used with `setup()` returning a table, or alone for components
-without state.
+Describes what the component looks like, using what `setup()` returned and the props. It runs again
+whenever the state it read changes, so keep it to building UI.
 
 - **Type**
 
@@ -335,7 +339,8 @@ without state.
 
 ## components
 
-Registers components for use by name inside this component, like Vue's `components` option.
+Lists the components this one uses, so its render function can refer to them by name: `h("ItemRow",
+...)`.
 
 - **Type**
 
@@ -374,7 +379,8 @@ Registers components for use by name inside this component, like Vue's `componen
 
 ## styles
 
-Style classes used only inside this component, applied with the [`class`](render-function.md#element-props) prop.
+Style classes that only this component uses, applied with the
+[`class`](render-function.md#element-props) prop. They take priority over app-wide styles.
 
 - **Type**
 
@@ -409,7 +415,8 @@ Style classes used only inside this component, applied with the [`class`](render
 
 ## Setup context
 
-The second argument of `setup()`.
+The second argument of `setup()`: your component's toolbox for emitting events, rendering slots and
+reading attrs.
 
 - **Type**
 
@@ -469,8 +476,8 @@ The second argument of `setup()`.
 
 ## Slots
 
-Pass UI into a component. Array children are the default slot. A table of functions passes named
-slots, which can also receive data from the child (scoped slots).
+How a parent passes UI into a component, for wrappers like panels, cards and modals. Children in a
+list are the default slot; named functions fill named areas, and can receive data from the child.
 
 - **Type**
 
@@ -526,7 +533,8 @@ slots, which can also receive data from the child (scoped slots).
 
 ## provide()
 
-Provides a value that every descendant can [`inject()`](#inject).
+Makes a value available to every component below this one, without passing it as a prop through each
+level. Descendants read it with [`inject()`](#inject).
 
 - **Type**
 
@@ -555,7 +563,7 @@ Provides a value that every descendant can [`inject()`](#inject).
 
 ## inject()
 
-Gets a value provided by an ancestor component or the app.
+Reads a value that an ancestor component (or the app) provided.
 
 - **Type**
 
@@ -584,8 +592,8 @@ Gets a value provided by an ancestor component or the app.
 
 ## hasInjectionContext()
 
-Returns `true` when [`inject()`](#inject) can be called here: inside `setup()` or
-`app:runWithContext()`.
+Tells you whether [`inject()`](#inject) would work right now, which is inside `setup()` or
+`app:runWithContext()`. Useful in composables that can also be called from plain code.
 
 - **Type**
 
@@ -608,8 +616,8 @@ Returns `true` when [`inject()`](#inject) can be called here: inside `setup()` o
 
 ## useTemplateRef()
 
-Returns a ref that holds the element (or child component) rendered with a matching
-`ref = "name"` prop.
+Gives setup access to a real Instance (or child component) from render. Mark the element with `ref =
+"name"`, and the ref holds it while it's mounted. Use it for focus, sizes and tweens.
 
 - **Type**
 
@@ -645,7 +653,7 @@ Returns a ref that holds the element (or child component) rendered with a matchi
 
 ## useAttrs()
 
-Returns the component's attrs (undeclared props). The same table as `ctx.attrs`.
+The props passed to this component that it didn't declare, same as `ctx.attrs`.
 
 - **Type**
 
@@ -674,7 +682,7 @@ Returns the component's attrs (undeclared props). The same table as `ctx.attrs`.
 
 ## useSlots()
 
-Returns the default slot children. The same table as `ctx.slots`.
+The children passed to this component, same as `ctx.slots`.
 
 - **Type**
 
@@ -697,7 +705,8 @@ Returns the default slot children. The same table as `ctx.slots`.
 
 ## defineModel()
 
-Creates the ref behind a component's `model` binding.
+Lets your own component support `model`, like a TextBox does. It gives you a ref: reading it gets
+the parent's value, writing it updates the parent.
 
 - **Type**
 
@@ -741,7 +750,8 @@ Creates the ref behind a component's `model` binding.
 
 ## useId()
 
-Returns an id string unique to the session, such as `"r12-1"`.
+A short id that's unique for this session, such as `"r12-1"`. Handy for naming Instances or linking
+a label to its input.
 
 - **Type**
 
@@ -769,7 +779,8 @@ Returns an id string unique to the session, such as `"r12-1"`.
 
 ## getCurrentInstance()
 
-Returns the component instance whose `setup()` is running, or `nil`.
+The component whose `setup()` is running right now, or `nil`. Mostly for library code; your own
+components rarely need it.
 
 - **Type**
 
@@ -795,7 +806,8 @@ Returns the component instance whose `setup()` is running, or `nil`.
 
 ## defineAsyncComponent()
 
-Defines a component whose definition is loaded on demand.
+A component whose code is loaded only when it's first shown, with optional loading and error states.
+Use it for big screens most players never open.
 
 - **Type**
 

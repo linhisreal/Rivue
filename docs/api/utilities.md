@@ -51,8 +51,8 @@ only run when this is true.
 
 ## printTree()
 
-Prints and returns the tree under a mounted vnode. `app:printTree()` does the same for a whole
-app.
+Prints what's on screen under a mounted element, as a tree. `app:printTree()` does the same for the
+whole app.
 
 - **Type**
 
@@ -78,7 +78,8 @@ app.
 
 ## debug.enabled
 
-Turns on verbose runtime logging: every vnode, mount, job and remote call. Off by default.
+Turns on detailed logging of everything Rivue does: every element, mount, update and remote call.
+Very noisy, so it's off by default; switch it on briefly when you're hunting a bug.
 
 - **Type**
 
@@ -103,8 +104,8 @@ Turns on verbose runtime logging: every vnode, mount, job and remote call. Off b
 
 ## inspect()
 
-Returns a readable string for any value. Reactive proxies are unwrapped, so you see the data and
-not an empty proxy.
+Turns any value into a readable string. Reactive tables show their data instead of an empty proxy,
+which `print` would show.
 
 - **Type**
 
@@ -131,7 +132,7 @@ not an empty proxy.
 
 ## prettyPrint()
 
-Prints a value over several lines, with proxies unwrapped.
+Prints a value across several lines, nicely indented, with reactive tables unwrapped.
 
 - **Type**
 
@@ -154,7 +155,8 @@ Prints a value over several lines, with proxies unwrapped.
 
 ## assertInvariant()
 
-Errors in Studio when a condition is false. Does nothing in live servers.
+Checks something you expect to always be true, and errors loudly in Studio if it isn't. Costs
+nothing in live servers.
 
 - **Type**
 
@@ -174,8 +176,8 @@ Errors in Studio when a condition is false. Does nothing in live servers.
 
 ## debug.measure()
 
-Runs a function and logs how long it took, when `debug.enabled` is on. Returns the function's
-results.
+Times a function and logs how long it took, when `debug.enabled` is on. Returns whatever the
+function returned.
 
 - **Type**
 
@@ -199,7 +201,7 @@ results.
 
 ## debug.log()
 
-Prints a message tagged with a category, only when `debug.enabled` is on.
+Prints a message with a category tag, only when `debug.enabled` is on.
 
 - **Type**
 
@@ -218,7 +220,7 @@ Prints a message tagged with a category, only when `debug.enabled` is on.
 
 ## debug.formatError()
 
-Builds an error message with a category and optional context.
+Builds a consistent error message with a category and optional details.
 
 - **Type**
 
@@ -237,7 +239,8 @@ Builds an error message with a category and optional context.
 
 ## utils.debounce()
 
-Returns a function that runs `fn` once calls stop for `ms` milliseconds.
+Waits until calls stop for a moment before running. Use it for search boxes, so you search once the
+player stops typing instead of on every key.
 
 - **Type**
 
@@ -266,7 +269,8 @@ Returns a function that runs `fn` once calls stop for `ms` milliseconds.
 
 ## utils.throttle()
 
-Returns a function that runs `fn` at most once every `ms` milliseconds.
+Runs at most once per interval, however often it's called. Use it for things that fire every frame,
+like mouse movement.
 
 - **Type**
 
@@ -319,7 +323,7 @@ Runs a function on the next Heartbeat.
 
 ## utils.useRaf()
 
-Calls a function every RenderStepped until stopped.
+Runs a function every frame until you stop it.
 
 - **Type**
 
@@ -375,7 +379,7 @@ filtering fails. It yields, and only works on the server.
 
 ## utils.shallowEqual()
 
-Compares two tables one level deep.
+Tells you whether two tables have the same keys and values, one level deep.
 
 - **Type**
 
@@ -394,7 +398,7 @@ Compares two tables one level deep.
 
 ## utils.profiler
 
-Simple named timers. Once started, effect runs are timed too.
+Simple named timers for finding slow code. While it's running, effect runs are timed too.
 
 - **Type**
 
@@ -428,7 +432,7 @@ Simple named timers. Once started, effect runs are timed too.
 
 ## iterArray()
 
-An `ipairs`-style iterator that works on reactive arrays and tracks reads.
+Loops over a reactive list like `ipairs` would, which plain `ipairs` can't do with proxies.
 
 - **Type**
 

@@ -29,7 +29,8 @@ local Players = game:GetService("Players")
 
 ## useViewportSize()
 
-Returns the screen size in pixels, following resizes and rotation.
+The screen size in pixels, kept up to date as the window resizes or the phone rotates. Use it to
+switch layouts on small screens.
 
 - **Type**
 
@@ -61,8 +62,8 @@ Returns the screen size in pixels, following resizes and rotation.
 
 ## useInputType()
 
-Returns what the player is using right now: `"keyboard"` (keyboard and mouse), `"gamepad"` or
-`"touch"`.
+What the player is using right now: `"keyboard"` (with mouse), `"gamepad"` or `"touch"`. It changes
+as soon as they pick up a controller, so you can swap button prompts.
 
 - **Type**
 
@@ -91,7 +92,8 @@ Returns what the player is using right now: `"keyboard"` (keyboard and mouse), `
 
 ## useSafeArea()
 
-Returns the insets, in pixels, taken by the top bar and device cutouts.
+How much of the screen edge is covered by the top bar and phone notches, in pixels, so you can keep
+buttons out of the way.
 
 - **Type**
 
@@ -122,7 +124,7 @@ Returns the insets, in pixels, taken by the top bar and device cutouts.
 
 ## useSelection()
 
-Reads and sets gamepad selection.
+Reads and sets which element is selected for gamepad navigation.
 
 - **Type**
 
@@ -161,7 +163,8 @@ Reads and sets gamepad selection.
 
 ## useTween()
 
-Returns a ref that tweens toward its source every time the source changes.
+A value that animates toward its target, with the TweenInfo's time and easing, every time the
+target changes. Bind it to a prop for smooth health bars, progress bars and counters.
 
 - **Type**
 
@@ -197,7 +200,8 @@ Returns a ref that tweens toward its source every time the source changes.
 
 ## useSpring()
 
-Returns a ref that moves toward its source like a spring.
+A value that follows its target like a spring, with a natural ease and optional bounce. It keeps
+moving smoothly even if the target changes mid-animation.
 
 - **Type**
 
@@ -240,7 +244,8 @@ Returns a ref that moves toward its source like a spring.
 
 ## attributeRef()
 
-Returns a ref synced both ways with an Instance attribute.
+A ref linked to an Instance attribute, both ways. Perfect for state the server writes, like
+`player:SetAttribute("Health", 80)`, which the UI then shows.
 
 - **Type**
 
@@ -277,7 +282,8 @@ Returns a ref synced both ways with an Instance attribute.
 
 ## useTag()
 
-Runs a callback for every Instance with a CollectionService tag, now and as they're added.
+Runs your code for every Instance with a CollectionService tag, existing ones and new ones, and
+cleans up when the tag goes away. Great for world UI like nameplates or shop prompts.
 
 - **Type**
 
@@ -320,7 +326,7 @@ Runs a callback for every Instance with a CollectionService tag, now and as they
 
 ## onRenderStepped() / onHeartbeat() / onStepped()
 
-Connect to a RunService signal for the component's lifetime.
+Runs your code every frame for as long as the component is mounted, and disconnects by itself.
 
 - **Type**
 
@@ -352,7 +358,7 @@ Connect to a RunService signal for the component's lifetime.
 
 ## useTheme()
 
-Returns the value provided under the `"theme"` key by the nearest ancestor.
+Reads the theme an ancestor provided under `"theme"`.
 
 - **Type**
 
@@ -384,7 +390,8 @@ Returns the value provided under the `"theme"` key by the nearest ancestor.
 
 ## useStyles()
 
-Builds a table of styles from the theme as a computed ref.
+Builds styles from the current theme, and rebuilds them when the theme changes. Use it for
+light/dark or team-coloured UI.
 
 - **Type**
 

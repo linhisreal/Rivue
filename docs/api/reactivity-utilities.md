@@ -20,7 +20,7 @@ All examples assume `local Rivue = require(game.ReplicatedStorage.Rivue)`.
 
 ## isRef()
 
-Checks if a value is a ref (including computed refs).
+Tells you whether a value is a ref (computeds count).
 
 - **Type**
 
@@ -40,7 +40,7 @@ Checks if a value is a ref (including computed refs).
 
 ## unref()
 
-Returns the inner value if the argument is a ref, otherwise the argument itself.
+Gives you the value whether you have a ref or a plain value. Handy in functions that accept either.
 
 - **Type**
 
@@ -63,7 +63,8 @@ Returns the inner value if the argument is a ref, otherwise the argument itself.
 
 ## toRef()
 
-Creates a ref that reads and writes one key of a table, usually a reactive one.
+A ref linked to one field of a table: reading and writing it reads and writes the field. Use it to
+pass a single prop or field to a composable that expects a ref.
 
 - **Type**
 
@@ -108,7 +109,8 @@ Creates a ref that reads and writes one key of a table, usually a reactive one.
 
 ## toValue()
 
-Normalizes values, refs and getters into values.
+Gives you the value from a plain value, a ref or a getter function. The friendliest way for a
+composable to accept "anything that holds a value".
 
 - **Type**
 
@@ -140,7 +142,8 @@ Normalizes values, refs and getters into values.
 
 ## toRefs()
 
-Converts a reactive table into a plain table where each key is a ref linked to the source.
+Turns each field of a reactive table into its own linked ref, so you can return or pass the fields
+separately without them losing reactivity.
 
 - **Type**
 
@@ -169,7 +172,8 @@ Converts a reactive table into a plain table where each key is a ref linked to t
 
 ## proxyRefs()
 
-Wraps a table so its refs read and write without `.value`.
+Lets you use a table of refs without writing `.value` everywhere. It's what `render(ctx)` uses for
+the state `setup()` returns.
 
 - **Type**
 
@@ -198,8 +202,7 @@ Wraps a table so its refs read and write without `.value`.
 
 ## isProxy()
 
-Checks if a table is a proxy created by `reactive()`, `readonly()`, `shallowReactive()` or
-`shallowReadonly()`.
+Tells you whether a table is any kind of reactive or readonly proxy.
 
 - **Type**
 
@@ -219,8 +222,8 @@ Checks if a table is a proxy created by `reactive()`, `readonly()`, `shallowReac
 
 ## isReactive()
 
-Checks if a table is a proxy created by `reactive()` or `shallowReactive()`, or a readonly
-view of one.
+Tells you whether a table is reactive (from `reactive()` or `shallowReactive()`, or a readonly view
+of one).
 
 - **Type**
 
@@ -239,7 +242,7 @@ view of one.
 
 ## isReadonly()
 
-Checks if a table is a readonly proxy.
+Tells you whether a table is a readonly view.
 
 - **Type**
 

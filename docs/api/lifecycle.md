@@ -28,7 +28,8 @@ local h = Rivue.h
 
 ## onMounted()
 
-Registers a callback to run after the component is mounted.
+Runs once the component is on screen and its Instances are parented. The place for anything that
+needs real Instances: reading `AbsoluteSize`, focusing, starting a tween.
 
 - **Type**
 
@@ -61,7 +62,8 @@ Registers a callback to run after the component is mounted.
 
 ## onUpdated()
 
-Registers a callback to run after the component re-rendered because its state changed.
+Runs after the component re-rendered because its state changed. Use it when you need to react to the
+updated Instances.
 
 - **Type**
 
@@ -102,7 +104,8 @@ Registers a callback to run after the component re-rendered because its state ch
 
 ## onUnmounted()
 
-Registers a callback to run after the component is unmounted.
+Runs after the component is removed. The place to disconnect connections and stop anything you
+started yourself.
 
 - **Type**
 
@@ -138,7 +141,7 @@ Registers a callback to run after the component is unmounted.
 
 ## onBeforeMount()
 
-Registers a callback to run right before the component's first render.
+Runs right before the component renders for the first time.
 
 - **Type**
 
@@ -167,7 +170,7 @@ Registers a callback to run right before the component's first render.
 
 ## onBeforeUpdate()
 
-Registers a callback to run right before the component re-renders because its state changed.
+Runs right before the component re-renders, while the Instances still show the old state.
 
 - **Type**
 
@@ -199,8 +202,8 @@ Registers a callback to run right before the component re-renders because its st
 
 ## onBeforeUnmount()
 
-Registers a callback to run right before the component is unmounted, while its Instances still
-exist.
+Runs right before the component is removed, while its Instances still exist. Use it to save state or
+start an exit animation.
 
 - **Type**
 
@@ -226,7 +229,8 @@ exist.
 
 ## onErrorCaptured()
 
-Registers a callback that runs when an error comes from a descendant component.
+Catches errors from components below this one, so one broken widget can show a fallback instead of
+breaking the whole screen.
 
 - **Type**
 
@@ -268,8 +272,8 @@ Registers a callback that runs when an error comes from a descendant component.
 
 ## onActivated()
 
-Registers a callback that runs when a component cached by [`KeepAlive`](builtins.md#keepalive)
-is shown: on first mount, and every time it comes back.
+For components inside [`KeepAlive`](builtins.md#keepalive): runs when the component is shown, the
+first time and every time it comes back. Refresh data here.
 
 - **Type**
 
@@ -294,8 +298,8 @@ is shown: on first mount, and every time it comes back.
 
 ## onDeactivated()
 
-Registers a callback that runs when a component cached by [`KeepAlive`](builtins.md#keepalive)
-is hidden (detached, but kept alive).
+For components inside [`KeepAlive`](builtins.md#keepalive): runs when the component is hidden but
+kept alive. Pause timers and sounds here.
 
 - **Type**
 
@@ -329,7 +333,8 @@ is hidden (detached, but kept alive).
 
 ## onRenderTracked()
 
-Debug hook: called for each reactive read during the component's render.
+A debugging hook that tells you every piece of state the component's render read, so you can see
+what it depends on.
 
 - **Type**
 
@@ -357,7 +362,8 @@ Debug hook: called for each reactive read during the component's render.
 
 ## onRenderTriggered()
 
-Debug hook: called with the reactive write that made the component re-render.
+A debugging hook that tells you which change made the component re-render. The answer to "why did
+this render again?".
 
 - **Type**
 
@@ -388,7 +394,8 @@ Debug hook: called with the reactive write that made the component re-render.
 
 ## onTransition()
 
-Registers a callback for transition events on this component's root element.
+Runs your code at each step of the component's enter and leave animations, for things like playing a
+sound when a panel finishes opening.
 
 - **Type**
 

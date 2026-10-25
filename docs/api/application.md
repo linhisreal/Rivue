@@ -35,7 +35,8 @@ local Players = game:GetService("Players")
 
 ## createApp()
 
-Creates an app instance.
+The starting point of every Rivue UI. You give it your root component, configure it (styles, global
+components, plugins), then mount it somewhere.
 
 - **Type**
 
@@ -72,7 +73,8 @@ Creates an app instance.
 
 ## mount()
 
-Shortcut for `createApp(root, options):mount(parent)`.
+A one-liner for the common case: create an app and mount it straight away. Same as `createApp(root,
+options):mount(parent)`.
 
 - **Type**
 
@@ -94,7 +96,8 @@ Shortcut for `createApp(root, options):mount(parent)`.
 
 ## app:mount()
 
-Renders the app into an Instance.
+Puts the app on screen inside any Instance you choose: a ScreenGui, a SurfaceGui on a part, a Frame.
+Use [`mountToPlayerGui()`](#appmounttoplayergui) for the usual full-screen case.
 
 - **Type**
 
@@ -122,7 +125,8 @@ Renders the app into an Instance.
 
 ## app:mountToPlayerGui()
 
-Creates a ScreenGui in the player's PlayerGui and mounts into it.
+The usual way to show an app: it creates a ScreenGui in the player's PlayerGui (with `ResetOnSpawn =
+false`) and mounts into it.
 
 - **Type**
 
@@ -146,7 +150,8 @@ Creates a ScreenGui in the player's PlayerGui and mounts into it.
 
 ## app:unmount()
 
-Unmounts the app: runs unmount hooks, stops watchers and destroys (or pools) its Instances.
+Takes the whole app off screen and cleans up after it: unmount hooks run, watchers stop, and its
+Instances are destroyed (or returned to the pool).
 
 - **Type**
 
@@ -169,7 +174,8 @@ Unmounts the app: runs unmount hooks, stops watchers and destroys (or pools) its
 
 ## app:onUnmount()
 
-Registers a callback that runs when the app unmounts. Useful for plugins that hold resources.
+Runs your callback when the app unmounts. Plugins use it to release whatever they set up, like
+connections or timers.
 
 - **Type**
 
@@ -192,7 +198,8 @@ Registers a callback that runs when the app unmounts. Useful for plugins that ho
 
 ## app:component()
 
-Registers a component under a name, so `h("Name")` renders it anywhere in the app.
+Makes a component available everywhere in the app by name, so any render function can write
+`h("Icon")` without requiring it. Good for small, widely used pieces like icons and buttons.
 
 - **Type**
 
@@ -230,7 +237,9 @@ Registers a component under a name, so `h("Name")` renders it anywhere in the ap
 
 ## app:styles()
 
-Registers style classes for the [`class`](render-function.md#element-props) prop, app-wide.
+Registers your app-wide style classes, so any element can use them with the
+[`class`](render-function.md#element-props) prop. Usually called once with your `styles.luau`
+module.
 
 - **Type**
 
@@ -269,7 +278,8 @@ Registers style classes for the [`class`](render-function.md#element-props) prop
 
 ## app:directive()
 
-Registers a custom directive.
+Adds your own directive (a reusable behaviour like `vTooltip`) that any element in the app can use
+as a `v` prop.
 
 - **Type**
 
@@ -314,7 +324,8 @@ Registers a custom directive.
 
 ## app:use()
 
-Installs a plugin.
+Installs a plugin: a reusable bundle of setup for an app, such as registering components, directives
+and provided values in one call.
 
 - **Type**
 
@@ -346,7 +357,8 @@ Installs a plugin.
 
 ## app:provide()
 
-Provides a value to every component in the app.
+Makes a value available to every component in the app through [`inject()`](component.md#inject).
+Handy for app-wide services like a theme or a sound player.
 
 - **Type**
 
@@ -373,7 +385,8 @@ Provides a value to every component in the app.
 
 ## app:runWithContext()
 
-Runs a function with the app's provides available to [`inject()`](component.md#inject).
+Runs a function as if it were inside the app, so [`inject()`](component.md#inject) works there.
+Useful in plugins and helper modules that run outside any component.
 
 - **Type**
 
@@ -400,7 +413,8 @@ Runs a function with the app's provides available to [`inject()`](component.md#i
 
 ## app:printTree()
 
-Prints and returns the mounted tree: components with their props, and the elements they rendered.
+Prints what's on screen right now, as a tree: components with their props, and the elements they
+rendered. The quickest way to answer "what is actually mounted?".
 
 - **Type**
 
@@ -432,7 +446,8 @@ Prints and returns the mounted tree: components with their props, and the elemen
 
 ## app:rerender() / app:swapRoot()
 
-Unmounts and mounts again into the same container, optionally with a new root.
+Throws the current UI away and mounts again into the same container, optionally with a different
+root. Handy for hot-reloading while you work in Studio.
 
 - **Type**
 
@@ -463,7 +478,9 @@ Unmounts and mounts again into the same container, optionally with a new root.
 
 ## app.config.errorHandler
 
-Handles errors that no [`onErrorCaptured()`](lifecycle.md#onerrorcaptured) stopped.
+Your last chance to deal with an error: it receives anything that no
+[`onErrorCaptured()`](lifecycle.md#onerrorcaptured) handler stopped. Use it to report errors to your
+analytics.
 
 - **Type**
 
@@ -491,7 +508,8 @@ Handles errors that no [`onErrorCaptured()`](lifecycle.md#onerrorcaptured) stopp
 
 ## app.config.warnHandler
 
-Receives Rivue's Studio warnings instead of `warn`.
+Receives Rivue's Studio warnings instead of printing them with `warn`. Useful for collecting them,
+or failing a test run on any warning.
 
 - **Type**
 
@@ -518,7 +536,7 @@ Receives Rivue's Studio warnings instead of `warn`.
 
 ## app.config.globalProperties
 
-Values every component can read through `ctx.globals`.
+Values every component in the app can read through `ctx.globals`, without injecting them one by one.
 
 - **Type**
 
@@ -544,8 +562,8 @@ Values every component can read through `ctx.globals`.
 
 ## Pooling options
 
-With `usePool = true`, removed Instances are kept and reused instead of destroyed and created
-again.
+Turn this on for UI that creates and removes many Instances (feeds, inventories, damage numbers):
+removed Instances are reset and reused instead of destroyed and created again.
 
 - **Type**
 

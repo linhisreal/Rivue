@@ -24,7 +24,8 @@ Lower-level reactivity APIs for performance and library code. All examples assum
 
 ## shallowRef()
 
-Shallow version of [`ref()`](reactivity-core.md#ref): only replacing `.value` is tracked.
+A ref that only notices when you replace `.value`, not when you change things inside it. Use it for
+big data you swap out wholesale, like a server response or a 1,000-row table.
 
 - **Type**
 
@@ -54,8 +55,8 @@ Shallow version of [`ref()`](reactivity-core.md#ref): only replacing `.value` is
 
 ## triggerRef()
 
-Forces effects that depend on a [`shallowRef`](#shallowref) to run. Use it after mutating the
-inner value.
+Tells everything using a [`shallowRef`](#shallowref) to update, after you changed what's inside it
+without replacing `.value`.
 
 - **Type**
 
@@ -80,7 +81,8 @@ inner value.
 
 ## customRef()
 
-Creates a ref with explicit control over when it tracks and triggers.
+Builds a ref with your own rules for when it updates. The classic use is a debounced value that only
+updates after the player stops typing.
 
 - **Type**
 
@@ -129,8 +131,8 @@ Creates a ref with explicit control over when it tracks and triggers.
 
 ## shallowReactive()
 
-Shallow version of [`reactive()`](reactivity-core.md#reactive): only top-level keys are
-reactive.
+Like [`reactive()`](reactivity-core.md#reactive), but only the top-level keys are watched. Nested
+tables are left as plain tables.
 
 - **Type**
 
@@ -156,8 +158,7 @@ reactive.
 
 ## shallowReadonly()
 
-Shallow version of [`readonly()`](reactivity-core.md#readonly): only top-level keys are
-readonly.
+Like [`readonly()`](reactivity-core.md#readonly), but only the top-level keys are protected.
 
 - **Type**
 
@@ -178,7 +179,7 @@ readonly.
 
 ## isShallow()
 
-Checks if a table is a proxy from `shallowReactive()` or `shallowReadonly()`.
+Tells you whether a table came from `shallowReactive()` or `shallowReadonly()`.
 
 - **Type**
 
@@ -197,7 +198,8 @@ Checks if a table is a proxy from `shallowReactive()` or `shallowReadonly()`.
 
 ## toRaw()
 
-Returns the original table behind a proxy.
+Gets the plain table behind a reactive one. Use it to read or pass data without tracking, for
+example when sending state to the server.
 
 - **Type**
 
@@ -226,7 +228,8 @@ Returns the original table behind a proxy.
 
 ## markRaw()
 
-Marks a table so it's never converted to a proxy.
+Tells Rivue to never make a table reactive. Use it for things that shouldn't be watched, like
+Instances, class objects or large static data.
 
 - **Type**
 
@@ -252,7 +255,8 @@ Marks a table so it's never converted to a proxy.
 
 ## effect()
 
-The low-level reactive effect that watchers and component renders are built on.
+The low-level building block under watchers and component renders: a function that re-runs when what
+it read changes. Prefer [`watchEffect()`](reactivity-core.md#watcheffect) in app code.
 
 - **Type**
 
@@ -303,8 +307,8 @@ The low-level reactive effect that watchers and component renders are built on.
 
 ## effectScope()
 
-Creates a scope that captures the effects created inside it (computeds, watchers) so they can be
-stopped together.
+A container that collects the computeds and watchers created inside it, so you can stop them all at
+once. Useful for state that lives outside components.
 
 - **Type**
 
@@ -350,7 +354,7 @@ stopped together.
 
 ## getCurrentScope()
 
-Returns the active effect scope, if any.
+The effect scope that's active right now, if any.
 
 - **Type**
 
@@ -380,7 +384,8 @@ Returns the active effect scope, if any.
 
 ## onScopeDispose()
 
-Registers a callback that runs when the active effect scope stops.
+Runs your clean-up when the current scope stops. Inside a component, that's when it unmounts, which
+makes it the composable-friendly version of `onUnmounted`.
 
 - **Type**
 

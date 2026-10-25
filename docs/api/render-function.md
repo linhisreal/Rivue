@@ -27,7 +27,8 @@ local h = Rivue.h
 
 ## h()
 
-Creates a vnode: a description of an Instance, a component, or a fragment.
+The function every render uses to describe UI. One call describes one Instance or component, its
+props and its children.
 
 - **Type**
 
@@ -93,7 +94,7 @@ Creates a vnode: a description of an Instance, a component, or a fragment.
 
 ## Element props
 
-What each kind of prop on an element does.
+Everything you can put in an element's props table, and what Rivue does with it.
 
 | Prop | Meaning |
 |------|---------|
@@ -173,7 +174,8 @@ What each kind of prop on an element does.
 
 ## Fragment
 
-Renders its children with no wrapper Instance.
+Groups several elements without adding an Instance around them. Use it when a component returns more
+than one root.
 
 - **Type**
 
@@ -200,7 +202,8 @@ Renders its children with no wrapper Instance.
 
 ## hIf()
 
-Returns the vnode when the condition is truthy, otherwise `nil`.
+Shows an element only when a condition is true. A tidier way to write `if cond then h(...) else nil`
+inside a children list.
 
 - **Type**
 
@@ -228,7 +231,8 @@ Returns the vnode when the condition is truthy, otherwise `nil`.
 
 ## hFor()
 
-Maps a list (plain or reactive) to vnodes.
+Turns a list into elements, one per item. Works with plain and reactive lists, and its result goes
+straight into a children list.
 
 - **Type**
 
@@ -262,7 +266,8 @@ Maps a list (plain or reactive) to vnodes.
 
 ## mergeProps()
 
-Merges props tables, combining event handlers instead of overwriting them.
+Combines several props tables into one. Event handlers are chained so both run, which makes it safe
+for wrapper components that add their own handlers.
 
 - **Type**
 
@@ -304,7 +309,8 @@ Merges props tables, combining event handlers instead of overwriting them.
 
 ## cloneVNode()
 
-Copies a vnode, optionally merging extra props in with [`mergeProps()`](#mergeprops).
+Copies an element description, optionally with extra props. Useful in wrapper components that tweak
+the children they were given.
 
 - **Type**
 
@@ -337,7 +343,7 @@ Copies a vnode, optionally merging extra props in with [`mergeProps()`](#mergepr
 
 ## isVNode()
 
-Checks if a value is a vnode created by `h()`.
+Tells you whether a value is an element description made by `h()`.
 
 - **Type**
 
@@ -356,7 +362,8 @@ Checks if a value is a vnode created by `h()`.
 
 ## resolveComponent()
 
-Looks up a component registered with [`app:component()`](application.md#appcomponent).
+Looks up a component registered with [`app:component()`](application.md#appcomponent) by name, in
+code.
 
 - **Type**
 
@@ -384,7 +391,8 @@ Looks up a component registered with [`app:component()`](application.md#appcompo
 
 ## Function components
 
-A function from props to a vnode: no state, no hooks, no instance.
+The lightest kind of component: just a function from props to UI, with no state and no hooks. Good
+for small display pieces like a badge or an icon.
 
 - **Type**
 

@@ -29,7 +29,8 @@ local h = Rivue.h
 
 ## vShow
 
-Toggles `Visible` based on the value.
+Shows or hides an element by setting `Visible`, without destroying it. Cheaper than removing and
+re-creating something you toggle often.
 
 - **Expects:** `boolean`
 
@@ -49,7 +50,8 @@ Toggles `Visible` based on the value.
 
 ## vFocus
 
-Captures focus on a TextBox when the value turns on.
+Puts the cursor in a TextBox when the value turns on, like a search box that's ready to type in when
+a menu opens.
 
 - **Expects:** `boolean`
 
@@ -70,7 +72,8 @@ Captures focus on a TextBox when the value turns on.
 
 ## vSelect
 
-Gives a GuiObject gamepad selection (`GuiService.SelectedObject`) when the value turns on.
+Selects an element for gamepad navigation when the value turns on, so controller players start in
+the right place.
 
 - **Expects:** `boolean`
 
@@ -98,7 +101,8 @@ Gives a GuiObject gamepad selection (`GuiService.SelectedObject`) when the value
 
 ## vClickOutside
 
-Calls a function when the player clicks or taps outside the element.
+Calls your function when the player clicks or taps anywhere outside the element. The usual way to
+close dropdowns, popups and context menus.
 
 - **Expects:** `() -> ()`
 
@@ -125,7 +129,7 @@ Calls a function when the player clicks or taps outside the element.
 
 ## vDrag
 
-Makes a GuiObject draggable with mouse or touch.
+Lets the player drag an element around with the mouse or a finger.
 
 - **Expects:** `boolean`
 
@@ -145,7 +149,8 @@ Makes a GuiObject draggable with mouse or touch.
 
 ## vPreload
 
-Preloads assets with `ContentProvider:PreloadAsync()` when the element mounts.
+Starts loading images and sounds as soon as the element appears, so they're ready by the time
+they're shown.
 
 - **Expects:** `number | string | { number | string }`, asset ids without `rbxassetid://`
 
@@ -161,7 +166,8 @@ Preloads assets with `ContentProvider:PreloadAsync()` when the element mounts.
 
 ## vFadeIn
 
-Fades an element and all its descendants in from transparent after it mounts.
+Fades an element and everything inside it in from fully transparent, once it's on screen. A quick
+way to soften a screen appearing.
 
 - **Expects:**
 
@@ -191,7 +197,8 @@ Fades an element and all its descendants in from transparent after it mounts.
 
 ## Custom directives
 
-Register a directive once, then use it as a `v` prop on any element.
+Your own reusable behaviours. Register a directive once, then turn it on for any element with a `v`
+prop, like `vTooltip = "Buy"`.
 
 - **Type**
 
@@ -245,7 +252,7 @@ Register a directive once, then use it as a `v` prop on any element.
 
 ## directives.get()
 
-Returns a registered directive by name.
+Looks up a registered directive by name.
 
 - **Type**
 
@@ -265,7 +272,8 @@ Returns a registered directive by name.
 
 ## vModelText()
 
-Returns props that bind a TextBox's `Text` to a ref, optionally debounced.
+The props for binding a TextBox's `Text` to a ref, with optional debouncing. `model = ref` does the
+same thing; use this when you want the debounce.
 
 - **Type**
 
@@ -295,8 +303,8 @@ Returns props that bind a TextBox's `Text` to a ref, optionally debounced.
 
 ## vModelProp()
 
-Returns props that bind any property to a ref: the property's value plus a change handler that
-writes the ref.
+The props for binding any property to a ref: the value, plus a handler that writes the ref when the
+property changes.
 
 - **Type**
 

@@ -15,7 +15,8 @@ When updates happen, and how to run code after them. All examples assume
 
 ## nextTick()
 
-Waits until pending component updates and `"pre"` watchers have run.
+Waits until Rivue has applied pending updates to the screen. Use it when you change state and then
+need to read the updated Instances.
 
 - **Type**
 
@@ -55,7 +56,8 @@ Waits until pending component updates and `"pre"` watchers have run.
 
 ## queueJob()
 
-Queues a function to run once on the next flush.
+Runs a function on the next update. Queuing the same function again before then does nothing,
+so it's a cheap way to batch expensive work.
 
 - **Type**
 
