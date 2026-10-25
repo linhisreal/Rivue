@@ -1,4 +1,8 @@
+[Docs](../README.md) › [API](../API.md) › **Render Function**
+
 # Render Function
+
+**Learn it:** [Guide 3: Describing UI](../guide/03-describing-ui.md) · [Guide 6: Styling and layout](../guide/06-styling-and-layout.md)
 
 Rivue has no templates: components return a tree of vnodes built with `h()`. All examples
 assume:
@@ -406,3 +410,7 @@ A function from props to a vnode: no state, no hooks, no instance.
 
   h(Pill, { text = "Online" })
   ```
+
+---
+
+[← Reactivity: Advanced](reactivity-advanced.md) · [API reference](../API.md) · [Components →](component.md)

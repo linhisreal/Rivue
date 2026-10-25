@@ -1,4 +1,8 @@
+[Docs](../README.md) › [API](../API.md) › **Reactivity: Core**
+
 # Reactivity: Core
+
+**Learn it:** [Guide 2: State](../guide/02-state.md) · [Guide 7: Effects and animation](../guide/07-effects-and-animation.md)
 
 The building blocks of state in Rivue. All examples assume:
 
@@ -48,7 +52,7 @@ that points to the inner value.
   print(count.value) -- 1
   ```
 
-- **See also** [Guide: State](../GUIDE.md#3-state)
+- **See also** [Guide 2: State](../guide/02-state.md)
 
 ---
 
@@ -431,3 +435,7 @@ Registers a cleanup for the watch callback or `watchEffect` that's currently run
   	end)
   end)
   ```
+
+---
+
+[API reference](../API.md) · [Reactivity: Utilities →](reactivity-utilities.md)

@@ -1,3 +1,5 @@
+[Docs](README.md) › **Style Guide**
+
 # Rivue Style Guide
 
 Conventions for writing Rivue code that stays readable as a game grows. It's modelled on Vue's

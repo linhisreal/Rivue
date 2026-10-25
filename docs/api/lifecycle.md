@@ -1,4 +1,8 @@
+[Docs](../README.md) › [API](../API.md) › **Lifecycle Hooks**
+
 # Lifecycle Hooks
+
+**Learn it:** [Guide 4: Components](../guide/04-components.md) · [Guide 7: Effects and animation](../guide/07-effects-and-animation.md)
 
 Register these in a component's `setup()`. Calling one anywhere else errors. All examples assume:
 
@@ -412,3 +416,7 @@ Registers a callback for transition events on this component's root element.
   	end
   end, { name = "Toast" })
   ```
+
+---
+
+[← Components](component.md) · [API reference](../API.md) · [Built-in Components →](builtins.md)

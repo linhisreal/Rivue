@@ -105,9 +105,11 @@ Rivue is a ModuleScript with a `runtime` folder. Put it in `ReplicatedStorage`.
 
 ## Learn
 
+Start at the **[docs home](docs/README.md)**: it has the learning path and an "I want to…" index.
+
 | | |
 |---|---|
-| [Guide](docs/GUIDE.md) | From the first component to debugging a real screen |
+| [Guide](docs/GUIDE.md) | Nine short chapters, from the first component to debugging a real screen |
 | [Examples](examples) | Todo list, inventory, modal, tabs, shop and HUD, all tested |
 | [Style Guide](docs/STYLE_GUIDE.md) | Project layout and conventions that keep UI code readable |
 | [Coming from Vue](docs/VUE.md) | Template-to-Luau cheat sheet and the differences |

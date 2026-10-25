@@ -1,4 +1,8 @@
+[Docs](../README.md) › [API](../API.md) › **Built-in Components**
+
 # Built-in Components
+
+**Learn it:** [Guide 7: Effects and animation](../guide/07-effects-and-animation.md) · [Guide 9: Performance and debugging](../guide/09-performance-and-debugging.md)
 
 Components that ship with Rivue. Use them like any component: `h(Rivue.Transition, props, children)`.
 All examples assume:
@@ -333,3 +337,7 @@ A ScrollingFrame that only renders the rows in view.
   	end,
   })
   ```
+
+---
+
+[← Lifecycle Hooks](lifecycle.md) · [API reference](../API.md) · [Directives →](directives.md)

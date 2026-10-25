@@ -35,7 +35,7 @@ local function markdownIn(dir: string): { string }
 end
 
 local docFiles = { "README.md" }
-for _, dir in { "docs", "docs/api", "examples" } do
+for _, dir in { "docs", "docs/guide", "docs/api", "examples" } do
 	for _, file in markdownIn(dir) do
 		table.insert(docFiles, file)
 	end

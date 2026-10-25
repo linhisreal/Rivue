@@ -1,4 +1,8 @@
+[Docs](../README.md) › [API](../API.md) › **Reactivity: Utilities**
+
 # Reactivity: Utilities
+
+**Learn it:** [Guide 2: State](../guide/02-state.md)
 
 All examples assume `local Rivue = require(game.ReplicatedStorage.Rivue)`.
 
@@ -249,3 +253,7 @@ Checks if a table is a readonly proxy.
   print(Rivue.isReadonly(Rivue.readonly({}))) -- true
   print(Rivue.isReadonly(Rivue.reactive({}))) -- false
   ```
+
+---
+
+[← Reactivity: Core](reactivity-core.md) · [API reference](../API.md) · [Array Helpers →](array.md)

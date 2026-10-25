@@ -1,4 +1,8 @@
+[Docs](../README.md) › [API](../API.md) › **Components**
+
 # Components
+
+**Learn it:** [Guide 1: Introduction](../guide/01-introduction.md) · [Guide 4: Components](../guide/04-components.md)
 
 APIs for defining components and using them in `setup()`. All examples assume:
 
@@ -828,3 +832,7 @@ Defines a component whose definition is loaded on demand.
 
   h(ShopPage)
   ```
+
+---
+
+[← Render Function](render-function.md) · [API reference](../API.md) · [Lifecycle Hooks →](lifecycle.md)

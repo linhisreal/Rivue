@@ -1,4 +1,8 @@
+[Docs](../README.md) › [API](../API.md) › **Scheduler**
+
 # Scheduler
+
+**Learn it:** [Guide 7: Effects and animation](../guide/07-effects-and-animation.md)
 
 When updates happen, and how to run code after them. All examples assume
 `local Rivue = require(game.ReplicatedStorage.Rivue)`.
@@ -120,3 +124,7 @@ The order in which work runs after you change state.
   print("after write")
   -- sync, after write, pre, (next Heartbeat) post
   ```
+
+---
+
+[← Application](application.md) · [API reference](../API.md) · [Roblox Composables →](roblox.md)

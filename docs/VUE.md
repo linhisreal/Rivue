@@ -1,3 +1,5 @@
+[Docs](README.md) › **Rivue for Vue developers**
+
 # Rivue for Vue Developers
 
 Rivue implements Vue 3's runtime (reactivity, components, the virtual DOM) in Luau. There's no

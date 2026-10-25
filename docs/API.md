@@ -1,3 +1,5 @@
+[Docs](README.md) › **API reference**
+
 # API Reference
 
 Everything on the module returned by `require(game.ReplicatedStorage.Rivue)`. Each entry has its

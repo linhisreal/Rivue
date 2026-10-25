@@ -1,4 +1,8 @@
+[Docs](../README.md) › [API](../API.md) › **Roblox Composables**
+
 # Roblox Composables
+
+**Learn it:** [Guide 6: Styling and layout](../guide/06-styling-and-layout.md) · [Guide 7: Effects and animation](../guide/07-effects-and-animation.md)
 
 Composables for engine state: devices, input, attributes, tags, frames and animation. Call them in
 `setup()` (or inside an `effectScope`) so they clean up automatically. All examples assume:
@@ -407,3 +411,7 @@ Builds a table of styles from the theme as a computed ref.
   	end
   end, { name = "Card" })
   ```
+
+---
+
+[← Scheduler](scheduler.md) · [API reference](../API.md) · [Remote →](remote.md)

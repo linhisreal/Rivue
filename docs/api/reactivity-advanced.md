@@ -1,4 +1,8 @@
+[Docs](../README.md) › [API](../API.md) › **Reactivity: Advanced**
+
 # Reactivity: Advanced
+
+**Learn it:** [Guide 2: State](../guide/02-state.md) · [Guide 9: Performance and debugging](../guide/09-performance-and-debugging.md)
 
 Lower-level reactivity APIs for performance and library code. All examples assume
 `local Rivue = require(game.ReplicatedStorage.Rivue)`.
@@ -400,3 +404,7 @@ Registers a callback that runs when the active effect scope stops.
   	end)
   end
   ```
+
+---
+
+[← Array Helpers](array.md) · [API reference](../API.md) · [Render Function →](render-function.md)

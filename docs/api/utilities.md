@@ -1,4 +1,8 @@
+[Docs](../README.md) › [API](../API.md) › **Utilities and Debugging**
+
 # Utilities and Debugging
+
+**Learn it:** [Guide 9: Performance and debugging](../guide/09-performance-and-debugging.md)
 
 All examples assume `local Rivue = require(game.ReplicatedStorage.Rivue)`.
 
@@ -509,3 +513,7 @@ Exported types, available as `Rivue.<Name>` in type annotations.
   	return Rivue.ref(initial)
   end
   ```
+
+---
+
+[← Instance Pool](pool.md) · [API reference](../API.md)

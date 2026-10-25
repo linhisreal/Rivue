@@ -1,4 +1,8 @@
+[Docs](../README.md) › [API](../API.md) › **Remote**
+
 # Remote
+
+**Learn it:** [Guide 8: Sharing state and the server](../guide/08-state-and-server.md)
 
 Request/response and events between client and server over RemoteEvents, with payload validation
 and per-player rate limits. All examples assume
@@ -237,3 +241,7 @@ Listens on the client for a named RemoteEvent the server fires.
   	print("inventory", data)
   end
   ```
+
+---
+
+[← Roblox Composables](roblox.md) · [API reference](../API.md) · [Instance Pool →](pool.md)

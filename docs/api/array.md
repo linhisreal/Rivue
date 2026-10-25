@@ -1,4 +1,8 @@
+[Docs](../README.md) › [API](../API.md) › **Array Helpers**
+
 # Array Helpers
+
+**Learn it:** [Guide 2: State](../guide/02-state.md)
 
 `table.insert`, `table.remove`, `table.sort` and `table.find` work on a table's raw contents, so
 on a reactive array they do nothing, or read nothing. `Rivue.array` has the same operations for
@@ -299,3 +303,7 @@ Read-only helpers that return new plain values, and track the array like a numer
   	return t.text
   end)
   ```
+
+---
+
+[← Reactivity: Utilities](reactivity-utilities.md) · [API reference](../API.md) · [Reactivity: Advanced →](reactivity-advanced.md)

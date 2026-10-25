@@ -1,4 +1,8 @@
+[Docs](../README.md) › [API](../API.md) › **Application**
+
 # Application
+
+**Learn it:** [Guide 1: Introduction](../guide/01-introduction.md) · [Guide 6: Styling and layout](../guide/06-styling-and-layout.md)
 
 Creating and configuring an app. All examples assume:
 
@@ -580,3 +584,7 @@ again.
   app:mountToPlayerGui(Players.LocalPlayer)
   print((app.getPoolStats :: any)(app))
   ```
+
+---
+
+[← Directives](directives.md) · [API reference](../API.md) · [Scheduler →](scheduler.md)

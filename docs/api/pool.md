@@ -1,4 +1,8 @@
+[Docs](../README.md) › [API](../API.md) › **Instance Pool**
+
 # Instance Pool
+
+**Learn it:** [Guide 9: Performance and debugging](../guide/09-performance-and-debugging.md)
 
 Reuses Instances instead of destroying and creating them. Most apps only need the
 [pooling options](application.md#pooling-options) of `createApp`. These functions are for tuning
@@ -269,3 +273,7 @@ Saves which Instances are pooled, and restores that state later.
   -- ... a scene that churns through Instances ...
   Pool.restoreSnapshot(snapshot)
   ```
+
+---
+
+[← Remote](remote.md) · [API reference](../API.md) · [Utilities and Debugging →](utilities.md)

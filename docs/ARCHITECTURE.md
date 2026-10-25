@@ -1,3 +1,5 @@
+[Docs](README.md) › **Architecture**
+
 # Architecture
 
 How Rivue works inside, for people changing the runtime. For the public API, see [API.md](API.md).

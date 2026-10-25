@@ -1,4 +1,8 @@
+[Docs](../README.md) › [API](../API.md) › **Directives**
+
 # Directives
+
+**Learn it:** [Guide 5: Forms and input](../guide/05-forms-and-input.md)
 
 Reusable behaviour attached to an element. Use a `v` prop with the directive's name in camelCase:
 `vFocus = true` applies the `focus` directive, and `vClickOutside = fn` applies `click-outside`.
@@ -316,3 +320,7 @@ writes the ref.
   	vDrag = true,
   }))
   ```
+
+---
+
+[← Built-in Components](builtins.md) · [API reference](../API.md) · [Application →](application.md)
