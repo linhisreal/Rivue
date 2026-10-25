@@ -40,25 +40,25 @@
 			
 		on(eventName: string, callback: (...any) -> ()) -> RBXScriptConnection
 			'Listens for server events'
+
+		setupServer()
+			'Creates the remotes (server only)'
+
+		handle(actionName: string, handler: (player, payload) -> any)
+			'Registers a server handler for request()/fire() (server only)'
 	
 	Server Implementation:
     ----------------------
 
-		The server must respond using the Response RemoteEvent:
-		
-		local requestEvent = ReplicatedStorage.RemoteEvents.Request
-		local responseEvent = ReplicatedStorage.RemoteEvents.Response
-		
-		requestEvent.OnServerEvent:Connect(function(player, req)
-			if req.action == "getData" then
-				local data = { ... }
-				responseEvent:FireClient(player, {
-					id = req.id,
-					ok = true,
-					data = data
-				})
-			end
+		Register handlers on the server; the return value is sent back as `data`:
+
+		Remote.setupServer()
+
+		Remote.handle("getData", function(player, payload)
+			return { coins = 10 }
 		end)
+
+		Handler errors are logged on the server and the client gets "handler_error".
 ]]
 
 export type RemoteRequest = {
@@ -77,50 +77,58 @@ export type RemoteResponse = {
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
 local debugModule = require(script.Parent:WaitForChild("debug"))
 
 local Remote = {}
 Remote.__index = Remote
 
---- Gets or creates the RemoteEvents folder in ReplicatedStorage
+const CLIENT_WAIT_TIMEOUT = 5
+
+--- Finds a child, creating it on the server. Clients wait for the server's copy, since
+--- instances created on the client never replicate.
+--- @param parent Instance -- Parent to search
+--- @param className string -- Class to create
+--- @param name string -- Child name
+--- @return Instance -- The child
+local function findOrCreate(parent: Instance, className: string, name: string): Instance
+	local existing = parent:FindFirstChild(name)
+	if existing then
+		return existing
+	end
+
+	if RunService:IsClient() then
+		local replicated = parent:WaitForChild(name, CLIENT_WAIT_TIMEOUT)
+		if replicated then
+			return replicated
+		end
+		-- Server never set up remotes (e.g. no Remote.handle/setupServer call); create locally so
+		-- the client doesn't error, but nothing will reach the server
+		warn(`[Rivue] {name} not found in {parent:GetFullName()}, call Remote.setupServer() on the server`)
+	end
+
+	local created = Instance.new(className)
+	created.Name = name
+	created.Parent = parent
+	return created
+end
+
+--- Gets the RemoteEvents folder in ReplicatedStorage
 --- @return Folder -- RemoteEvents folder
 local function getFolder(): Folder
-	local folder = ReplicatedStorage:FindFirstChild("RemoteEvents") :: Folder?
-	if not folder then
-		local newFolder = Instance.new("Folder")
-		newFolder.Name = "RemoteEvents"
-		newFolder.Parent = ReplicatedStorage
-		return newFolder
-	end
-	return folder
+	return findOrCreate(ReplicatedStorage, "Folder", "RemoteEvents") :: Folder
 end
 
---- Gets or creates the Request RemoteEvent
+--- Gets the Request RemoteEvent
 --- @return RemoteEvent -- Request event for client->server communication
 local function getRequestEvent(): RemoteEvent
-	local folder = getFolder()
-	local ev = folder:FindFirstChild("Request") :: RemoteEvent?
-	if not ev then
-		local newEv = Instance.new("RemoteEvent")
-		newEv.Name = "Request"
-		newEv.Parent = folder
-		return newEv
-	end
-	return ev
+	return findOrCreate(getFolder(), "RemoteEvent", "Request") :: RemoteEvent
 end
 
---- Gets or creates the Response RemoteEvent
+--- Gets the Response RemoteEvent
 --- @return RemoteEvent -- Response event for server->client communication
 local function getResponseEvent(): RemoteEvent
-	local folder = getFolder()
-	local ev = folder:FindFirstChild("Response") :: RemoteEvent?
-	if not ev then
-		local newEv = Instance.new("RemoteEvent")
-		newEv.Name = "Response"
-		newEv.Parent = folder
-		return newEv
-	end
-	return ev
+	return findOrCreate(getFolder(), "RemoteEvent", "Response") :: RemoteEvent
 end
 
 -- Payload validation helpers
@@ -269,15 +277,75 @@ end
 --- @return RBXScriptConnection -- Connection that can be disconnected
 function Remote.on(name: string, fn: (...any) -> ()): RBXScriptConnection
 	debugModule.log("Remote", "Registering server event listener", { eventName = name })
-	local folder = getFolder()
-	local ev = folder:FindFirstChild(name) :: RemoteEvent?
-	if not ev then
-		local newEv = Instance.new("RemoteEvent")
-		newEv.Name = name
-		newEv.Parent = folder
-		return newEv.OnClientEvent:Connect(fn)
-	end
+	local ev = findOrCreate(getFolder(), "RemoteEvent", name) :: RemoteEvent
 	return ev.OnClientEvent:Connect(fn)
+end
+
+export type RequestHandler = (player: Player, payload: unknown) -> unknown
+
+local handlers: { [string]: RequestHandler } = {}
+local serverConn: RBXScriptConnection? = nil
+
+--- Creates the RemoteEvents folder and events. Call once on the server at startup
+--- so clients don't wait for them.
+function Remote.setupServer(): ()
+	assert(RunService:IsServer(), "Remote.setupServer() must be called on the server")
+	getRequestEvent()
+	getResponseEvent()
+end
+
+--- Registers a server handler for an action sent with Remote.request/fire
+--- The handler's return value is sent back as the response data.
+--- @param actionName string -- Action identifier
+--- @param handler RequestHandler -- (player, payload) -> data
+function Remote.handle(actionName: string, handler: RequestHandler): ()
+	assert(RunService:IsServer(), "Remote.handle() must be called on the server")
+	handlers[actionName] = handler
+	if serverConn then
+		return
+	end
+
+	local resEv = getResponseEvent()
+	serverConn = getRequestEvent().OnServerEvent:Connect(function(player: Player, req: unknown)
+		-- Never trust the client: check the shape before using anything
+		if type(req) ~= "table" then
+			return
+		end
+		local request = req :: { action: unknown, id: unknown, payload: unknown }
+		local action = request.action
+		if type(action) ~= "string" then
+			return
+		end
+
+		-- fire() sends no id and expects no response
+		local id = request.id
+		local function respond(ok: boolean, data: unknown?, err: string?)
+			if type(id) == "string" then
+				resEv:FireClient(player, { id = id, ok = ok, data = data, error = err })
+			end
+		end
+
+		local actionHandler = handlers[action]
+		if not actionHandler then
+			respond(false, nil, "unknown_action")
+			return
+		end
+
+		local valid, validErr = validatePayload(request.payload)
+		if not valid then
+			respond(false, nil, validErr)
+			return
+		end
+
+		local ok, result = pcall(actionHandler, player, request.payload)
+		if ok then
+			respond(true, result)
+		else
+			-- Don't send server error details to the client
+			warn(`[Rivue] Remote handler '{action}' failed: {result}`)
+			respond(false, nil, "handler_error")
+		end
+	end)
 end
 
 return Remote

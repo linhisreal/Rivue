@@ -994,6 +994,23 @@ local function mountTeleport(vnode: RenderVNode, poolOpt: PoolOptions?)
 	end
 end
 
+--- Merges a component's undeclared props onto its root element (inheritAttrs)
+--- @param props Props? -- Root element props
+--- @param attrs Props -- Component attrs
+--- @return Props? -- Merged props (root's own props win)
+local function applyFallthroughAttrs(props: Props?, attrs: Props): Props?
+	if next(attrs) == nil then
+		return props
+	end
+	local merged: Props = if props then table.clone(props) else {}
+	for key, value in attrs do
+		if merged[key] == nil and not RESERVED_PROPS[key] then
+			merged[key] = value
+		end
+	end
+	return merged
+end
+
 --- Mounts a component and wraps its render in an effect
 --- @param vnode RenderVNode -- Component vnode
 --- @param container Instance -- Parent Instance
@@ -1007,6 +1024,10 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 	local props: Props = vnode.props or {}
 
 	local function commit(nextTree: VNode?)
+		if nextTree and inst.type.inheritAttrs ~= false and type(nextTree.type) == "string" then
+			nextTree.props = applyFallthroughAttrs(nextTree.props, inst.attrs)
+		end
+
 		local prevTree = inst.subTree
 		inst.subTree = nextTree
 		withRenderingInstance(inst, function()
