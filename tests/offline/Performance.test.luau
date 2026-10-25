@@ -109,6 +109,29 @@ return function()
 		"Changing every row's text (one Text write each, no IsA per row)"
 	)
 
+	assertAtMost(
+		engineCalls(function()
+			local raw = Rivue.toRaw(items.value)
+			local prepended = table.clone(raw)
+			table.insert(prepended, 1, { id = 100000, name = "New" })
+			items.value = prepended
+			Rivue.nextTick()
+		end),
+		20,
+		"Prepending one row (one LayoutOrder write, not one per row)"
+	)
+
+	assertAtMost(
+		engineCalls(function()
+			local raw = table.clone(Rivue.toRaw(items.value))
+			table.insert(raw, 1, table.remove(raw))
+			items.value = raw
+			Rivue.nextTick()
+		end),
+		20,
+		"Moving the last row to the front"
+	)
+
 	app:unmount()
 	print("\n========== PERFORMANCE TESTS COMPLETE ==========\n")
 end

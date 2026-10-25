@@ -779,19 +779,17 @@ end
 -- LayoutOrder Rivue last wrote per Instance, so unchanged positions skip the engine calls
 local appliedLayoutOrder: { [Instance]: number } = setmetatable({}, { __mode = "k" }) :: any
 
---- Gives children increasing LayoutOrder in list order, so a layout shows them as rendered.
---- Values that are already in order are kept (removing a row renumbers nothing), only
---- out-of-order ones are rewritten. Fragments are counted through, and a child that sets
---- LayoutOrder itself keeps it.
-local function syncLayoutOrder(children: { Child }, after: number?): number
-	local prev = after or 0
+-- Room between neighbours, so an insert usually fits without renumbering anything
+const LAYOUT_STEP = 64
+
+local function collectLayoutTargets(children: { Child }, out: { GuiObject })
 	for i = 1, table.maxn(children) do
 		local child = children[i]
 		if type(child) ~= "table" then
 			continue
 		end
 		if child.type == Fragment then
-			prev = syncLayoutOrder(child.children, prev)
+			collectLayoutTargets(child.children, out)
 			continue
 		end
 		local props = child.props
@@ -803,23 +801,97 @@ local function syncLayoutOrder(children: { Child }, after: number?): number
 		if not el then
 			continue
 		end
-		local current = appliedLayoutOrder[el]
-		if current and current > prev then
-			prev = current
-		else
-			prev += 1
-			appliedLayoutOrder[el] = prev
-			local subTree = if inst then inst.subTree else nil
-			local className = if type(child.type) == "string"
-				then child.type :: string
-				elseif subTree and type(subTree.type) == "string" then subTree.type :: string
-				else nil
-			if isGuiObject(el, className) then
-				(el :: GuiObject).LayoutOrder = prev
-			end
+		local subTree = if inst then inst.subTree else nil
+		local className = if type(child.type) == "string"
+			then child.type :: string
+			elseif subTree and type(subTree.type) == "string" then subTree.type :: string
+			else nil
+		if isGuiObject(el, className) then
+			table.insert(out, el :: GuiObject)
 		end
 	end
-	return prev
+end
+
+local function writeLayoutOrder(el: GuiObject, value: number)
+	if appliedLayoutOrder[el] ~= value then
+		appliedLayoutOrder[el] = value
+		el.LayoutOrder = value
+	end
+end
+
+--- Gives children increasing LayoutOrder in list order, so a layout shows them as rendered.
+--- The longest run of children already in order keeps its values; only the others are written,
+--- into the gaps between their neighbours. Removing, appending or prepending a row writes one
+--- value. Fragments are counted through, and a child that sets LayoutOrder itself keeps it.
+local function syncLayoutOrder(children: { Child })
+	local els: { GuiObject } = {}
+	collectLayoutTargets(children, els)
+	local n = #els
+	if n == 0 then
+		return
+	end
+
+	-- Longest strictly increasing run of the values already written (patience sorting)
+	local tails: { number } = {}
+	local tailAt: { number } = {}
+	local before: { number } = table.create(n, 0)
+	for i = 1, n do
+		local v = appliedLayoutOrder[els[i]]
+		if v ~= nil then
+			local lo, hi = 1, #tails
+			while lo <= hi do
+				local mid = (lo + hi) // 2
+				if tails[mid] < v then
+					lo = mid + 1
+				else
+					hi = mid - 1
+				end
+			end
+			tails[lo] = v
+			tailAt[lo] = i
+			before[i] = if lo > 1 then tailAt[lo - 1] else 0
+		end
+	end
+	local keep: { [number]: true } = {}
+	local k = tailAt[#tails] or 0
+	while k > 0 do
+		keep[k] = true
+		k = before[k]
+	end
+
+	-- Fill each run of the others into the gap between its kept neighbours
+	local i = 1
+	local low: number? = nil
+	while i <= n do
+		if keep[i] then
+			low = appliedLayoutOrder[els[i]]
+			i += 1
+			continue
+		end
+		local j = i
+		while j <= n and not keep[j] do
+			j += 1
+		end
+		local count = j - i
+		local high: number? = if j <= n then appliedLayoutOrder[els[j]] else nil
+		if low and high and high - low - 1 < count then
+			-- No room left between the neighbours: renumber the whole list
+			for t = 1, n do
+				writeLayoutOrder(els[t], t * LAYOUT_STEP)
+			end
+			return
+		end
+		for t = 1, count do
+			local value = if low and high
+				then low + (t * (high - low)) // (count + 1)
+				elseif low then low + t * LAYOUT_STEP
+				elseif high then high - (count - t + 1) * LAYOUT_STEP
+				else t * LAYOUT_STEP
+			writeLayoutOrder(els[i + t - 1], value)
+		end
+		low = appliedLayoutOrder[els[j - 1]]
+		i = j
+	end
 end
 
 local function mountElement(vnode: RenderVNode, container: Instance, poolOpt: PoolOptions?): Instance

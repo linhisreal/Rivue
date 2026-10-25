@@ -333,6 +333,61 @@ local function runTests()
 		assertEquals(runs, 2, "removeWhere")
 	end
 
+	print("LayoutOrder follows the list through random inserts, removes, moves and sorts")
+	do
+		local items = Rivue.reactive({})
+		local nextId = 0
+		local function newItem()
+			nextId += 1
+			return { id = nextId }
+		end
+		for _ = 1, 20 do
+			Rivue.array.push(items, newItem())
+		end
+		local List = Rivue.defineComponent({
+			name = "OrderList",
+			render = function()
+				return h("Frame", { layout = "vertical" }, {
+					Rivue.hFor(items, function(item)
+						return h("Frame", { key = item.id, Name = `i{item.id}` })
+					end),
+				})
+			end,
+		})
+		local container = Instance.new("Frame")
+		Rivue.createApp(List):mount(container)
+		local root = container:FindFirstChild("OrderList") :: Frame
+		local seed = 7
+		local function roll(a: number, b: number): number
+			seed = (seed * 1103515245 + 12345) % 2147483648
+			return a + seed % (b - a + 1)
+		end
+		for step = 1, 150 do
+			local n = #items
+			local op = roll(1, 5)
+			if op == 1 or n < 3 then
+				Rivue.array.insert(items, roll(1, n + 1), newItem())
+			elseif op == 2 then
+				Rivue.array.remove(items, roll(1, n))
+			elseif op == 3 then
+				Rivue.array.move(items, roll(1, n), roll(1, n))
+			elseif op == 4 then
+				Rivue.array.sort(items, function(a, b)
+					return (a.id * 31) % 17 < (b.id * 31) % 17
+				end)
+			else
+				Rivue.array.insert(items, 1, newItem())
+			end
+			Rivue.nextTick()
+			local previous = -math.huge
+			for i = 1, #items do
+				local el = root:FindFirstChild(`i{items[i].id}`) :: Frame
+				assertTrue(el.LayoutOrder > previous, `step {step}: row {i} is in order`)
+				previous = el.LayoutOrder
+			end
+		end
+	end
+
 	print("\n========== REGRESSION TESTS COMPLETE ==========\n")
 end
 
