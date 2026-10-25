@@ -1,5 +1,4 @@
 --!strict
--- Shared styles for the demo, registered with app:styles() and used with the class prop
 
 local styles = {
 	window = {

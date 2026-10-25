@@ -1,9 +1,6 @@
 --!strict
 --!optimize 2
 
--- Directive registry and the built-in directives (vShow, vFocus, vSelect, vClickOutside, vDrag,
--- vPreload, vFadeIn), plus the vModelText/vModelProp helpers.
-
 local Types = require("./types")
 
 type DirectiveHooks = Types.Directive
@@ -54,7 +51,6 @@ directives.register("focus", {
 	end,
 })
 
--- vSelect: selects for gamepad when the value turns on, clears when it turns off
 directives.register("select", {
 	mounted = function(el, val)
 		if val and el:IsA("GuiObject") then
@@ -92,7 +88,6 @@ directives.register("click-outside", {
 		local state: ClickOutsideState
 		-- Ignores gameProcessed on purpose: clicking another button is still "outside"
 		local conn = UserInputService.InputBegan:Connect(function(input)
-			-- Only clicks/taps, not key presses
 			local inputType = input.UserInputType
 			if inputType ~= Enum.UserInputType.MouseButton1 and inputType ~= Enum.UserInputType.Touch then
 				return
@@ -188,7 +183,6 @@ local function stopDrag(state: DragState?)
 	end
 end
 
--- vDrag: draggable with mouse or touch while the value is truthy
 directives.register("drag", {
 	mounted = function(el, enabled): DragState | false
 		if not enabled or not el:IsA("GuiObject") then
@@ -272,7 +266,6 @@ directives.register("fade-in", {
 		local strokeTransparencyMap: { [Instance]: number } = {}
 		local canvasGroupMap: { [Instance]: number } = {}
 
-		-- Remember each descendant's transparency and hide it, then tween back to it
 		local function storeAndHide(obj: Instance)
 			if obj:IsA("GuiObject") then
 				transparencyMap[obj] = obj.BackgroundTransparency
@@ -405,7 +398,6 @@ directives.register("fade-in", {
 	end,
 })
 
---- Props binding a TextBox's Text to a ref
 --- With opts.debounce (ms), writes to the ref wait until typing pauses
 function directives.vModelText(
 	r: Ref<string>,
@@ -439,7 +431,6 @@ function directives.vModelText(
 	end
 end
 
---- Props binding any property to a ref
 --- eventName defaults to "on" .. PropName (Value -> onValue)
 function directives.vModelProp<T>(r: Ref<T>, propName: string, eventName: string?): Types.Props
 	if not reactivity.isRef(r) then

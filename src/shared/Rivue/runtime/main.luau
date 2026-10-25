@@ -1,8 +1,6 @@
 --!strict
 --!optimize 2
 
--- Assembles the public Rivue API from the runtime modules.
-
 local Types = require("./types")
 local reactivity = require("./reactivity")
 local hModule = require("./h")
@@ -21,7 +19,6 @@ local array = require("./array")
 
 local RunService = game:GetService("RunService")
 
--- Public types
 export type Ref<T> = Types.Ref<T>
 export type ComputedRef<T> = Types.ComputedRef<T>
 export type MaybeRef<T> = Types.MaybeRef<T>
@@ -59,7 +56,6 @@ export type ComponentInstance = componentAPI.ComponentInstance
 
 local Rivue = {}
 
--- True in Studio: enables dev warnings and prop validation
 Rivue.dev = RunService:IsStudio()
 
 debugModule._toRaw = reactivity.toRaw
@@ -68,7 +64,6 @@ Rivue.prettyPrint = debugModule.prettyPrint
 Rivue.inspect = debugModule.inspect
 Rivue.assertInvariant = debugModule.assertInvariant
 
--- Reactivity
 Rivue.ref = reactivity.ref
 Rivue.shallowRef = reactivity.shallowRef
 Rivue.reactive = reactivity.reactive
@@ -137,7 +132,6 @@ end
 
 Rivue.nextTick = schedulerModule.nextTick
 
--- Rendering
 Rivue.h = hModule.h
 Rivue.Fragment = hModule.Fragment
 Rivue.hIf = hModule.hIf
@@ -172,7 +166,6 @@ type SetupFunction = (props: Props, ctx: SetupContext) -> Types.SetupResult
 function Rivue.defineComponent(opts: ComponentOptions | SetupFunction, extra: ComponentOptions?): ComponentDef
 	local options: ComponentOptions
 	if type(opts) == "function" then
-		-- defineComponent(function(props, ctx) ... end, { name = "Counter" })
 		options = if extra then table.clone(extra) else {}
 		options.setup = opts
 	else
@@ -194,7 +187,6 @@ function Rivue.defineComponent(opts: ComponentOptions | SetupFunction, extra: Co
 	}
 end
 
--- Lifecycle
 Rivue.onBeforeMount = componentAPI.onBeforeMount
 Rivue.onMounted = componentAPI.onMounted
 Rivue.onBeforeUpdate = componentAPI.onBeforeUpdate
@@ -208,17 +200,14 @@ Rivue.onRenderTriggered = componentAPI.onRenderTriggered
 Rivue.onErrorCaptured = componentAPI.onErrorCaptured
 Rivue.onTransition = componentAPI.onTransition
 
--- Provide / inject
 Rivue.provide = componentAPI.provide
 Rivue.inject = componentAPI.inject
 Rivue.hasInjectionContext = componentAPI.hasInjectionContext
 
--- Instances
 Rivue.getCurrentInstance = componentAPI.getCurrentInstance
 Rivue.useId = componentAPI.useId
 Rivue.useTemplateRef = componentAPI.useTemplateRef
 
--- Built-in components
 Rivue.Teleport = componentAPI.Teleport
 Rivue.Suspense = builtins.Suspense
 Rivue.KeepAlive = builtins.KeepAlive
@@ -234,10 +223,8 @@ Rivue.defineModel = composables.defineModel
 Rivue.useTheme = composables.useTheme
 Rivue.useStyles = composables.useStyles
 
--- Scheduler
 Rivue.scheduler = schedulerModule
 
---- Cancelled automatically when the component calling it unmounts
 function Rivue.queueJob(fn: () -> (), opts: QueueOptions?): JobHandle
 	local jobHandle = schedulerModule.queueJob(fn, opts)
 	local currentInstance = componentAPI.getCurrentInstance()
@@ -249,14 +236,12 @@ end
 
 Rivue.pool = poolModule
 
--- Utilities
 Rivue.utils = utils
 Rivue.directives = directives
 Rivue.Remote = remote
 
 Rivue.iterArray = utils.iterArray
 
--- Roblox
 Rivue.attributeRef = robloxUtils.attributeRef
 Rivue.useTag = robloxUtils.useTag
 Rivue.onRenderStepped = robloxUtils.onRenderStepped
@@ -269,7 +254,6 @@ Rivue.useSelection = robloxUtils.useSelection
 Rivue.useTween = robloxUtils.useTween
 Rivue.useSpring = robloxUtils.useSpring
 
--- Apps
 Rivue.createApp = renderer.createApp
 
 function Rivue.mount(componentOrVNode: ComponentDef | VNode, parent: Instance, opts: AppOptions?): App
@@ -282,7 +266,6 @@ function Rivue.mount(componentOrVNode: ComponentDef | VNode, parent: Instance, o
 	return app
 end
 
--- v-model helpers
 Rivue.vModelText = directives.vModelText
 Rivue.vModelProp = directives.vModelProp
 

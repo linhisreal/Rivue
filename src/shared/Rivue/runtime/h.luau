@@ -2,9 +2,6 @@
 --!optimize 2
 --!native
 
--- h() and the vnode helpers: Fragment, hIf, hFor, mergeProps, cloneVNode. h() normalises
--- children, resolves local component names and expands style/model/v* props.
-
 local Types = require("./types")
 
 type VNode = Types.VNode
@@ -23,7 +20,6 @@ local warnedMissingKey = false
 
 local vnodeIdCounter = 0
 
--- Groups children without creating a wrapper Instance: h(Fragment, nil, { ... })
 local Fragment: Types.FragmentType = table.freeze({ __fragment = true :: true, __name = "Fragment" :: "Fragment" })
 
 local function isNestedList(child: unknown): boolean
@@ -57,7 +53,6 @@ local function normalizeChildren(children: unknown): { Child }
 	end
 	local t = type(children)
 	if t == "table" then
-		-- A single vnode, not a list
 		if (children :: { [unknown]: unknown }).type ~= nil then
 			return { children :: VNode }
 		end
@@ -92,9 +87,7 @@ local function splitSlots(children: { [unknown]: unknown }): ({ Child }, Types.S
 	return list, slots
 end
 
---- vClickOutside -> "click-outside", nil when no such directive is registered
 local function directiveName(key: string): string?
-	-- "v" followed by an uppercase letter
 	local second = string.byte(key, 2)
 	if string.byte(key, 1) ~= 118 or not second or second < 65 or second > 90 then
 		return nil
@@ -106,11 +99,9 @@ local function directiveName(key: string): string?
 	return if directives.get(name) then name else nil
 end
 
---- Expands style, model and v* props. Copies props only when something changes
 local function expandProps(isElement: boolean, props: Props): Props
 	local out: Props? = nil
 
-	-- style = { base, isActive and active }: merged in order, the vnode's own props win
 	local style = props.style
 	if type(style) == "table" then
 		local merged: Props = {}
@@ -137,7 +128,6 @@ local function expandProps(isElement: boolean, props: Props): Props
 		out = target
 		target.model = nil
 		if type(model) == "string" then
-			-- model = "draft": the rendering component's setup state, like v-model="draft"
 			local owner = componentModule.getRenderingInstance()
 			local state = if owner then owner.setupState else nil
 			local found = if state then (state :: any)[model] else nil
@@ -158,7 +148,6 @@ local function expandProps(isElement: boolean, props: Props): Props
 				end
 			end
 		else
-			-- Same contract as defineModel(): modelValue + update:modelValue
 			target.modelValue = r.value
 			target["onUpdate:modelValue"] = function(value: unknown)
 				r.value = value
@@ -198,10 +187,8 @@ local function expandProps(isElement: boolean, props: Props): Props
 	return out or props
 end
 
---- type_ is a ClassName ("Frame"), a component, a component name or a function component
 local function h(type_: VNodeType, propsIn: Props?, children: Types.Children?): VNode
 	if type(type_) == "string" then
-		-- Components registered on the rendering component (components = { ... })
 		local owner = componentModule.getRenderingInstance()
 		local localComponents = if owner then owner.type.components else nil
 		local resolved = if localComponents then localComponents[type_] else nil
@@ -216,7 +203,6 @@ local function h(type_: VNodeType, propsIn: Props?, children: Types.Children?): 
 	local ch: { Child }
 	local slots: Types.Slots? = nil
 	if type(type_) ~= "string" and type(children) == "table" and (children :: { [unknown]: unknown }).type == nil then
-		-- Components can take named slots: { header = function(scope) ... end }
 		ch, slots = splitSlots(children :: { [unknown]: unknown })
 	else
 		ch = normalizeChildren(children)
@@ -240,7 +226,6 @@ local function h(type_: VNodeType, propsIn: Props?, children: Types.Children?): 
 		slots = slots,
 		key = props.key,
 		_uid = vnodeIdCounter,
-		-- String refs resolve on the component that rendered them
 		_owner = if type(props.ref) == "string" then componentModule.getRenderingInstance() else nil,
 	}
 end

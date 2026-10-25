@@ -1,9 +1,6 @@
 --!strict
 --!optimize 2
 
--- The renderer: mounts and patches vnodes into Instances, runs component render effects,
--- applies classes and modifier props, and implements createApp.
-
 local Types = require("./types")
 local componentAPI = require("./component")
 local hModule = require("./h")
@@ -67,9 +64,7 @@ export type MountedState = {
 local formatTree: (vnode: VNode?) -> string
 local patch: (oldVNode: RenderVNode?, newVNode: RenderVNode?, container: Instance, poolOpt: PoolOptions?) -> ()
 
--- Component currently rendering, used as parent for nested components
 local currentRenderingInstance: ComponentInstance? = nil
--- App being mounted, handed to root components
 local currentAppContext: AppContext? = nil
 
 -- Work that needs the finished tree parented (mounted hooks, directives, enter tweens).
@@ -140,7 +135,6 @@ local function layoutOptions(value: any): LayoutOptions
 	return value :: LayoutOptions
 end
 
--- "start"/"center"/"end" on each axis
 const HORIZONTAL_ALIGN = table.freeze({
 	start = Enum.HorizontalAlignment.Left,
 	center = Enum.HorizontalAlignment.Center,
@@ -151,7 +145,6 @@ const VERTICAL_ALIGN = table.freeze({
 	center = Enum.VerticalAlignment.Center,
 	["end"] = Enum.VerticalAlignment.Bottom,
 })
--- How free space on the main axis is shared (UIListLayout flex)
 const FLEX_JUSTIFY = table.freeze({
 	["space-between"] = Enum.UIFlexAlignment.SpaceBetween,
 	["space-around"] = Enum.UIFlexAlignment.SpaceAround,
@@ -203,7 +196,6 @@ local function applyLayout(layout: Instance, options: LayoutOptions)
 	end
 end
 
--- Props that manage a UI modifier child: cornerRadius = 8, padding = 12, stroke = Color3, aspectRatio = 1
 local sugarSpecs: { [string]: SugarSpec } = {
 	cornerRadius = {
 		className = "UICorner",
@@ -216,7 +208,6 @@ local sugarSpecs: { [string]: SugarSpec } = {
 		apply = function(c: Instance, v: any)
 			local p = c :: UIPadding
 			if typeof(v) == "table" then
-				-- { top, right, bottom, left } or { x, y }
 				p.PaddingTop = toUDim(v.top or v.y or 0)
 				p.PaddingBottom = toUDim(v.bottom or v.y or 0)
 				p.PaddingLeft = toUDim(v.left or v.x or 0)
@@ -248,7 +239,6 @@ local sugarSpecs: { [string]: SugarSpec } = {
 			(c :: UIAspectRatioConstraint).AspectRatio = v
 		end,
 	},
-	-- layout = "vertical" | "horizontal" | "grid" | { direction, gap, align, justify, wrap, grid }
 	layout = {
 		className = "UIListLayout",
 		classFor = function(v: any): string
@@ -258,7 +248,6 @@ local sugarSpecs: { [string]: SugarSpec } = {
 			applyLayout(c, layoutOptions(v))
 		end,
 	},
-	-- flex = "fill" | "grow" | "shrink" | number (grow ratio) | UIFlexItem properties
 	flex = {
 		className = "UIFlexItem",
 		apply = function(c: Instance, v: any)
@@ -279,7 +268,6 @@ local sugarSpecs: { [string]: SugarSpec } = {
 }
 const SUGAR_PROPS = table.freeze(sugarSpecs)
 
---- A nil value removes the modifier child
 local function setSugarProp(inst: Instance, key: string, value: unknown, vnode: VNode)
 	local sugar = vnode._sugar or {}
 	vnode._sugar = sugar
@@ -296,7 +284,6 @@ local function setSugarProp(inst: Instance, key: string, value: unknown, vnode: 
 	local classFor = spec.classFor
 	local className = if classFor then classFor(value) else spec.className
 	if child and child.ClassName ~= className then
-		-- e.g. layout switched from a list to a grid
 		child:Destroy()
 		child = nil
 	end
@@ -322,7 +309,6 @@ local eventAlias: { [string]: { string } } = {
 	onTouched = { "Touched" },
 }
 
--- Prop name -> how to connect it on a class (false = no signal)
 type SignalTarget = { name: string, isProperty: boolean }
 local eventSignalCache: { [string]: { [string]: SignalTarget | false } } = {}
 
@@ -350,7 +336,6 @@ local function classHasProp(inst: Instance, prop: string, className: string?): b
 	return has
 end
 
---- An event, or else a property's changed signal (second return true)
 local function tryGetSignal(inst: Instance, evName: string): (RBXScriptSignal?, boolean)
 	local ok, member = pcall(function()
 		return (inst :: any)[evName]
@@ -422,7 +407,6 @@ local function connectEvent(
 		if eventName then
 			table.insert(names, eventName)
 			table.insert(names, eventName:sub(1, 1):upper() .. eventName:sub(2))
-			-- onSizeChanged -> Size changed signal
 			local property = eventName:match("^(.+)Changed$")
 			if property then
 				table.insert(names, property:sub(1, 1):upper() .. property:sub(2))
@@ -472,7 +456,6 @@ local function setProp(inst: Instance, key: string, value: any, vnode: RenderVNo
 		local handlers = vnode._handlers or {}
 		vnode._conns, vnode._handlers = conns, handlers
 		handlers[key] = value
-		-- Already connected, re-renders only swap the handler
 		if conns[key] then
 			return
 		end
@@ -517,7 +500,6 @@ local function setProp(inst: Instance, key: string, value: any, vnode: RenderVNo
 		return
 	end
 
-	-- Allow camelCase props (size -> Size)
 	local pascalKey = key:sub(1, 1):upper() .. key:sub(2)
 	if classHasProp(inst, pascalKey, className) then
 		local ok, err = writeProp(inst, pascalKey, value)
@@ -561,8 +543,6 @@ local function clearVNodeConns(vnode: RenderVNode?)
 	end
 end
 
---- Keeps what the player typed, the cursor and focus across a patch
---- With textFromProps the patch's new Text wins
 local function withPreservedTextState(el: Instance, fn: () -> (), textFromProps: boolean)
 	if not el:IsA("TextBox") then
 		fn()
@@ -624,7 +604,6 @@ local function createTween(el: Instance, info: TweenInfo?, goals: { [string]: an
 end
 
 local function runEnter(vnode: RenderVNode, el: Instance, t: TransitionConfig, goals: { [string]: any }?)
-	-- Left before the flush
 	if el.Parent == nil then
 		return
 	end
@@ -643,7 +622,6 @@ local function runEnter(vnode: RenderVNode, el: Instance, t: TransitionConfig, g
 	tween:Play()
 end
 
---- Doesn't block: the Instance is destroyed when the tween ends
 local function runLeave(vnode: RenderVNode, el: Instance, t: TransitionConfig)
 	local running = vnode._tween
 	if running then
@@ -667,7 +645,6 @@ local function runLeave(vnode: RenderVNode, el: Instance, t: TransitionConfig)
 	tween:Play()
 end
 
---- ref can be a Ref, a function, or a name for useTemplateRef()
 local function setTemplateRef(props: Props?, owner: unknown, value: unknown)
 	local r = if props then props.ref else nil
 	if r == nil then
@@ -713,11 +690,9 @@ local function asComponent(vnodeType: unknown): ComponentDef?
 	return nil
 end
 
--- Props handled by the renderer, not set on the Instance
 const RESERVED_PROPS =
 	table.freeze({ __directives = true, key = true, ref = true, transition = true, memo = true, class = true })
 
---- class can be a string ("a b"), a list ({ "a", cond and "b" }) or a map ({ a = cond })
 local function collectClassNames(value: unknown, out: { string })
 	if type(value) == "string" then
 		for name in string.gmatch(value, "%S+") do
@@ -760,7 +735,6 @@ local function applyClasses(props: Props, owner: ComponentInstance?, appContext:
 			devWarn(`Unknown class '{name}', register it with app:styles() or the component's styles option`)
 		end
 	end
-	-- The element's own props win over its classes
 	local merged = table.clone(props)
 	for k, v in fromClasses do
 		if merged[k] == nil then
@@ -784,7 +758,6 @@ end
 
 -- LayoutOrder Rivue last wrote per Instance, so unchanged positions skip the engine calls
 local appliedLayoutOrder: { [Instance]: number } = setmetatable({}, { __mode = "k" }) :: any
--- ClassName -> IsA("GuiObject")
 local guiObjectClasses: { [string]: boolean } = {}
 
 local function isGuiObject(el: Instance, className: string?): boolean
@@ -905,7 +878,6 @@ local function mountElement(vnode: RenderVNode, container: Instance, poolOpt: Po
 	local children = vnode.children
 	for i, child in children do
 		if type(child) == "function" then
-			-- Store the result so later diffs compare against it
 			local rendered = child()
 			children[i] = rendered :: any
 			child = rendered :: any
@@ -933,7 +905,6 @@ local function mountElement(vnode: RenderVNode, container: Instance, poolOpt: Po
 	-- Parent last so the engine lays out the finished subtree once
 	inst.Parent = container
 
-	-- Directives run once the whole tree is parented
 	local vnodeDirectives = if props then props.__directives else nil
 	if type(vnodeDirectives) == "table" then
 		queuePost(function()
@@ -974,7 +945,6 @@ local function walkComponents(vnode: RenderVNode?, fn: (inst: ComponentInstance)
 	end
 end
 
---- Skips teleported content
 local function collectRootEls(vnode: RenderVNode?, out: { Instance }): { Instance }
 	if vnode == nil then
 		return out
@@ -1070,7 +1040,6 @@ local function unmountVNode(vnode: RenderVNode?, poolOpt: PoolOptions?, doRemove
 		return
 	end
 
-	-- Functional component, unmount its rendered tree
 	if type(vnode.type) == "function" then
 		unmountVNode(vnode._fnTree, poolOpt, doRemove)
 		vnode._fnTree = nil
@@ -1134,7 +1103,6 @@ local function patchChildrenParallel<T>(
 	end
 end
 
---- Keyed children match by key, unkeyed ones by position
 local function patchKeyedChildren(
 	oldChildren: { Child }?,
 	newChildren: { Child }?,
@@ -1193,7 +1161,6 @@ local function patchKeyedChildren(
 		unmountVNode(v, poolOpt)
 	end
 
-	-- Unmount old unkeyed children nothing reused
 	for i = 1, table.maxn(oldList) do
 		local oc = oldList[i]
 		if type(oc) == "table" and oc.key == nil and not reusedUnkeyed[i] then
@@ -1351,9 +1318,7 @@ local function mountTeleport(vnode: RenderVNode, container: Instance, poolOpt: P
 	end
 end
 
---- Remounts the children if the target changed
 local function patchTeleport(oldVNode: RenderVNode, newVNode: RenderVNode, container: Instance, poolOpt: PoolOptions?)
-	-- Still waiting to mount, start over with the new vnode
 	oldVNode._deferred = nil
 	local target = resolveTeleportTarget(newVNode, container)
 	local oldTarget = oldVNode._teleportTarget
@@ -1381,7 +1346,6 @@ local function applyFallthroughAttrs(props: Props?, attrs: Props): Props?
 			(merged :: Props)[key] = value
 		end
 	end
-	-- A class from the parent adds to the root's own classes (later ones win)
 	local parentClass = attrs.class
 	if parentClass ~= nil then
 		local result: Props = merged or (if props then table.clone(props) else {})
@@ -1414,7 +1378,6 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 			if inst.type.inheritAttrs ~= false and type(nextTree.type) == "string" then
 				nextTree.props = applyFallthroughAttrs(nextTree.props, inst.attrs)
 			end
-			-- <Transition> around a component animates its root
 			local transition = inst.vnode._transition
 			if transition and nextTree._transition == nil then
 				nextTree._transition = transition
@@ -1471,7 +1434,6 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 			if type(onError) == "function" then
 				pcall(onError, res)
 			end
-			-- Keep the fallback as the error state
 			local fallback = props.fallback
 			if fallback then
 				task.defer(function()
@@ -1486,11 +1448,9 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 	local updateJob = {
 		id = inst.uid,
 		run = function()
-			-- Skip if the component was unmounted after this update was queued
 			if not renderEffect.active then
 				return
 			elseif inst.isDeactivated then
-				-- Cached by KeepAlive, render when it comes back
 				inst._pendingUpdate = true
 				return
 			end
@@ -1520,7 +1480,6 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 		end
 
 		local nextTree = sub :: VNode?
-		-- Multiple root nodes: render returned an array
 		if type(sub) == "table" and (sub :: any).type == nil and #(sub :: { unknown }) > 0 then
 			nextTree = hModule.h(Fragment, nil, sub :: { Child })
 		end
@@ -1529,13 +1488,12 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 			inst:runBeforeUpdate()
 			local patched, err = pcall(commit :: (VNode?) -> ...unknown, nextTree)
 			if not patched then
-				inst.subTree = prevTree -- rollback
+				inst.subTree = prevTree
 				inst:handleError(tostring(err), "patch")
 				return
 			end
 			inst:runUpdated()
 		else
-			-- Initial mount, hooks run once the whole tree is parented
 			commit(nextTree)
 			inst.isMounted = true
 			queuePost(function()
@@ -1543,7 +1501,6 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 					return
 				end
 				inst:runMounted()
-				-- Template ref gets the exposed API or the instance
 				setTemplateRef(vnode.props, vnode._owner, inst.exposed or inst)
 				if #inst.activatedCbs > 0 and inst:isInKeepAlive() then
 					inst:runActivated()
@@ -1553,12 +1510,10 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 	end, {
 		lazy = true,
 		scheduler = function()
-			-- Batched with other components, parents first
 			scheduler.queueUpdate(updateJob)
 		end,
 		-- Children can change state this component reads while it patches (Suspense, refs)
 		allowRecurse = true,
-		-- Only hooked up when the component asked for them
 		onTrack = if #inst.renderTrackedCbs > 0
 			then function(event: Types.DebuggerEvent)
 				for _, fn in inst.renderTrackedCbs do
@@ -1679,7 +1634,6 @@ local function patchElement(oldVNode: RenderVNode, newVNode: RenderVNode, poolOp
 	local oldProps, newProps = oldVNode.props, newVNode.props
 	local memo = if newProps then newProps.memo else nil
 	if memo ~= nil and oldProps and memoEqual(oldProps.memo, memo) then
-		-- Same memo deps, keep the mounted subtree as is
 		newVNode.props = oldProps
 		newVNode.children = oldVNode.children
 		return
@@ -1748,7 +1702,6 @@ end
 local function mountFragment(vnode: RenderVNode, container: Instance, poolOpt: PoolOptions?)
 	for i, child in vnode.children do
 		if type(child) == "function" then
-			-- Store the result so later diffs compare against it
 			local rendered = child()
 			vnode.children[i] = rendered :: any
 			child = rendered :: any
@@ -1768,7 +1721,6 @@ local function patchInner(oldVNode: RenderVNode?, newVNode: RenderVNode?, contai
 
 	local newType = newVNode.type
 	if type(newType) == "string" then
-		-- Components registered with app:component()
 		local appContext = if currentRenderingInstance then currentRenderingInstance.appContext else currentAppContext
 		local registered = if appContext then appContext.components[newType] else nil
 		if registered then
@@ -1816,7 +1768,6 @@ local function patchInner(oldVNode: RenderVNode?, newVNode: RenderVNode?, contai
 		return
 	end
 
-	-- Different type or key, replace instead of patching
 	if oldVNode.type ~= newType or oldVNode.key ~= newVNode.key then
 		local oldEl = oldVNode.el
 		local parent = if oldEl and oldEl.Parent then oldEl.Parent else container
@@ -1831,14 +1782,12 @@ local function patchInner(oldVNode: RenderVNode?, newVNode: RenderVNode?, contai
 	elseif def == componentAPI.Teleport then
 		patchTeleport(oldVNode, newVNode, container, poolOpt)
 	elseif def then
-		-- The child's render effect handles re-rendering
 		local inst = oldVNode._instance :: ComponentInstance?
 		newVNode._instance = inst
 		newVNode._kept = nil
 		local oldProps, newProps = oldVNode.props, newVNode.props
 		local memo = if newProps then newProps.memo else nil
 		if memo ~= nil and oldProps and memoEqual(oldProps.memo, memo) then
-			-- Same memo deps, skip the child's props and slots
 			newVNode.props, newVNode.children, newVNode.slots = oldProps, oldVNode.children, oldVNode.slots
 			if inst then
 				inst.vnode = newVNode
@@ -1857,7 +1806,6 @@ local function patchInner(oldVNode: RenderVNode?, newVNode: RenderVNode?, contai
 			end
 		end
 	elseif type(newType) == "function" then
-		-- Diff the previous output against the new one
 		local res = newType(newVNode.props or {})
 		newVNode._fnTree = res
 		patch(oldVNode._fnTree, res, container, poolOpt)
@@ -1867,13 +1815,11 @@ local function patchInner(oldVNode: RenderVNode?, newVNode: RenderVNode?, contai
 	end
 end
 
---- No old vnode mounts, no new vnode unmounts
 function patch(oldVNode: RenderVNode?, newVNode: RenderVNode?, container: Instance, poolOpt: PoolOptions?)
 	if patching then
 		patchInner(oldVNode, newVNode, container, poolOpt)
 		return
 	end
-	-- Outermost patch, run mounted hooks and friends once it's done
 	patching = true
 	local ok, err = pcall(patchInner :: (...any) -> ...unknown, oldVNode, newVNode, container, poolOpt)
 	patching = false
@@ -1896,7 +1842,6 @@ local function describeValue(value: unknown): string
 	return t
 end
 
---- Components in <>, elements by ClassName
 function formatTree(vnode: VNode?): string
 	local lines: { string } = {}
 	local function walk(node: VNode?, depth: number)
@@ -1997,7 +1942,6 @@ local function createApp(root: VNode | ComponentDef, opts: AppOptions?): App
 		return self
 	end
 
-	--- plugin is a function(app, ...) or a table with install(app, ...)
 	function api.use(self: App, plugin: Plugin, ...: any): App
 		if type(plugin) == "function" then
 			plugin(self, ...)
@@ -2009,7 +1953,6 @@ local function createApp(root: VNode | ComponentDef, opts: AppOptions?): App
 		return self
 	end
 
-	--- Directives are global, this is for plugins
 	function api.directive(self: App, name: string, hooks: Types.Directive): App
 		directives.register(name, hooks)
 		return self

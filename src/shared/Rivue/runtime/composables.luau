@@ -1,8 +1,6 @@
 --!strict
 --!optimize 2
 
--- Composition helpers for setup(): useAttrs, useSlots, defineModel, useTheme and useStyles.
-
 local Types = require("./types")
 local componentModule = require("./component")
 local reactivity = require("./reactivity")
@@ -38,7 +36,6 @@ function composables.useSlots(): { Child }
 	return instance.slots
 end
 
---- The returned function gives setup() a ref bound to the `model` prop
 function composables.defineModel<T>(options: ModelOptions?): (props: Props, context: SetupContext) -> Ref<T>
 	local opts: ModelOptions = options or {}
 	local propName = opts.name or "modelValue"

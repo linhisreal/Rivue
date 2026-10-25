@@ -1,9 +1,6 @@
 --!strict
 --!optimize 2
 
--- Helpers: debounce, throttle, frame callbacks, text filtering, shallow equality and a simple
--- profiler.
-
 export type RafHandle = { stop: () -> () }
 export type DebouncedHandle = { cancel: () -> () }
 export type Profiler = {

@@ -2,9 +2,6 @@
 --!optimize 2
 --!native
 
--- Update scheduler. Jobs queued in a frame run once, in uid order (parents before children),
--- followed by post-flush callbacks. nextTick resolves after the next flush.
-
 local Types = require("./types")
 
 type QueueOptions = Types.QueueOptions
@@ -24,9 +21,8 @@ local microQueueSet: { [() -> ()]: true } = {}
 local microScheduled: boolean = false
 local isFlushingMicro: boolean = false
 local reentrancyDepth = 0
-const MAX_REENTRANCY_DEPTH = 100 -- Prevent infinite loops
+const MAX_REENTRANCY_DEPTH = 100
 
--- Returned for deduplicated jobs
 local NOOP_HANDLE: JobHandle = table.freeze({ cancel = function() end })
 
 -- One connection per mode, not per job
@@ -104,7 +100,6 @@ local function flushMicro(): ()
 		debugModule.log("Scheduler", "Micro queue flush complete", { executed = #q, reentrancyDepth = reentrancyDepth })
 	end
 
-	-- If new jobs were added during flush, schedule another flush
 	if #microQueue > 0 and not microScheduled then
 		microScheduled = true
 		debugModule.log("Scheduler", "New jobs added during flush, scheduling another flush")
@@ -159,7 +154,6 @@ function scheduler.nextTick(fn: (() -> ())?): ()
 	coroutine.yield()
 end
 
---- Queues fn on the micro queue without allocating a handle (used by effects)
 function scheduler.queueEffect(fn: () -> ()): ()
 	if microQueueSet[fn] then
 		return

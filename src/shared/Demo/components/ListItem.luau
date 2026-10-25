@@ -1,5 +1,4 @@
 --!nonstrict
--- One row of the item list
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))

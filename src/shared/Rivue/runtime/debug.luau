@@ -1,9 +1,6 @@
 --!strict
 --!optimize 2
 
--- Rivue.debug: opt-in verbose logging, measure(), prettyPrint()/inspect() that see through
--- proxies, assertInvariant() and formatError().
-
 local RunService = game:GetService("RunService")
 
 local debug = {}
@@ -37,7 +34,6 @@ function debug.log(component: string, message: string, data: unknown?)
 	end
 end
 
---- Logs how long fn took, when debug.enabled is on
 function debug.measure<R...>(name: string, fn: () -> R...): R...
 	if not debug.enabled then
 		return fn()
@@ -139,7 +135,6 @@ function debug.inspect(value: unknown, depth: number?): string
 	return inspectValue(value, 0, "")
 end
 
---- Only checked in Studio
 function debug.assertInvariant(condition: boolean, message: string)
 	if (IS_STUDIO or debug.enabled) and not condition then
 		error("[Rivue:Invariant] " .. message, 2)

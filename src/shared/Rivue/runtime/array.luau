@@ -1,10 +1,6 @@
 --!strict
 --!optimize 2
 
--- Rivue.array: table.insert/remove/sort-style helpers for reactive arrays. Luau's table library
--- reads and writes the raw table behind a proxy, so it neither tracks nor triggers. These edit the
--- raw array and notify everything that read it.
-
 local reactivity = require("./reactivity")
 
 local toRaw = reactivity.toRaw
@@ -35,7 +31,6 @@ function array.insert<T>(list: { T }, index: number, value: T)
 	triggerListChange(raw, index, #raw, true)
 end
 
---- Removes and returns the item at index (the last one by default)
 function array.remove<T>(list: { T }, index: number?): T?
 	local raw = rawOf(list)
 	local count = #raw
@@ -48,7 +43,6 @@ function array.remove<T>(list: { T }, index: number?): T?
 	return removed
 end
 
---- Removes the first occurrence of value. A proxy matches its raw table
 function array.removeValue<T>(list: { T }, value: T): boolean
 	local raw = rawOf(list)
 	local index = table.find(raw, toRaw(value))
@@ -59,7 +53,6 @@ function array.removeValue<T>(list: { T }, value: T): boolean
 	return true
 end
 
---- Removes every match in one update (one notification, not one per item)
 function array.removeWhere<T>(list: { T }, predicate: (item: T, index: number) -> boolean): number
 	local raw = rawOf(list)
 	local count = #raw
@@ -82,7 +75,6 @@ function array.removeWhere<T>(list: { T }, predicate: (item: T, index: number) -
 	return count - kept
 end
 
---- Like JavaScript's splice. Without deleteCount, removes everything from start
 function array.splice<T>(list: { T }, start: number, deleteCount: number?, ...: T): { T }
 	local raw = rawOf(list)
 	local count = #raw
@@ -134,7 +126,6 @@ function array.indexOf<T>(list: { T }, value: T): number?
 	return table.find(toRaw(list), toRaw(value))
 end
 
---- Returns the reactive item, so writes to it update the UI
 function array.find<T>(list: { T }, predicate: (item: T, index: number) -> boolean): (T?, number?)
 	for i = 1, #list do
 		local item = list[i]
@@ -145,7 +136,6 @@ function array.find<T>(list: { T }, predicate: (item: T, index: number) -> boole
 	return nil, nil
 end
 
---- Returns a new plain array
 function array.filter<T>(list: { T }, predicate: (item: T, index: number) -> boolean): { T }
 	local out = {}
 	for i = 1, #list do
@@ -157,7 +147,6 @@ function array.filter<T>(list: { T }, predicate: (item: T, index: number) -> boo
 	return out
 end
 
---- Returns a new plain array
 function array.map<T, U>(list: { T }, mapper: (item: T, index: number) -> U): { U }
 	local out = table.create(#list)
 	for i = 1, #list do
@@ -166,7 +155,6 @@ function array.map<T, U>(list: { T }, mapper: (item: T, index: number) -> U): { 
 	return out
 end
 
---- Without a predicate, counts every item
 function array.count<T>(list: { T }, predicate: ((item: T, index: number) -> boolean)?): number
 	if not predicate then
 		return #list

@@ -1,9 +1,6 @@
 --!strict
 --!optimize 2
 
--- Instance pool: reuses released GUI Instances instead of creating new ones, resetting changed
--- properties back to their defaults on release.
-
 local Types = require("./types")
 
 export type PoolConfig = Types.PoolConfig
@@ -67,21 +64,19 @@ type PoolType = {
 local debugModule = require("./debug")
 
 local DEFAULT_CONFIG: PoolConfig = {
-	maxPoolSize = 50, -- Max instances per class
-	maxTotalSize = 500, -- Max total instances across all classes
-	enableMetrics = true, -- Track usage statistics
-	enableDebug = false, -- Log acquire/release events
+	maxPoolSize = 50,
+	maxTotalSize = 500,
+	enableMetrics = true,
+	enableDebug = false,
 	defaultTTL = nil, -- Time-to-live in seconds (nil = infinite)
-	enableAutoWarmup = false, -- Auto-warmup on first acquire
+	enableAutoWarmup = false,
 }
 
 local Pool: PoolType = {} :: any
 Pool.store = {} :: PoolStore
 
--- Total pooled instances, kept in sync with Pool.store
 local pooledCount = 0
 
---- Recounts pooled instances after bulk changes
 local function recountPooled(): ()
 	pooledCount = 0
 	for _, list in Pool.store do
@@ -207,7 +202,6 @@ local function restoreTouchedProps(inst: Instance, touched: { [string]: boolean 
 	end
 end
 
---- touched: properties set while mounted, put back to the class defaults
 local function resetInstance(inst: Instance, touched: { [string]: boolean }?): ()
 	if not inst then
 		return
@@ -462,7 +456,6 @@ function Pool.releaseMultiple(instances: { Instance }): ()
 	end
 end
 
---- Without a className, clears every class
 function Pool.clear(className: string?): ()
 	local totalCleared = 0
 
@@ -577,7 +570,6 @@ function Pool.getStatistics(): PoolStatistics
 	}
 end
 
---- Drops destroyed Instances from the pool
 function Pool.validateHealth(): boolean
 	local removedCount = 0
 	local totalChecked = 0

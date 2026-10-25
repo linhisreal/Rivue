@@ -1,9 +1,6 @@
 --!strict
 --!optimize 2
 
--- Rivue.Remote: request/response and fire-and-forget messaging over one RemoteFunction and
--- one RemoteEvent, with per-player rate limiting on the server.
-
 export type RemoteRequest = {
 	action: string,
 	payload: unknown,
@@ -65,10 +62,9 @@ local function getResponseEvent(): RemoteEvent
 	return findOrCreate(getFolder(), "RemoteEvent", "Response") :: RemoteEvent
 end
 
-const MAX_PAYLOAD_SIZE = 20000 -- 20KB limit
+const MAX_PAYLOAD_SIZE = 20000
 const MAX_PAYLOAD_DEPTH = 10
 
--- Roblox types RemoteEvents can carry
 const SAFE_DATATYPES = table.freeze({
 	Vector2 = true,
 	Vector3 = true,
@@ -84,7 +80,6 @@ const SAFE_DATATYPES = table.freeze({
 	DateTime = true,
 })
 
---- Checks types, depth and approximate size in one pass (no JSON encoding)
 local function validatePayload(payload: unknown): (boolean, string?)
 	local size = 0
 	local reason: string? = nil
@@ -125,7 +120,6 @@ local function validatePayload(payload: unknown): (boolean, string?)
 	return true, nil
 end
 
--- One response listener shared by every pending request: id -> settle
 local pendingRequests: { [string]: (resp: RemoteResponse) -> () } = {}
 local responseConn: RBXScriptConnection? = nil
 
@@ -145,7 +139,6 @@ local function listenForResponses()
 	end)
 end
 
---- Yields until the server answers or `timeout` seconds pass (default 10)
 --- Returns the response data, unchecked: refine it before use
 function Remote.request(actionName: string, payload: unknown, timeout: number?): (unknown?, string?)
 	if debugModule.enabled then
@@ -173,7 +166,6 @@ function Remote.request(actionName: string, payload: unknown, timeout: number?):
 	local result: RemoteResponse? = nil
 	local timeoutThread: thread? = nil
 
-	-- Resolves once and resumes the waiting thread
 	local function settle(resp: RemoteResponse?, fromTimeout: boolean)
 		if done then
 			return
@@ -196,7 +188,6 @@ function Remote.request(actionName: string, payload: unknown, timeout: number?):
 
 	reqEv:FireServer({ action = actionName, payload = payload, id = reqId })
 
-	-- Response may already be here
 	if not done then
 		waiting = true
 		coroutine.yield()
@@ -247,7 +238,6 @@ local handlers: { [string]: RequestHandler } = {}
 local limits: { [string]: number } = {}
 local buckets: { [Player]: { [string]: Bucket } } = {}
 
---- Token bucket check, refills at `rate` tokens per second up to `rate`
 local function takeToken(player: Player, action: string, rate: number): boolean
 	local playerBuckets = buckets[player]
 	if not playerBuckets then
@@ -278,7 +268,6 @@ function Remote.setupServer(): ()
 	getResponseEvent()
 end
 
---- The handler's return value is sent back as the response data.
 function Remote.handle(actionName: string, handler: RequestHandler, opts: HandleOptions?): ()
 	assert(RunService:IsServer(), "Remote.handle() must be called on the server")
 	handlers[actionName] = handler

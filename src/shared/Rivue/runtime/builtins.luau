@@ -1,9 +1,6 @@
 --!strict
 --!optimize 2
 
--- Built-in components (Transition, TransitionGroup, KeepAlive, Suspense, VirtualList) and
--- defineAsyncComponent. Teleport lives in the renderer.
-
 local componentModule = require("./component")
 local hModule = require("./h")
 local reactivity = require("./reactivity")
@@ -26,7 +23,6 @@ type SuspenseContext = Types.SuspenseContext
 
 local builtins = {}
 
--- Shows `fallback` until the async components inside have loaded
 builtins.Suspense = nil :: ComponentDef?
 
 local function createSuspense(): ComponentDef
@@ -126,7 +122,6 @@ end
 
 builtins.Suspense = createSuspense()
 
--- Switched-out children stay mounted but detached, up to `max` (least recently used goes first)
 builtins.KeepAlive = nil :: ComponentDef?
 
 local function listContains(list: unknown, name: string): boolean
@@ -159,7 +154,7 @@ local function createKeepAlive(): ComponentDef
 			local marker = { disposed = false }
 			-- Plain tables, not refs: render reads and writes these
 			local cache: { [unknown]: VNode } = {}
-			local keys: { unknown } = {} -- oldest first
+			local keys: { unknown } = {}
 			local current: VNode? = nil
 
 			local function shouldCache(name: string): boolean
@@ -181,7 +176,6 @@ local function createKeepAlive(): ComponentDef
 				end
 			end
 
-			-- The active child is unmounted with the subtree, the rest here
 			componentModule.onUnmounted(function()
 				marker.disposed = true
 				for _, cached in cache do
@@ -210,7 +204,6 @@ local function createKeepAlive(): ComponentDef
 				local key: unknown = if child.key ~= nil then child.key else def
 				local cached = cache[key]
 				if cached and cached._instance then
-					-- Reuse the cached instance, move to the end (LRU)
 					child._instance = cached._instance
 					child._kept = true
 					local index = table.find(keys, key)
@@ -235,7 +228,6 @@ end
 
 builtins.KeepAlive = createKeepAlive()
 
---- `mounted`: whether the first render already happened (appear)
 local function transitionConfig(props: Props, mounted: boolean, afterLeave: ((el: Instance) -> ())?): TransitionConfig
 	local onAfterLeave = props.onAfterLeave
 	return {
@@ -269,7 +261,6 @@ local function hasElement(vnode: VNode): boolean
 	return vnode.el ~= nil or (inst ~= nil and inst.el ~= nil)
 end
 
--- Tweens its child in when it appears and out before it's destroyed
 builtins.Transition = table.freeze({
 	__is_component = true :: true,
 	__name = "Transition",
@@ -279,7 +270,6 @@ builtins.Transition = table.freeze({
 			mounted = true
 		end)
 
-		-- out-in: the old child is leaving, bumped when it's gone
 		local leaving = false
 		local leaveDone = ref(0)
 		local shown: VNode? = nil
@@ -314,7 +304,6 @@ builtins.Transition = table.freeze({
 	end,
 }) :: ComponentDef
 
--- Transition for keyed lists, optionally wrapped in a `tag` element
 builtins.TransitionGroup = table.freeze({
 	__is_component = true :: true,
 	__name = "TransitionGroup",
@@ -342,7 +331,6 @@ builtins.TransitionGroup = table.freeze({
 	end,
 }) :: ComponentDef
 
--- Only the fixed-size rows in view are rendered
 local virtualList: ComponentDef = {
 	__is_component = true :: true,
 	__name = "VirtualList",
@@ -423,8 +411,6 @@ local virtualList: ComponentDef = {
 }
 builtins.VirtualList = table.freeze(virtualList)
 
--- A component that loads its definition with `loader`, with loading/error states, delay and
--- timeout (ms). Registers with an enclosing Suspense.
 function builtins.defineAsyncComponent(loader: () -> ComponentDef, opts: AsyncComponentOptions?): ComponentDef
 	local options: AsyncComponentOptions = opts or {}
 

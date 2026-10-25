@@ -1,5 +1,4 @@
 --!strict
--- Mounts the demo app (src/shared/Demo) when the test place runs
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
