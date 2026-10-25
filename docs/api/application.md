@@ -15,6 +15,7 @@ local Players = game:GetService("Players")
 - [app:unmount()](#appunmount)
 - [app:onUnmount()](#apponunmount)
 - [app:component()](#appcomponent)
+- [app:styles()](#appstyles)
 - [app:directive()](#appdirective)
 - [app:use()](#appuse)
 - [app:provide()](#appprovide)
@@ -219,6 +220,45 @@ Registers a component under a name, so `h("Name")` renders it anywhere in the ap
   })
 
   Rivue.createApp(App):component("Icon", Icon):mountToPlayerGui(Players.LocalPlayer)
+  ```
+
+---
+
+## app:styles()
+
+Registers style classes for the [`class`](render-function.md#element-props) prop, app-wide.
+
+- **Type**
+
+  ```lua
+  function App:styles(styles: { [className: string]: { [prop: string]: any } }): App
+  ```
+
+- **Details**
+
+  Each class is a table of props: Instance properties and modifier props (`cornerRadius`,
+  `padding`, `stroke`, `layout`, ...). Calling it again adds classes and replaces ones with the
+  same name. A component's own [`styles`](component.md#styles) option wins over app styles, and an
+  element's own props win over both. Unknown class names warn in Studio.
+
+- **Example**
+
+  ```lua
+  local styles = {
+  	card = { BackgroundColor3 = Color3.fromRGB(30, 30, 36), cornerRadius = 8, padding = 12 },
+  	title = { TextSize = 22, Font = Enum.Font.GothamBold, TextColor3 = Color3.new(1, 1, 1) },
+  }
+
+  local App = Rivue.defineComponent({
+  	name = "App",
+  	render = function()
+  		return h("Frame", { class = "card", Size = UDim2.fromOffset(300, 200) }, {
+  			h("TextLabel", { class = "title", Text = "Shop" }),
+  		})
+  	end,
+  })
+
+  Rivue.createApp(App):styles(styles):mountToPlayerGui(Players.LocalPlayer)
   ```
 
 ---

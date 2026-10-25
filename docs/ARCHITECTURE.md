@@ -98,7 +98,9 @@ When an element is patched, its state moves from the old vnode to the new one.
 ### patch(old, new, container)
 
 1. `new == nil` → unmount `old`.
-2. A string type registered with `app:component()` is swapped for the component.
+2. A string type registered in the rendering component's `components` or with
+   `app:component()` is swapped for the component (this happens in `h()`, then again here for
+   app components).
 3. `old == nil` → mount. The order of checks is Fragment, Teleport, then a KeepAlive child to
    re-activate, then a component, a function component, and finally an element.
 4. If the type or key differs → unmount `old` and mount `new`.
@@ -126,11 +128,16 @@ children before parents:
   - `__directives`,
   - `on*` keys: aliases, then the event, then the property changed signal (which passes the new
     value). The lookup is cached per ClassName and prop.
-  - modifier props on GuiObjects,
+  - modifier props on GuiObjects (`SUGAR_PROPS`): `cornerRadius`, `padding`, `stroke`,
+    `aspectRatio`, `layout` and `flex` each own one generated UI* child. If a new value needs a
+    different class (`layout` switching from list to grid), the child is replaced,
   - Instance properties: exact name, then PascalCase, cached per ClassName,
   - unknown props, which trigger a Studio warning.
 - Each event is connected once. The connection calls the handler stored in
   `vnode._handlers`, so a re-render with a new closure only swaps that function.
+- `class` is resolved before props are diffed: `applyClasses` merges the named styles (component
+  `styles`, then app `styles`) under the element's own props, so classes go through the same
+  shallow diff as everything else.
 - `patchElement`:
   - skips everything when `memo` deps match,
   - re-points template refs if `ref` changed,
@@ -143,7 +150,8 @@ children before parents:
     which may belong to another list),
   - patches unkeyed children by index, never reusing a keyed old child,
   - unmounts every old child nothing reused.
-- `syncLayoutOrder` runs after an element with a UI*Layout child patches its children:
+- `syncLayoutOrder` runs after an element with a `layout` prop or a UI*Layout child patches its
+  children:
   - It keeps each child's `LayoutOrder` while the sequence still increases, and only rewrites
     out-of-order ones, so removing a row writes nothing.
   - Values it wrote are cached per Instance, so unchanged positions make no engine calls.
@@ -173,7 +181,10 @@ grow.
 `mountComponent`:
 
 1. Creates the instance.
-2. Runs `setup()` in its scope, with the current instance set.
+2. Runs `setup()` in its scope, with the current instance set. If it returns a table and the
+   component has a `render` option, the table becomes the setup state, and `render` is called
+   with a render context: a proxy that reads setup state through `proxyRefs`, then props, then
+   the setup context.
 3. Creates a lazy render effect, with these steps:
    - the render function runs with `currentRenderingInstance` set, so string refs know their
      owner,

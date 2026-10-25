@@ -2064,10 +2064,10 @@ local function patchElement(oldVNode: RenderVNode, newVNode: RenderVNode, poolOp
 
 	if el:IsA("TextBox") then
 		local oldText = if oldVNode.props then oldVNode.props.Text else nil
-		local newProps = newVNode.props
-		local newText = if newProps then newProps.Text else nil
+		local textProps = newVNode.props
+		local newText = if textProps then textProps.Text else nil
 		-- With onTextChanged (or model) the state owns Text, otherwise only a new Text prop wins
-		local controlled = newProps ~= nil and newProps.onTextChanged ~= nil and newText ~= nil
+		local controlled = textProps ~= nil and textProps.onTextChanged ~= nil and newText ~= nil
 		withPreservedTextState(el, update, controlled or newText ~= oldText)
 		if controlled and (el :: TextBox).Text ~= newText then
 			(el :: TextBox).Text = newText

@@ -101,7 +101,8 @@ What each kind of prop on an element does.
 | `key` | Identity among siblings. A new key replaces the element |
 | `ref` | A `Ref`, a function, or a string name. See [Template refs](component.md#usetemplateref) |
 | `vName = value` | A [directive](directives.md): `vShow`, `vFocus`, `vClickOutside`, `vSelect`, `vDrag`, ... |
-| `model = ref` | Two-way `Text` binding on a TextBox |
+| `model = ref \| "name"` | Two-way `Text` binding on a TextBox. A string names a ref returned by `setup()` (for [`render(ctx)`](component.md#render)) |
+| `class = "a" \| { "a", "b" } \| { a = bool }` | Applies named styles from the component's [`styles`](component.md#styles) and [`app:styles()`](application.md#appstyles). See below |
 | `style = table \| { tables }` | Prop tables merged under the element's own props. `false`/`nil` entries are skipped |
 | `memo = { deps }` | Skips patching this element and its children while every dep is `==` |
 | `transition` | Enter/leave tween config, see [Transition](builtins.md#transition) |
@@ -109,6 +110,8 @@ What each kind of prop on an element does.
 | `padding` | Creates a `UIPadding`: a number/UDim for all sides, `{ top, right, bottom, left }`, or `{ x, y }` |
 | `stroke` | Creates a `UIStroke`: a Color3, a number (Thickness), or a table of UIStroke properties |
 | `aspectRatio` | Creates a `UIAspectRatioConstraint` |
+| `layout` | Creates a `UIListLayout` or `UIGridLayout`. See below |
+| `flex` | Creates a `UIFlexItem`: `"fill"`, `"grow"`, `"shrink"`, `"none"`, a grow ratio, or a table of UIFlexItem properties |
 
 - **Details**
 
@@ -120,8 +123,21 @@ What each kind of prop on an element does.
     - Re-renders keep what the player typed, the cursor and focus, unless the render passes a
       different `Text`.
     - With `onTextChanged` or `model`, the state always owns `Text`.
-  - **Layouts.** With a `UIListLayout` (or another UI*Layout) among the children, Rivue keeps
-    each child's `LayoutOrder` in render order. A child that sets `LayoutOrder` itself keeps it.
+  - **Layouts.** With a `layout` prop, or a `UIListLayout` (or another UI*Layout) among the
+    children, Rivue keeps each child's `LayoutOrder` in render order. A child that sets
+    `LayoutOrder` itself keeps it.
+  - **`class`.** A string, a list (applied in order, later wins, `false`/`nil` skipped), or a map
+    of name to boolean (enabled names, applied alphabetically: use a list when order matters).
+    Precedence, lowest first: app styles, component styles, `style`, the element's own props. A
+    component's root also receives the `class` its parent passed.
+  - **`layout`.**
+
+    | Value | Result |
+    |-------|--------|
+    | `"vertical"` / `"horizontal"` | `UIListLayout` in that direction |
+    | `"grid"` | `UIGridLayout` |
+    | `{ direction, gap, align, justify, wrap }` | `UIListLayout`. `gap` is pixels or a UDim. `align` is the cross axis (`"start"`, `"center"`, `"end"`), `justify` the main axis (also `"space-between"`, `"space-around"`, `"space-evenly"`, `"fill"`). `wrap = true` wraps |
+    | `{ grid = UDim2, gap }` | `UIGridLayout` with that cell size |
 
 - **Example**
 
@@ -131,8 +147,7 @@ What each kind of prop on an element does.
   	card = { BackgroundColor3 = Color3.fromRGB(30, 30, 30), cornerRadius = 8, padding = 12 },
   }
 
-  h("Frame", { style = Styles.card, Size = UDim2.fromOffset(300, 120) }, {
-  	h("UIListLayout"),
+  h("Frame", { style = Styles.card, Size = UDim2.fromOffset(300, 120), layout = { gap = 6 } }, {
   	h("TextBox", { model = name, vFocus = true, PlaceholderText = "Name" }),
   	h("TextLabel", {
   		Text = `Hello {name.value}`,
@@ -140,6 +155,13 @@ What each kind of prop on an element does.
   			print("resized", size)
   		end,
   	}),
+  })
+
+  -- A toolbar: title on the left, buttons on the right
+  local isFull = false
+  h("Frame", { Size = UDim2.new(1, 0, 0, 40), layout = { direction = "horizontal", justify = "space-between", align = "center" } }, {
+  	h("TextLabel", { Text = "Inventory", flex = "fill" }),
+  	h("TextButton", { class = { "button", isFull and "button-disabled" }, Text = "Sort" }),
   })
   ```
 

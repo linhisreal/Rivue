@@ -4,7 +4,7 @@ Usage: python3 scripts/check-docs.py   (set LUAU to the luau binary if it isn't 
 
 Examples are the ```lua blocks in docs/api/*.md, except the ones under a **Type**, **Props** or
 **Expects** heading (those are signatures). Each one runs in the offline test harness with
-`Rivue`, `h` and `Players` defined, the same as the docs assume.
+`Rivue`, `h`, `array` and `Players` defined, the same as the docs assume.
 """
 import os
 import re
@@ -109,6 +109,7 @@ def examples():
 PREAMBLE = """local Rivue = require(game:GetService("ReplicatedStorage"):WaitForChild("Rivue"))
 local h = Rivue.h
 local Players = game:GetService("Players")
+local array = Rivue.array
 """
 
 
