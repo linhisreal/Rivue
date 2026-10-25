@@ -34,7 +34,7 @@ local Counter = Rivue.defineComponent({
 	end,
 })
 
-Rivue.createApp(h(Counter)):mountToPlayerGui(game.Players.LocalPlayer)
+Rivue.createApp(Counter):mountToPlayerGui(game.Players.LocalPlayer)
 ```
 
 ## Features
@@ -80,88 +80,69 @@ Then require it from any LocalScript:
 local Rivue = require(game.ReplicatedStorage.Rivue)
 ```
 
-## Basics
+## Learn
 
-### Elements and props
+- **[Guide](docs/GUIDE.md)**: build UI step by step, from the first component to debugging a
+  real screen, plus a table of common mistakes.
+- **[Examples](examples)**: complete components (todo list, inventory, modal, tabs, shop, HUD).
+  They run in their own place with `rojo serve examples.project.json` and are covered by the
+  test suite.
+- **[Coming from Vue](docs/VUE.md)**: a template-to-Luau cheat sheet and the differences.
+- **[API reference](docs/API.md)**: every function, prop and component.
+- **[Architecture](docs/ARCHITECTURE.md)**: how it works inside, for contributors.
 
-`h(className, props, children)` describes an Instance. Props set properties on it. Keys that
-start with `on` connect events, and a few prop names are handled by Rivue itself:
-
-```lua
-h("Frame", {
-	Size = UDim2.fromScale(1, 1),          -- any property (camelCase works too: size)
-	onMouseEnter = function() end,         -- events
-	onClick = function() end,              -- Activated / MouseButton1Click
-	onSizeChanged = function(size) end,    -- property changes get the new value
-	padding = 8,                           -- UIPadding child
-	key = item.id,                         -- identity in lists
-	ref = frameRef,                        -- template ref
-}, {
-	h("TextLabel", { Text = "Hello" }),
-})
-```
-
-### Lists and conditionals
+## A quick tour
 
 ```lua
-local rows = Rivue.hFor(items.value, function(item)
-	return h("TextLabel", { key = item.id, Text = item.name })
-end)
-table.insert(rows, 1, h("UIListLayout"))
+local TodoList = Rivue.defineComponent({
+	name = "TodoList",
+	setup = function()
+		local todos = Rivue.ref({})
+		local draft = Rivue.ref("")
 
-h("ScrollingFrame", nil, rows)
+		local nextId = 0
+		local function add()
+			nextId += 1
+			local list = table.clone(Rivue.toRaw(todos.value))
+			table.insert(list, { id = nextId, text = draft.value })
+			todos.value = list
+			draft.value = ""
+		end
 
-h("Frame", nil, {
-	h("TextLabel", { Text = "Inventory" }),
-	Rivue.hIf(loading.value, h("TextLabel", { Text = "Loading..." })),
-})
-```
-
-Keyed list items keep their Instances when the list is reordered. With a `UIListLayout`, Rivue
-also keeps `LayoutOrder` in sync. For long lists, use `Rivue.VirtualList`, which only renders the
-rows in view.
-
-### Components with props and events
-
-```lua
-local ItemRow = Rivue.defineComponent({
-	name = "ItemRow",
-	props = {
-		item = { type = "table", required = true },
-		selected = { type = "boolean", default = false },
-	},
-	emits = { "select" },
-	setup = function(props, ctx)
 		return function()
-			return h("TextButton", {
-				Text = props.item.name,
-				BackgroundColor3 = if props.selected then Color3.new(0.2, 0.5, 1) else Color3.new(0.15, 0.15, 0.15),
-				onClick = function()
-					ctx.emit("select", props.item.id)
-				end,
+			return h("Frame", { Size = UDim2.fromOffset(300, 400), padding = 8, cornerRadius = 8 }, {
+				h("UIListLayout"),
+				h("TextBox", {
+					model = draft, -- two-way binding
+					vFocus = true, -- directive
+					onFocusLost = function(enter)
+						if enter then
+							add()
+						end
+					end,
+				}),
+				Rivue.hIf(#todos.value == 0, h("TextLabel", { Text = "Nothing yet" })),
+				Rivue.hFor(todos.value, function(todo)
+					return h("TextLabel", { key = todo.id, Text = todo.text })
+				end),
 			})
 		end
 	end,
 })
-
-h(ItemRow, { item = item, selected = selectedId.value == item.id, onSelect = function(id) selectedId.value = id end })
 ```
 
-### Animating
+- **Props** set Instance properties. `on*` props connect events (`onClick`, `onMouseEnter`,
+  `onSizeChanged`), and `v*` props apply directives (`vShow`, `vFocus`, `vClickOutside`).
+- **Children** can mix single elements, `nil` from `hIf`, and lists from `hFor`. Keyed list items
+  keep their Instances when the list changes, and `LayoutOrder` follows the render order.
+- **Modifier props** `cornerRadius`, `padding`, `stroke` and `aspectRatio` manage the matching
+  UI objects for you, and `style` merges shared prop tables.
+- **Components** take typed `props`, emit events (`emits`), receive slots, and can be animated
+  with `Transition`, cached with `KeepAlive`, or virtualized with `VirtualList`.
 
-```lua
-h(Rivue.Transition, { tweenInfo = TweenInfo.new(0.2), from = { BackgroundTransparency = 1 } }, {
-	Rivue.hIf(open.value, h("Frame", { BackgroundTransparency = 0.1 })),
-})
-```
-
-See [docs/API.md](docs/API.md) for the full API.
-
-## Documentation
-
-- [API reference](docs/API.md): every public function, prop and component, with examples.
-- [Architecture](docs/ARCHITECTURE.md): how reactivity, scheduling and patching work, for
-  contributors.
+When something goes wrong, errors name the component chain
+(`Error in render of <TodoItem> in <TodoList>`). Component roots are named after their
+component in the Explorer, and `app:printTree()` prints the live tree.
 
 ## Development
 
@@ -170,7 +151,8 @@ Tools are pinned in `aftman.toml` (Rojo, StyLua, Selene, luau-lsp, darklua).
 ```sh
 aftman install
 rojo serve                     # sync the test place into Studio
-stylua src tests               # format
+rojo serve examples.project.json  # or the examples place
+stylua src tests examples      # format
 scripts/test-offline.sh        # run every test suite with the Luau CLI, no Studio needed
 ```
 
@@ -188,8 +170,9 @@ push.
 ```
 src/shared/Rivue/          the library (Rivue.luau + runtime/)
 src/client, src/server     test place scripts
+examples/                  example components and the examples place
 tests/                     test suites (*.test.luau), tests/offline has the CLI harness
-docs/                      API reference and architecture notes
+docs/                      guide, API reference, Vue cheat sheet, architecture
 ```
 
 ## License

@@ -1,7 +1,7 @@
 # Rivue API Reference
 
 Everything below is on the module returned by `require(game.ReplicatedStorage.Rivue)`.
-Examples assume `local h = Rivue.h`.
+Examples assume `local h = Rivue.h`. New to Rivue? Start with the [guide](GUIDE.md).
 
 - [Reactivity](#reactivity)
 - [Watchers and effects](#watchers-and-effects)
@@ -135,7 +135,7 @@ watch<T>(source: WatchSource<T>, cb: (new: T, old: T?, onCleanup: OnCleanup) -> 
 | Option | Default | Description |
 |--------|---------|-------------|
 | `immediate` | `false` | Run the callback right away |
-| `deep` | `false` | Traverse nested tables (on by default for reactive objects) |
+| `deep` | `false` | Traverse nested tables (on by default for reactive objects). A number limits the depth |
 | `flush` | `"pre"` | `"pre"`: deferred, before component updates. `"post"`: next Heartbeat. `"sync"`: immediately |
 | `once` | `false` | Stop after the first callback |
 
@@ -168,8 +168,12 @@ before the next run and when the watcher stops.
 
 ### `effect(fn, options?)`
 
-The low-level reactive effect. Options: `scheduler: (run) -> ()`, `lazy: boolean`. Returns an
-`Effect` with `run()` and `stop()`.
+The low-level reactive effect. Returns an `Effect` with `run()` and `stop()`. Options:
+- `scheduler: (run) -> ()`,
+- `lazy: boolean`,
+- debug hooks `onTrack(event)` and `onTrigger(event)`, where `event` is `{ target, key }`.
+
+Errors thrown inside effects, watch callbacks and queued jobs are always reported with `warn`.
 
 ### `effectScope(detached?)`
 
@@ -203,6 +207,10 @@ h(type: string | ComponentDef | (props) -> VNode? | Fragment, props: Props?, chi
   - an array of vnodes, strings or functions,
   - a single vnode or string,
   - for components, a table of [named slots](#slots).
+
+  Arrays may contain `nil`/`false` (from `hIf` or `cond and h(...)`) and other arrays. A nested
+  array becomes a Fragment, so `{ header, Rivue.hFor(items, row), footer }` works and diffs
+  correctly.
 
 A string child sets `Text` on text elements (otherwise a TextLabel is created). A function child
 is called once and its result rendered.
@@ -257,11 +265,25 @@ h(Badge, { text = "NEW" })
 | `padding` | Creates a `UIPadding`: a number/UDim for every side, `{ top, right, bottom, left }`, or `{ x, y }` |
 | `stroke` | Creates a `UIStroke`: a Color3, a number (Thickness), or a table of UIStroke properties |
 | `aspectRatio` | Creates a `UIAspectRatioConstraint` |
-| `__directives` | `{ { name = "focus", value = true }, ... }`, see [Directives](#directives) |
+| `vName = value` | A [directive](#directives): `vShow`, `vFocus`, `vClickOutside`, `vSelect`, `vDrag`, or any registered one (`vMyThing` -> `"my-thing"`) |
+| `model = ref` | On a TextBox, binds `Text` both ways (keeps your own `onTextChanged`) |
+| `style = table \| { tables }` | Props merged under the element's own props, in order. `false`/`nil` entries are skipped |
+| `__directives` | The long form of `v` props: `{ { name = "focus", value = true }, ... }` |
 
 Props are diffed shallowly, so only changed props are written. Removing a prop restores the
 property default (or destroys the generated child). On a TextBox, what the player typed, the
-cursor and focus survive re-renders, unless the render passes a different `Text`.
+cursor and focus survive re-renders, unless the render passes a different `Text`. A TextBox with
+`onTextChanged` (or `model`) always shows its state's `Text`.
+
+### `mergeProps(...)` / `cloneVNode(vnode, extraProps?)` / `isVNode(value)`
+
+`mergeProps` merges props tables left to right:
+- event handlers are chained, so both run,
+- `__directives` and `style` are combined,
+- everything else is overwritten.
+
+`cloneVNode` copies a vnode with extra props merged in (useful for wrapper components).
+`isVNode` tells vnodes from plain tables.
 
 ---
 
@@ -270,6 +292,7 @@ cursor and focus survive re-renders, unless the render passes a different `Text`
 ### `defineComponent(options)`
 
 ```lua
+defineComponent(setup: (props, ctx) -> RenderFunction, options: ComponentOptions?): ComponentDef
 defineComponent({
 	name: string?,
 	props: PropSchema?,
@@ -304,12 +327,13 @@ local Health = Rivue.defineComponent({
 ### Props
 
 Each schema entry can have:
-- `type`: `"string" | "number" | "boolean" | "table" | "function"`,
+- `type`: a `type()` or `typeof()` name (`"number"`, `"table"`, `"UDim2"`, `"Color3"`,
+  `"Instance"`, ...), or a list of them,
 - `required`,
 - `default` (use a function for table defaults),
 - `validator: (value) -> boolean`.
 
-Validation runs in Studio only.
+Validation runs in Studio only, and warns with the component's name.
 
 `props` is a shallow reactive table. Read `props.x` inside render or `computed` to track it.
 Copying `local x = props.x` in setup loses reactivity (use `Rivue.toRef(props, "x")`).
@@ -330,6 +354,7 @@ prop is a prop.
 | `ctx.expose(table)` | What a template ref to this component receives |
 | `ctx.provide(key, value)` / `ctx.inject(key, default?)` | Same as the standalone functions |
 | `ctx.globals` | `app.config.globalProperties` |
+| `ctx.emit("update:modelValue", v)` | What the `model` prop listens to (`modelValue` is the prop) |
 | `ctx.onUnmounted(fn)` | Same as `onUnmounted` |
 
 ### Emits
@@ -363,17 +388,43 @@ setup = function()
 end
 ```
 
-### `getCurrentInstance()` / `useId()`
+### `getCurrentInstance()` / `useId()` / `resolveComponent(name)`
 
 `getCurrentInstance()` returns the component instance during setup (or `nil`). `useId()` returns
 a string unique to the session, such as `"r12-1"`, handy for Instance names.
+`resolveComponent(name)` looks up a component registered with `app:component()`.
+
+### `model` on components
+
+`h(Comp, { model = someRef })` passes `modelValue = someRef.value` and an
+`["onUpdate:modelValue"]` handler that writes the ref. `defineModel()` gives the component a ref
+wired to both:
+
+```lua
+local useModel = Rivue.defineModel()
+local Toggle = Rivue.defineComponent(function(props, ctx)
+	local on = useModel(props, ctx)
+	return function()
+		return h("TextButton", { Text = tostring(on.value), onClick = function() on.value = not on.value end })
+	end
+end, { name = "Toggle" })
+
+h(Toggle, { model = enabled })
+```
 
 ### Error handling
 
 `onErrorCaptured(fn)` catches errors from descendants' render, patch, lifecycle hooks and emit
 handlers. `fn(err, instance, info)` returns `true` to stop the error there. Errors nothing
-handled go to `app.config.errorHandler(err, instance, info)`, and are logged in Studio otherwise.
-Errors thrown by `setup()` itself propagate to whoever is mounting.
+handled go to `app.config.errorHandler(err, instance, info)`. If there's no error handler, they
+are reported with `warn`, along with the component chain:
+
+```
+[Rivue] Error in render of <ItemRow> in <Inventory> in <App>: attempt to index nil with 'name'
+```
+
+Errors thrown by `setup()` itself propagate to whoever is mounting, and the message names the
+component.
 
 ---
 
@@ -389,6 +440,7 @@ Call these in `setup()`.
 | `onBeforeUnmount(fn)` / `onUnmounted(fn)` | Before and after teardown. Watchers, effects and `Rivue.queueJob` jobs from setup are stopped automatically |
 | `onActivated(fn)` / `onDeactivated(fn)` | Inside `KeepAlive`, on mount and on every return, and when cached |
 | `onErrorCaptured(fn)` | See [Error handling](#error-handling) |
+| `onRenderTracked(fn)` / `onRenderTriggered(fn)` | Debugging: `fn({ target, key })` for each reactive read in render, and for the write that caused a re-render |
 | `onTransition(name, fn)` | Transition events on this component's root: `"before-enter"`, `"enter"`, `"after-enter"`, `"before-leave"`, `"leave"`, `"after-leave"` |
 
 Component re-renders are batched and deferred. Parents update before children, and each
@@ -440,8 +492,10 @@ provide(key: unknown, value: unknown)
 inject<T>(key: unknown, default: T?): T?
 ```
 
-Pass values down the tree without props. Call both in setup. Keys are looked up through
-ancestors, then in `app:provide()`. Provide a ref or reactive table to make the value reactive.
+Pass values down the tree without props. Call both in setup (or inject inside
+`app:runWithContext()`). Keys are looked up through ancestors, then in `app:provide()`. Provide a
+ref or reactive table to make the value reactive. `hasInjectionContext()` tells you whether
+`inject()` can be called where you are.
 
 ```lua
 -- Root
@@ -520,7 +574,8 @@ h(Rivue.Teleport, { to = overlayGui }, { h(Tooltip, { text = "Hi" }) })
 ```
 
 `to` is an Instance or a function returning one. `disabled = true` renders the children in place
-instead. Children are removed when the Teleport unmounts.
+instead. `defer = true` waits until the rest of the tree is mounted, so `to` can point at
+something rendered later in the same tree. Children are removed when the Teleport unmounts.
 
 ### VirtualList
 
@@ -568,7 +623,7 @@ shows an error message instead.
 ### `createApp(root, options?)`
 
 ```lua
-createApp(root: VNode, options: { usePool: boolean?, poolConfig: PoolConfig?, poolWarmup: { [string]: number }? }?): App
+createApp(root: VNode | ComponentDef, options: { usePool: boolean?, poolConfig: PoolConfig?, poolWarmup: { [string]: number }? }?): App
 ```
 
 | Method | Description |
@@ -582,6 +637,10 @@ createApp(root: VNode, options: { usePool: boolean?, poolConfig: PoolConfig?, po
 | `app:use(plugin, ...)` | Calls `plugin(app, ...)` or `plugin.install(app, ...)` |
 | `app.config.errorHandler` | `(err, instance, info) -> ()` for errors nothing else handled |
 | `app.config.globalProperties` | Shared values, read through `ctx.globals` |
+| `app.config.warnHandler` | `(message, instance, trace) -> ()` receives Studio warnings instead of `warn` |
+| `app:onUnmount(fn)` | Runs `fn` when the app unmounts |
+| `app:runWithContext(fn)` | Runs `fn` with the app's provides available to `inject()` |
+| `app:printTree()` | Prints and returns the mounted tree, components with their props |
 | `app:rerender(newRoot?)` / `app:swapRoot(newRoot)` | Remounts with a new root |
 | `app:getPoolStats()` / `app:validatePoolHealth()` | Only with `usePool = true` |
 
@@ -602,16 +661,14 @@ A shortcut for `createApp(...):mount(parent)`. It returns the app.
 
 ## Directives
 
-Directives attach reusable behaviour to an element:
+Directives attach reusable behaviour to an element. Use a `v` prop with the directive's name in
+camelCase:
 
 ```lua
-h("TextBox", {
-	__directives = {
-		{ name = "focus", value = true },
-		{ name = "click-outside", value = close },
-	},
-})
+h("TextBox", { vFocus = true, vClickOutside = close })
 ```
+
+The long form `__directives = { { name = "focus", value = true } }` also works.
 
 Directive `mounted` hooks run after the tree is parented. `updated` runs when the element
 patches, and `unmounted` runs on removal.
@@ -779,6 +836,10 @@ Released Instances have the properties Rivue set reset to their defaults.
 | `debug.measure(name, fn)` | Times `fn` and logs it |
 | `debug.assertInvariant(cond, msg)` | Errors in Studio when `cond` is false |
 
+`Rivue.printTree(vnode)` prints the tree under a mounted vnode, like `app:printTree()`.
+Component root Instances are named after their component (unless you set `Name`), so the
+Explorer shows the component structure.
+
 In Studio, Rivue warns once per case about:
 - unknown Instance properties,
 - duplicate keys among siblings,
@@ -791,7 +852,7 @@ In Studio, Rivue warns once per case about:
 ## Types
 
 Exported from the main module: `Rivue.Ref<T>`, `ComputedRef<T>`, `MaybeRef<T>`, `WatchOptions`,
-`WatchHandle`, `WatchSource<T>`, `OnCleanup`, `Effect`, `EffectScope`, `VNode`, `Props`, `Child`,
+`WatchHandle`, `WatchSource<T>`, `OnCleanup`, `MaybeRefOrGetter<T>`, `DebuggerEvent`, `ChildInput`, `Effect`, `EffectScope`, `VNode`, `Props`, `Child`,
 `Children`, `ComponentDef`, `ComponentOptions`, `PropSchema`, `EmitsOptions`, `SetupContext`,
 `TransitionConfig`, `Directive`, `App`, `AppOptions`, `Plugin`, `ComponentInstance`.
 
