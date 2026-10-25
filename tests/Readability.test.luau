@@ -162,7 +162,7 @@ local function runTests()
 		local button = container:FindFirstChild("Row") :: TextButton
 		assertEquals(button.Text, "Row 0", "Refs are unwrapped, props are readable")
 		assertTrue(button:FindFirstChild("Inner") ~= nil, "Setup context helpers are available")
-		button.Activated:Fire()
+		Rivue.testing.trigger(button, "onClick")
 		task.wait()
 		assertEquals(button.Text, "Row 1", "State updates re-render")
 		assertEquals(selected, 1, "ctx.emit works")
@@ -187,7 +187,7 @@ local function runTests()
 		local container = Instance.new("Frame")
 		Rivue.createApp(Toggle):mount(container)
 		local button = container:FindFirstChild("Toggle") :: TextButton
-		button.Activated:Fire()
+		Rivue.testing.trigger(button, "onClick")
 		task.wait()
 		assertEquals(button.Text, "ON", "Assigning ctx.on sets the ref")
 	end

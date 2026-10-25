@@ -207,4 +207,5 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [utils.profiler](api/utilities.md#utilsprofiler) ·
 [iterArray()](api/utilities.md#iterarray) ·
 [hForParallel()](api/utilities.md#hforparallel) ·
+[testing.trigger()](api/utilities.md#testingtrigger) ·
 [Types](api/utilities.md#types)
