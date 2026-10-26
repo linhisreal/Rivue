@@ -137,6 +137,8 @@ tests/offline/       the Lune harness that runs tests outside Studio
 
 ## License
 
+<a href="https://polyformproject.org/licenses/noncommercial/1.0.0"><img src="docs/assets/polyform-logo.png" height="48" alt="PolyForm"></a>
+
 [PolyForm Noncommercial 1.0.0](LICENSE.md), with an extra permission for games. You can use, fork,
 port and change Rivue, closed source or open, as long as you keep the credit notice. You can't
 sell Rivue's code or use it commercially. Games built with Rivue may make money, if they credit
