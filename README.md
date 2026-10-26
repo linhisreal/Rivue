@@ -103,47 +103,30 @@ Rivue is a ModuleScript with a `runtime` folder. Put it in `ReplicatedStorage`.
 [CI run](https://github.com/linhisreal/Rivue/actions/workflows/build.yml) (or build it with
 `lune run build`) and drop it into `ReplicatedStorage` in Studio.
 
-## Learn
+## Docs
 
-Start at the **[docs home](docs/README.md)**: it has the learning path and an "I want to…" index.
-
-| | |
-|---|---|
-| [Guide](docs/GUIDE.md) | Short chapters, from the first component to composables, performance and testing |
-| [Examples](examples) | Todo list, inventory, modal, tabs, shop and HUD, all tested |
-| [Coming from Vue](docs/VUE.md) | Template-to-Luau cheat sheet and the differences |
-| [API reference](docs/API.md) | Every function, prop and component, each with an example |
-| [Architecture](docs/ARCHITECTURE.md) | How it works inside, for contributors |
+[Docs home](docs/README.md) (with an "I want to…" index) · [Guide](docs/GUIDE.md) · [Examples](examples) · [API reference](docs/API.md) ·
+[Coming from Vue](docs/VUE.md) · [Architecture](docs/ARCHITECTURE.md)
 
 ## Contributing
 
-The toolchain is pinned in `rokit.toml`. Install [Rokit](https://github.com/rojo-rbx/rokit),
-then:
+Tools are pinned in `rokit.toml` ([Rokit](https://github.com/rojo-rbx/rokit)):
 
 ```sh
 rokit install
-lune setup                        # editor types for the Lune scripts
-
-rojo serve                        # sync the test place into Studio
-lune run test                     # every test suite, no Studio needed
-lune run test tests/Renderer.test.luau
-lune run check-docs               # doc links resolve and every API example runs
-lune run build                    # Rivue.rbxm and the places, into build/
-stylua src tests examples .lune   # format
+lune setup
+lune run test                     # all suites, without Studio
+lune run check-docs               # links resolve and every API example runs
+lune run build                    # Rivue.rbxm and places, into build/
 ```
 
-CI runs the format check, the luau-lsp type check, the tests, the docs check and the build on
-every push. When you fix a bug, add a test that fails without the fix.
+CI also runs StyLua and luau-lsp.
 
 ```
-src/shared/Rivue/    the library: Rivue.luau and runtime/
-src/shared/Demo/     a demo app, laid out as Guide chapter 10 recommends
-src/client/          test place scripts: Demo, TestRunner, opt-in Stress test
-examples/            example components and their own place
-tests/               test suites; tests/offline holds the Lune harness
-.lune/               test, check-docs and build scripts
-docs/                guide, API reference, style guide, architecture
-assets/              logo
+src/shared/Rivue/    the library
+src/shared/Demo/     demo app, laid out as Guide chapter 10 recommends
+src/client/          test place scripts (Demo, TestRunner, Stress)
+tests/offline/       the Lune harness that runs tests outside Studio
 ```
 
 ## License

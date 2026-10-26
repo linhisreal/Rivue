@@ -5,37 +5,16 @@
 <h1 align="center">Rivue Guide</h1>
 
 <p align="center">
-  Everything you need to build Roblox UI with Rivue, in the order you'll need it.
+  Guide, API reference and examples for Rivue.
 </p>
 
-<p align="center">
-  <a href="GUIDE.md">Guide</a> ·
-  <a href="../examples">Examples</a> ·
-  <a href="API.md">API reference</a> ·
-  <a href="VUE.md">Coming from Vue</a>
-</p>
-
-## Learning path
-
-```mermaid
-flowchart LR
-    G["<b>1. Guide</b><br/>16 short chapters,<br/>basics, then advanced"] --> E["<b>2. Examples</b><br/>complete components<br/>to read and copy"]
-    E --> A["<b>3. API reference</b><br/>every function and prop,<br/>keep it open while you build"]
-    V["Coming from Vue?<br/>Vue cheat sheet"] -.-> G
-    A -.-> R["Contributing?<br/>Architecture"]
-```
-
-1. **[Guide](GUIDE.md)**: start here. Chapters of about ten minutes each: the framework
-   from your first component to debugging (1–9), how to organise a real project and the
-   style rules (10–11), then advanced topics: composables, component patterns, state
-   architecture, performance and testing (12–16). Every chapter ends with the API it used.
-2. **[Examples](../examples)**: a todo list, inventory, modal, tabs, shop and HUD. Each is tested,
-   and each one shows a few features well.
-3. **[API reference](API.md)**: every function, prop and component, each with an example. Each
-   page links back to the Guide chapter that explains it.
-
-Also: **[Rivue for Vue developers](VUE.md)** maps Vue templates to Rivue, and
-**[Architecture](ARCHITECTURE.md)** explains how the renderer and reactivity work inside.
+| | |
+|---|---|
+| **[Guide](GUIDE.md)** | Chapters 1–11 cover the framework, 12–16 the advanced topics |
+| **[Examples](../examples)** | Todo list, inventory, modal, tabs, shop and HUD, all tested |
+| **[API reference](API.md)** | Every function, prop and component, with an example each |
+| **[Coming from Vue](VUE.md)** | Template-to-Luau cheat sheet |
+| **[Architecture](ARCHITECTURE.md)** | Renderer and reactivity internals, for contributors |
 
 ## I want to…
 

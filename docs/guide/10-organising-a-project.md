@@ -59,24 +59,8 @@ end,
 
 ## Share logic with composables
 
-When two components need the same stateful logic, move it into a `use*` function instead of
-copying it:
-
-```lua
--- composables/useCountdown.luau
-local function useCountdown(seconds: number)
-	local left = Rivue.ref(seconds)
-	Rivue.onHeartbeat(function(dt)
-		left.value = math.max(0, left.value - dt)
-	end)
-	return left
-end
-
--- in any component's setup
-local timeLeft = useCountdown(30)
-```
-
-Because it's called inside `setup`, the Heartbeat connection is cleaned up with the component.
+Stateful logic used by several components goes in `composables/` as a `use*` function called
+from `setup`. [Chapter 12](12-writing-composables.md) covers writing them.
 
 ---
 

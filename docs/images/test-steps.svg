@@ -37,5 +37,5 @@
 <text x="782.0" y="120" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#59636e">for the next test</text>
 <path d="M686 80 H706" stroke="#59636e" stroke-width="2" fill="none" marker-end="url(#a)"/>
 <line x1="24" y1="142" x2="856" y2="142" stroke="#d0d7de" stroke-width="1"/>
-<text x="24" y="168" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#59636e">Step 3 is the one people forget. Re-renders are batched, so the Instances only change after Rivue.nextTick().</text>
+<text x="24" y="168" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#59636e">Re-renders are batched: Instances only change after Rivue.nextTick().</text>
 </svg>

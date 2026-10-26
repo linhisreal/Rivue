@@ -2,12 +2,12 @@
 
 # 12. Writing composables
 
-**You'll learn:** how to move logic out of a component so several components can use it, and how
-to make that logic follow changing values, clean up after itself and load data safely.
+**You'll learn:** how to write `use*` functions that accept refs, clean up after themselves, and
+load server data without race conditions.
 
-## The problem
+## From component to composable
 
-Your round timer counts down from 90:
+A round timer:
 
 ```lua
 local RoundTimer = Rivue.defineComponent({
@@ -25,11 +25,8 @@ local RoundTimer = Rivue.defineComponent({
 })
 ```
 
-Now the shop wants a banner that counts down to the end of a sale. You could copy those five
-lines. But then a fix to one copy won't reach the other.
-
-Instead, move them into a function. A function like this is called a **composable**. By
-convention its name starts with `use`:
+A sale banner needs the same countdown, so move it into a **composable**, a `use*` function
+called from `setup`:
 
 ```lua
 -- UI/composables/useCountdown.luau
@@ -56,24 +53,16 @@ setup = function()
 end,
 ```
 
-That's all a composable is: a function you call from `setup`. Rivue's own `useSpring`,
-`useInputType` and `attributeRef` work the same way.
-
 ![each call to a composable makes its own state](../images/composable-calls.svg)
 
-Each call creates its own ref and its own heartbeat connection, so the two timers don't share
-anything. Because they're created while `setup` runs, they belong to that component. When the
-sale banner unmounts, its heartbeat stops by itself.
-
-The rest of this chapter improves `useCountdown` step by step.
+Everything a composable creates during `setup` belongs to the calling component and stops when it
+unmounts. Each call creates new state, so if two components must share the *same* state, use a
+store ([chapter 14](14-state-architecture.md)).
 
 ## Accept a ref, not only a number
 
-Say the round length comes from the server and can change mid-round. The caller has it as a ref.
-`useCountdown(roundLength.value)` would only read it once, so the timer would never notice the
-change.
-
-Let the composable take a number, a ref or a function, and read it with `Rivue.toValue()`:
+If the round length is a ref, `useCountdown(roundLength.value)` reads it once and never sees it
+change. Accept a number, ref or getter (`MaybeRefOrGetter`) and read it with `Rivue.toValue()`:
 
 ```lua
 local function useCountdown(seconds: Rivue.MaybeRefOrGetter<number>)
@@ -94,11 +83,8 @@ local function useCountdown(seconds: Rivue.MaybeRefOrGetter<number>)
 end
 ```
 
-`toValue(x)` gives you the plain value whatever `x` is: a number stays a number, a ref gives its
-`.value`, and a function is called. Inside the `watch`, reading it this way also tracks it, so the
-watcher re-runs when it changes.
-
-Callers can now pass whatever they have:
+`toValue` unwraps a ref, calls a getter, or returns a plain value as is. Inside the `watch` source
+it also tracks the read:
 
 ```lua
 useCountdown(90) -- a fixed number
@@ -110,7 +96,7 @@ end)
 
 ## Return the ref itself
 
-Return the ref, not its `.value`. A number is a copy, so it never changes after you return it:
+Return refs, not `.value`, or the caller gets a snapshot:
 
 ```lua
 setup = function()
@@ -122,16 +108,13 @@ render = function(ctx)
 end,
 ```
 
-When a composable has several things to give back, return a table of refs and functions, like
+For several values, return a table of refs and functions:
 `{ data = data, loading = loading, refresh = refresh }`.
 
 ## Clean up your own connections
 
-Watchers, computeds and `onHeartbeat` made inside a composable are stopped for you. Connections
-you make yourself with `:Connect()` are not. Disconnect them in `Rivue.onScopeDispose`, which runs
-when the component that called the composable unmounts.
-
-This composable tells the UI whether the player is standing on a shop pad:
+Watchers, computeds and `onHeartbeat` stop automatically. Your own `:Connect()` calls don't, so
+disconnect them in `Rivue.onScopeDispose`:
 
 ```lua
 local function usePartTouched(part: BasePart)
@@ -153,17 +136,12 @@ local function usePartTouched(part: BasePart)
 end
 ```
 
-Why not `onUnmounted`? It only works inside a component. `onScopeDispose` also works when the
-composable is called from a store or a test, inside an
-[`effectScope`](../api/reactivity-advanced.md#effectscope).
+Prefer it over `onUnmounted`, which only works in a component: `onScopeDispose` also runs when
+the composable is used in a store or test [`effectScope`](../api/reactivity-advanced.md#effectscope).
 
-## A search box that waits for the player to stop typing
+## A debounced ref with customRef
 
-A search box that asks the server on every key press sends "S", "Sw", "Swo", "Swor", "Sword". You
-only want the last one.
-
-`customRef` makes a ref where you decide when it updates. This one waits until the player has
-stopped typing for a moment:
+`customRef` lets you decide when a ref notifies its readers. A debounced one for a search box:
 
 ```lua
 local function useDebounced<T>(initial: T, delaySeconds: number)
@@ -192,7 +170,7 @@ local function useDebounced<T>(initial: T, delaySeconds: number)
 end
 ```
 
-Use it like any ref. Bind the text box to it, and watch it to search:
+It works anywhere a ref does, including `model`:
 
 ```lua
 setup = function()
@@ -207,17 +185,14 @@ render = function()
 end,
 ```
 
-## Loading data from the server
+## Loading server data
 
-Most screens load something: a shop page, a leaderboard, the player's friends. A composable for
-this needs four things: the data, whether it's loading, an error message, and a way to retry.
-
-There's also a subtle bug to avoid. The player clicks page 1, then page 2 before page 1 has
-loaded. If page 1's answer is slow, it can arrive *after* page 2's:
+A loader returns data, loading and error refs, and a refresh function. It also has to handle
+answers arriving out of order:
 
 ![an old answer arriving after a newer one](../images/stale-response.svg)
 
-The fix is to number each request and ignore any answer that isn't for the latest one:
+Numbering requests and dropping any answer that isn't the latest fixes it:
 
 ```lua
 local function useRemoteData(action: string, payload: Rivue.MaybeRefOrGetter<any>?)
@@ -255,7 +230,7 @@ local function useRemoteData(action: string, payload: Rivue.MaybeRefOrGetter<any
 end
 ```
 
-A shop screen with pages then needs only this:
+A paged shop screen:
 
 ```lua
 setup = function()
@@ -272,16 +247,6 @@ setup = function()
 	}
 end,
 ```
-
-## Checklist
-
-When you write a composable:
-
-- Name it `use…` and call it at the top of `setup`. Not in `render`, and not in a click handler.
-- Keep UI out of it. It returns state and functions, and the component decides how they look.
-- Give it one job. `useCountdown` and `useInventory` are easy to reuse; `useShopScreen` isn't.
-- Each call makes new state. If two components must see the *same* state, use a store instead
-  (see [chapter 14](14-state-architecture.md)).
 
 ---
 

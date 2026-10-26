@@ -2,26 +2,17 @@
 
 # 13. Component patterns
 
-**You'll learn:** five ways to structure components that come up in every bigger game UI: tabs,
-shared behaviour with different looks, switching screens, modals, and a parent telling a child
-what to do.
+**You'll learn:** components that share state as a set, render-less components, switching
+screens with KeepAlive, modals, and calling a child's functions.
 
-## Tabs: components that work as a set
+## Components that share state: Tabs
 
-A tab bar has buttons and pages. Clicking a button changes which page is shown. You could write
-one big `Tabs` component that takes a list of pages. But then every screen with tabs has to fit
-that one layout.
-
-It's more flexible to make three small components that work together:
+Instead of one `Tabs` component that owns a fixed layout, use three that cooperate:
 
 ![the parts of a Tabs component](../images/tabs-parts.svg)
 
-The buttons and pages need the same piece of state: which tab is active. Passing it as props to
-every button and page would be tedious. Instead, `Tabs` **provides** it once, and every `Tab` and
-`TabPanel` inside, however deep, **injects** it (see [chapter 8](08-state-and-server.md) for
-provide and inject).
-
-First `Tabs`. It holds the active tab and provides it, together with a function to change it:
+`Tabs` provides the active tab once, and every `Tab` and `TabPanel` below it injects it
+([chapter 8](08-state-and-server.md)), at any depth:
 
 ```lua
 local TABS = "tabs" -- the key all three components use to find the shared state
@@ -45,8 +36,7 @@ local Tabs = Rivue.defineComponent({
 })
 ```
 
-A `Tab` is a button. It injects the shared state to know if it's selected, and calls `select`
-when clicked:
+`Tab` reads the state and calls `select`:
 
 ```lua
 local Tab = Rivue.defineComponent({
@@ -72,10 +62,10 @@ local Tab = Rivue.defineComponent({
 })
 ```
 
-> Why `ctx.tabs.active.value` and not `ctx.tabs.active`? `ctx` only unwraps refs that `setup`
-> returns directly. `active` is a ref *inside* a table, so it keeps its `.value`.
+> `ctx` only unwraps refs that `setup` returns directly. `active` is nested in a table, so it
+> keeps its `.value`.
 
-A `TabPanel` shows its content only while its tab is active, and renders nothing otherwise:
+`TabPanel` renders only while its tab is active:
 
 ```lua
 local TabPanel = Rivue.defineComponent({
@@ -93,8 +83,7 @@ local TabPanel = Rivue.defineComponent({
 })
 ```
 
-Now a screen can arrange them however it likes. Buttons on top, on the side, or mixed with other
-UI:
+The screen controls the layout:
 
 ```lua
 h(Tabs, { initial = "Shop" }, {
@@ -107,15 +96,10 @@ h(Tabs, { initial = "Shop" }, {
 })
 ```
 
-The same idea works for menus and their items, accordions, or a radio group and its options.
+## Render-less components
 
-## Same behaviour, different looks
-
-Lots of things in a game react to the mouse hovering over them. An item card grows, a button
-shows a tooltip. The hover logic is the same every time, but what changes on screen isn't.
-
-`Hoverable` handles the hovering and draws nothing visible itself. It passes `hovered` to its
-slot, and whoever uses it decides what to draw:
+A component can own behaviour and leave the visuals to the caller through a scoped slot.
+`Hoverable` tracks the mouse and passes `hovered` to its slot:
 
 ```lua
 local Hoverable = Rivue.defineComponent({
@@ -144,8 +128,7 @@ local Hoverable = Rivue.defineComponent({
 })
 ```
 
-The second argument to `renderSlot` is passed to the slot function. That's why the slot is a
-function here, instead of a list of children:
+The second argument to `renderSlot` is what the slot function receives:
 
 ```lua
 h(Hoverable, nil, {
@@ -157,13 +140,12 @@ h(Hoverable, nil, {
 })
 ```
 
-If the behaviour doesn't need an Instance of its own, a [composable](12-writing-composables.md)
-is simpler. `Hoverable` needs one, because something has to receive the mouse events.
+Use this only when the behaviour needs its own Instance, as mouse events do here. Otherwise a
+[composable](12-writing-composables.md) is simpler.
 
 ## Switching screens
 
-A game has a lobby, a shop and a settings screen, and shows one at a time. `h()` accepts a
-component stored in a variable, so switching screens is just picking which component to pass:
+`h()` takes a component value, so a screen switch is a table lookup:
 
 ```lua
 local screens = { lobby = Lobby, shop = Shop, settings = Settings }
@@ -185,17 +167,12 @@ local App = Rivue.defineComponent({
 })
 ```
 
-Normally a screen is destroyed when you switch away from it. `KeepAlive` keeps the ones listed
-in `include` alive instead, so when the player comes back to the shop, it's still scrolled to
-where they left it.
+Switching away unmounts a screen. `KeepAlive` keeps the ones in `include` mounted, so the shop
+keeps its scroll position and state.
 
 ## Modals
 
-A "Buy this item?" popup usually opens from deep inside the UI, from an item card in a list in
-the shop. It still has to appear above everything, fade in and out, and close when the player
-clicks outside it.
-
-Three built-ins handle one job each:
+A modal opened from deep in the tree combines three built-ins:
 
 | Piece | What it does |
 |---|---|
@@ -234,12 +211,10 @@ local Modal = Rivue.defineComponent({
 There's a full version with a backdrop and buttons in
 [examples/components/Modal.luau](../../examples/components/Modal.luau).
 
-## Telling a child what to do
+## Calling a child with expose
 
-Usually a parent controls a child through props. But some things are actions, not state: "clear
-the form", "scroll to the top". There's no prop for "do this once, now".
-
-For these, the child **exposes** functions, and the parent calls them through a template ref:
+For one-off actions like "reset" or "scroll to top", the child exposes functions and the parent
+calls them through a template ref:
 
 ```lua
 local Form = Rivue.defineComponent({
@@ -277,9 +252,6 @@ local Page = Rivue.defineComponent({
 	end,
 })
 ```
-
-Keep exposed functions few and small. If the parent needs to read the child's data, that data
-should probably live in the parent and be passed down as a prop.
 
 ---
 

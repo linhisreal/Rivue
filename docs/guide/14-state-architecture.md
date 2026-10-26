@@ -2,13 +2,10 @@
 
 # 14. Organising state
 
-**You'll learn:** where each piece of state should live as your game grows, how to write a store
-that many components share, how to show data the server owns, and how to make purchases feel
-instant.
+**You'll learn:** where state should live, a complete store module, syncing server-owned data,
+and optimistic updates.
 
-## Where should this state live?
-
-Ask who needs it:
+## Where state lives
 
 ```mermaid
 flowchart TD
@@ -18,25 +15,13 @@ flowchart TD
     Q -->|"the server decides it"| SV["The server sends it,<br/>a store keeps the client copy"]
 ```
 
-Some examples:
-
-| State | Who needs it | Where it lives |
-|---|---|---|
-| Is this dropdown open? | the dropdown | a `ref` in the dropdown |
-| Which tab is active? | the tabs and their pages | `provide` in `Tabs` ([chapter 13](13-advanced-components.md)) |
-| Coins, owned items | the HUD, the shop, the backpack | an `Inventory` store |
-| Music volume | the settings screen, the sound player | a `Settings` store |
-
-Start with a local ref. Move it up only when a second component needs it. Most games end up with
-a few stores and everything else local.
+Start local and move state up when a second component needs it.
 
 ## A store module
 
-A store is a ModuleScript that holds some reactive state. Since `require` returns the same table
-to every script, every component that requires the store sees the same state.
-
-One rule keeps stores easy to debug: **components read the state, and only the store's own
-functions change it.**
+[Chapter 8](08-state-and-server.md#game-wide-state-a-store-module) introduced stores. A fuller
+one, with derived state that outlives any component. Components read; only the store's functions
+write:
 
 ![a store module](../images/store-flow.svg)
 
@@ -72,8 +57,6 @@ end
 return Inventory
 ```
 
-Any component can now show it:
-
 ```lua
 -- UI/components/CoinCounter.luau
 local Inventory = require("../stores/Inventory")
@@ -85,16 +68,9 @@ render = function()
 end,
 ```
 
-When `coins` changes, every component that showed it updates, wherever it is in the UI. And if a
-number is ever wrong, you only have to look at the store's functions to find out why.
+## Server-owned data
 
-## Data the server owns
-
-Coins and items are decided by the server, so a cheater can't edit them. The client only shows a
-copy. There are two common ways to get that copy.
-
-**Attributes**, for a few simple values. The server sets an attribute on the player, and
-`attributeRef` turns it into a ref that updates when the attribute does:
+**Attributes** suit a few simple values. `attributeRef` is a ref that follows the attribute:
 
 ```lua
 -- Server
@@ -104,8 +80,7 @@ player:SetAttribute("Coins", 250)
 local coins = Rivue.attributeRef(Players.LocalPlayer, "Coins", 0)
 ```
 
-**Remote events**, for lists and bigger data. Ask for everything once when the game starts, then
-apply the changes the server sends after that:
+**Remote** suits lists and larger data: load once, then apply pushed changes:
 
 ```lua
 -- Client, in the store
@@ -121,13 +96,9 @@ Rivue.Remote.on("inventory:added", function(id: string)
 end)
 ```
 
-## Making purchases feel instant
+## Optimistic updates
 
-A purchase has to go to the server and back. That can take a few hundred milliseconds, which
-makes the Buy button feel slow.
-
-The trick is to update the screen straight away, as if the server had already said yes. In the
-rare case it says no, put everything back. This is called an **optimistic update**:
+Apply the change before the server answers, and roll it back if it refuses:
 
 ![optimistic update](../images/optimistic-update.svg)
 
@@ -138,15 +109,15 @@ function Inventory.buy(id: string, price: number): (boolean, string?)
 		return false, "not_enough_coins"
 	end
 
-	-- 1. Update the screen right away
+	-- Apply now
 	state.coins -= price
 	Rivue.array.push(state.owned, id)
 
-	-- 2. Ask the server. This waits for the answer
+	-- Yields until the server answers
 	local result, err = Rivue.Remote.request("shop:buy", { id = id })
 	local ok = result ~= nil and (result :: any).ok
 
-	-- 3. If the server said no, put things back
+	-- Roll back on refusal
 	if not ok then
 		state.coins += price
 		Rivue.array.removeValue(state.owned, id)
@@ -154,9 +125,6 @@ function Inventory.buy(id: string, price: number): (boolean, string?)
 	return ok, err or (result and (result :: any).reason)
 end
 ```
-
-`buy` waits for the server, so the Buy button runs it in its own thread with `task.spawn`. The
-click handler returns at once and the UI stays responsive:
 
 ```lua
 onClick = function()
@@ -169,18 +137,12 @@ onClick = function()
 end,
 ```
 
-The server must still check everything: the price, the player's coins, whether the item exists.
-The optimistic update only changes what the player sees while they wait.
+## Large data
 
-## Large amounts of data
-
-- **Data you replace as a whole** (a page of shop results, a leaderboard): use `shallowRef`.
-  `ref` makes every nested table reactive, which costs time and memory you don't need when you
-  never edit inside it.
-- **Tables that should never be reactive** (Instances, class objects, big config tables): wrap
-  them in `markRaw`.
-- **Thousands of rows**: keep the data in a store and show it with
-  [`VirtualList`](../api/builtins.md#virtuallist), which only creates the rows on screen.
+- `shallowRef` for data replaced as a whole (a results page, a leaderboard): its contents aren't
+  made reactive.
+- `markRaw` for tables that should never be reactive: Instances, class objects, static config.
+- [`VirtualList`](../api/builtins.md#virtuallist) for thousands of rows.
 
 ---
 

@@ -2,12 +2,7 @@
 
 # Guide chapters
 
-Build Roblox UI with Rivue, one idea per chapter. Chapters 1–9 teach the framework; 10 and 11
-cover organising a real project. Each chapter takes about ten minutes, ends with
-an example to read and links to the API it used. Read them in order the first time.
-
-Chapters 12–16 are advanced. Read them once you've built a screen or two and want reusable
-logic, bigger apps, speed or tests. They can be read in any order.
+Chapters 1–11 are meant to be read in order. Chapters 12–16 are advanced and stand alone.
 
 | | Chapter | You'll learn |
 |---|---|---|
