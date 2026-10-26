@@ -100,7 +100,7 @@ whole app.
 ## debug.enabled
 
 Turns on detailed logging of everything Rivue does: every element, mount, update and remote call.
-Very noisy, so it's off by default; switch it on briefly when you're hunting a bug.
+Off by default.
 
 - **Example**
 
@@ -570,7 +570,8 @@ test [style class variants](application.md#appstyles), since scripts can't move 
 - **Details**
 
   `state` is `"hover"`, `"pressed"` or `"selected"`. It does nothing on elements whose classes have
-  no state variants. The change is applied straight away, no `nextTick()` needed.
+  no state variants. The change applies straight away,
+  without waiting for `nextTick()`.
 
 - **Type**
 

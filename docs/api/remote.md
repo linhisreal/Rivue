@@ -20,8 +20,8 @@ and per-player rate limits. It's a separate package from Rivue, which only does 
 
 ## Remote.setupServer()
 
-Creates the RemoteEvents RivueRemote uses. Call it once in a server script at startup, so clients never
-wait for them.
+Creates the RemoteEvents RivueRemote uses. Call it once in a server script at startup, so clients
+never wait for them.
 
 - **Example**
 
@@ -74,7 +74,7 @@ returns is sent back as the response.
 
 - **Details**
 
-  - **Responses.** What the handler returns is sent back as the response.
+  
   - **Errors.** If the handler errors, the error is logged on the server and the client gets
     `"handler_error"`, so internal details never leak to clients.
   - **Rate limits.** Each player can call each action `maxPerSecond` times per second (default
@@ -141,7 +141,7 @@ yields, so call it from `task.spawn` or a watcher, never from render.
 - **Details**
 
   Returns `(data, nil)` on success or `(nil, err)` on failure. `timeout` is in seconds (default
-  10). It yields, so call it from an event handler or `task.spawn`, never from a render function.
+  10).
 
 - **Type**
 

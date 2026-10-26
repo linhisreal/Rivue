@@ -19,8 +19,9 @@
   <a href="https://github.com/linhisreal/Rivue/actions/workflows/build.yml"><img src="https://github.com/linhisreal/Rivue/actions/workflows/build.yml/badge.svg" alt="CI"></a>
 </p>
 
-Describe your UI for the current state. When state changes, Rivue re-renders only the components
-that read it and writes only the Instance properties that changed.
+Stop writing `label.Text = ...` by hand. Write what the screen should look like for the current
+state, and Rivue keeps the Instances in sync: when a value changes, only the components that read
+it re-render, and only the properties that changed get written.
 
 ```lua
 local Rivue = require(game.ReplicatedStorage.Rivue)

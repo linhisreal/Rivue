@@ -271,8 +271,7 @@ Looks up a registered directive by name.
 
 ## vModelText()
 
-The props for binding a TextBox's `Text` to a ref, with optional debouncing. `model = ref` does the
-same thing; use this when you want the debounce.
+The props for binding a TextBox's `Text` to a ref, with optional debouncing.
 
 - **Example**
 

@@ -632,10 +632,8 @@ removed Instances are reset and reused instead of destroyed and created again.
 
 - **Details**
 
-  Pooling helps UI that creates and removes many Instances often, like lists that change a lot,
-  damage numbers or notifications. Reused Instances have every property Rivue set reset to its
-  default. With pooling on, the app also gets `app:getPoolStats()` and
-  `app:validatePoolHealth()`. See [Instance pool](pool.md).
+  Reused Instances have every property Rivue set reset to its default. With pooling on, the app
+  also gets `app:getPoolStats()` and `app:validatePoolHealth()`. See [Instance pool](pool.md).
 
 - **Type**
 

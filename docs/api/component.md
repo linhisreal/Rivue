@@ -625,8 +625,8 @@ Reads a value that an ancestor component (or the app) provided.
 
   The key is looked up through ancestors first, then in the app's provides. Returns `default` if
   nothing was provided. A component's own `provide()` doesn't change what it injects, so it can
-  read a value and provide a changed one to its children (a nesting depth, for example). Call it in `setup()` or inside
-  [`app:runWithContext()`](application.md#apprunwithcontext).
+  read a value and provide a changed one to its children (a nesting depth, for example). Call it
+  in `setup()` or inside [`app:runWithContext()`](application.md#apprunwithcontext).
 
 - **Type**
 
@@ -915,8 +915,7 @@ components rarely need it.
 
 - **Details**
 
-  For library code that needs instance internals. App code rarely needs it: prefer the setup
-  context and composables.
+  In app code, the setup context and composables cover what this is usually wanted for.
 
 - **Type**
 

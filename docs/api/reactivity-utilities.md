@@ -97,7 +97,6 @@ pass a single prop or field to a composable that expects a ref.
 - **Details**
 
   The ref stays linked to the source: writing the ref writes the key, and the other way around.
-  This is the way to pass one prop into a composable while keeping it reactive.
 
 - **Type**
 
@@ -129,8 +128,7 @@ of the three.
 
 - **Details**
 
-  Like [`unref()`](#unref), but also calls getter functions. Useful in composables that accept
-  any of the three.
+  Like [`unref()`](#unref), but also calls getter functions.
 
 - **Type**
 
@@ -189,8 +187,7 @@ the state `setup()` returns.
 - **Details**
 
   Reading a key that holds a ref returns the ref's value. Assigning to it sets the ref. Other
-  keys pass through. The [`render(ctx)`](component.md#render) context uses this for what
-  `setup()` returns.
+  keys pass through.
 
 - **Type**
 

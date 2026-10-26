@@ -296,8 +296,7 @@ as soon as they pick up a controller, so you can swap button prompts.
 
 - **Details**
 
-  It's based on the last input, so it switches as soon as the player picks up a controller or
-  touches the screen. One connection is shared for the session. Treat the ref as read only.
+  It's based on the last input. One connection is shared for the session. Treat the ref as read only.
 
 - **Type**
 
@@ -416,7 +415,7 @@ target changes. Bind it to a prop for smooth health bars, progress bars and coun
 - **Details**
 
   This works with numbers and anything with `:Lerp()`: UDim2, Color3, Vector2, Vector3, CFrame.
-  It uses `tweenInfo.Time`, `EasingStyle` and `EasingDirection`. Bind the returned ref to a prop.
+  It uses `tweenInfo.Time`, `EasingStyle` and `EasingDirection`.
   It steps on RenderStepped only while animating, and stops when the component unmounts.
 
 - **Type**
@@ -429,8 +428,7 @@ target changes. Bind it to a prop for smooth health bars, progress bars and coun
 
 ## useSpring()
 
-A value that follows its target like a spring, with a natural ease and optional bounce. It keeps
-moving smoothly even if the target changes mid-animation.
+A value that follows its target like a spring, with a natural ease and optional bounce.
 
 - **Example**
 
@@ -503,8 +501,7 @@ A ref linked to an Instance attribute, both ways. Use it for state the server wr
   attribute doesn't exist, it's created with `default`. The sync stops with the component or
   effect scope, or when you call `ref._cleanup()`.
 
-  This is the simplest way to show state the server writes. Attributes replicate, so the server
-  calls `player:SetAttribute("Coins", 10)` and the UI updates.
+  Attributes replicate, so when the server sets one, the UI updates.
 
 - **Type**
 

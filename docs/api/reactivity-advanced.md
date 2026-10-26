@@ -279,8 +279,7 @@ it read changes. Prefer [`watchEffect()`](reactivity-core.md#watcheffect) in app
 
 - **Details**
 
-  Prefer [`watchEffect()`](reactivity-core.md#watcheffect) in app code. In a component's
-  `setup()`, the effect stops on unmount.
+  In a component's `setup()`, the effect stops on unmount.
 
   Unlike Vue's `effect()`, the first run is deferred to the next flush. With a `scheduler` it's
   passed to the scheduler right away, and with `lazy = true` nothing runs until you call
@@ -400,7 +399,7 @@ makes it the composable-friendly version of `onUnmounted`.
 
 - **Details**
 
-  This is the composable-friendly version of `onUnmounted`. It works in a component's `setup()`
+  It works in a component's `setup()`
   (the component's scope stops on unmount) and inside `effectScope():run()`. Outside a scope it
   does nothing.
 

@@ -151,8 +151,8 @@ started yourself.
 
 - **Details**
 
-  Use it to clean up anything you created yourself: connections, threads, tags. Watchers,
-  computeds and `Rivue.onHeartbeat` connections from `setup()` are stopped automatically.
+  Watchers, computeds and `Rivue.onHeartbeat` connections from `setup()` are stopped
+  automatically. Connections, threads and tags you made yourself need cleaning up here.
 
 - **Type**
 
