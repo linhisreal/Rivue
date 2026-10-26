@@ -458,7 +458,7 @@ Shows a 3D model in the UI, framed by a camera that fits it. For shop and invent
 Ready-made props for [Transition](#transition), so a fade or a slide doesn't need its TweenInfo
 and start values written out each time.
 
-![what fade, slide and pop do when an element enters](../assets/diagrams/transition-presets.svg)
+![what fade, slide and pop do when an element enters](../assets/diagrams/transition-presets.webp)
 
 - **Example**
 
@@ -569,7 +569,7 @@ doesn't take the rest of the screen with it.
 
 A modal: a dark backdrop over the screen, with your content in the middle.
 
-![the parts of a Dialog](../assets/diagrams/dialog-anatomy.svg)
+![the parts of a Dialog](../assets/diagrams/dialog-anatomy.webp)
 
 - **Example**
 
@@ -637,7 +637,7 @@ A modal: a dark backdrop over the screen, with your content in the middle.
 Layout without writing out a `layout` table. A Row lays its children left to right, a Column top
 to bottom, and a Spacer takes up whatever room is left.
 
-![a Row with a Spacer pushing the last button to the far end](../assets/diagrams/row-spacer.svg)
+![a Row with a Spacer pushing the last button to the far end](../assets/diagrams/row-spacer.webp)
 
 - **Example**
 

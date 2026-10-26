@@ -3,8 +3,8 @@
 
 	lune run version 2.57.0
 
-	Updates packages/*/wally.toml, pesde.toml and their lockfiles, Rivue.version, and the install
-	lines in the README.
+	Updates packages/*/wally.toml, pesde.toml and their lockfiles if present, Rivue.version, and the
+	install lines in the README.
 ]]
 
 local fs = require("@lune/fs")

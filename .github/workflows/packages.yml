@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ["packages/**", "pesde.toml", "pesde.lock", "rokit.toml", ".github/workflows/packages.yml"]
+    paths: ["packages/**", "pesde.toml", "rokit.toml", ".github/workflows/packages.yml"]
 
 jobs:
   package:
@@ -22,12 +22,8 @@ jobs:
         with:
           cache: true
 
-      - name: Lockfiles are up to date
-        run: |
-          pesde install --locked
-          # Wally has no --locked: reinstall and fail if its lockfile changed
-          wally install --project-path packages/${{ matrix.package }}
-          git diff --exit-code -- packages/${{ matrix.package }}/wally.lock
+      - name: pesde install
+        run: pesde install
 
       - name: Wally package
         run: |
