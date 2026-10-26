@@ -1,4 +1,10 @@
-Rivue
+<p align="center">
+  <a href="https://polyformproject.org/licenses/noncommercial/1.0.0"><img src="https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-blue.svg" alt="PolyForm Noncommercial 1.0.0"></a>
+  <img src="https://img.shields.io/badge/games-may%20monetize-2fbf8f.svg" alt="Games may monetize">
+</p>
+
+# Rivue license
+
 Copyright (c) 2025-2026 linhisreal (ThisisLinh)
 
 Required Notice: Copyright (c) 2025-2026 linhisreal (https://github.com/linhisreal/Rivue)
@@ -6,32 +12,31 @@ Required Notice: Copyright (c) 2025-2026 linhisreal (https://github.com/linhisre
 Rivue is licensed under the PolyForm Noncommercial License 1.0.0, with one additional
 permission for games. Both are below.
 
-In short:
-  - You may use, copy, fork, port and change Rivue, and share it, closed source or open.
-  - You must give credit: keep the "Required Notice" line above and this license (or its
-    URL) with every copy, changed or not.
-  - You may not use Rivue's code commercially, for example by selling it or a fork or port
-    of it, or building a paid product out of it.
-  - You may build games with Rivue and make money from those games.
+## In short
+
+- You may use, copy, fork, port and change Rivue, and share it, closed source or open.
+- You must give credit: keep the "Required Notice" line above and this license (or its URL)
+  with every copy, changed or not.
+- You may not use Rivue's code commercially, for example by selling it or a fork or port of
+  it, or building a paid product out of it.
+- You may build games with Rivue and make money from those games.
+
 This summary is not the license. The terms below are.
 
------------------------------------------------------------------------
+## Additional permission: games
 
-Additional permission: games
-
-In addition to the PolyForm Noncommercial License, the licensor grants you permission to
-use Rivue, changed or unchanged, in a game or other experience (on Roblox or elsewhere),
-and to earn money from that game (for example game passes, developer products, Premium
-payouts, paid access or ads). Doing so does not count against the license's limit to
-noncommercial purposes. To use this permission, credit Rivue in the game's description or
-in an in-game credits screen, for example "UI built with Rivue
-(github.com/linhisreal/Rivue)".
+In addition to the PolyForm Noncommercial License, the licensor grants you permission to use
+Rivue, changed or unchanged, in a game or other experience (on Roblox or elsewhere), and to
+earn money from that game (for example game passes, developer products, Premium payouts, paid
+access or ads). Doing so does not count against the license's limit to noncommercial purposes.
+To use this permission, credit Rivue in the game's description or in an in-game credits
+screen, for example "UI built with Rivue (github.com/linhisreal/Rivue)".
 
 This permission covers making and running games. It does not allow selling, licensing or
 charging for Rivue itself, or a fork, port or changed version of it, as a library, model,
 plugin, package, template or any other product.
 
------------------------------------------------------------------------
+---
 
 # PolyForm Noncommercial License 1.0.0
 
