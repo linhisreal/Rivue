@@ -505,6 +505,84 @@ local function runTests()
 		app:unmount()
 	end
 
+	print("VirtualList grid with gaps")
+	do
+		local items = {}
+		for i = 1, 100 do
+			items[i] = i
+		end
+		local container = Instance.new("Frame")
+		local app = Rivue.createApp(h(Rivue.VirtualList, {
+			Name = "Grid",
+			items = items,
+			itemSize = 50,
+			columns = 4,
+			gap = 10,
+			overscan = 0,
+			render = function(item: number)
+				return h("TextLabel", { Name = `Cell{item}` })
+			end,
+		}))
+		app:mount(container)
+		local grid = container:FindFirstChild("Grid") :: ScrollingFrame
+		task.wait()
+		assertEquals(grid.CanvasSize, UDim2.fromOffset(0, 25 * 60 - 10), "canvas fits 25 rows of 50 with 10 px gaps")
+		local cell = grid:FindFirstChild("Cell6") :: TextLabel
+		assertTrue(cell ~= nil, "second row renders")
+		assertEquals(
+			cell.Position,
+			UDim2.new(UDim.new(0.25, 2.5), UDim.new(0, 60)),
+			"cells are placed by column and row"
+		)
+		assertEquals(
+			cell.Size,
+			UDim2.new(UDim.new(0.25, -7.5), UDim.new(0, 50)),
+			"cells share the width minus the gaps"
+		)
+		assertTrue(grid:FindFirstChild("Cell41") == nil, "rows below the view aren't rendered")
+		grid.CanvasPosition = Vector2.new(0, 600)
+		task.wait()
+		assertTrue(grid:FindFirstChild("Cell41") ~= nil, "scrolling renders the rows in view")
+		assertTrue(grid:FindFirstChild("Cell1") == nil, "rows scrolled away are removed")
+		app:unmount()
+	end
+
+	print("VirtualList with different row heights")
+	do
+		local items = {}
+		for i = 1, 100 do
+			items[i] = i
+		end
+		local container = Instance.new("Frame")
+		local app = Rivue.createApp(h(Rivue.VirtualList, {
+			Name = "Feed",
+			items = items,
+			itemSize = function(item: number)
+				return if item % 2 == 0 then 100 else 20
+			end,
+			overscan = 0,
+			render = function(item: number)
+				return h("TextLabel", { Name = `Post{item}` })
+			end,
+		}))
+		app:mount(container)
+		local feed = container:FindFirstChild("Feed") :: ScrollingFrame
+		task.wait()
+		assertEquals(feed.CanvasSize, UDim2.fromOffset(0, 50 * 100 + 50 * 20), "canvas is the sum of the row heights")
+		assertEquals(
+			(feed:FindFirstChild("Post2") :: TextLabel).Position,
+			UDim2.fromOffset(0, 20),
+			"rows start after the ones before"
+		)
+		assertTrue(feed:FindFirstChild("Post3") == nil, "a row starting below the view isn't rendered")
+		feed.CanvasPosition = Vector2.new(0, 3000)
+		task.wait()
+		-- 3000 is 25 pairs of 120, so row 51 starts exactly there
+		assertTrue(feed:FindFirstChild("Post51") ~= nil, "scrolling finds the row at that position")
+		assertTrue(feed:FindFirstChild("Post1") == nil, "rows scrolled away are removed")
+		app:unmount()
+	end
+
 	-- Test 15: Roblox composables
 	print("Test 15: useViewportSize / useInputType / useSelection / useTween / useSpring")
 	do

@@ -318,8 +318,8 @@ loading, then swaps in the real content.
 
 ## VirtualList
 
-A scrolling list that only creates the rows you can see, so a list of 5,000 items costs about as
-much as one of 20. Rows must all have the same height.
+A scrolling list or grid that only creates the rows you can see, so a list of 5,000 items costs
+about as much as one of 20.
 
 - **Example**
 
@@ -342,10 +342,52 @@ much as one of 20. Rows must all have the same height.
   })
   ```
 
+  An inventory grid, four slots wide:
+
+  ```lua
+  h(Rivue.VirtualList, {
+  	Size = UDim2.fromOffset(400, 500),
+  	items = items,
+  	itemSize = 90, -- row height
+  	columns = 4,
+  	gap = 8,
+  	render = function(item)
+  		return h("TextButton", { Text = item.name }) -- Size is set for you
+  	end,
+  })
+  ```
+
+  A chat feed where messages have different heights:
+
+  ```lua
+  local messages = {
+  	{ text = "gg", lines = 1 },
+  	{ text = "anyone want to trade? I have a sword and two potions", lines = 2 },
+  }
+
+  h(Rivue.VirtualList, {
+  	Size = UDim2.fromOffset(300, 400),
+  	items = messages,
+  	itemSize = function(message)
+  		return message.lines * 20 + 8
+  	end,
+  	render = function(message)
+  		return h("TextLabel", {
+  			Size = UDim2.new(1, 0, 0, message.lines * 20 + 8),
+  			TextWrapped = true,
+  			Text = message.text,
+  		})
+  	end,
+  })
+  ```
+
 - **Details**
 
-  - **Fixed size.** Every row has the same size, and Rivue sets each row's `Position` and `key`.
-    Make rows fill the cross axis (`Size = UDim2.new(1, 0, 0, itemSize)`).
+  - **Positions.** Rivue sets each row's `Position` and `key`. In a list, make rows fill the cross
+    axis (`Size = UDim2.new(1, 0, 0, itemSize)`). In a grid it also sets `Size`, unless the row
+    sets its own.
+  - **Different sizes.** Pass `itemSize` as a function of the item. The sizes are worked out again
+    when the items change, not while scrolling. It needs `columns = 1`.
   - **Cost.** Scrolling re-renders only the rows coming into view, so a list of 10,000 items
     costs about as much as the ones on screen.
 
@@ -354,7 +396,9 @@ much as one of 20. Rows must all have the same height.
   ```lua
   type VirtualListProps<T> = {
   	items: { T }, -- plain or reactive array (required)
-  	itemSize: number, -- row height in pixels, or width when horizontal (required)
+  	itemSize: number | (item: T, index: number) -> number, -- row height in pixels, or width when horizontal (required)
+  	columns: number?, -- items per row, for a grid (default 1)
+  	gap: number?, -- pixels between rows and between columns (default 0)
   	render: (item: T, index: number) -> VNode, -- (required)
   	key: ((item: T, index: number) -> unknown)?, -- default: the index
   	overscan: number?, -- extra rows rendered above and below (default 2)

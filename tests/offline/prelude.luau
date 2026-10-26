@@ -382,6 +382,10 @@ UDIM2_MT = {
 }
 UDim2 = {
 	new = function(a, b, c, d)
+		-- UDim2.new(xUDim, yUDim)
+		if type(a) == "table" and type(b) == "table" then
+			a, b, c, d = a.Scale, a.Offset, b.Scale, b.Offset
+		end
 		return setmetatable(
 			{ X = { Scale = a or 0, Offset = b or 0 }, Y = { Scale = c or 0, Offset = d or 0 } },
 			UDIM2_MT
