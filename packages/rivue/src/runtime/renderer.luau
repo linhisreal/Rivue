@@ -1644,8 +1644,6 @@ local function withRenderingInstance(inst: ComponentInstance, fn: () -> ())
 	end
 end
 
-type AsyncRenderResult = { __async: true, promise: () -> VNode? }
-
 --- props.to, or in place when props.disabled. Nil if props.to isn't parented yet
 local function resolveTeleportTarget(vnode: RenderVNode, container: Instance): Instance?
 	local props = vnode.props
@@ -1788,8 +1786,6 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 	inst:setupComponent()
 	inst:runBeforeMount()
 
-	local props: Props = vnode.props or {}
-
 	local function commit(nextTree: VNode?)
 		if nextTree then
 			if inst.type.inheritAttrs ~= false and type(nextTree.type) == "string" then
@@ -1828,42 +1824,6 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 		end
 	end
 
-	local function renderAsync(result: AsyncRenderResult)
-		if props.fallback then
-			patch(nil, props.fallback, container, poolOpt)
-		end
-
-		task.spawn(function()
-			local ok, res = pcall(result.promise)
-			if ok and res then
-				task.defer(function()
-					if inst.isMounted then
-						inst:runBeforeUpdate()
-						commit(res)
-						inst:runUpdated()
-					else
-						commit(res)
-						inst:runMounted()
-					end
-				end)
-				return
-			end
-
-			debugModule.log("Renderer", "Async component promise failed", { error = res })
-			local onError = props.onError
-			if type(onError) == "function" then
-				pcall(onError, res)
-			end
-			local fallback = props.fallback
-			if fallback then
-				task.defer(function()
-					inst.subTree = fallback
-					inst.el = fallback.el
-				end)
-			end
-		end)
-	end
-
 	local renderEffect: Effect
 	local updateJob = {
 		id = inst.uid,
@@ -1888,11 +1848,6 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 		if not ok then
 			-- The last good tree stays on screen
 			inst:handleError(tostring(sub), "render")
-			return
-		end
-
-		if type(sub) == "table" and (sub :: AsyncRenderResult).__async and (sub :: AsyncRenderResult).promise then
-			renderAsync(sub :: AsyncRenderResult)
 			return
 		end
 
