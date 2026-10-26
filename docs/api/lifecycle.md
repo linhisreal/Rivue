@@ -298,7 +298,7 @@ breaking the whole screen.
   		Rivue.onErrorCaptured(function(err, _instance, info)
   			warn("UI error in", info, err)
   			failed.value = true
-  			return true -- handled, don't pass it further up
+  			return false -- handled, don't pass it further up
   		end)
   		return { failed = failed }
   	end,
@@ -319,7 +319,8 @@ breaking the whole screen.
   - **What's caught:** errors from descendants' render, patch, lifecycle hooks and emit
     handlers.
   - **`info`** says where the error happened, such as `"render"` or `"mounted hook"`.
-  - **Return `true`** to stop the error from going further up.
+  - **Return `false`** to stop the error from going further up, as in Vue. Return nothing to
+    let it carry on to ancestors' hooks and then `app.config.errorHandler`.
   - **Uncaught errors** go to [`app.config.errorHandler`](application.md#appconfigerrorhandler),
     or are reported with `warn` along with the component chain.
 

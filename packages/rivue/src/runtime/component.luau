@@ -536,8 +536,9 @@ function ComponentInstance.handleError(self: ComponentInstance, err: string, inf
 	local cur = self.parent
 	while cur do
 		for _, handler in cur.errorCapturedCbs do
-			local ok, stop = pcall(handler, err, self, info)
-			if ok and stop == true then
+			-- Like Vue: returning false means handled, so it goes no further up
+			local ok, result = pcall(handler, err, self, info)
+			if ok and result == false then
 				return
 			end
 		end
