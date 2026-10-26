@@ -288,7 +288,11 @@ function Remote.handle(actionName: string, handler: RequestHandler, opts: Handle
 
 		local actionHandler = handlers[action]
 		if not actionHandler then
-			respond(false, nil, "unknown_action")
+			-- Limited too, or a client could make the server reply as fast as it sends. The key
+			-- can't clash with a real action name, which is never empty
+			if takeToken(player, "", DEFAULT_MAX_PER_SECOND) then
+				respond(false, nil, "unknown_action")
+			end
 			return
 		end
 
