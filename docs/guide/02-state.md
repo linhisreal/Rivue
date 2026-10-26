@@ -2,8 +2,8 @@
 
 # 2. State
 
-**You'll learn:** the three kinds of reactive state, the one rule that decides what updates, and
-how to change lists.
+**You'll learn:** the three kinds of reactive state, which reads are tracked, and how to change
+lists.
 
 ## ref, reactive and computed
 
@@ -28,7 +28,7 @@ print(label.value) -- "Grace: 10 coins"
 
 A computed is cached: it only re-runs when something it read changes.
 
-## The rule: reads during render are tracked
+## Reads during render are tracked
 
 Rivue remembers **what each render function (or computed, or watcher) read while it ran**. When
 one of those values changes, that function runs again. Nothing else does.

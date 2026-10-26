@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/icon.svg" width="128" height="128" alt="Rivue logo">
+  <img src="docs/assets/icon.svg" width="128" height="128" alt="Rivue logo">
 </p>
 
 <h1 align="center">Rivue</h1>
@@ -52,18 +52,20 @@ Rivue.createApp(Counter):mountToPlayerGui(game.Players.LocalPlayer)
 A bigger example with a text box, a keyed list and styles:
 [TodoList](examples/components/TodoList.luau). More in [examples](examples).
 
-**Status:** Rivue is under active development and the API can still change between releases.
-It runs in LocalScripts. For client/server calls, the separate [RivueRemote](docs/api/remote.md)
-package adds requests and events with rate limits.
+Rivue is under active development, and the API can still change between releases. It runs in
+LocalScripts. For client/server calls, the separate [RivueRemote](docs/api/remote.md) package adds
+requests and events with rate limits.
 
 ## Why Rivue
 
-- **Vue's API, in Luau.** `ref`, `computed`, `watch`, components with props, emits, slots and
-  provide/inject. If you know Vue, there's a [cheat sheet](docs/VUE.md).
-- **Fine-grained updates, with components.** Reactivity is tracked per value, so a parent
-  re-rendering doesn't re-render children whose props didn't change. No `memo` needed for that.
-- **Made for Roblox UI.** Style classes, `layout`/`flex` props instead of UIListLayout
-  boilerplate, and built-in tweens, springs, `Transition` and `VirtualList`.
+If you know Vue, the API will look familiar: `ref`, `computed`, `watch`, and components with props,
+emits, slots and provide/inject. There's a [cheat sheet](docs/VUE.md) for Vue users.
+
+Reactivity is tracked per value, so when a parent re-renders, children whose props didn't change
+are skipped without any `memo`.
+
+It's built for Roblox UI, with style classes, `layout` and `flex` props in place of UIListLayout
+boilerplate, and tweens, springs, `Transition` and `VirtualList` built in.
 
 ## Features
 
@@ -107,7 +109,7 @@ package.
 
 ## Docs
 
-Read them at **[linhisreal.github.io/Rivue](https://linhisreal.github.io/Rivue/)**, or start at the
+Read them at [linhisreal.github.io/Rivue](https://linhisreal.github.io/Rivue/), or start at the
 [docs home](docs/README.md) here, which has an "I want to…" index.
 
 [Guide](docs/GUIDE.md) · [Examples](examples) · [API reference](docs/API.md) ·

@@ -254,4 +254,4 @@ Listens on the client for events the server sends, like a new message or a price
 
 ---
 
-[← Roblox Composables](roblox.md) · [API reference](../API.md) · [Instance Pool →](pool.md)
+[← Roblox composables](roblox.md) · [API reference](../API.md) · [Instance pool →](pool.md)

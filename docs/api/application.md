@@ -36,8 +36,8 @@ local Players = game:GetService("Players")
 
 ## createApp()
 
-The starting point of every Rivue UI. You give it your root component, configure it (styles, global
-components, plugins), then mount it somewhere.
+Creates an app from your root component. Configure it (styles, global components, plugins), then
+mount it.
 
 - **Example**
 
@@ -204,7 +204,7 @@ connections or timers.
 ## app:component()
 
 Makes a component available everywhere in the app by name, so any render function can write
-`h("Icon")` without requiring it. Good for small, widely used pieces like icons and buttons.
+`h("Icon")` without requiring it. Use it for small, widely used pieces like icons and buttons.
 
 - **Example**
 
@@ -371,7 +371,7 @@ and provided values in one call.
 ## app:provide()
 
 Makes a value available to every component in the app through [`inject()`](component.md#inject).
-Handy for app-wide services like a theme or a sound player.
+Use it for app-wide services like a theme or a sound player.
 
 - **Example**
 
@@ -432,7 +432,7 @@ Useful in plugins and helper modules that run outside any component.
 ## app:printTree()
 
 Prints what's on screen right now, as a tree: components with their props, and the elements they
-rendered. The quickest way to answer "what is actually mounted?".
+rendered. Use it to check what's actually mounted.
 
 - **Example**
 
@@ -465,7 +465,7 @@ rendered. The quickest way to answer "what is actually mounted?".
 ## app:rerender() / app:swapRoot()
 
 Throws the current UI away and mounts again into the same container, optionally with a different
-root. Handy for hot-reloading while you work in Studio.
+root. Use it to hot-reload while you work in Studio.
 
 - **Example**
 
@@ -496,7 +496,7 @@ root. Handy for hot-reloading while you work in Studio.
 
 ## app.config.errorHandler
 
-Your last chance to deal with an error: it receives anything that no
+Receives any error that no
 [`onErrorCaptured()`](lifecycle.md#onerrorcaptured) handler stopped. Use it to report errors to your
 analytics.
 

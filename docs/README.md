@@ -10,13 +10,13 @@
 
 | | |
 |---|---|
-| **[Guide](GUIDE.md)** | Chapters 1–11 cover the framework, 12–16 the advanced topics |
-| **[Examples](../examples)** | Todo list, inventory, modal, tabs, shop and HUD, all tested |
-| **[API reference](API.md)** | Every function, prop and component, with an example each |
-| **[Coming from Vue](VUE.md)** | Template-to-Luau cheat sheet |
-| **[Coming from Roact, React-lua or Fusion](COMING-FROM-REACT.md)** | API map and what works differently |
-| **[DevTools](DEVTOOLS.md)** | A Studio plugin that shows the live component tree |
-| **[Architecture](ARCHITECTURE.md)** | Renderer and reactivity internals, for contributors |
+| [Guide](GUIDE.md) | Chapters 1–11 cover the framework, 12–16 the advanced topics |
+| [Examples](../examples) | Todo list, inventory, modal, tabs, shop and HUD, all tested |
+| [API reference](API.md) | Every function, prop and component, with an example each |
+| [Coming from Vue](VUE.md) | Template-to-Luau cheat sheet |
+| [Coming from Roact, React-lua or Fusion](COMING-FROM-REACT.md) | API map and what works differently |
+| [DevTools](DEVTOOLS.md) | A Studio plugin that shows the live component tree |
+| [Architecture](ARCHITECTURE.md) | Renderer and reactivity internals, for contributors |
 
 ## I want to…
 
@@ -30,7 +30,7 @@
 | read text the player types | [Guide 5](guide/05-forms-and-input.md) | [Element props: model](api/render-function.md#element-props) | [TodoList](../examples/components/TodoList.luau) |
 | style things consistently | [Guide 6](guide/06-styling-and-layout.md#style-classes) | [app:styles()](api/application.md#appstyles) | [Demo app](../dev/Demo) |
 | lay out rows, columns and grids | [Guide 6](guide/06-styling-and-layout.md#layout-without-positions) | [Element props: layout](api/render-function.md#element-props) | [Tabs](../examples/components/Tabs.luau) |
-| support phones and controllers | [Guide 6](guide/06-styling-and-layout.md#different-devices) | [Roblox composables](api/roblox.md) | [Hud](../examples/components/Hud.luau) |
+| support phones and controllers | [Guide 6](guide/06-styling-and-layout.md#input-type-screen-size-and-safe-area) | [Roblox composables](api/roblox.md) | [Hud](../examples/components/Hud.luau) |
 | run code when something changes | [Guide 7](guide/07-effects-and-animation.md) | [watch()](api/reactivity-core.md#watch) | [Hud](../examples/components/Hud.luau) |
 | animate things in and out | [Guide 7](guide/07-effects-and-animation.md#animation) | [Transition](api/builtins.md#transition) | [Modal](../examples/components/Modal.luau) |
 | share state across the game | [Guide 8](guide/08-state-and-server.md), [14](guide/14-state-architecture.md) | [provide()](api/component.md#provide), [readonly()](api/reactivity-core.md#readonly) | |

@@ -35,7 +35,7 @@ Rivue is fast by default. These cover the cases where it isn't:
 - **"Why did this re-render?"** Add `Rivue.onRenderTriggered(function(e) print(e.key) end)` to
   the component's setup.
 - **Errors name the component chain:** `[Rivue] Error in render of <ItemRow> in <Inventory> in <App>`.
-  Errors in watchers and effects are always reported, never swallowed.
+  Errors in watchers and effects are always reported.
 - **Studio warnings** cover unknown properties, wrong prop types, duplicate keys, list items
   without keys and undeclared events.
 - `Rivue.inspect(value)` prints reactive state readably.
@@ -44,7 +44,7 @@ Rivue is fast by default. These cover the cases where it isn't:
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| UI doesn't update | the value was read in `setup`, not in render | read it inside `render` ([chapter 2](02-state.md#the-rule-reads-during-render-are-tracked)) |
+| UI doesn't update | the value was read in `setup`, not in render | read it inside `render` ([chapter 2](02-state.md#reads-during-render-are-tracked)) |
 | UI doesn't update after `table.insert(list, x)` | `table.*` bypasses reactive proxies | `Rivue.array.push(list, x)` |
 | `pairs`/`ipairs` over reactive state finds nothing | Luau has no `__pairs` | `for k, v in state do` or `for i = 1, #list do` |
 | `model = ctx.draft` doesn't bind | `ctx` unwraps refs, so it passes the string | `model = "draft"` |

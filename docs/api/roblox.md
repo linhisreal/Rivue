@@ -1,6 +1,6 @@
-[Docs](../README.md) › [API](../API.md) › **Roblox Composables**
+[Docs](../README.md) › [API](../API.md) › **Roblox composables**
 
-# Roblox Composables
+# Roblox composables
 
 **Learn it:** [Guide 6: Styling and layout](../guide/06-styling-and-layout.md) · [Guide 7: Effects and animation](../guide/07-effects-and-animation.md)
 
@@ -477,7 +477,7 @@ moving smoothly even if the target changes mid-animation.
 
 ## attributeRef()
 
-A ref linked to an Instance attribute, both ways. Perfect for state the server writes, like
+A ref linked to an Instance attribute, both ways. Use it for state the server writes, like
 `player:SetAttribute("Health", 80)`, which the UI then shows.
 
 - **Example**
@@ -522,7 +522,7 @@ A ref linked to an Instance attribute, both ways. Perfect for state the server w
 ## useTag()
 
 Runs your code for every Instance with a CollectionService tag, existing ones and new ones, and
-cleans up when the tag goes away. Great for world UI like nameplates or shop prompts.
+cleans up when the tag goes away. Use it for world UI like nameplates or shop prompts.
 
 - **Example**
 

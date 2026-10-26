@@ -1,6 +1,6 @@
-[Docs](../README.md) › [API](../API.md) › **Built-in Components**
+[Docs](../README.md) › [API](../API.md) › **Built-in components**
 
-# Built-in Components
+# Built-in components
 
 **Learn it:** [Guide 7: Effects and animation](../guide/07-effects-and-animation.md) · [Guide 9: Performance and debugging](../guide/09-performance-and-debugging.md)
 
@@ -125,7 +125,7 @@ element you toggle, and describe its hidden state with `from`.
 
 ## TransitionGroup
 
-Transition for lists: each keyed item animates in when it's added and out when it's removed. Good
+Transition for lists: each keyed item animates in when it's added and out when it's removed. Use it
 for notifications, chat messages and inventories.
 
 - **Example**
@@ -451,4 +451,4 @@ Shows a 3D model in the UI, framed by a camera that fits it. For shop and invent
 
 ---
 
-[← Lifecycle Hooks](lifecycle.md) · [API reference](../API.md) · [Directives →](directives.md)
+[← Lifecycle hooks](lifecycle.md) · [API reference](../API.md) · [Directives →](directives.md)

@@ -40,7 +40,7 @@ Tells you whether a value is a ref (computeds count).
 
 ## unref()
 
-Gives you the value whether you have a ref or a plain value. Handy in functions that accept either.
+Gives you the value whether you have a ref or a plain value. Use it in functions that accept either.
 
 - **Example**
 
@@ -109,8 +109,8 @@ pass a single prop or field to a composable that expects a ref.
 
 ## toValue()
 
-Gives you the value from a plain value, a ref or a getter function. The friendliest way for a
-composable to accept "anything that holds a value".
+Gives you the value from a plain value, a ref or a getter function. Composables use it to accept any
+of the three.
 
 - **Example**
 
@@ -259,4 +259,4 @@ Tells you whether a table is a readonly view.
 
 ---
 
-[← Reactivity: Core](reactivity-core.md) · [API reference](../API.md) · [Array Helpers →](array.md)
+[← Reactivity: Core](reactivity-core.md) · [API reference](../API.md) · [Array helpers →](array.md)

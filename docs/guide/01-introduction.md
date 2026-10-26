@@ -23,7 +23,7 @@ flowchart LR
     I -. "player clicks,<br/>server data" .-> S
 ```
 
-So you never write `label.Text = ...`. You change state, and the UI follows.
+So you never write `label.Text = ...` yourself.
 
 ## Your first component
 
@@ -62,7 +62,7 @@ local Counter = Rivue.defineComponent({
 Rivue.createApp(Counter):mountToPlayerGui(Players.LocalPlayer)
 ```
 
-Press Play and click the button: the text updates, and you never touched the TextButton.
+Press Play and click the button: the text updates.
 
 ## The two halves of a component
 

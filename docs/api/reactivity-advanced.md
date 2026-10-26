@@ -81,7 +81,7 @@ without replacing `.value`.
 
 ## customRef()
 
-Builds a ref with your own rules for when it updates. The classic use is a debounced value that only
+Builds a ref with your own rules for when it updates. A common use is a debounced value that only
 updates after the player stops typing.
 
 - **Example**
@@ -412,4 +412,4 @@ makes it the composable-friendly version of `onUnmounted`.
 
 ---
 
-[← Array Helpers](array.md) · [API reference](../API.md) · [Render Function →](render-function.md)
+[← Array helpers](array.md) · [API reference](../API.md) · [Render function →](render-function.md)

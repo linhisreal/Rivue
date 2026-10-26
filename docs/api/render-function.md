@@ -1,6 +1,6 @@
-[Docs](../README.md) › [API](../API.md) › **Render Function**
+[Docs](../README.md) › [API](../API.md) › **Render function**
 
-# Render Function
+# Render function
 
 **Learn it:** [Guide 3: Describing UI](../guide/03-describing-ui.md) · [Guide 6: Styling and layout](../guide/06-styling-and-layout.md)
 
@@ -408,8 +408,8 @@ code.
 
 ## Function components
 
-The lightest kind of component: just a function from props to UI, with no state and no hooks. Good
-for small display pieces like a badge or an icon.
+A function from props to UI, with no state and no hooks. Use one for small display pieces like a
+badge or an icon.
 
 - **Example**
 

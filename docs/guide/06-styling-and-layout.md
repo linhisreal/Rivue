@@ -104,7 +104,9 @@ h("Frame", { class = "panel", layout = { gap = 8 } }, { -- vertical list, 8 px a
 You can still add a `UIListLayout` or `UIGridLayout` child yourself when you need a property
 `layout` doesn't cover. Rivue keeps `LayoutOrder` in render order either way.
 
-## Different devices
+## Input type, screen size and safe area
+
+For decisions a style class can't make, read the input type, screen size and safe area in render:
 
 ```lua
 setup = function()

@@ -1,6 +1,6 @@
-[Docs](../README.md) › [API](../API.md) › **Utilities and Debugging**
+[Docs](../README.md) › [API](../API.md) › **Utilities and debugging**
 
-# Utilities and Debugging
+# Utilities and debugging
 
 **Learn it:** [Guide 9: Performance and debugging](../guide/09-performance-and-debugging.md)
 
@@ -674,4 +674,4 @@ Exported types, available as `Rivue.<Name>` in type annotations.
 
 ---
 
-[← Instance Pool](pool.md) · [API reference](../API.md)
+[← Instance pool](pool.md) · [API reference](../API.md)

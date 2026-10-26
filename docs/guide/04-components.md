@@ -68,7 +68,8 @@ local Inventory = Rivue.defineComponent({
   missing or has the wrong type. Types can be Luau types (`"number"`) or Roblox ones (`"UDim2"`).
 - **`emits`** declares events. `ctx.emit("select", id)` calls the parent's `onSelect(id)`.
 - **Undeclared props** (`Position`, `LayoutOrder`, `class`, ...) are passed on to the component's
-  root element, so `h("ItemRow", { item = item, LayoutOrder = 3 })` just works.
+  root element, so `LayoutOrder = 3` in `h("ItemRow", { item = item, LayoutOrder = 3 })` ends up on
+  the row's root.
 - **Typed props:** annotate setup's parameter, `setup = function(props: Props, ctx)`, to get
   autocomplete and type errors on typos.
 

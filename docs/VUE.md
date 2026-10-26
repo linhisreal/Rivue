@@ -1,6 +1,6 @@
 [Docs](README.md) › **Rivue for Vue developers**
 
-# Rivue for Vue Developers
+# Rivue for Vue developers
 
 Rivue implements Vue 3's runtime (reactivity, components, the virtual DOM) in Luau. There's no
 template compiler, so you write what Vue templates compile to: render functions with `h()`.
@@ -139,9 +139,6 @@ local Counter = Rivue.defineComponent({
 - **Event names** follow Roblox: `onClick` maps to `Activated`, and `onX` connects event `X` or
   the changed signal of property `X`.
 - **No SSR or hydration.** Rivue runs on the client.
-- **Roblox extras** with no Vue equivalent:
-  - `VirtualList`,
-  - `useTween`/`useSpring`,
-  - `useViewportSize`, `useInputType`, `useSafeArea`, `useSelection`,
-  - `attributeRef`, `useTag`,
-  - the Instance pool.
+- **Roblox extras** with no Vue equivalent: `VirtualList`, `useTween` and `useSpring`,
+  `useViewportSize`, `useInputType`, `useSafeArea`, `useSelection`, `attributeRef`, `useTag` and
+  the Instance pool.

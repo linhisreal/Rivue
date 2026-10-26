@@ -1,6 +1,6 @@
-[Docs](../README.md) › [API](../API.md) › **Lifecycle Hooks**
+[Docs](../README.md) › [API](../API.md) › **Lifecycle hooks**
 
-# Lifecycle Hooks
+# Lifecycle hooks
 
 **Learn it:** [Guide 4: Components](../guide/04-components.md) · [Guide 7: Effects and animation](../guide/07-effects-and-animation.md)
 
@@ -445,8 +445,7 @@ what it depends on.
 
 ## onRenderTriggered()
 
-A debugging hook that tells you which change made the component re-render. The answer to "why did
-this render again?".
+A debugging hook that tells you which change made the component re-render.
 
 - **Example**
 
@@ -521,4 +520,4 @@ sound when a panel finishes opening.
 
 ---
 
-[← Components](component.md) · [API reference](../API.md) · [Built-in Components →](builtins.md)
+[← Components](component.md) · [API reference](../API.md) · [Built-in components →](builtins.md)

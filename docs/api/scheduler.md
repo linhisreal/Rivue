@@ -131,4 +131,4 @@ The order in which work runs after you change state.
 
 ---
 
-[← Application](application.md) · [API reference](../API.md) · [Roblox Composables →](roblox.md)
+[← Application](application.md) · [API reference](../API.md) · [Roblox composables →](roblox.md)

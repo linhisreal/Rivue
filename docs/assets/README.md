@@ -1,10 +1,10 @@
-[Docs](../README.md) › **Rivue Guide logo**
+[Docs](../README.md) › **Logos**
 
-# Rivue Guide logo
+# Rivue logos
 
-The mark for Rivue's documentation. It's a sibling of the [Rivue icon](../../assets/icon.svg):
-the same tilted Studio-blue tile, with the V drawn as the pages of an open book and the mint V as
-the spread inside.
+The Rivue icon is the main mark, used at the top of the README. The Guide's mark, for the
+documentation, is a sibling of it: the same tilted Studio-blue tile, with the V drawn as the pages
+of an open book and the mint V as the spread inside.
 
 <img src="./guide-lockup.svg" height="64" alt="Rivue Guide">
 
@@ -12,6 +12,7 @@ the spread inside.
 
 | File | Use it for |
 |---|---|
+| [icon.svg](icon.svg) · [icon.png](icon.png) | the Rivue icon |
 | [guide-icon.svg](guide-icon.svg) · [guide-icon.png](guide-icon.png) (512 px) | the symbol on its own, 33 px and up |
 | [guide-icon-small.svg](guide-icon-small.svg) | 32 px and below: wider spine gap, heavier inner V |
 | [guide-lockup.svg](guide-lockup.svg) | symbol and name, on light backgrounds |

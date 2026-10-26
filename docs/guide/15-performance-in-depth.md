@@ -8,8 +8,8 @@ basics in [chapter 9](09-performance-and-debugging.md#performance).
 ## Where the time goes
 
 A state change costs the render functions that read it, plus a diff against the Instances.
-Rivue only writes properties that changed, so engine calls stay small. What you control is
-**how often renders run and how big they are.**
+Rivue only writes properties that changed, so engine calls stay small. What you control is how
+often renders run and how big they are.
 
 ## Keep fast-changing reads small
 

@@ -1,6 +1,6 @@
 [Docs](README.md) › **API reference**
 
-# API Reference
+# API reference
 
 Everything on the module returned by `require(game.ReplicatedStorage.Rivue)`. Each entry has its
 type, details and an example. New to Rivue? Start with the [Guide](GUIDE.md). Coming from Vue?
@@ -30,7 +30,7 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [isReactive()](api/reactivity-utilities.md#isreactive) ·
 [isReadonly()](api/reactivity-utilities.md#isreadonly)
 
-**[Array Helpers](api/array.md)**
+**[Array helpers](api/array.md)**
 [push()](api/array.md#arraypush) ·
 [insert()](api/array.md#arrayinsert) ·
 [remove()](api/array.md#arrayremove) ·
@@ -58,9 +58,9 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [getCurrentScope()](api/reactivity-advanced.md#getcurrentscope) ·
 [onScopeDispose()](api/reactivity-advanced.md#onscopedispose)
 
-## Components and Rendering
+## Components and rendering
 
-**[Render Function](api/render-function.md)**
+**[Render function](api/render-function.md)**
 [h()](api/render-function.md#h) ·
 [Element props](api/render-function.md#element-props) ·
 [Fragment](api/render-function.md#fragment) ·
@@ -94,7 +94,7 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [getCurrentInstance()](api/component.md#getcurrentinstance) ·
 [defineAsyncComponent()](api/component.md#defineasynccomponent)
 
-**[Lifecycle Hooks](api/lifecycle.md)**
+**[Lifecycle hooks](api/lifecycle.md)**
 [onMounted()](api/lifecycle.md#onmounted) ·
 [onUpdated()](api/lifecycle.md#onupdated) ·
 [onUnmounted()](api/lifecycle.md#onunmounted) ·
@@ -108,7 +108,7 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [onRenderTriggered()](api/lifecycle.md#onrendertriggered) ·
 [onTransition()](api/lifecycle.md#ontransition)
 
-**[Built-in Components](api/builtins.md)**
+**[Built-in components](api/builtins.md)**
 [Transition](api/builtins.md#transition) ·
 [TransitionGroup](api/builtins.md#transitiongroup) ·
 [KeepAlive](api/builtins.md#keepalive) ·
@@ -155,7 +155,7 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 
 ## Roblox
 
-**[Roblox Composables](api/roblox.md)**
+**[Roblox composables](api/roblox.md)**
 [useViewportSize()](api/roblox.md#useviewportsize) ·
 [useDevice()](api/roblox.md#usedevice) ·
 [useKeybind()](api/roblox.md#usekeybind) ·
@@ -181,7 +181,7 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [on()](api/remote.md#remoteon) ·
 [Payloads and errors](api/remote.md#payloads-and-errors)
 
-**[Instance Pool](api/pool.md)**
+**[Instance pool](api/pool.md)**
 [configure()](api/pool.md#poolconfigure) ·
 [warmup()](api/pool.md#poolwarmup) ·
 [acquire()](api/pool.md#poolacquire--poolacquiremultiple) ·
@@ -195,7 +195,7 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 
 ## Utilities
 
-**[Utilities and Debugging](api/utilities.md)**
+**[Utilities and debugging](api/utilities.md)**
 [Rivue.dev](api/utilities.md#rivuedev) ·
 [Rivue.version](api/utilities.md#rivueversion) ·
 [printTree()](api/utilities.md#printtree) ·

@@ -2,8 +2,8 @@
 
 # 11. Style rules
 
-**You'll learn:** the habits that keep Rivue code bug-free and easy to read, each with the reason
-behind it. The first group prevents real bugs; the second keeps a growing project readable.
+**You'll learn:** habits for writing Rivue code, each with the reason behind it. The first group
+prevents real bugs; the second keeps a growing project readable.
 
 ## At a glance
 
@@ -229,8 +229,8 @@ h("TextBox", { model = "draft", vFocus = true })
 
 ---
 
-**That's the core of Rivue.** Keep the [API reference](../API.md) open while you build, and
-browse the [examples](../../examples) when you want to see a feature in a real component. Chapters
-12–16 go further: reusable composables, bigger apps, performance and testing.
+Chapters 1 to 11 cover the core of Rivue. Keep the [API reference](../API.md) open while you
+build, and browse the [examples](../../examples) to see a feature in a real component. Chapters
+12–16 cover reusable composables, bigger apps, performance and testing.
 
 [← 10. Organising a project](10-organising-a-project.md) · [Guide contents](../GUIDE.md) · [12. Writing composables →](12-writing-composables.md)

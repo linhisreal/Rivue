@@ -166,8 +166,7 @@ they're shown.
 
 ## vFadeIn
 
-Fades an element and everything inside it in from fully transparent, once it's on screen. A quick
-way to soften a screen appearing.
+Fades an element and everything inside it in from fully transparent, once it's on screen.
 
 - **Example**
 
@@ -331,4 +330,4 @@ property changes.
 
 ---
 
-[← Built-in Components](builtins.md) · [API reference](../API.md) · [Application →](application.md)
+[← Built-in components](builtins.md) · [API reference](../API.md) · [Application →](application.md)

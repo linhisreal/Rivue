@@ -32,10 +32,9 @@ the renderer sets on component instances (`_keepAliveRenderer`).
 
 ## Reactivity
 
-- **Proxies.** `reactive(t)` returns an empty table whose metatable forwards to the raw table:
-  - `__index` tracks the read,
-  - `__newindex` triggers on change,
-  - `__iter` and `__len` track structural changes.
+- **Proxies.** `reactive(t)` returns an empty table whose metatable forwards to the raw table.
+  `__index` tracks the read, `__newindex` triggers on change, and `__iter` and `__len` track
+  structural changes.
 
   Raw tables, proxies and markers are kept in weak-keyed maps, so proxies are cached per table
   and garbage collected with it.
@@ -116,12 +115,8 @@ When an element is patched, its state moves from the old vnode to the new one.
 The outermost `patch` call sets a flag and flushes the **post queue** when it returns. Mounting
 an element sets props, mounts the children into the still-detached Instance, and only then sets
 `Parent`. Work that needs the tree in the DataModel is queued and runs after the whole patch,
-children before parents:
-- `onMounted`,
-- directive `mounted`,
-- component template refs,
-- `onActivated`,
-- enter tweens.
+children before parents: `onMounted`, directive `mounted`, component template refs, `onActivated`
+and enter tweens.
 
 ### Elements
 
@@ -212,10 +207,9 @@ Test suites live in `tests/*.test.luau`. Each one returns a function, or a table
 - **Studio**: `dev/client/TestRunner.client.luau` runs every suite.
 - **Offline**: `lune run test` bundles each suite with `tests/offline/prelude.luau` and runs it
   in its own Lune environment (`.lune/lib/bundle.luau`, `.lune/lib/run.luau`). The prelude
-  provides:
-  - stub Instances (userdata with property signals),
-  - virtual time, where `task.wait` and frame signals advance a fake clock,
-  - TweenService, GuiService, Players and CollectionService.
+  provides stub Instances (userdata with property signals), virtual time where `task.wait` and
+  frame signals advance a fake clock, and stand-ins for TweenService, GuiService, Players and
+  CollectionService.
 
   Only the parts of the engine the runtime uses are stubbed. Extend the prelude when a test needs
   more.
