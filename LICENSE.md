@@ -2,11 +2,6 @@
   <a href="https://polyformproject.org/licenses/noncommercial/1.0.0"><img src="docs/assets/polyform-logo.png" height="72" alt="PolyForm"></a>
 </p>
 
-<p align="center">
-  <a href="https://polyformproject.org/licenses/noncommercial/1.0.0"><img src="https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-blue.svg" alt="PolyForm Noncommercial 1.0.0"></a>
-  <img src="https://img.shields.io/badge/games-may%20monetize-2fbf8f.svg" alt="Games may monetize">
-</p>
-
 # Rivue license
 
 Copyright (c) 2025-2026 linhisreal (ThisisLinh)
