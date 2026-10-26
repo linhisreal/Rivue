@@ -206,6 +206,31 @@ directives.register("drag", {
 	end,
 })
 
+-- Used by model with modelModifiers = { lazy = true }: the value is the commit function
+directives.register("model-lazy", {
+	mounted = function(el, commit)
+		local state = { commit = commit, conn = nil :: RBXScriptConnection? }
+		if el:IsA("TextBox") then
+			local box = el
+			state.conn = box.FocusLost:Connect(function()
+				state.commit(box.Text)
+			end)
+		end
+		return state
+	end,
+	updated = function(_el, commit, state)
+		if state then
+			state.commit = commit
+		end
+		return state
+	end,
+	unmounted = function(_el, state)
+		if state and state.conn then
+			state.conn:Disconnect()
+		end
+	end,
+})
+
 directives.register("show", {
 	mounted = function(el, value)
 		if el:IsA("GuiObject") then

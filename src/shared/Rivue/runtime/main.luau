@@ -136,7 +136,6 @@ Rivue.h = hModule.h
 Rivue.Fragment = hModule.Fragment
 Rivue.hIf = hModule.hIf
 Rivue.hFor = hModule.hFor
-Rivue.hForParallel = hModule.hForParallel
 Rivue.mergeProps = hModule.mergeProps
 Rivue.cloneVNode = hModule.cloneVNode
 Rivue.isVNode = hModule.isVNode
@@ -220,6 +219,7 @@ Rivue.defineAsyncComponent = builtins.defineAsyncComponent
 Rivue.useAttrs = composables.useAttrs
 Rivue.useSlots = composables.useSlots
 Rivue.defineModel = composables.defineModel
+Rivue.useModel = composables.useModel
 Rivue.useTheme = composables.useTheme
 Rivue.useStyles = composables.useStyles
 

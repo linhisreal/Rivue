@@ -23,7 +23,6 @@ All examples assume `local Rivue = require(game.ReplicatedStorage.Rivue)`.
 - [utils.shallowEqual()](#utilsshallowequal)
 - [utils.profiler](#utilsprofiler)
 - [iterArray()](#iterarray)
-- [hForParallel()](#hforparallel)
 - [testing.trigger()](#testingtrigger)
 - [Types](#types)
 
@@ -454,38 +453,6 @@ Loops over a reactive list like `ipairs` would, which plain `ipairs` can't do wi
 
   ```lua
   function iterArray<T>(array: { T }): () -> (number?, T?)
-  ```
-
----
-
-## hForParallel()
-
-**Deprecated.** Use [`hFor()`](render-function.md#hfor) and set `key` in the mapper. It's still
-here so existing code keeps working, and warns once in Studio.
-
-- **Example**
-
-  ```lua
-  local h = Rivue.h
-  local items = { { id = 1, name = "Sword" } }
-
-  -- Before
-  Rivue.hForParallel(items, function(item)
-  	return h("TextLabel", { Text = item.name })
-  end, function(item)
-  	return item.id
-  end)
-
-  -- After
-  Rivue.hFor(items, function(item)
-  	return h("TextLabel", { key = item.id, Text = item.name })
-  end)
-  ```
-
-- **Type**
-
-  ```lua
-  function hForParallel<T>(items: { T }, mapper: (item: T, index: number) -> VNode?, keyFn: ((item: T) -> unknown)?): { VNode }
   ```
 
 ---

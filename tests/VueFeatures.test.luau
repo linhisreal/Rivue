@@ -25,6 +25,15 @@ local function assertTrue(condition: boolean, message: string?)
 	print("✓", message or "Assertion passed")
 end
 
+local function findIn(root: Instance, name: string): any
+	for _, child in root:GetDescendants() do
+		if child.Name == name then
+			return child
+		end
+	end
+	return nil
+end
+
 local function runTests()
 	print("\n========== VUE FEATURES TEST SUITE ==========\n")
 
@@ -237,6 +246,114 @@ local function runTests()
 		assertEquals(label.Text, "after", "DOM is updated after nextTick()")
 		app:unmount()
 		container:Destroy()
+	end
+
+	print("model modifiers: trim, number, lazy")
+	do
+		local name = Rivue.ref("")
+		local amount = Rivue.ref(0)
+		local draft = Rivue.ref("")
+		local Form = Rivue.defineComponent({
+			name = "ModelModifiers",
+			setup = function()
+				return { name = name, amount = amount, draft = draft }
+			end,
+			render = function()
+				return Rivue.h("Frame", nil, {
+					Rivue.h("TextBox", { Name = "Name", model = "name", modelModifiers = { trim = true } }),
+					Rivue.h("TextBox", { Name = "Amount", model = "amount", modelModifiers = { number = true } }),
+					Rivue.h("TextBox", { Name = "Draft", model = "draft", modelModifiers = { lazy = true } }),
+				})
+			end,
+		})
+		local container = Instance.new("Folder")
+		local app = Rivue.createApp(Form)
+		app:mount(container)
+		local function find(n: string): TextBox
+			return findIn(container, n)
+		end
+		find("Name").Text = "  Ada  "
+		assertEquals(name.value, "Ada", "trim strips whitespace")
+		find("Amount").Text = "42"
+		assertEquals(amount.value, 42, "number converts to a number")
+		find("Amount").Text = "4x"
+		assertEquals(amount.value, "4x", "number keeps text that isn't a number")
+		Rivue.nextTick()
+		assertEquals(find("Amount").Text, "4x", "the box shows the model value")
+		find("Draft").Text = "Sword"
+		assertEquals(draft.value, "", "lazy doesn't update while typing")
+		if __OFFLINE then
+			(find("Draft").FocusLost :: any):Fire(false)
+			assertEquals(draft.value, "Sword", "lazy updates when focus is lost")
+		end
+		draft.value = "Shield"
+		Rivue.nextTick()
+		assertEquals(find("Draft").Text, "Shield", "lazy box follows the model")
+		app:unmount()
+	end
+
+	print("vOnce renders once")
+	do
+		local count = Rivue.ref(1)
+		local Once = Rivue.defineComponent({
+			name = "Once",
+			render = function()
+				return Rivue.h("Frame", nil, {
+					Rivue.h("TextLabel", { Name = "Static", Text = tostring(count.value), vOnce = true }),
+					Rivue.h("TextLabel", { Name = "Live", Text = tostring(count.value) }),
+				})
+			end,
+		})
+		local container = Instance.new("Folder")
+		local app = Rivue.createApp(Once)
+		app:mount(container)
+		count.value = 2
+		Rivue.nextTick()
+		assertEquals(findIn(container, "Static").Text, "1", "vOnce element keeps its first render")
+		assertEquals(findIn(container, "Live").Text, "2", "other elements update")
+		app:unmount()
+	end
+
+	print("useModel binds a component's model")
+	do
+		local Toggle = Rivue.defineComponent({
+			name = "UseModelToggle",
+			props = { modelValue = { type = "boolean", default = false } },
+			setup = function(props, ctx)
+				local on = Rivue.useModel(props, ctx)
+				return {
+					on = on,
+					flip = function()
+						on.value = not on.value
+					end,
+				}
+			end,
+			render = function(ctx)
+				return Rivue.h(
+					"TextButton",
+					{ Name = "Toggle", Text = if ctx.on then "on" else "off", onClick = ctx.flip }
+				)
+			end,
+		})
+		local music = Rivue.ref(false)
+		local Parent = Rivue.defineComponent({
+			name = "UseModelParent",
+			setup = function()
+				return { music = music }
+			end,
+			render = function()
+				return Rivue.h(Toggle, { model = "music" })
+			end,
+		})
+		local container = Instance.new("Folder")
+		local app = Rivue.createApp(Parent)
+		app:mount(container)
+		local button = findIn(container, "Toggle") :: TextButton
+		Rivue.testing.trigger(button, "onClick")
+		assertEquals(music.value, true, "useModel writes back to the parent's ref")
+		Rivue.nextTick()
+		assertEquals(button.Text, "on", "child re-renders with the new value")
+		app:unmount()
 	end
 
 	print("\n========== VUE FEATURES TESTS COMPLETE ==========\n")

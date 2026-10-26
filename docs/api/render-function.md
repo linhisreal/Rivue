@@ -107,9 +107,11 @@ Everything you can put in an element's props table, and what Rivue does with it.
 | `ref` | A `Ref`, a function, or a string name. See [Template refs](component.md#usetemplateref) |
 | `vName = value` | A [directive](directives.md): `vShow`, `vFocus`, `vClickOutside`, `vSelect`, `vDrag`, ... |
 | `model = ref \| "name"` | Two-way `Text` binding on a TextBox. A string names a ref returned by `setup()` (for [`render(ctx)`](component.md#render)) |
+| `modelModifiers = { trim, number, lazy }` | With `model`: `trim` strips spaces, `number` stores a number when the text is one, `lazy` updates the ref when the box loses focus instead of on every key |
 | `class = "a" \| { "a", "b" } \| { a = bool }` | Applies named styles from the component's [`styles`](component.md#styles) and [`app:styles()`](application.md#appstyles). See below |
 | `style = table \| { tables }` | Prop tables merged under the element's own props. `false`/`nil` entries are skipped |
 | `memo = { deps }` | Skips patching this element and its children while every dep is `==` |
+| `vOnce = true` | Renders the element and its children once, then never patches them again |
 | `transition` | Enter/leave tween config, see [Transition](builtins.md#transition) |
 | `cornerRadius` | Creates a `UICorner` (number of pixels, or a UDim) |
 | `padding` | Creates a `UIPadding`: a number/UDim for all sides, `{ top, right, bottom, left }`, or `{ x, y }` |

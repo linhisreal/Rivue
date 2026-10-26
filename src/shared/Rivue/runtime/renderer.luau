@@ -1179,22 +1179,6 @@ local function unmountVNode(vnode: RenderVNode?, poolOpt: PoolOptions?, doRemove
 	end
 end
 
---- @deprecated Renders synchronously, use hFor() children instead
-local function patchChildrenParallel<T>(
-	items: { T },
-	renderFn: (item: T, index: number) -> VNode?,
-	parent: Instance,
-	poolOpt: PoolOptions?,
-	_threshold: number?
-)
-	for i = 1, #items do
-		local vnode = renderFn(items[i], i)
-		if vnode then
-			patch(nil, vnode, parent, poolOpt)
-		end
-	end
-end
-
 local function patchKeyedChildren(
 	oldChildren: { Child }?,
 	newChildren: { Child }?,
@@ -2177,5 +2161,4 @@ return {
 	patch = patch,
 	formatTree = formatTree,
 	unmountVNode = unmountVNode,
-	patchChildrenParallel = patchChildrenParallel,
 }

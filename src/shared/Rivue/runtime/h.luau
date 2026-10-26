@@ -122,6 +122,16 @@ local function expandProps(isElement: boolean, props: Props): Props
 		out = merged
 	end
 
+	if props.vOnce ~= nil then
+		local target: Props = out or table.clone(props)
+		out = target
+		-- An empty memo list always equals the last one, so the subtree is never patched again
+		if target.vOnce then
+			target.memo = {}
+		end
+		target.vOnce = nil
+	end
+
 	local model = props.model
 	if model ~= nil then
 		local target: Props = out or table.clone(props)
@@ -138,13 +148,31 @@ local function expandProps(isElement: boolean, props: Props): Props
 		end
 		local r = model :: Types.Ref<any>
 		if isElement then
-			-- Two-way Text binding, keeps any onTextChanged of its own
-			local own = target.onTextChanged
-			target.Text = r.value
-			target.onTextChanged = function(text: string)
-				r.value = text
-				if own then
-					own(text)
+			local modifiers = target.modelModifiers
+			target.modelModifiers = nil
+			local trim = type(modifiers) == "table" and modifiers.trim == true
+			local number = type(modifiers) == "table" and modifiers.number == true
+			local function commit(text: string)
+				local value: any = if trim then string.match(text, "^%s*(.-)%s*$") else text
+				if number then
+					value = tonumber(value) or value
+				end
+				r.value = value
+			end
+			target.Text = if r.value == nil then "" else tostring(r.value)
+			if type(modifiers) == "table" and modifiers.lazy == true then
+				-- Lazy leaves Text uncontrolled while typing and commits on FocusLost
+				local list = if type(target.__directives) == "table" then target.__directives else {}
+				table.insert(list, { name = "model-lazy", value = commit })
+				target.__directives = list
+			else
+				-- Two-way Text binding, keeps any onTextChanged of its own
+				local own = target.onTextChanged
+				target.onTextChanged = function(text: string)
+					commit(text)
+					if own then
+						own(text)
+					end
 				end
 			end
 		else
@@ -197,7 +225,7 @@ local function h(type_: VNodeType, propsIn: Props?, children: Types.Children?): 
 		end
 	end
 	local props: Props = propsIn or {}
-	if propsIn and (props.style ~= nil or props.model ~= nil or type(type_) == "string") then
+	if propsIn and (props.style ~= nil or props.model ~= nil or props.vOnce ~= nil or type(type_) == "string") then
 		props = expandProps(type(type_) == "string", props)
 	end
 	local ch: { Child }
@@ -319,39 +347,6 @@ local function hFor<T>(list: { T }, mapper: (item: T, index: number) -> VNode?):
 	return out
 end
 
-local warnedParallel = false
-
---- @deprecated Use hFor() and set `key` in the mapper. Kept so existing code keeps working.
-local function hForParallel<T>(
-	items: { T },
-	mapper: (item: T, index: number) -> VNode?,
-	keyFn: ((item: T) -> unknown)?
-): { VNode }
-	if IS_STUDIO and not warnedParallel then
-		warnedParallel = true
-		warn("[Rivue] hForParallel() is deprecated, use hFor() and set `key` in the mapper")
-	end
-
-	local count = #items
-	if debugModule.enabled then
-		debugModule.log("H", "Rendering large list with hForParallel", { itemCount = count, hasKeyFn = keyFn ~= nil })
-	end
-
-	local out: { VNode } = table.create(count)
-	for i = 1, count do
-		local item = items[i]
-		local vnode = mapper(item, i)
-		if vnode then
-			if keyFn then
-				vnode.key = keyFn(item)
-			end
-			table.insert(out, vnode)
-		end
-	end
-
-	return out
-end
-
 return {
 	h = h,
 	Fragment = Fragment,
@@ -360,5 +355,4 @@ return {
 	isVNode = isVNode,
 	hIf = hIf,
 	hFor = hFor,
-	hForParallel = hForParallel,
 }
