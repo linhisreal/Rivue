@@ -45,6 +45,9 @@ jobs:
           rojo build "$RUNNER_TEMP/unpacked" -o "$RUNNER_TEMP/from-wally.rbxm"
           ! test -e "$RUNNER_TEMP/unpacked/tests"
 
+      - name: pesde install
+        run: pesde install
+
       - name: pesde publish (dry run)
         working-directory: packages/${{ matrix.package }}
         run: pesde publish --dry-run --yes
