@@ -7,16 +7,18 @@ run in a real Roblox server.
 
 ## A GitHub release
 
-Write the release notes first, in `.github/release-notes/<tag>.md` (say `pre-v2.57.md`), and push
-them. Then open **Actions → Release → Run workflow** and type the tag. Anything starting with
-`pre-` is published as a pre-release.
+A GitHub release covers the whole repo, so it has its own number, separate from the packages':
+`v2.58.4` for a release, `pre-v2.58.4a` for a pre-release. Write the release notes first, in
+`.github/release-notes/<tag>.md`, listing each package's version in it, and push them. Then open
+**Actions → Release → Run workflow** and type the tag. Anything starting with `pre-` is published
+as a pre-release.
 
 The workflow runs the tests, builds the files, creates the tag on the current `main` and attaches
 the files to the release:
 
 ```mermaid
 flowchart LR
-    T["tag pre-v2.57"] --> W["Release workflow<br/>test, build"]
+    T["tag pre-v2.58.4a"] --> W["Release workflow<br/>test, build"]
     W --> R1["Rivue.rbxm<br/>Rivue.min.rbxm"]
     W --> R2["RivueRemote.rbxm"]
     W --> R4["RivueRouter.rbxm"]
@@ -25,14 +27,17 @@ flowchart LR
 
 ## Packages
 
-Every folder in `packages/` is published on its own, and they all share one version number:
+Every folder in `packages/` is published on its own, with its own version. A package moves on
+when it's ready, without waiting for the others. Where each one stands:
 
-| Folder | Wally | pesde | Release file |
-|---|---|---|---|
-| `packages/rivue` | `linhisreal/rivue` | `linhisreal/rivue` | `Rivue.rbxm`, `Rivue.min.rbxm` |
-| `packages/rivue-remote` | `linhisreal/rivue-remote` | `linhisreal/rivue_remote` | `RivueRemote.rbxm` |
-| `packages/rivue-router` | `linhisreal/rivue-router` | `linhisreal/rivue_router` | `RivueRouter.rbxm` |
-| `packages/rivue-devtools` | — | — | `RivueDevTools.rbxm` (a Studio plugin) |
+| Folder | Stage | Wally | pesde | Release file |
+|---|---|---|---|---|
+| `packages/rivue` | release candidate | `linhisreal/rivue` | `linhisreal/rivue` | `Rivue.rbxm`, `Rivue.min.rbxm` |
+| `packages/rivue-remote` | beta | `linhisreal/rivue-remote` | `linhisreal/rivue_remote` | `RivueRemote.rbxm` |
+| `packages/rivue-router` | beta | `linhisreal/rivue-router` | `linhisreal/rivue_router` | `RivueRouter.rbxm` |
+| `packages/rivue-devtools` | follows Rivue | — | — | `RivueDevTools.rbxm` (a Studio plugin) |
+
+The current versions are in each package's `wally.toml`.
 
 pesde names can't have dashes, hence the underscore in `rivue_remote`. Each package folder has its
 own `default.project.json`, `wally.toml`, `pesde.toml`, `README.md` and `LICENSE.md` (a copy of
@@ -41,11 +46,11 @@ so with Wally each package is published from its own folder.
 
 To publish:
 
-1. Bump the version everywhere with `lune run version 2.57.0` (manifests and lockfiles), and
-   commit.
+1. Bump the package you're publishing, for example `lune run version rivue-router 0.1.0-beta.2`.
+   That updates its manifests, its `version` field and its install line in the README. Commit.
 2. `rokit install` gets you Wally and pesde along with the other tools. Log in once with
    `wally login` and `pesde auth login`.
-3. Publish each package:
+3. Publish the packages you bumped:
 
    ```sh
    wally publish --project-path packages/rivue
@@ -56,7 +61,7 @@ To publish:
    cd packages/rivue-router && pesde publish && cd ../..
    ```
 
-You'll find out early if something's wrong: the **Packages** workflow packs both packages for both
+You'll find out early if something's wrong: the **Packages** workflow packs every package for both
 registries on every change, it just doesn't publish them.
 
 ## Docs site

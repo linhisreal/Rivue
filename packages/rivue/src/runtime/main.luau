@@ -337,8 +337,8 @@ Rivue.useGamepadFocus = robloxUtils.useGamepadFocus
 Rivue.useTween = robloxUtils.useTween
 Rivue.useSpring = robloxUtils.useSpring
 
--- Set by `lune run version`, same for every package
-Rivue.version = "2.57.0"
+-- Set by `lune run version rivue <version>`
+Rivue.version = "0.9.0-rc.1"
 
 --- A property value that follows `getter`: when what it reads changes, Rivue writes just that
 --- property, without re-rendering the component. A ref works the same way without bind()

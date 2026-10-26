@@ -94,9 +94,9 @@ Use whichever install you already use for other packages.
 
 ```toml
 [dependencies]
-Rivue = "linhisreal/rivue@2.57.0"
-RivueRemote = "linhisreal/rivue-remote@2.57.0" # optional, for client/server calls
-RivueRouter = "linhisreal/rivue-router@2.57.0" # optional, for screens and back/forward
+Rivue = "linhisreal/rivue@0.9.0-rc.1"
+RivueRemote = "linhisreal/rivue-remote@0.5.0-beta.1" # optional, for client/server calls
+RivueRouter = "linhisreal/rivue-router@0.1.0-beta.1" # optional, for screens and back/forward
 ```
 
 **With pesde**, run `pesde add linhisreal/rivue` (and `linhisreal/rivue_remote` or
@@ -136,7 +136,7 @@ lune setup                        # editor types for the Lune scripts
 lune run test                     # all suites, without Studio
 lune run check-docs               # links resolve and every API example runs
 lune run build                    # the packages and the dev place, into build/
-lune run version 2.57.0           # one version for every package
+lune run version rivue 0.9.0-rc.2 # bump one package
 rojo serve                        # the dev place in Studio
 ```
 
