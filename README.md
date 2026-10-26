@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/linhisreal/Rivue/actions/workflows/build.yml"><img src="https://github.com/linhisreal/Rivue/actions/workflows/build.yml/badge.svg" alt="CI"></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0-blue.svg" alt="License: GPL-3.0"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-blue.svg" alt="License: PolyForm Noncommercial 1.0.0"></a>
 </p>
 
 You write components that describe the UI for the current state. When the state changes,
@@ -137,4 +137,7 @@ tests/offline/       the Lune harness that runs tests outside Studio
 
 ## License
 
-[GPL-3.0](LICENSE)
+[PolyForm Noncommercial 1.0.0](LICENSE), with an extra permission for games. You can use, fork,
+port and change Rivue, closed source or open, as long as you keep the credit notice. You can't
+sell Rivue's code or use it commercially. Games built with Rivue may make money, if they credit
+it. See [LICENSE](LICENSE) for the exact terms.
