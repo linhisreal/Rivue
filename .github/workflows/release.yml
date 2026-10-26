@@ -1,9 +1,10 @@
 name: Release
 
-# Push a tag like v1.0.0 to publish a release with Rivue.rbxm and Rivue.min.rbxm attached
+# Push a tag like v2.56.0 to publish a release with Rivue.rbxm and Rivue.min.rbxm attached.
+# Tags starting with "pre-" (pre-v2.56) are published as pre-releases.
 on:
   push:
-    tags: ["v*"]
+    tags: ["v*", "pre-v*"]
 
 permissions:
   contents: write
@@ -29,3 +30,4 @@ jobs:
             build/Rivue.rbxm
             build/Rivue.min.rbxm
           generate_release_notes: true
+          prerelease: ${{ startsWith(github.ref_name, 'pre-') }}
