@@ -1,0 +1,31 @@
+name: Tests in Roblox
+
+# Runs the test suites in a real Roblox server through Open Cloud. Needs the ROBLOX_API_KEY
+# secret and the ROBLOX_UNIVERSE_ID and ROBLOX_PLACE_ID variables (see docs/RELEASING.md)
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["packages/**", "tests/**", "dev/**", "examples/**", ".lune/cloud-test.luau"]
+
+concurrency:
+  group: roblox-tests
+  cancel-in-progress: false
+
+jobs:
+  roblox:
+    if: vars.ROBLOX_UNIVERSE_ID != ''
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: CompeyDev/setup-rokit@v0.2.1
+        with:
+          cache: true
+
+      - name: Run the tests in Roblox
+        env:
+          ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
+          ROBLOX_UNIVERSE_ID: ${{ vars.ROBLOX_UNIVERSE_ID }}
+          ROBLOX_PLACE_ID: ${{ vars.ROBLOX_PLACE_ID }}
+        run: lune run cloud-test

@@ -52,3 +52,22 @@ by the **Docs site** workflow on every push that changes `docs/`. Turn it on onc
 npm install --no-save vitepress@1.6.4 vitepress-plugin-mermaid@2.0.17 mermaid@11
 npx vitepress dev docs
 ```
+
+## Tests in Roblox
+
+The **Tests in Roblox** workflow runs every suite in a real Roblox server, through Open Cloud's
+Luau Execution API, after `lune run test` has run them offline. Set it up once:
+
+1. Publish an empty, private experience (for example "Rivue CI") and note its universe and place
+   ids from the Creator Dashboard.
+2. Create an Open Cloud API key with **Luau Execution Session** (write) and **Universe Places**
+   (write), limited to that experience, with `0.0.0.0/0` as the allowed IP range and an expiry
+   date.
+3. In the repo's **Settings → Secrets and variables → Actions**, add the secret `ROBLOX_API_KEY`
+   and the variables `ROBLOX_UNIVERSE_ID` and `ROBLOX_PLACE_ID`. Never paste the key anywhere else.
+
+Until the variables exist, the workflow is skipped. To run it locally:
+`ROBLOX_API_KEY=... ROBLOX_UNIVERSE_ID=... ROBLOX_PLACE_ID=... lune run cloud-test`.
+
+The tests run on the server, without a `LocalPlayer`, and suites can check the `__CLOUD` global
+to skip what needs one.
