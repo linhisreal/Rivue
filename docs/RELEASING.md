@@ -10,22 +10,37 @@ For maintainers.
 2. Open **Actions → Release → Run workflow** and enter the tag. Tags starting with `pre-` become
    pre-releases.
 
-The workflow runs the tests, builds `Rivue.rbxm`, `Rivue.min.rbxm`, `RivueRemote.rbxm` and `RivueDevTools.rbxm`, creates
+The workflow runs the tests, builds the files in the table below, creates
 the tag on the current `main`, and attaches the files.
 
-## Wally
+## Packages
 
-`wally.toml` describes the package: the library in `src/shared/Rivue` and `default.project.json`,
-which Wally users' Rojo projects build into the `Rivue` ModuleScript. Everything else is excluded.
+The repo is a monorepo. Each folder in `packages/` is published on its own, all with the same
+version:
 
-1. Set `version` in `wally.toml` to the release's version (Wally needs plain SemVer, so
-   `pre-v2.57` is published as `2.57.0`).
-2. Install Wally (`rokit add UpliftGames/wally`) and log in once with `wally login`.
-3. Check what will be uploaded with `wally package --list`, then run `wally publish`.
+| Folder | Wally | pesde | Release file |
+|---|---|---|---|
+| `packages/rivue` | `linhisreal/rivue` | `linhisreal/rivue` | `Rivue.rbxm`, `Rivue.min.rbxm` |
+| `packages/rivue-remote` | `linhisreal/rivue-remote` | `linhisreal/rivue_remote` | `RivueRemote.rbxm` |
+| `packages/rivue-devtools` | — | — | `RivueDevTools.rbxm` (a Studio plugin) |
 
-After publishing, update the version in the README's Wally install line.
+Each package has its own `default.project.json`, `wally.toml`, `pesde.toml`, `README.md` and
+`LICENSE.md` (a copy of the root one). The root `pesde.toml` makes them a pesde workspace. Wally
+has no workspaces, so each package is published from its own folder.
 
-`RivueRemote` isn't on Wally: a package needs its own `wally.toml` at the root of a repository.
+1. Set the version everywhere: `lune run version 2.57.0`, then commit.
+2. Install the tools once: `rokit add UpliftGames/wally` and `rokit add pesde-pkg/pesde`, then log
+   in with `wally login` and `pesde auth login`.
+3. Publish each package:
+
+   ```sh
+   wally publish --project-path packages/rivue
+   wally publish --project-path packages/rivue-remote
+   cd packages/rivue && pesde publish && cd ../..
+   cd packages/rivue-remote && pesde publish && cd ../..
+   ```
+
+The **Packages** workflow checks both registries' packages on every change, without publishing.
 
 ## Docs site
 

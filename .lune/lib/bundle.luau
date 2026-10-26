@@ -48,15 +48,15 @@ export type Suite = { name: string, source: string }
 local function bundle(suites: { Suite }): string
 	local out = { fs.readFile("tests/offline/prelude.luau") }
 
-	local runtime = "src/shared/Rivue/runtime"
+	local runtime = "packages/rivue/src/runtime"
 	for _, file in luauFiles(runtime) do
 		defineModule(out, "runtimeFolder", moduleName(file), fs.readFile(`{runtime}/{file}`))
 	end
 
 	addFolder(out, "examples/components", "examplesFolder", "ReplicatedStorage", "Examples")
-	addFolder(out, "src/shared/Demo", "demoFolder", "ReplicatedStorage", "Demo")
-	defineModule(out, "nil", "Rivue", fs.readFile("src/shared/Rivue/Rivue.luau"))
-	defineModule(out, "ReplicatedStorage", "RivueRemote", fs.readFile("src/shared/RivueRemote.luau"))
+	addFolder(out, "dev/Demo", "demoFolder", "ReplicatedStorage", "Demo")
+	defineModule(out, "nil", "Rivue", fs.readFile("packages/rivue/src/init.luau"))
+	defineModule(out, "ReplicatedStorage", "RivueRemote", fs.readFile("packages/rivue-remote/src/init.luau"))
 
 	for _, suite in suites do
 		table.insert(out, `__runTest("{suite.name}", function(script)\n{suite.source}\nend)`)

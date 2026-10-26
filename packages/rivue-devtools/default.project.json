@@ -3,10 +3,10 @@
   "tree": {
     "$className": "Folder",
     "Rivue": {
-      "$path": "default.project.json"
+      "$path": "../rivue"
     },
     "Main": {
-      "$path": "src/plugin/Main.server.luau"
+      "$path": "src/Main.server.luau"
     }
   }
 }

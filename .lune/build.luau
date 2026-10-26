@@ -1,7 +1,7 @@
 --[[
 	Builds the distributables into build/.
 
-	lune run build              Rivue.rbxm, RivueRemote.rbxm, the test place and the examples place
+	lune run build              Rivue.rbxm, RivueRemote.rbxm, RivueDevTools.rbxm and the dev place
 	lune run build minify       also Rivue.min.rbxm: comments and whitespace stripped by darklua
 ]]
 
@@ -24,20 +24,16 @@ if fs.isDir(OUT) then
 end
 fs.writeDir(OUT)
 
-exec("rojo", { "build", "default.project.json", "-o", `{OUT}/Rivue.rbxm` })
-exec("rojo", { "build", "rivue-remote.project.json", "-o", `{OUT}/RivueRemote.rbxm` })
-exec("rojo", { "build", "plugin.project.json", "-o", `{OUT}/RivueDevTools.rbxm` })
-exec("rojo", { "build", "place.project.json", "-o", `{OUT}/RivueTestPlace.rbxl` })
-exec("rojo", { "build", "examples.project.json", "-o", `{OUT}/RivueExamples.rbxl` })
+exec("rojo", { "build", "packages/rivue", "-o", `{OUT}/Rivue.rbxm` })
+exec("rojo", { "build", "packages/rivue-remote", "-o", `{OUT}/RivueRemote.rbxm` })
+exec("rojo", { "build", "packages/rivue-devtools", "-o", `{OUT}/RivueDevTools.rbxm` })
+exec("rojo", { "build", "default.project.json", "-o", `{OUT}/RivueDevPlace.rbxl` })
 
 if table.find(process.args, "minify") then
 	local dir = `{OUT}/minified`
-	exec("darklua", { "process", "src/shared/Rivue", `{dir}/Rivue`, "--config", ".darklua.json" })
-	fs.writeFile(
-		`{dir}/rivue.project.json`,
-		[[{ "name": "Rivue", "tree": { "$path": "Rivue/Rivue.luau", "runtime": { "$path": "Rivue/runtime" } } }]]
-	)
-	exec("rojo", { "build", `{dir}/rivue.project.json`, "-o", `{OUT}/Rivue.min.rbxm` })
+	exec("darklua", { "process", "packages/rivue/src", `{dir}/src`, "--config", ".darklua.json" })
+	fs.writeFile(`{dir}/default.project.json`, [[{ "name": "Rivue", "tree": { "$path": "src" } }]])
+	exec("rojo", { "build", dir, "-o", `{OUT}/Rivue.min.rbxm` })
 end
 
 print(`Built into {OUT}/`)

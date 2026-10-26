@@ -1,5 +1,10 @@
 --!strict
--- Mounts the examples in one ScreenGui. Delete what you don't want to see.
+-- Mounts the examples in one ScreenGui.
+-- Opt in: set the attribute RivueExamples = true on Workspace before playing.
+
+if not workspace:GetAttribute("RivueExamples") then
+	return
+end
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")

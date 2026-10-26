@@ -80,27 +80,30 @@ package adds requests and events with rate limits.
 
 ## Installation
 
-Rivue is a ModuleScript with a `runtime` folder. Put it in `ReplicatedStorage`.
+Rivue is one ModuleScript (with a `runtime` folder inside). Put it in `ReplicatedStorage`.
 
-**With Wally**, add Rivue to your `wally.toml` and run `wally install`:
+**With Wally**, add it to your `wally.toml` and run `wally install`:
 
 ```toml
 [dependencies]
 Rivue = "linhisreal/rivue@2.56.0"
+RivueRemote = "linhisreal/rivue-remote@2.56.0" # optional, for client/server calls
 ```
 
-**With Rojo**, add this repo as a git submodule and point your project at the folder:
+**With pesde**, run `pesde add linhisreal/rivue` (and `linhisreal/rivue_remote` if you want it).
+
+**With Rojo**, add this repo as a git submodule and point your project at the package:
 
 ```json
 "ReplicatedStorage": {
-  "Rivue": { "$path": "vendor/Rivue" }
+  "Rivue": { "$path": "vendor/Rivue/packages/rivue" }
 }
 ```
 
 **Without Rojo**, download `Rivue.rbxm` from the latest
 [release](https://github.com/linhisreal/Rivue/releases) and drag it into `ReplicatedStorage`.
-`Rivue.min.rbxm` is the same without comments. `RivueRemote.rbxm` is optional, for client/server
-calls; put it next to Rivue.
+`Rivue.min.rbxm` is the same without comments, and `RivueRemote.rbxm` is the optional client/server
+package.
 
 ## Docs
 
@@ -121,17 +124,24 @@ rokit install
 lune setup                        # editor types for the Lune scripts
 lune run test                     # all suites, without Studio
 lune run check-docs               # links resolve and every API example runs
-lune run build                    # Rivue.rbxm and places, into build/
-rojo serve place.project.json     # the test place in Studio
+lune run build                    # the packages and the dev place, into build/
+lune run version 2.57.0           # one version for every package
+rojo serve                        # the dev place in Studio
 ```
 
-CI also runs StyLua and luau-lsp. Releases and Wally publishing: [docs/RELEASING.md](docs/RELEASING.md).
+CI also runs StyLua and luau-lsp, and checks the packages for Wally and pesde. Releases and
+publishing: [docs/RELEASING.md](docs/RELEASING.md).
 
 ```
-src/shared/Rivue/    the library
-src/shared/Demo/     demo app, laid out as Guide chapter 10 recommends
-src/client/          test place scripts (Demo, TestRunner, Stress)
-tests/offline/       the Lune harness that runs tests outside Studio
+packages/rivue/            the UI framework                 Wally, pesde, Rivue.rbxm
+packages/rivue-remote/     client/server calls              Wally, pesde, RivueRemote.rbxm
+packages/rivue-devtools/   Studio plugin                    RivueDevTools.rbxm
+dev/                       the dev place: test runner, demo app, examples, stress test
+examples/                  example components, tested in tests/Examples.test.luau
+tests/                     test suites; tests/offline is the Lune harness
+docs/                      the Guide, API reference and docs site
+default.project.json       the dev place (rojo serve)
+pesde.toml                 the pesde workspace
 ```
 
 ## License

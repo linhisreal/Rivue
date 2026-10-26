@@ -9,7 +9,7 @@ props, its state and how many times it has rendered, and to select its root in t
 
 Download `RivueDevTools.rbxm` from the latest [release](https://github.com/linhisreal/Rivue/releases)
 and put it in your Plugins folder (**Plugins → Plugins Folder** in Studio). Or build it with
-`rojo build plugin.project.json -o RivueDevTools.rbxm`.
+`rojo build packages/rivue-devtools -o RivueDevTools.rbxm`.
 
 ## Use
 
