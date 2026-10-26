@@ -2,27 +2,27 @@
 
 # 16. Testing UI
 
-**You'll learn:** how to test composables on their own, how to mount a component in a test and
-click its buttons, why `Rivue.nextTick()` matters, and what can't be tested from a script.
+**You'll learn:** how to check that your UI logic works without play-testing every time: testing
+composables on their own, mounting a component in a test, and clicking its buttons from code.
 
-The examples use plain `assert`, so they work in any test runner (TestEZ, Jest Lua, or a Script
-that runs them in Studio).
+The examples use plain `assert`, so they work in any test runner: TestEZ, Jest Lua, or a Script
+you run in Studio.
 
-## What to test where
+## What to test, and how
 
-| What | How | Speed |
+| What you're testing | How | |
 |---|---|---|
-| Logic: rules, limits, sorting, what happens on save | Call the composable or store in an `effectScope` | Fastest, no Instances |
-| A component: it shows the right thing and reacts to clicks | Mount it into a Frame, use `Rivue.testing.trigger` | Fast |
-| Player input: dragging, click outside, gamepad | Play-test it | By hand |
+| Logic: limits, sorting, what gets saved | Call the composable or store directly | fastest |
+| A component shows the right thing and reacts to clicks | Mount it into a Frame and click from code | fast |
+| Dragging, clicking outside, gamepad, screen size | Play-test it | by hand |
 
-Push as much as you can into the first row. A composable is a function: give it values, call it,
-check what it returns. This is the main reason for [Guide 12](12-writing-composables.md).
+The more logic you keep in composables and stores ([chapter 12](12-writing-composables.md)),
+the more of it falls into the first row, where tests are short and quick.
 
 ## Testing a composable
 
-Here's a stepper for a "buy how many" picker. It clamps the amount and says which buttons are
-usable:
+Here's a composable for a "how many?" picker in a shop. It keeps the amount between a minimum and
+a maximum, and says whether the + and - buttons can be used:
 
 ```lua
 local function useStepper(options: { min: number, max: number, start: number? })
@@ -51,7 +51,8 @@ local function useStepper(options: { min: number, max: number, start: number? })
 end
 ```
 
-Run it inside an `effectScope`, so its computeds and watchers are cleaned up when the test ends:
+Outside a component, call it inside an `effectScope`. The scope collects the computeds and
+watchers it creates, so `scope:stop()` cleans them all up at the end of the test:
 
 ```lua
 local scope = Rivue.effectScope()
@@ -61,7 +62,7 @@ end)
 
 stepper.increase()
 stepper.increase()
-stepper.increase() -- already at 3, does nothing
+stepper.increase() -- already at 3, so nothing happens
 assert(stepper.value.value == 3)
 assert(stepper.canIncrease.value == false)
 assert(stepper.canDecrease.value == true)
@@ -69,12 +70,14 @@ assert(stepper.canDecrease.value == true)
 scope:stop()
 ```
 
-Refs and computeds update right away, so no waiting is needed.
+Refs and computeds update the moment you change them, so the asserts can run straight away.
 
-### Watchers need `nextTick()`
+### Watchers run a moment later
 
-Watchers are different. They run after the current batch of changes, not on each change. This
-composable saves settings whenever they change:
+Watchers are different. When you change a value, Rivue waits until your code has finished making
+changes, then runs each watcher once. In a test, `Rivue.nextTick()` waits for that.
+
+This composable saves the player's settings whenever they change:
 
 ```lua
 local function useAutosave(settings, save: (any) -> ())
@@ -84,7 +87,7 @@ local function useAutosave(settings, save: (any) -> ())
 end
 ```
 
-The test changes the volume twice and expects **one** save, with the last value:
+The test changes the volume twice and expects only **one** save, with the final value:
 
 ```lua
 local saves = {}
@@ -99,26 +102,29 @@ end)
 
 settings.volume = 60
 settings.volume = 70
-assert(#saves == 0) -- not yet: the watcher hasn't run
+assert(#saves == 0) -- the watcher hasn't run yet
 Rivue.nextTick()
-assert(#saves == 1 and saves[1] == 70) -- one save, with the latest value
+assert(#saves == 1 and saves[1] == 70) -- it ran once, with the latest value
 
 scope:stop()
 settings.volume = 80
 Rivue.nextTick()
-assert(#saves == 1) -- stopped with the scope
+assert(#saves == 1) -- stopping the scope stopped the watcher
 ```
 
-The last three lines test something easy to get wrong: a composable that keeps running after its
-component is gone.
+The last three lines catch a common bug: a composable that keeps running after its component is
+gone.
 
 ## Testing a component
 
-To test a component, mount it into a Frame that isn't in the game. It still builds real
-Instances, so you can read their `Text`, `Visible` and so on, just like a player would see them.
+A component test always has the same five steps:
 
-A small helper keeps tests short. It mounts a component and returns a `find` that looks up
-elements by `Name`:
+![the steps of a component test](../images/test-steps.svg)
+
+To mount a component, give it a Frame that isn't in the game. Rivue still creates real
+Instances in it, so you can read their `Text` and `Visible` just as the player would see them.
+
+This helper mounts a component and returns a `find` function that looks elements up by `Name`:
 
 ```lua
 local h = Rivue.h
@@ -138,10 +144,10 @@ local function mountForTest(component, props: { [string]: any }?)
 end
 ```
 
-Give the elements you test a `Name`. It's also what you'll see in the Explorer, so it helps when
-debugging too.
+So give the elements you want to test a `Name`. It also makes them easier to spot in the
+Explorer.
 
-Here's a component built on `useStepper`. It emits `change` with the new amount:
+Here's the picker as a component. It uses `useStepper` and emits `change` with the new amount:
 
 ```lua
 local QuantityPicker = Rivue.defineComponent({
@@ -178,16 +184,17 @@ local QuantityPicker = Rivue.defineComponent({
 })
 ```
 
-### Clicking buttons
+### Clicking a button
 
-Scripts can't fire engine events like `Activated`. `Rivue.testing.trigger` calls the handler the
-element has, as if the player clicked:
+A script can't fire a button's `Activated` event; Roblox doesn't allow it. Instead,
+`Rivue.testing.trigger(element, "onClick")` calls the button's `onClick` handler, which is what
+a real click would do:
 
 ```lua
 local changes = {}
 local app, find = mountForTest(QuantityPicker, {
 	max = 2,
-	onChange = function(amount)
+	onChange = function(amount) -- listens to the change event, like a parent would
 		table.insert(changes, amount)
 	end,
 })
@@ -195,27 +202,26 @@ local app, find = mountForTest(QuantityPicker, {
 assert(find("Amount").Text == "1")
 
 Rivue.testing.trigger(find("Plus"), "onClick")
-Rivue.testing.trigger(find("Plus"), "onClick") -- already at max
-Rivue.nextTick()
+Rivue.testing.trigger(find("Plus"), "onClick") -- already at the max of 2
+Rivue.nextTick() -- wait for the re-render
 
 assert(find("Amount").Text == "2")
 assert(find("Plus").Active == false)
-assert(changes[1] == 2 and changes[2] == 2) -- emits are sync, one per click
+assert(changes[1] == 2 and changes[2] == 2) -- one change event per click
 
 app:unmount()
 ```
 
-Three things to notice:
+Without `Rivue.nextTick()`, `Amount` would still say `1`. Re-renders wait for your code to finish
+changing state, just like watchers.
 
-- **`Rivue.nextTick()` before reading Instances.** Re-renders are batched like watchers. Without
-  it, `Amount` would still say `1`.
-- **Listeners are props.** `onChange` catches the `change` emit, the same way a parent would.
-- **Unmount at the end.** Each test gets its own fresh component, and nothing leaks into the next.
+If the element has no handler for that event, `trigger` throws an error. So a test that clicks
+the wrong element fails, instead of passing without testing anything.
 
-### Typing text
+### Typing into a text box
 
-Setting `Text` from a script works like the player typing, so `model` picks it up. Then trigger
-`onFocusLost` with `true`, which means the player pressed Enter:
+Setting a TextBox's `Text` from a script counts as typing, so `model` picks it up. Then trigger
+`onFocusLost` with `true`, which is what Roblox passes when the player pressed Enter:
 
 ```lua
 local NameInput = Rivue.defineComponent({
@@ -251,25 +257,22 @@ Rivue.testing.trigger(box, "onFocusLost", true)
 Rivue.nextTick()
 
 assert(submitted == "Sword")
-assert(box.Text == "") -- cleared after submitting
+assert(box.Text == "") -- the box clears after submitting
 
 app:unmount()
 ```
 
-`trigger` errors if the element has no handler for that event. So a test that clicks the wrong
-element fails loudly instead of passing for nothing.
-
 ## What a script can't test
 
-`UserInputService` events (`InputBegan`, `LastInputTypeChanged`) and engine-only properties like
-the camera's `ViewportSize` can't be set or fired from a script. That covers `vClickOutside`,
-`vDrag`, `useInputType()` and `useViewportSize()`.
+Some things only the engine can do. A script can't fire `UserInputService` events like
+`InputBegan`, and it can't change the camera's `ViewportSize`. So `vClickOutside`, `vDrag`,
+`useInputType()` and `useViewportSize()` need play-testing.
 
-Don't try to fake them. Keep the decision in plain code you can test, and leave only the wiring
-to the engine:
+You can still test the decisions behind them. Put the decision in a plain function, and leave
+only the wiring to the engine:
 
 ```lua
--- Testable: a plain function
+-- Easy to test: give it a width, check the answer
 local function columnsFor(width: number): number
 	return if width < 600 then 1 elseif width < 1000 then 2 else 3
 end
@@ -277,7 +280,7 @@ end
 assert(columnsFor(400) == 1)
 assert(columnsFor(1280) == 3)
 
--- Wiring, checked by play-testing on a phone and a PC
+-- The wiring: check this by play-testing on a phone and on a PC
 local Grid = Rivue.defineComponent(function()
 	local viewport = Rivue.useViewportSize()
 	local columns = Rivue.computed(function()
@@ -291,13 +294,14 @@ end, { name = "Grid" })
 
 ## Tips
 
-- **Test what the player sees.** Check `Text`, `Visible` and emitted values, not a component's
-  internal refs. Then refactoring doesn't break the tests.
-- **One behaviour per test.** "Plus stops at max" is easier to fix when it fails than "the picker
-  works".
-- **Test the bug first.** When you fix a bug, write the test that fails without the fix.
-- **Wait with `nextTick()`, not `task.wait()`.** `task.wait()` happens to work, but `nextTick()`
-  waits exactly as long as needed and says why.
+- **Check what the player would see:** text, visibility, events sent to the parent. Avoid checking
+  a component's internal refs, so you can change its code without rewriting the tests.
+- **Test one thing per test.** When "Plus stops at the max" fails, you know where to look. When
+  "the picker works" fails, you don't.
+- **When you fix a bug, write a test that fails without the fix.** Then the bug can't quietly
+  come back.
+- **Wait with `Rivue.nextTick()`, not `task.wait()`.** `task.wait()` happens to wait long
+  enough, but `nextTick()` makes it clear what you're waiting for.
 
 ---
 

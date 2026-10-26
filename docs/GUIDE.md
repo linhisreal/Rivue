@@ -23,11 +23,11 @@ logic, bigger apps, speed or tests. They can be read in any order.
 | 10 | [Organising a project](guide/10-organising-a-project.md) | folders, component anatomy, splitting, composables |
 | 11 | [Style rules](guide/11-style-rules.md) | the habits that prevent bugs and keep code readable |
 | | **Advanced** | |
-| 12 | [Writing composables](guide/12-writing-composables.md) | inputs that may be refs, cleanup, custom refs, async data |
-| 13 | [Advanced components](guide/13-advanced-components.md) | compound components, render-less components, dynamic components, modals, `expose` |
-| 14 | [State architecture](guide/14-state-architecture.md) | where state lives, store modules, server-owned data, optimistic updates |
-| 15 | [Performance in depth](guide/15-performance-in-depth.md) | engine calls and re-renders, finding what re-renders, the fixes in order |
-| 16 | [Testing UI](guide/16-testing-ui.md) | testing composables, mounting components in tests, `testing.trigger` |
+| 12 | [Writing composables](guide/12-writing-composables.md) | sharing logic between components, cleanup, a debounced search, loading data |
+| 13 | [Component patterns](guide/13-advanced-components.md) | tabs, shared behaviour with different looks, switching screens, modals |
+| 14 | [Organising state](guide/14-state-architecture.md) | where state should live, stores, server data, instant purchases |
+| 15 | [Performance in depth](guide/15-performance-in-depth.md) | what makes UI slow, finding the cause, which fix to try |
+| 16 | [Testing UI](guide/16-testing-ui.md) | testing logic, mounting components in tests, clicking from code |
 
 Know Vue already? Skim [Rivue for Vue developers](VUE.md) first, then jump to chapter 6, where
 Rivue differs most.

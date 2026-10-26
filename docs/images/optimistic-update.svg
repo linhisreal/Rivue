@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 270" width="780" height="270">
+<title>optimistic update</title>
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#59636e"/></marker></defs>
+<rect width="780" height="270" rx="12" fill="#ffffff" stroke="#d0d7de"/>
+<text x="24" y="34" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#1f2328">The player buys a sword for 40 coins</text>
+<rect x="24" y="56" width="170" height="70" rx="6" fill="#eef2f7" stroke="#d0d7de"/><text x="109.0" y="88.0" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328">Click Buy</text><text x="109.0" y="106.0" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" fill="#1f2328">coins: 100</text>
+<path d="M198 91 H250" stroke="#59636e" stroke-width="2" fill="none" marker-end="url(#a)"/>
+<rect x="256" y="56" width="200" height="70" rx="6" fill="#2fbf8f"/><text x="356.0" y="88.0" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#fff">Shown right away</text><text x="356.0" y="106.0" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" fill="#fff">coins: 60, sword owned</text>
+<text x="356" y="146" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#59636e">no waiting for the server</text>
+<path d="M460 80 C500 80 500 60 540 60" stroke="#59636e" stroke-width="2" fill="none" marker-end="url(#a)"/>
+<path d="M460 104 C500 104 500 150 540 150" stroke="#59636e" stroke-width="2" fill="none" marker-end="url(#a)"/>
+<rect x="546" y="34" width="210" height="56" rx="6" fill="#1f6feb"/><text x="651.0" y="59.0" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#fff">Server says yes</text><text x="651.0" y="77.0" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" fill="#fff">nothing else to do</text>
+<rect x="546" y="124" width="210" height="56" rx="6" fill="#cf222e"/><text x="651.0" y="149.0" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#fff">Server says no</text><text x="651.0" y="167.0" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" fill="#fff">undo: coins 100, no sword</text>
+<text x="24" y="226" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#59636e">The UI changes the moment the player clicks. If the server refuses (not enough coins on the server,</text>
+<text x="24" y="246" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#59636e">item sold out), the store puts the old values back and the button shows why.</text>
+</svg>

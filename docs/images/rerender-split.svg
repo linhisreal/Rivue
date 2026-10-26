@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 276" width="780" height="276">
+<title>moving a fast-changing read into a small component</title>
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#59636e"/></marker></defs>
+<rect width="780" height="276" rx="12" fill="#ffffff" stroke="#d0d7de"/>
+<text x="24" y="34" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#1f2328">Before: Hud reads ping</text>
+<rect x="24" y="56" width="320" height="44" rx="6" fill="#2fbf8f"/><text x="184.0" y="75.0" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#fff">Hud</text><text x="184.0" y="93.0" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" fill="#fff">reads health, ammo, ping</text>
+<rect x="44" y="128" width="92" height="40" rx="6" fill="#eef2f7" stroke="#d0d7de"/><text x="90.0" y="153.0" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328">Health</text>
+<line x1="90" y1="100" x2="90" y2="128" stroke="#8c959f" stroke-width="2"/>
+<rect x="144" y="128" width="92" height="40" rx="6" fill="#eef2f7" stroke="#d0d7de"/><text x="190.0" y="153.0" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328">Ammo</text>
+<line x1="190" y1="100" x2="190" y2="128" stroke="#8c959f" stroke-width="2"/>
+<rect x="244" y="128" width="92" height="40" rx="6" fill="#eef2f7" stroke="#d0d7de"/><text x="290.0" y="153.0" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328">Minimap</text>
+<line x1="290" y1="100" x2="290" y2="128" stroke="#8c959f" stroke-width="2"/>
+<text x="24" y="196" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#59636e">ping changes 10 times a second, so Hud's whole render</text>
+<text x="24" y="214" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#59636e">runs 10 times a second, and all its elements are compared.</text>
+<text x="420" y="34" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#1f2328">After: PingLabel reads ping</text>
+<rect x="420" y="56" width="336" height="44" rx="6" fill="#eef2f7" stroke="#d0d7de"/><text x="588.0" y="75.0" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328">Hud</text><text x="588.0" y="93.0" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" fill="#1f2328">reads health, ammo</text>
+<rect x="420" y="128" width="80" height="40" rx="6" fill="#eef2f7" stroke="#d0d7de"/><text x="460.0" y="153.0" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328">Health</text>
+<line x1="460" y1="100" x2="460" y2="128" stroke="#8c959f" stroke-width="2"/>
+<rect x="506" y="128" width="80" height="40" rx="6" fill="#eef2f7" stroke="#d0d7de"/><text x="546.0" y="153.0" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328">Ammo</text>
+<line x1="546" y1="100" x2="546" y2="128" stroke="#8c959f" stroke-width="2"/>
+<rect x="592" y="128" width="80" height="40" rx="6" fill="#eef2f7" stroke="#d0d7de"/><text x="632.0" y="153.0" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328">Minimap</text>
+<line x1="632" y1="100" x2="632" y2="128" stroke="#8c959f" stroke-width="2"/>
+<rect x="678" y="128" width="80" height="40" rx="6" fill="#2fbf8f"/><text x="718.0" y="153.0" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#fff">PingLabel</text>
+<line x1="718" y1="100" x2="718" y2="128" stroke="#8c959f" stroke-width="2"/>
+<text x="420" y="196" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#59636e">Only PingLabel re-renders when ping changes.</text>
+<text x="420" y="214" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#59636e">Hud's render runs only when health or ammo change.</text>
+<rect x="24" y="240" width="16" height="16" rx="3" fill="#2fbf8f"/>
+<text x="48" y="253" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#59636e">re-renders when ping changes</text>
+<rect x="260" y="240" width="16" height="16" rx="3" fill="#eef2f7" stroke="#d0d7de"/>
+<text x="284" y="253" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#59636e">skipped: its props didn't change</text>
+</svg>

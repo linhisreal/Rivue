@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 780 256" width="780" height="256">
+<title>each call to a composable makes its own state</title>
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#59636e"/></marker></defs>
+<rect width="780" height="256" rx="12" fill="#ffffff" stroke="#d0d7de"/>
+<text x="24" y="34" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#1f2328">Two components call the same composable</text>
+<rect x="24" y="56" width="220" height="60" rx="6" fill="#1f6feb"/><text x="134.0" y="83.0" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#fff">RoundTimer</text><text x="134.0" y="101.0" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" fill="#fff">useCountdown(90)</text>
+<rect x="24" y="150" width="220" height="60" rx="6" fill="#1f6feb"/><text x="134.0" y="177.0" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#fff">SaleBanner</text><text x="134.0" y="195.0" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" fill="#fff">useCountdown(3600)</text>
+<path d="M248 86 H320" stroke="#59636e" stroke-width="2" fill="none" marker-end="url(#a)"/>
+<path d="M248 180 H320" stroke="#59636e" stroke-width="2" fill="none" marker-end="url(#a)"/>
+<rect x="326" y="56" width="200" height="60" rx="6" fill="#2fbf8f"/><text x="426.0" y="83.0" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#fff">its own timer</text><text x="426.0" y="101.0" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" fill="#fff">90 → 89 → 88 …</text>
+<rect x="326" y="150" width="200" height="60" rx="6" fill="#eef2f7" stroke="#d0d7de"/><text x="426.0" y="177.0" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="14" font-weight="600" fill="#1f2328">its own timer</text><text x="426.0" y="195.0" text-anchor="middle" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" fill="#1f2328">stopped</text>
+<text x="426" y="232" text-anchor="middle" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#59636e">SaleBanner unmounted: its timer stopped</text>
+<text x="556" y="80" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#59636e">Each call creates new refs,</text>
+<text x="556" y="100" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#59636e">watchers and connections.</text>
+<text x="556" y="164" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#59636e">They belong to the component</text>
+<text x="556" y="184" text-anchor="start" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" font-weight="400" fill="#59636e">that called it, and stop with it.</text>
+</svg>

@@ -2,74 +2,96 @@
 
 # 15. Performance in depth
 
-**You'll learn:** what actually costs time in Rivue UI, how to find what's re-rendering and why,
-and the fixes that matter, in the order to try them.
+**You'll learn:** what makes Rivue UI slow, how to find the component causing it, and which fix
+to try first.
 
-## What costs time
+Most UI never needs any of this. Read it when something actually feels slow, or when you build a
+screen that updates many times a second.
 
-Two things:
+## What takes time
 
-1. **Engine calls.** Every read or write of an Instance property, and every `IsA` or `Connect`,
-   crosses from Luau into the engine. These dominate. Rivue only writes properties that changed,
-   and caches what it can, so a re-render that changes one label's text makes one engine call.
-2. **Re-running render functions.** Building the description is plain Luau and cheap per call, but
-   a big render that runs every frame adds up.
+When state changes, Rivue does two kinds of work:
 
-So the goal is: **re-render as little as possible, and only where state changed.**
+1. **It runs render functions** of the components that used that state. This is plain Luau, and
+   a single render is cheap. It adds up when a big render runs many times a second.
+2. **It changes Instances** to match. Every property it sets on an Instance is a call into the
+   Roblox engine, and these calls are what usually cost the most.
 
-## Re-renders happen per component
+Rivue already keeps the second part small: it only sets properties whose values changed. So the
+main thing you control is the first part: **how often renders run, and how big they are.**
 
-When state changes, Rivue re-renders only the components whose render *read* that state. Not
-their parents, and not their siblings.
+## Which components re-render
 
-```mermaid
-flowchart TB
-    App["App<br/>reads: screen"] --> Hud["Hud<br/>reads: health"]
-    App --> Shop["Shop<br/>reads: products"]
-    Hud --> Ping["PingLabel<br/>reads: ping"]
-    style Ping fill:#7ee8c0,stroke:#2fbf8f
-    X["ping changes 10× a second"] -.-> Ping
+When a value changes, Rivue re-renders only the components whose render read that value. A child
+component isn't re-rendered just because its parent was, as long as the props it gets are the
+same.
+
+So it matters *where* a fast-changing value is read. Here a HUD shows the player's ping, which
+updates ten times a second:
+
+![moving a fast-changing read into a small component](../images/rerender-split.svg)
+
+On the left, `Hud`'s render reads `ping`, so its whole render runs ten times a second, even
+though only one label changes. On the right, the ping label is its own small component. Now
+only that tiny render runs ten times a second:
+
+```lua
+-- Network is a store module (chapter 14) whose state.ping the client updates
+local PingLabel = Rivue.defineComponent({
+	name = "PingLabel",
+	render = function()
+		return h("TextLabel", { Text = `{Network.state.ping} ms` })
+	end,
+})
+
+-- In Hud's render, instead of reading ping itself:
+h(PingLabel)
 ```
 
-Only `PingLabel` re-renders. If `Hud` read `ping` itself, the whole HUD would re-render ten times a
-second. **The fix for a big component that re-renders too often is usually to move the
-fast-changing read into a small child component.**
+This is the most useful fix in this chapter: **move a value that changes often into the smallest
+component that shows it.**
 
-## Finding out what re-renders
+## Finding the slow part
 
-- **Why did it render?** Add a debug hook to the suspect component:
+Before changing code, find out what is re-rendering and why.
 
-  ```lua
-  Rivue.onRenderTriggered(function(event)
-  	print("re-rendered because", event.key, "changed")
-  end)
-  ```
+Which value made this component re-render? Add this to its `setup`:
 
-- **What does it depend on?** `Rivue.onRenderTracked` prints every value the render read.
-- **What's on screen?** `app:printTree()` prints the live component tree.
-- **How long does something take?** `Rivue.debug.measure("label", fn)` logs the time when
-  `Rivue.debug.enabled = true`.
+```lua
+Rivue.onRenderTriggered(function(event)
+	print("re-rendered because", event.key, "changed")
+end)
+```
 
-## The fixes, in order
+Some other tools:
 
-| Symptom | Fix |
+- `Rivue.onRenderTracked(fn)` prints every value the render read, to see what it depends on.
+- `app:printTree()` prints all mounted components, to see what's on screen.
+- `Rivue.debug.measure("label", fn)` prints how long `fn` takes, when `Rivue.debug.enabled` is
+  `true`.
+
+## Fixes, from most to least common
+
+| What you see | What to do |
 |---|---|
-| A big component re-renders often | move the fast-changing read into a small child component (above) |
-| A list re-patches every row on any change | give every item a stable `key` |
-| Hundreds or thousands of rows | `Rivue.VirtualList`: only the visible rows exist |
-| Rows re-render though their data didn't change | make each row a component, so it only re-renders when *its* item changes |
-| A subtree is expensive and rarely changes | `memo = { dep1, dep2 }` skips it while the deps are equal |
-| State changes every frame (mouse position, timers) | throttle what you store: update a ref a few times a second, not every frame |
-| Big data replaced wholesale | `Rivue.shallowRef` instead of `ref`: no deep proxies |
-| Many Instances created and removed (feeds, damage numbers) | `createApp(App, { usePool = true })` reuses them |
+| A big component re-renders many times a second | Move the fast-changing value into a small child component (above) |
+| Every row of a list updates when one item changes | Give each row a stable `key`, and make the row its own component |
+| A list has hundreds or thousands of rows | Use `Rivue.VirtualList`: only the rows on screen exist |
+| A part of a render rarely changes but is expensive | Add `memo = { ... }` to skip it while those values stay the same |
+| A value is updated every frame (mouse position, a timer) | Update the ref a few times a second with `Rivue.utils.throttle` |
+| Big data that you replace, never edit | Use `Rivue.shallowRef` instead of `ref` |
+| Many Instances created and destroyed (kill feed, damage numbers) | `createApp(App, { usePool = true })` reuses Instances |
 
-`memo` in practice:
+### Skipping a row with `memo`
+
+`memo` takes a list of values. While they're the same as last render, Rivue skips that element
+and everything inside it:
 
 ```lua
 Rivue.hFor(ctx.items, function(item)
 	return h("Frame", {
 		key = item.id,
-		memo = { item.id, item.version }, -- skip this row until its version changes
+		memo = { item.id, item.version }, -- only re-check this row when its version changes
 	}, {
 		h("TextLabel", { Text = item.name }),
 		h("ImageLabel", { Image = item.icon }),
@@ -77,32 +99,42 @@ Rivue.hFor(ctx.items, function(item)
 end)
 ```
 
-Throttling a value that changes every frame:
+Only use it when you know which values the row depends on. If you leave one out, the row won't
+update when that value changes.
+
+### Updating less often with `throttle`
+
+The mouse moves every frame. A crosshair label doesn't need to update 60 times a second:
 
 ```lua
 setup = function()
 	local mouse = Rivue.ref(Vector2.zero)
+
+	-- Runs at most once every 50 ms, however often it's called
 	local update = Rivue.utils.throttle(function(position: Vector2)
 		mouse.value = position
-	end, 50) -- at most 20 updates a second
+	end, 50)
+
 	Rivue.onRenderStepped(function()
 		update(game:GetService("UserInputService"):GetMouseLocation())
 	end)
+
 	return { mouse = mouse }
 end,
 ```
 
 ## What Rivue already does for you
 
-You don't need to optimise these:
+You don't need to optimise these yourself:
 
-- **Unchanged props aren't written.** A re-render where nothing changed makes no engine calls.
-- **New event handlers don't reconnect.** Inline `onClick = function() ... end` closures are
-  swapped into the existing connection.
-- **List order changes are cheap.** Adding, removing, prepending or moving a row writes one
-  `LayoutOrder`, not one per row.
-- **Updates are batched.** Changing ten values in a row re-renders each affected component once,
-  parents before children.
+- **Unchanged properties aren't set.** A re-render where nothing changed doesn't touch any
+  Instance.
+- **Child components with the same props are skipped** when their parent re-renders.
+- **Inline handlers are fine.** `onClick = function() ... end` creates a new function every
+  render, but Rivue swaps it into the existing connection instead of reconnecting.
+- **Reordering lists is cheap.** Adding, removing or moving a row updates one `LayoutOrder`,
+  not one per row.
+- **Changes are batched.** Setting ten values in a row re-renders each affected component once.
 
 ---
 
@@ -110,4 +142,4 @@ You don't need to optimise these:
 [VirtualList](../api/builtins.md#virtuallist) · [Pooling options](../api/application.md#pooling-options) ·
 [utils.throttle()](../api/utilities.md#utilsthrottle) · [Element props: memo](../api/render-function.md#element-props)
 
-[← 14. State architecture](14-state-architecture.md) · [Guide contents](../GUIDE.md) · [16. Testing UI →](16-testing-ui.md)
+[← 14. Organising state](14-state-architecture.md) · [Guide contents](../GUIDE.md) · [16. Testing UI →](16-testing-ui.md)

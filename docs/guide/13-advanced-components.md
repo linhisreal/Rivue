@@ -1,25 +1,30 @@
-[Docs](../README.md) › [Guide](../GUIDE.md) › **13. Advanced component patterns**
+[Docs](../README.md) › [Guide](../GUIDE.md) › **13. Component patterns**
 
-# 13. Advanced component patterns
+# 13. Component patterns
 
-**You'll learn:** patterns for components that work together, components that share behaviour but
-not looks, switching screens, and calling into a child.
+**You'll learn:** five ways to structure components that come up in every bigger game UI: tabs,
+shared behaviour with different looks, switching screens, modals, and a parent telling a child
+what to do.
 
-## Compound components: Tabs that share state
+## Tabs: components that work as a set
 
-Some components only make sense together: tabs and their panels, a menu and its items. The parent
-**provides** shared state, and each piece **injects** it, so the parts can be arranged freely
-without passing props between them.
+A tab bar has buttons and pages. Clicking a button changes which page is shown. You could write
+one big `Tabs` component that takes a list of pages. But then every screen with tabs has to fit
+that one layout.
 
-```mermaid
-flowchart TB
-    T["Tabs<br/>provide('tabs', { active, select })"] --> B1["Tab 'Shop'"] & B2["Tab 'Bag'"] & P1["TabPanel 'Shop'"] & P2["TabPanel 'Bag'"]
-    B1 & B2 -. "inject: select(name)" .-> T
-    P1 & P2 -. "inject: active" .-> T
-```
+It's more flexible to make three small components that work together:
+
+![the parts of a Tabs component](../images/tabs-parts.svg)
+
+The buttons and pages need the same piece of state: which tab is active. Passing it as props to
+every button and page would be tedious. Instead, `Tabs` **provides** it once, and every `Tab` and
+`TabPanel` inside, however deep, **injects** it (see [chapter 8](08-state-and-server.md) for
+provide and inject).
+
+First `Tabs`. It holds the active tab and provides it, together with a function to change it:
 
 ```lua
-local TABS = "tabs" -- the injection key, shared by the three components
+local TABS = "tabs" -- the key all three components use to find the shared state
 
 local Tabs = Rivue.defineComponent({
 	name = "Tabs",
@@ -38,7 +43,12 @@ local Tabs = Rivue.defineComponent({
 		return h("Frame", { layout = { gap = 4 } }, ctx.renderSlot("default"))
 	end,
 })
+```
 
+A `Tab` is a button. It injects the shared state to know if it's selected, and calls `select`
+when clicked:
+
+```lua
 local Tab = Rivue.defineComponent({
 	name = "Tab",
 	props = { name = { type = "string", required = true } },
@@ -53,10 +63,21 @@ local Tab = Rivue.defineComponent({
 	end,
 	render = function(ctx)
 		local selected = ctx.tabs.active.value == ctx.name
-		return h("TextButton", { class = { "tab", selected and "tab-selected" }, Text = ctx.name, onClick = ctx.select })
+		return h("TextButton", {
+			class = { "tab", selected and "tab-selected" },
+			Text = ctx.name,
+			onClick = ctx.select,
+		})
 	end,
 })
+```
 
+> Why `ctx.tabs.active.value` and not `ctx.tabs.active`? `ctx` only unwraps refs that `setup`
+> returns directly. `active` is a ref *inside* a table, so it keeps its `.value`.
+
+A `TabPanel` shows its content only while its tab is active, and renders nothing otherwise:
+
+```lua
 local TabPanel = Rivue.defineComponent({
 	name = "TabPanel",
 	props = { name = { type = "string", required = true } },
@@ -72,24 +93,29 @@ local TabPanel = Rivue.defineComponent({
 })
 ```
 
-Using them reads like markup:
+Now a screen can arrange them however it likes. Buttons on top, on the side, or mixed with other
+UI:
 
 ```lua
 h(Tabs, { initial = "Shop" }, {
-	h("Frame", { layout = "horizontal" }, { h(Tab, { name = "Shop" }), h(Tab, { name = "Bag" }) }),
+	h("Frame", { layout = "horizontal" }, {
+		h(Tab, { name = "Shop" }),
+		h(Tab, { name = "Bag" }),
+	}),
 	h(TabPanel, { name = "Shop" }, { h(ShopList) }),
 	h(TabPanel, { name = "Bag" }, { h(Inventory) }),
 })
 ```
 
-Note that `ctx.tabs.active.value` keeps its `.value`: only refs that `setup` returns directly are
-unwrapped, not refs inside tables.
+The same idea works for menus and their items, accordions, or a radio group and its options.
 
-## Render-less components: behaviour without looks
+## Same behaviour, different looks
 
-When several components need the same behaviour but look different, put the behaviour in a
-component that renders nothing of its own and passes its state to a **scoped slot**. The caller
-decides what it looks like.
+Lots of things in a game react to the mouse hovering over them. An item card grows, a button
+shows a tooltip. The hover logic is the same every time, but what changes on screen isn't.
+
+`Hoverable` handles the hovering and draws nothing visible itself. It passes `hovered` to its
+slot, and whoever uses it decides what to draw:
 
 ```lua
 local Hoverable = Rivue.defineComponent({
@@ -107,6 +133,7 @@ local Hoverable = Rivue.defineComponent({
 		}
 	end,
 	render = function(ctx)
+		-- An invisible frame to catch the mouse, with the slot inside it
 		return h("Frame", {
 			BackgroundTransparency = 1,
 			Size = UDim2.fromScale(1, 1),
@@ -115,21 +142,28 @@ local Hoverable = Rivue.defineComponent({
 		}, ctx.renderSlot("default", { hovered = ctx.hovered }))
 	end,
 })
+```
 
--- One caller shows a tooltip, another scales a card
+The second argument to `renderSlot` is passed to the slot function. That's why the slot is a
+function here, instead of a list of children:
+
+```lua
 h(Hoverable, nil, {
-	default = function(scope)
-		return h("TextLabel", { Text = if scope.hovered then "Sell for 40 coins" else "Iron Sword" })
+	default = function(slot)
+		return h("TextLabel", {
+			Text = if slot.hovered then "Sell for 40 coins" else "Iron Sword",
+		})
 	end,
 })
 ```
 
-Often a [composable](12-writing-composables.md) is the simpler choice. Use a render-less
-component when the behaviour needs an Instance of its own, like this hover area.
+If the behaviour doesn't need an Instance of its own, a [composable](12-writing-composables.md)
+is simpler. `Hoverable` needs one, because something has to receive the mouse events.
 
-## Switching screens: dynamic components
+## Switching screens
 
-`h()` takes a component as a value, so switching screens is choosing which one to pass:
+A game has a lobby, a shop and a settings screen, and shows one at a time. `h()` accepts a
+component stored in a variable, so switching screens is just picking which component to pass:
 
 ```lua
 local screens = { lobby = Lobby, shop = Shop, settings = Settings }
@@ -140,7 +174,7 @@ local App = Rivue.defineComponent({
 		return { screen = Rivue.ref("lobby") }
 	end,
 	render = function(ctx)
-		return h(Rivue.KeepAlive, { include = { "Shop" } }, { -- keep the shop's scroll position
+		return h(Rivue.KeepAlive, { include = { "Shop" } }, {
 			h(screens[ctx.screen], {
 				onNavigate = function(name)
 					ctx.screen = name
@@ -151,15 +185,33 @@ local App = Rivue.defineComponent({
 })
 ```
 
-## Modals: Teleport, Transition and click-outside together
+Normally a screen is destroyed when you switch away from it. `KeepAlive` keeps the ones listed
+in `include` alive instead, so when the player comes back to the shop, it's still scrolled to
+where they left it.
 
-A modal opened from deep inside the UI must draw above everything, animate, and close when the
-player clicks outside it:
+## Modals
+
+A "Buy this item?" popup usually opens from deep inside the UI, from an item card in a list in
+the shop. It still has to appear above everything, fade in and out, and close when the player
+clicks outside it.
+
+Three built-ins handle one job each:
+
+| Piece | What it does |
+|---|---|
+| `Teleport` | moves the popup's Instances to a top layer, so nothing covers or clips it |
+| `Transition` | fades it in when it appears and out when it goes |
+| `vClickOutside` | calls a function when the player clicks anywhere outside it |
+
+![Teleport moves a modal to the top layer](../images/teleport-modal.svg)
 
 ```lua
 local Modal = Rivue.defineComponent({
 	name = "Modal",
-	props = { open = { type = "boolean", required = true }, layer = { type = "Instance" } },
+	props = {
+		open = { type = "boolean", required = true },
+		layer = { type = "Instance" }, -- a ScreenGui on top of the others
+	},
 	emits = { "close" },
 	render = function(ctx)
 		return h(Rivue.Teleport, { to = ctx.layer, disabled = ctx.layer == nil }, {
@@ -179,19 +231,22 @@ local Modal = Rivue.defineComponent({
 })
 ```
 
-See the complete version in [examples/components/Modal.luau](../../examples/components/Modal.luau).
+There's a full version with a backdrop and buttons in
+[examples/components/Modal.luau](../../examples/components/Modal.luau).
 
-## Calling into a child: expose and template refs
+## Telling a child what to do
 
-Prefer props and events. When a parent really needs to tell a child to *do* something (reset a
-form, scroll to the top, close), the child exposes a small API and the parent holds a template
-ref to it:
+Usually a parent controls a child through props. But some things are actions, not state: "clear
+the form", "scroll to the top". There's no prop for "do this once, now".
+
+For these, the child **exposes** functions, and the parent calls them through a template ref:
 
 ```lua
 local Form = Rivue.defineComponent({
 	name = "Form",
 	setup = function(_props, ctx)
 		local name = Rivue.ref("")
+		-- What a parent holding a ref to this Form can call
 		ctx.expose({
 			reset = function()
 				name.value = ""
@@ -207,7 +262,7 @@ local Form = Rivue.defineComponent({
 local Page = Rivue.defineComponent({
 	name = "Page",
 	setup = function()
-		local form = Rivue.useTemplateRef("form")
+		local form = Rivue.useTemplateRef("form") -- filled in once the Form with ref = "form" mounts
 		return {
 			clear = function()
 				(form.value :: any).reset()
@@ -223,6 +278,9 @@ local Page = Rivue.defineComponent({
 })
 ```
 
+Keep exposed functions few and small. If the parent needs to read the child's data, that data
+should probably live in the parent and be passed down as a prop.
+
 ---
 
 **Try it:** [Tabs example](../../examples/components/Tabs.luau) · [Modal example](../../examples/components/Modal.luau)
@@ -230,4 +288,4 @@ local Page = Rivue.defineComponent({
 [KeepAlive](../api/builtins.md#keepalive) · [Teleport](../api/builtins.md#teleport) ·
 [useTemplateRef()](../api/component.md#usetemplateref)
 
-[← 12. Writing composables](12-writing-composables.md) · [Guide contents](../GUIDE.md) · [14. State architecture →](14-state-architecture.md)
+[← 12. Writing composables](12-writing-composables.md) · [Guide contents](../GUIDE.md) · [14. Organising state →](14-state-architecture.md)
