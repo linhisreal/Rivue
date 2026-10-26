@@ -1,37 +1,24 @@
-[Docs](README.md) › **Coming from Roact, React-lua or Fusion**
+[Docs](README.md) › **Coming from React-lua or Fusion**
 
-# Coming from Roact, React-lua or Fusion
+# Coming from React-lua or Fusion
 
-All three describe UI as a tree, like Rivue. What differs is how they update it:
+React-lua, Fusion and Rivue all describe UI as a tree of Instances. Where they part ways is what
+happens when a value changes. (Still on Roact? React-lua is its maintained successor, so this page
+compares against React-lua.)
 
-- **Roact and React-lua** follow React: a component's render function runs again on every state
-  change, and you use `shouldUpdate`, `memo` or bindings to avoid work.
-- **Fusion** tracks state per value and updates Instance properties directly, but has no
-  component system: components are plain functions.
-- **Rivue** follows Vue: state is tracked per value like Fusion, and components have props,
-  events, slots and lifecycle hooks like React. Only components that read the changed value
-  re-render.
+![what one state change touches in React-lua, Fusion and Rivue](images/update-models.svg)
+
+React-lua follows React. A component's render function runs again on every state change, along
+with everything under it, and you reach for `React.memo` or bindings when that gets expensive.
+
+Fusion goes the other way. It tracks state per value and updates Instance properties directly,
+so nothing re-renders. It also has no component system: a component is just a function.
+
+Rivue sits between the two, the way Vue does. State is tracked per value, like Fusion, but you
+still get components with props, events, slots and lifecycle hooks, like React. When a value
+changes, only the components whose render read it run again.
 
 ## The same counter in each
-
-Roact:
-
-```lua
-local Counter = Roact.Component:extend("Counter")
-
-function Counter:init()
-	self:setState({ count = 0 })
-end
-
-function Counter:render()
-	return Roact.createElement("TextButton", {
-		Text = `Clicked {self.state.count} times`,
-		[Roact.Event.Activated] = function()
-			self:setState({ count = self.state.count + 1 })
-		end,
-	})
-end
-```
 
 React-lua:
 
@@ -83,58 +70,77 @@ local Counter = Rivue.defineComponent({
 })
 ```
 
+Rivue's version is the longest of the three. In return, `setup` runs once, so there are no hook
+rules, and `render` never needs a `Computed` wrapper to stay up to date.
+
 ## API map
 
-| Roact | React-lua | Fusion | Rivue |
-|---|---|---|---|
-| `Roact.createElement(class, props, children)` | `React.createElement` | `scope:New "Frame" { ... }` | `h("Frame", props, children)` |
-| `Component:extend("Name")` | function component | function taking `scope` | `Rivue.defineComponent({ name, props, setup, render })` |
-| `self.state` / `setState` | `useState` | `scope:Value` / `:set()` | `Rivue.ref` / `Rivue.reactive`, assign to change |
-| derived values in `render` | `useMemo` | `scope:Computed` | `Rivue.computed` |
-| `didMount` / `willUnmount` | `useEffect(fn, {})` | `scope` cleanup | `onMounted` / `onUnmounted` |
-| `didUpdate` | `useEffect(fn, { deps })` | `scope:Observer` | `Rivue.watch(source, fn)` |
-| `shouldUpdate`, `PureComponent` | `React.memo` | not needed | not needed: children with equal props are skipped. `memo = { deps }` for the rest |
-| `[Roact.Event.Activated]` | `[React.Event.Activated]` | `[OnEvent "Activated"]` | `onClick` / `onActivated` |
-| `[Roact.Change.Text]` | `[React.Change.Text]` | `[OnChange "Text"]` | `onTextChanged` (any `on<Property>Changed`) |
-| `Roact.createRef` + `[Roact.Ref]` | `useRef` + `ref` | `[Out]` / `Value` | `ref = "name"` + `Rivue.useTemplateRef("name")` |
-| `createBinding` | `useBinding` | `Value` | `Rivue.ref`. Only readers re-render, so no binding is needed for speed |
-| `createContext` / `Provider` / `Consumer` | `createContext` / `useContext` | pass values down | `Rivue.provide` / `Rivue.inject` |
-| `Roact.Portal` | `ReactRoblox.createPortal` | parent elsewhere | `Rivue.Teleport` |
-| `Roact.createFragment` | `React.Fragment` | a table of children | `Rivue.Fragment`, or return a list |
-| `self.props[Roact.Children]` | `props.children` | `[Children]` | slots: `ctx.renderSlot("default")` |
-| `defaultProps`, `validateProps` | `defaultProps`, `propTypes` | — | `props = { name = { type, default, required, validator } }` |
-| `Roact.mount(tree, parent)` | `ReactRoblox.createRoot(parent):render(el)` | `scope:New` with `Parent` | `Rivue.createApp(App):mount(parent)` |
-| `Roact.unmount(handle)` | `root:unmount()` | `scope:doCleanup()` | `app:unmount()` |
-| `useReducer` | `useReducer` | — | a store module ([Guide 14](guide/14-state-architecture.md)) |
-| — | `Suspense`, `React.lazy` | — | `Rivue.Suspense`, `Rivue.defineAsyncComponent` |
-| `Otter` / `Flipper` | `ReactSpring` | `scope:Tween`, `scope:Spring` | `Rivue.useTween`, `Rivue.useSpring`, `Rivue.Transition` |
-| children by name `{ Title = ... }` | same | `[Children] = { ... }` | a list. Set `Name` for the Explorer, `key` for lists |
+| React-lua | Fusion | Rivue |
+|---|---|---|
+| `React.createElement("Frame", props, children)` | `scope:New "Frame" { ... }` | `h("Frame", props, children)` |
+| function component | function taking `scope` | `Rivue.defineComponent({ name, props, setup, render })` |
+| `useState` | `scope:Value` / `:set()` | `Rivue.ref` / `Rivue.reactive`, assign to change |
+| `useMemo` | `scope:Computed` | `Rivue.computed` |
+| `useEffect(fn, {})` | `scope` cleanup | `onMounted` / `onUnmounted` |
+| `useEffect(fn, { deps })` | `scope:Observer` | `Rivue.watch(source, fn)` |
+| `React.memo` | not needed | not needed: children with equal props are skipped. `memo = { deps }` for the rest |
+| `[React.Event.Activated]` | `[OnEvent "Activated"]` | `onClick` / `onActivated` |
+| `[React.Change.Text]` | `[OnChange "Text"]` | `onTextChanged` (any `on<Property>Changed`) |
+| `useRef` + `ref` | `[Out]` / `Value` | `ref = "name"` + `Rivue.useTemplateRef("name")` |
+| `useBinding` | `Value` | `Rivue.ref`. Only readers re-render, so no binding is needed for speed |
+| `createContext` / `useContext` | pass values down | `Rivue.provide` / `Rivue.inject` |
+| `ReactRoblox.createPortal` | parent elsewhere | `Rivue.Teleport` |
+| `React.Fragment` | a table of children | `Rivue.Fragment`, or return a list |
+| `props.children` | `[Children]` | slots: `ctx.renderSlot("default")` |
+| `defaultProps`, `propTypes` | — | `props = { name = { type, default, required, validator } }` |
+| `ReactRoblox.createRoot(parent):render(el)` | `scope:New` with `Parent` | `Rivue.createApp(App):mount(parent)` |
+| `root:unmount()` | `scope:doCleanup()` | `app:unmount()` |
+| `useReducer` | — | a store module ([Guide 14](guide/14-state-architecture.md)) |
+| `Suspense`, `React.lazy` | — | `Rivue.Suspense`, `Rivue.defineAsyncComponent` |
+| `ReactSpring` | `scope:Tween`, `scope:Spring` | `Rivue.useTween`, `Rivue.useSpring`, `Rivue.Transition` |
+| children by name `{ Title = ... }` | `[Children] = { ... }` | a list. Set `Name` for the Explorer, `key` for lists |
 
 ## Things that work differently
 
-- **Children are a list, not a dictionary.** Rivue orders them with `LayoutOrder` in render
-  order. Give list items a `key` and anything you look up a `Name`.
-- **`setup` runs once.** Create state and watchers there. `render` only describes the UI and runs
-  whenever state it read changes. There are no hook rules or dependency arrays.
-- **Reads are tracked, writes are batched.** Changing several values in a row re-renders each
-  affected component once. Call `Rivue.nextTick()` to wait for it.
-- **Styling has classes.** Instead of repeating properties, register style classes with
-  `app:styles()` and use `class = "button"`. Classes also handle hover, pressed and per-device
-  variants ([Guide 6](guide/06-styling-and-layout.md)).
-- **Lists change through `Rivue.array`.** `table.insert` on reactive state isn't seen. Use
-  `Rivue.array.push`, `removeWhere`, `sort` and the rest.
+### Children are a list
+
+React-lua names children with dictionary keys. In Rivue, children are a list, and Rivue keeps
+their `LayoutOrder` in render order for you. Give list items a `key`, and give anything you'll
+look up later a `Name`.
+
+### setup runs once
+
+State and watchers are created once, in `setup`. `render` only describes the UI, and runs again
+whenever state it read changes. That's why there are no hook rules and no dependency arrays: the
+order you call things in doesn't matter, and Rivue works out the dependencies itself.
+
+### Writes are batched
+
+Change several values in a row and each affected component re-renders once. If you need the
+updated Instances right away, `Rivue.nextTick()` waits for the re-render.
+
+### Styling has classes
+
+Rather than repeating the same properties on every button, register style classes with
+`app:styles()` and write `class = "button"`. Classes can also carry hover, pressed and
+per-device variants ([Guide 6](guide/06-styling-and-layout.md)).
+
+### Lists change through Rivue.array
+
+`table.insert` on reactive state goes unnoticed. Use `Rivue.array.push`, `removeWhere`, `sort` and
+the rest instead.
 
 ## Tooling
 
-The usual Roblox tools work the same:
+Your usual Roblox tools carry over:
 
-| | Roact / React-lua / Fusion projects | Rivue |
+| | React-lua / Fusion projects | Rivue |
 |---|---|---|
-| Syncing files | Rojo | Rojo: point `$path` at the Rivue folder |
-| Packages | Wally | Wally (see [Releasing](RELEASING.md)), or the `.rbxm` from a release |
+| Syncing files | Rojo | Rojo: point `$path` at the Rivue package |
+| Packages | Wally | Wally or pesde ([Installation](../README.md#installation)), or the `.rbxm` from a release |
 | Storybook | UI Labs, Hoarcekat, Flipbook | `Rivue.story()` for UI Labs and Hoarcekat ([API](api/utilities.md#story)) |
 | Tests | TestEZ, Jest-Lua | either runner: mount, `Rivue.testing.trigger`, `Rivue.nextTick()` ([Guide 16](guide/16-testing-ui.md)) |
 | Types and formatting | luau-lsp, StyLua | luau-lsp, StyLua; Rivue is `--!strict` with exported types |
 
-Selene can't parse the Luau `const` declarations Rivue uses yet, so exclude the Rivue folder (or
-your `Packages` folder) from Selene.
+One snag: Selene can't parse the Luau `const` declarations Rivue uses yet. Exclude the Rivue
+folder (or your whole `Packages` folder) from Selene for now.

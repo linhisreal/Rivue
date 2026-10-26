@@ -118,7 +118,7 @@ right page.
 
 [Guide](docs/GUIDE.md) · [Examples](examples) · [API reference](docs/API.md) ·
 [Coming from Vue](docs/VUE.md) ·
-[Coming from Roact, React-lua or Fusion](docs/COMING-FROM-REACT.md) · [DevTools](docs/DEVTOOLS.md) ·
+[Coming from React-lua or Fusion](docs/COMING-FROM-REACT.md) · [DevTools](docs/DEVTOOLS.md) ·
 [Architecture](docs/ARCHITECTURE.md)
 
 ## Contributing
