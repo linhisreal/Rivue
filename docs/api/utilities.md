@@ -28,7 +28,6 @@ All examples assume `local Rivue = require(game.ReplicatedStorage.Rivue)`.
 - [testing.setInteraction()](#testingsetinteraction)
 - [testing.render()](#testingrender)
 - [testing.click() and testing.typeInto()](#testingclick-and-testingtypeinto)
-- [hotReload()](#hotreload)
 - [story()](#story)
 - [Types](#types)
 
@@ -683,48 +682,6 @@ Act like the player, then wait for the re-render, so the next line can check the
   ```lua
   function testing.click(inst: Instance)
   function testing.typeInto(box: TextBox, text: string)
-  ```
-
----
-
-## hotReload()
-
-Reloads a module when you edit it, for tools that run while you work in Studio: plugins, story
-previews and preview widgets.
-
-- **Example**
-
-  A preview plugin that shows the Shop screen and swaps it in whenever its code changes:
-
-  ```lua
-  local function previewShop(shopModule: ModuleScript, target: Instance)
-  	local app = Rivue.createApp(require(shopModule))
-  	app:mount(target)
-  	return Rivue.hotReload(shopModule, function(Shop)
-  		app:swapRoot(h(Shop))
-  	end, { watch = shopModule.Parent })
-  end
-  ```
-
-- **Details**
-
-  - It doesn't work during a playtest. Studio runs the game from a copy of the place, and edits
-    don't reach that copy, so there's nothing to reload. It's for edit mode.
-  - `require` keeps the first result of each ModuleScript, so new code is loaded from a fresh
-    copy. With `watch` set to a folder, an edit anywhere in it reloads the module, and the
-    module's own requires inside the folder load fresh too. Modules outside the folder, Rivue
-    included, stay shared.
-  - Edits within `debounce` seconds of each other (0.15 by default) reload once.
-  - `swapRoot` starts the component over, so its state resets on each reload.
-  - It returns `{ reload, stop }`. `stop()` stops watching and cleans up the last copy.
-
-- **Type**
-
-  ```lua
-  function hotReload(module: ModuleScript, onReload: (exported: any) -> (), options: {
-  	watch: Instance?, -- default: just the module
-  	debounce: number?, -- seconds, default 0.15
-  }?): { reload: () -> (), stop: () -> () }
   ```
 
 ---

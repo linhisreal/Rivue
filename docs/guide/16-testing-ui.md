@@ -299,24 +299,10 @@ return Rivue.story(ShopItem, {
 })
 ```
 
-UI Labs reloads a story when you save. If you build your own preview, in a plugin for example,
-`Rivue.hotReload` does the same: it watches a module, loads the edited version, and hands it to
-you to swap in. It works in edit mode only, since a playtest runs a copy of the place that edits
-never reach.
-
-```lua
--- In a preview plugin
-local app = Rivue.createApp(require(shopModule))
-app:mount(previewFrame)
-Rivue.hotReload(shopModule, function(Shop)
-	app:swapRoot(Rivue.h(Shop))
-end, { watch = shopModule.Parent })
-```
-
 ---
 
 **Reference:** [testing.render()](../api/utilities.md#testingrender) ·
-[testing.trigger()](../api/utilities.md#testingtrigger) · [hotReload()](../api/utilities.md#hotreload) ·
+[testing.trigger()](../api/utilities.md#testingtrigger) ·
 [nextTick()](../api/scheduler.md#nexttick) · [effectScope()](../api/reactivity-advanced.md#effectscope) ·
 [mount()](../api/application.md#mount) · [story()](../api/utilities.md#story)
 

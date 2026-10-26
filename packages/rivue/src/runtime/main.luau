@@ -19,7 +19,6 @@ local routerModule = require("./router")
 local testingModule = require("./testing")
 local uiModule = require("./ui")
 local transitionsModule = require("./transitions")
-local hotReloadModule = require("./hotreload")
 
 local RunService = game:GetService("RunService")
 
@@ -294,7 +293,6 @@ Rivue.Row = uiModule.Row
 Rivue.Column = uiModule.Column
 Rivue.Spacer = uiModule.Spacer
 Rivue.transitions = transitionsModule
-Rivue.hotReload = hotReloadModule.hotReload
 
 Rivue.defineAsyncComponent = builtins.defineAsyncComponent
 

@@ -230,6 +230,5 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [testing.setInteraction()](api/utilities.md#testingsetinteraction) ·
 [testing.render()](api/utilities.md#testingrender) ·
 [testing.click() / typeInto()](api/utilities.md#testingclick-and-testingtypeinto) ·
-[hotReload()](api/utilities.md#hotreload) ·
 [story()](api/utilities.md#story) ·
 [Types](api/utilities.md#types)

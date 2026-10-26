@@ -81,7 +81,7 @@ and `flex` replace the usual UIListLayout boilerplate, and tweens, springs, `Tra
 | Performance | keyed diffing, batched parent-first updates, `Rivue.bind` for properties that change every frame, `memo`, optional Instance pool |
 | Built-ins | `Transition` with fade/slide/pop presets, `TransitionGroup`, `KeepAlive`, `Teleport`, `Suspense`, `VirtualList`, `Dialog`, `ErrorBoundary`, `Row`/`Column`/`Spacer`, a router, `useAsync` |
 | Roblox | tweens, springs, viewport and input-type composables, gamepad selection, attribute refs, tags |
-| Studio | warnings that name the component chain, roots named after components, `app:printTree()`, a DevTools plugin, `testing.render` for tests, `hotReload` for previews |
+| Studio | warnings that name the component chain, roots named after components, `app:printTree()`, a DevTools plugin, `testing.render` for tests |
 | Types | strict Luau with exported types like `Rivue.Ref<T>` and `Rivue.VNode` |
 
 ## Installation

@@ -469,46 +469,6 @@ return function()
 		app:unmount()
 	end
 
-	print("hotReload")
-	do
-		local folder = Instance.new("Folder")
-		folder.Name = "Screens"
-		folder.Parent = Instance.new("Folder")
-		local module = Instance.new("ModuleScript")
-		module.Name = "Shop"
-		module.Parent = folder
-		local helper = Instance.new("ModuleScript")
-		helper.Name = "Helper"
-		helper.Parent = folder
-		local version = 0
-		local loadedFrom = nil
-		local received = {}
-		local handle = Rivue.hotReload(module, function(exported)
-			table.insert(received, exported)
-		end, {
-			watch = folder,
-			debounce = 0.05,
-			require = function(target)
-				version += 1
-				loadedFrom = target
-				return `v{version}`
-			end,
-		})
-		module.Source = "edit 1"
-		module.Source = "edit 2"
-		task.wait(0.15)
-		assertEquals(#received, 1, "edits close together reload once")
-		assertEquals(received[1], "v1", "with the new export")
-		assertTrue(loadedFrom ~= module and loadedFrom.Name == "Shop", "loaded from a fresh copy, past require's cache")
-		helper.Source = "edit"
-		task.wait(0.15)
-		assertEquals(received[2], "v2", "a dependency in the watched folder reloads it too")
-		handle.stop()
-		module.Source = "edit 3"
-		task.wait(0.15)
-		assertEquals(#received, 2, "stop() stops watching")
-	end
-
 	-- A server has no selection to move
 	if game:GetService("RunService"):IsClient() then
 		print("useGamepadFocus")
