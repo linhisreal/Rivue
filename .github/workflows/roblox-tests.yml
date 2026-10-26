@@ -1,7 +1,7 @@
 name: Tests in Roblox
 
 # Runs the test suites in a real Roblox server through Open Cloud. Needs the ROBLOX_API_KEY
-# secret and the ROBLOX_UNIVERSE_ID and ROBLOX_PLACE_ID variables (see docs/RELEASING.md)
+# secret, and ROBLOX_UNIVERSE_ID and ROBLOX_PLACE_ID as variables or secrets (see docs/RELEASING.md)
 on:
   workflow_dispatch:
   push:
@@ -14,7 +14,6 @@ concurrency:
 
 jobs:
   roblox:
-    if: vars.ROBLOX_UNIVERSE_ID != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -26,6 +25,15 @@ jobs:
       - name: Run the tests in Roblox
         env:
           ROBLOX_API_KEY: ${{ secrets.ROBLOX_API_KEY }}
-          ROBLOX_UNIVERSE_ID: ${{ vars.ROBLOX_UNIVERSE_ID }}
-          ROBLOX_PLACE_ID: ${{ vars.ROBLOX_PLACE_ID }}
-        run: lune run cloud-test
+          ROBLOX_UNIVERSE_ID: ${{ vars.ROBLOX_UNIVERSE_ID || secrets.ROBLOX_UNIVERSE_ID }}
+          ROBLOX_PLACE_ID: ${{ vars.ROBLOX_PLACE_ID || secrets.ROBLOX_PLACE_ID }}
+        run: |
+          missing=""
+          [ -z "$ROBLOX_API_KEY" ] && missing="$missing ROBLOX_API_KEY"
+          [ -z "$ROBLOX_UNIVERSE_ID" ] && missing="$missing ROBLOX_UNIVERSE_ID"
+          [ -z "$ROBLOX_PLACE_ID" ] && missing="$missing ROBLOX_PLACE_ID"
+          if [ -n "$missing" ]; then
+            echo "::notice::Skipped: not set in the repo's Actions secrets and variables:$missing"
+            exit 0
+          fi
+          lune run cloud-test
