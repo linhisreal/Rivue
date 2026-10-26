@@ -9,9 +9,12 @@
 </p>
 
 <p align="center">
+  <a href="https://wally.run/package/linhisreal/rivue"><img src="docs/assets/badges/wally.svg" height="28" alt="Wally: linhisreal/rivue"></a>
+  <a href="https://linhisreal.github.io/Rivue/"><img src="docs/assets/badges/docs.svg" height="28" alt="Docs"></a>
+</p>
+
+<p align="center">
   <a href="https://github.com/linhisreal/Rivue/actions/workflows/build.yml"><img src="https://github.com/linhisreal/Rivue/actions/workflows/build.yml/badge.svg" alt="CI"></a>
-  <a href="https://wally.run/package/linhisreal/rivue"><img src="https://img.shields.io/badge/wally-linhisreal%2Frivue-ad4646.svg" alt="Wally: linhisreal/rivue"></a>
-  <a href="https://linhisreal.github.io/Rivue/"><img src="https://img.shields.io/badge/docs-linhisreal.github.io%2FRivue-1f6feb.svg" alt="Docs"></a>
   <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-blue.svg" alt="License: PolyForm Noncommercial 1.0.0"></a>
 </p>
 

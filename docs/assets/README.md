@@ -51,3 +51,8 @@ SIL Open Font License.
   a blue close to Studio blue, use the one-colour version.
 - **Don't** recolour the parts, untilt the tile, add shadows or gradients, stretch it, or set
   "Rivue Guide" in another font.
+
+## Badges
+
+`badges/wally.svg` and `badges/docs.svg` are the README's link badges. The Wally badge uses Wally's
+own logo, from [wally.run](https://wally.run).
