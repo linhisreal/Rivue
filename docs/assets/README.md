@@ -54,5 +54,6 @@ SIL Open Font License.
 
 ## Badges
 
-`badges/wally.svg` and `badges/docs.svg` are the README's link badges. The Wally badge uses Wally's
-own logo, from [wally.run](https://wally.run).
+`badges/wally.svg`, `badges/docs.svg` and `badges/license.svg` are the README's link badges, each
+on its brand's colour: Wally's logo (from [wally.run](https://wally.run)) on its red, the Guide icon
+on Rivue blue, and the PolyForm logo on black.

@@ -1,13 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="75" height="33" viewBox="0 0 150 66" role="img" aria-label="Docs">
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="98" height="40" viewBox="0 0 196 80" role="img" aria-label="Docs">
 <title>Docs</title>
-<rect width="150" height="66" rx="12" fill="#1c1b22"/>
-<g transform="translate(8 5) scale(0.21875)">
-  <rect x="24" y="24" width="208" height="208" rx="48" fill="#1f6feb" transform="rotate(-15 128 128)"/>
-  <g fill="#ffffff" stroke="#ffffff" stroke-width="8" stroke-linejoin="round">
+<rect width="196" height="80" rx="16" fill="#1f6feb"/>
+<g transform="translate(10 8) scale(0.25)">
+  <rect x="24" y="24" width="208" height="208" rx="48" fill="#ffffff" transform="rotate(-15 128 128)"/>
+  <g fill="#1f6feb" stroke="#1f6feb" stroke-width="8" stroke-linejoin="round">
     <path d="M58.6 82 L124 178 L124 194 L58.6 156.2 Z"/>
     <path d="M197.4 82 L132 178 L132 194 L197.4 156.2 Z"/>
   </g>
-  <path d="M101.4 104 L128 150 L154.6 104" fill="none" stroke="#7ee8c0" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
-</g>
-<text x="70" y="44" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="30" font-weight="700" fill="#ffffff">Docs</text>
+  <path d="M101.4 104 L128 150 L154.6 104" fill="none" stroke="#2fbf8f" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+</g><text x="88" y="54" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="38" font-weight="700" fill="#ffffff">Docs</text>
 </svg>

@@ -9,13 +9,13 @@
 </p>
 
 <p align="center">
-  <a href="https://wally.run/package/linhisreal/rivue"><img src="docs/assets/badges/wally.svg" height="28" alt="Wally: linhisreal/rivue"></a>
-  <a href="https://linhisreal.github.io/Rivue/"><img src="docs/assets/badges/docs.svg" height="28" alt="Docs"></a>
+  <a href="https://wally.run/package/linhisreal/rivue"><img src="docs/assets/badges/wally.svg" height="40" alt="Wally: linhisreal/rivue"></a>
+  <a href="https://linhisreal.github.io/Rivue/"><img src="docs/assets/badges/docs.svg" height="40" alt="Docs"></a>
+  <a href="LICENSE.md"><img src="docs/assets/badges/license.svg" height="40" alt="License: PolyForm Noncommercial 1.0.0"></a>
 </p>
 
 <p align="center">
   <a href="https://github.com/linhisreal/Rivue/actions/workflows/build.yml"><img src="https://github.com/linhisreal/Rivue/actions/workflows/build.yml/badge.svg" alt="CI"></a>
-  <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-blue.svg" alt="License: PolyForm Noncommercial 1.0.0"></a>
 </p>
 
 Describe your UI for the current state. When state changes, Rivue re-renders only the components
