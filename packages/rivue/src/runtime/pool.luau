@@ -95,7 +95,8 @@ Pool.metrics = {
 }
 Pool.customResetHandlers = {}
 Pool.eventHooks = {}
-Pool.instanceMetadata = {}
+-- Weak keys: an Instance destroyed without being released (a leave transition) mustn't stay here
+Pool.instanceMetadata = setmetatable({}, { __mode = "k" }) :: any
 Pool._debugMode = false
 Pool._typeCheckCache = {}
 
@@ -202,6 +203,22 @@ local function restoreTouchedProps(inst: Instance, touched: { [string]: boolean 
 	end
 end
 
+const GUI_RESET = table.freeze({
+	LayoutOrder = true,
+	Visible = true,
+	Size = true,
+	Position = true,
+	AnchorPoint = true,
+	BackgroundTransparency = true,
+})
+local function withProp(base: { [string]: boolean }, prop: string): { [string]: boolean }
+	local set = table.clone(base)
+	set[prop] = true
+	return table.freeze(set)
+end
+local TEXT_RESET = withProp(GUI_RESET, "Text")
+local IMAGE_RESET = withProp(GUI_RESET, "Image")
+
 local function resetInstance(inst: Instance, touched: { [string]: boolean }?): ()
 	if not inst then
 		return
@@ -229,22 +246,12 @@ local function resetInstance(inst: Instance, touched: { [string]: boolean }?): (
 			end)
 		end
 
-		if typeInfo.isText then
-			(inst :: TextLabel).Text = ""
-		end
-
-		if typeInfo.isImage then
-			(inst :: ImageLabel).Image = ""
-		end
-
+		-- Class defaults, so a pooled element looks like a new one
 		if typeInfo.isGuiObject then
-			local guiObj = inst :: GuiObject
-			guiObj.LayoutOrder = 0
-			guiObj.Visible = true
-			guiObj.Size = UDim2.new(0, 0, 0, 0)
-			guiObj.Position = UDim2.new(0, 0, 0, 0)
-			guiObj.AnchorPoint = Vector2.new(0, 0)
-			guiObj.BackgroundTransparency = 0
+			restoreTouchedProps(
+				inst,
+				if typeInfo.isText then TEXT_RESET elseif typeInfo.isImage then IMAGE_RESET else GUI_RESET
+			)
 		end
 
 		-- Back to the default name, a reused Instance shouldn't show up as "PooledFrame"
@@ -503,9 +510,19 @@ function Pool.clear(className: string?): ()
 	end
 end
 
+-- defaultTTL starts as nil, so known keys can't be found by reading the current config
+const CONFIG_KEYS = table.freeze({
+	maxPoolSize = true,
+	maxTotalSize = true,
+	enableMetrics = true,
+	enableDebug = true,
+	defaultTTL = true,
+	enableAutoWarmup = true,
+})
+
 function Pool.configure(config: PoolConfig): ()
 	for key, value in pairs(config) do
-		if Pool.config[key] ~= nil then
+		if CONFIG_KEYS[key] then
 			(Pool.config :: any)[key] = value
 		end
 	end
