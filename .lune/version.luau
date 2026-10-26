@@ -3,7 +3,7 @@
 
 	lune run version 2.57.0
 
-	Updates packages/*/wally.toml and pesde.toml, and the install lines in the README.
+	Updates packages/*/wally.toml and pesde.toml, Rivue.version, and the install lines in the README.
 ]]
 
 local fs = require("@lune/fs")
@@ -35,4 +35,5 @@ for _, name in fs.readDir("packages") do
 	end
 end
 
+update("packages/rivue/src/runtime/main.luau", 'Rivue%.version = "[^"]*"', `Rivue.version = "{version}"`)
 update("README.md", "(linhisreal/rivue[%w_%-]*@)[%w%.%-]+", `%1{version}`)

@@ -445,6 +445,8 @@ local function runTests()
 		assertEquals(root:GetAttribute("RivueState"), 'count = 3\nunused = "hidden"', "its state refs")
 		assertEquals(root:GetAttribute("RivueRenders"), 1, "how many times it rendered")
 		app:unmount()
+		assertTrue(not CollectionService:HasTag(root, "RivueComponent"), "unmounting removes the tag")
+		assertEquals(root:GetAttribute("RivueProps"), nil, "and the attributes")
 
 		local plain = Instance.new("Folder")
 		local quiet = Rivue.createApp(Rivue.h(Counter))

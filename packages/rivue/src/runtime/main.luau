@@ -322,6 +322,9 @@ Rivue.useSelection = robloxUtils.useSelection
 Rivue.useTween = robloxUtils.useTween
 Rivue.useSpring = robloxUtils.useSpring
 
+-- Set by `lune run version`, same for every package
+Rivue.version = "2.56.0"
+
 Rivue.createApp = renderer.createApp
 Rivue.testing = table.freeze({ trigger = renderer.trigger, setInteraction = renderer.setInteraction })
 

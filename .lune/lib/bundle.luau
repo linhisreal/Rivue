@@ -55,6 +55,9 @@ local function bundle(suites: { Suite }): string
 
 	addFolder(out, "examples/components", "examplesFolder", "ReplicatedStorage", "Examples")
 	addFolder(out, "dev/Demo", "demoFolder", "ReplicatedStorage", "Demo")
+	addFolder(out, "packages/rivue-devtools/src", "devtoolsFolder", "ReplicatedStorage", "RivueDevTools")
+	-- The plugin requires its own copy of Rivue next to it
+	table.insert(out, "devtoolsFolder._children.Rivue = rivueScript")
 	defineModule(out, "nil", "Rivue", fs.readFile("packages/rivue/src/init.luau"))
 	defineModule(out, "ReplicatedStorage", "RivueRemote", fs.readFile("packages/rivue-remote/src/init.luau"))
 

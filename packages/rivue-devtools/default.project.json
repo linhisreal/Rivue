@@ -7,6 +7,9 @@
     },
     "Main": {
       "$path": "src/Main.server.luau"
+    },
+    "App": {
+      "$path": "src/App.luau"
     }
   }
 }
