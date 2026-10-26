@@ -1,0 +1,39 @@
+name: Wally package
+
+# Packs Rivue the way `wally publish` would, without publishing, and checks the package builds
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["wally.toml", "default.project.json", "src/shared/Rivue/**", ".github/workflows/wally.yml"]
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: CompeyDev/setup-rokit@v0.2.1
+        with:
+          cache: true
+
+      - name: Install Wally
+        run: |
+          curl -sSfL -o wally.zip https://github.com/UpliftGames/wally/releases/download/v0.3.2/wally-v0.3.2-linux.zip
+          unzip -q wally.zip -d wally-bin
+          chmod +x wally-bin/wally
+          wally-bin/wally --version
+
+      - name: Files in the package
+        run: wally-bin/wally package --list
+
+      - name: Build the package like a Wally user's Rojo project would
+        run: |
+          wally-bin/wally package --output rivue-package.zip
+          mkdir unpacked && unzip -q rivue-package.zip -d unpacked
+          cd unpacked
+          rojo build default.project.json -o ../rivue-from-wally.rbxm
+          test -f src/shared/Rivue/Rivue.luau
+          ! test -e tests
+          ! test -e src/shared/RivueRemote.luau
+          echo "Package builds into Rivue"
