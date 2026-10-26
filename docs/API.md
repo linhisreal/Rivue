@@ -210,4 +210,5 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [iterArray()](api/utilities.md#iterarray) ·
 [testing.trigger()](api/utilities.md#testingtrigger) ·
 [testing.setInteraction()](api/utilities.md#testingsetinteraction) ·
+[story()](api/utilities.md#story) ·
 [Types](api/utilities.md#types)

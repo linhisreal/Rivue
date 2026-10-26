@@ -25,6 +25,7 @@ All examples assume `local Rivue = require(game.ReplicatedStorage.Rivue)`.
 - [iterArray()](#iterarray)
 - [testing.trigger()](#testingtrigger)
 - [testing.setInteraction()](#testingsetinteraction)
+- [story()](#story)
 - [Types](#types)
 
 ---
@@ -556,6 +557,69 @@ test [style class variants](application.md#appstyles), since scripts can't move 
 
   ```lua
   function testing.setInteraction(element: Instance, state: "hover" | "pressed" | "selected", on: boolean)
+  ```
+
+---
+
+## story()
+
+Turns a component into a storybook story, so you can preview it in Studio without pressing Play.
+Works with [UI Labs](https://github.com/PepeElToro41/ui-labs), [Hoarcekat](https://github.com/Kampfkarren/hoarcekat)
+and other plugins that take function stories.
+
+- **Example**
+
+  A ModuleScript named `ShopItem.story.luau` next to the component:
+
+  ```lua
+  local ShopItem = Rivue.defineComponent({
+  	name = "ShopItem",
+  	props = {
+  		name = { type = "string", required = true },
+  		price = { type = "number", required = true },
+  	},
+  	render = function(ctx)
+  		return h("TextLabel", { Name = "Item", Text = `{ctx.name}: {ctx.price} coins` })
+  	end,
+  })
+
+  -- A plain story
+  local story = Rivue.story(ShopItem, { props = { name = "Iron Sword", price = 40 } })
+
+  -- With controls you can change in UI Labs' panel
+  local withControls = Rivue.story(ShopItem, {
+  	controls = { name = "Iron Sword", price = 40 },
+  })
+
+  -- What the plugin does with them
+  local preview = Instance.new("Frame")
+  local cleanup = story(preview)
+  assert((preview:FindFirstChild("Item") :: TextLabel).Text == "Iron Sword: 40 coins")
+  cleanup()
+  ```
+
+  The module returns `story` (or `withControls`).
+
+- **Details**
+
+  Without `controls`, `story()` returns a function story: `function(target)` that mounts the
+  component into `target` and returns a cleanup function. That's the format UI Labs and Hoarcekat
+  both take.
+
+  With `controls`, it returns a UI Labs generic story (`{ controls, render }`). The controls are
+  passed as props, and the component re-renders when you change one.
+
+  `props` can be a table, or a function that gets the controls and returns props, to name or
+  convert them. `styles` registers style classes for the preview, like `app:styles()`.
+
+- **Type**
+
+  ```lua
+  function story(component: ComponentDef, options: {
+  	props: Props | ((controls) -> Props)?,
+  	controls: { [string]: any }?,
+  	styles: { [string]: Props }?,
+  }?): any
   ```
 
 ---

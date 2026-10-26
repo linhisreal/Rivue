@@ -185,6 +185,70 @@ function Rivue.defineComponent(opts: ComponentOptions | SetupFunction, extra: Co
 	}
 end
 
+export type StoryOptions = {
+	props: Props | ((controls: { [string]: any }) -> Props)?,
+	controls: { [string]: any }?,
+	styles: { [string]: Props }?,
+}
+
+--- A storybook story for UI Labs, Hoarcekat or any plugin that takes function stories. With
+--- controls it's a UI Labs generic story, and the component re-renders when a control changes
+function Rivue.story(component: ComponentDef, options: StoryOptions?): any
+	local opts: StoryOptions = options or {}
+	local function mount(target: Instance, controls: { [string]: any }?): App
+		local Story = Rivue.defineComponent({
+			name = `{component.__name or "Anonymous"}Story`,
+			render = function()
+				local props = opts.props
+				if type(props) == "function" then
+					return hModule.h(component, props(controls or {}))
+				end
+				if controls then
+					local merged: Props = if props then table.clone(props :: Props) else {}
+					for k, v in controls do
+						merged[k] = v
+					end
+					return hModule.h(component, merged)
+				end
+				return hModule.h(component, props :: Props?)
+			end,
+		})
+		local app = renderer.createApp(Story)
+		if opts.styles then
+			app:styles(opts.styles)
+		end
+		app:mount(target)
+		return app
+	end
+
+	local initialControls = opts.controls
+	if initialControls == nil then
+		return function(target: Instance)
+			local app = mount(target, nil)
+			return function()
+				app:unmount()
+			end
+		end
+	end
+
+	return {
+		controls = initialControls,
+		render = function(storyProps: any)
+			local values = reactivity.reactive(table.clone(storyProps.controls)) :: { [string]: any }
+			local app = mount(storyProps.target, values)
+			local disconnect = storyProps.subscribe(function(newValues: { [string]: any })
+				for k, v in newValues do
+					values[k] = v
+				end
+			end)
+			return function()
+				disconnect()
+				app:unmount()
+			end
+		end,
+	}
+end
+
 Rivue.onBeforeMount = componentAPI.onBeforeMount
 Rivue.onMounted = componentAPI.onMounted
 Rivue.onBeforeUpdate = componentAPI.onBeforeUpdate
