@@ -51,13 +51,23 @@ It runs in LocalScripts; `Rivue.Remote` also has a server half.
 
 ## Why Rivue
 
-- **Vue's API, in Luau.** `ref`, `computed`, `watch`, components with props, emits, slots and
-  provide/inject. If you know Vue, there's a [cheat sheet](docs/VUE.md).
-- **Fine-grained updates, with components.** Reactivity is tracked per value, so a parent
-  re-rendering doesn't re-render children whose props didn't change. No `memo` needed for that.
-- **Made for Roblox UI.** Style classes, `layout`/`flex` props instead of UIListLayout
-  boilerplate, and built-in tweens, springs, `Transition`, `VirtualList` and a rate-limited
-  `Remote`.
+Roact and React-lua bring React's design to Roblox. Rivue brings Vue's. Both describe UI as a
+tree of components, but they update it differently:
+
+| | React way (Roact, React-lua) | Vue way (Rivue) |
+|---|---|---|
+| State | `setState` or hooks, re-run on every render | `ref` and `reactive`, created once in `setup` |
+| What re-renders | the component and its children, unless you memoize | only components that read the changed value |
+| Rules to follow | hook order, dependency arrays, stale closures | none: `setup` runs once, refs are plain values |
+| Two-way input | value plus change handler, by hand | `model = "draft"` |
+| Styling and layout | properties on each element | style classes, `layout` and `flex` props |
+
+On top of that, Rivue ships what Roblox UI usually needs: `Transition`, `VirtualList`,
+`KeepAlive`, tweens and springs, and a rate-limited `Remote`.
+
+If you know React, Roact or React-lua will feel familiar, and they're more established. If you
+know Vue, or want less re-rendering with less code, use Rivue. There's a
+[Vue cheat sheet](docs/VUE.md).
 
 ## Features
 

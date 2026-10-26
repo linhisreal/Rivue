@@ -2,7 +2,7 @@ name: Release
 
 # Publish a release with Rivue.rbxm and Rivue.min.rbxm attached, either by pushing a tag
 # (v2.56.0, or pre-v2.56 for a pre-release) or by running this workflow from the Actions tab,
-# which creates the tag on the current main.
+# which creates the tag on the current main. Notes come from .github/release-notes/<tag>.md.
 on:
   push:
     tags: ["v*", "pre-v*"]
@@ -39,7 +39,7 @@ jobs:
           target_commitish: ${{ github.sha }}
           name: ${{ env.TAG }}
           prerelease: ${{ startsWith(env.TAG, 'pre-') }}
-          generate_release_notes: true
+          body_path: .github/release-notes/${{ env.TAG }}.md
           files: |
             build/Rivue.rbxm
             build/Rivue.min.rbxm
