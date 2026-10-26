@@ -12,6 +12,8 @@
 
 local now = 0
 local deferred = {}
+-- Roblox errors when deferred threads keep deferring more than 80 levels deep
+local deferDepth = 0
 local timers = {}
 local function makeSignal()
 	local sig = { _conns = {} }
@@ -66,8 +68,11 @@ local function spawnFn(f, ...)
 end
 task = {
 	defer = function(f, ...)
+		if deferDepth >= 80 then
+			error("Maximum re-entrancy depth (80) exceeded calling task.defer", 2)
+		end
 		local co = type(f) == "thread" and f or coroutine.create(f)
-		table.insert(deferred, { co, table.pack(...) })
+		table.insert(deferred, { co, table.pack(...), depth = deferDepth + 1 })
 		return co
 	end,
 	spawn = spawnFn,
@@ -106,7 +111,9 @@ local function flushDeferred()
 		end
 		local d = table.remove(deferred, 1)
 		if coroutine.status(d[1]) == "suspended" then
+			deferDepth = d.depth
 			resumeThread(d[1], table.unpack(d[2], 1, d[2].n))
+			deferDepth = 0
 		end
 	end
 end

@@ -25,6 +25,28 @@ const MAX_REENTRANCY_DEPTH = 100
 
 local NOOP_HANDLE: JobHandle = table.freeze({ cancel = function() end })
 
+-- Roblox refuses task.defer past 80 nested deferred resumptions (a loop of nextTick() calls
+-- hits it). Without a fallback the flush never runs and updateScheduled stays true forever.
+local overflow: { thread | () -> () } = {}
+
+local function runOverflow(): ()
+	local items = overflow
+	overflow = {}
+	for _, item in items do
+		task.spawn(item)
+	end
+end
+
+local function defer(item: thread | () -> ()): ()
+	if pcall(task.defer, item) then
+		return
+	end
+	table.insert(overflow, item)
+	if #overflow == 1 then
+		RS.Heartbeat:Once(runOverflow)
+	end
+end
+
 -- One connection per mode, not per job
 type FrameMode = "render" | "heartbeat"
 local frameQueues: { [FrameMode]: { Job } } = { render = {}, heartbeat = {} }
@@ -103,7 +125,7 @@ local function flushMicro(): ()
 	if #microQueue > 0 and not microScheduled then
 		microScheduled = true
 		debugModule.log("Scheduler", "New jobs added during flush, scheduling another flush")
-		task.defer(flushMicro)
+		defer(flushMicro)
 	end
 end
 
@@ -131,7 +153,7 @@ function scheduler.queueJob(fn: () -> (), opts: QueueOptions?): JobHandle
 
 		if not microScheduled then
 			microScheduled = true
-			task.defer(flushMicro)
+			defer(flushMicro)
 		end
 
 		return {
@@ -147,10 +169,10 @@ end
 --- Component re-renders and "pre" watchers are deferred, so a defer queued now runs after them.
 function scheduler.nextTick(fn: (() -> ())?): ()
 	if fn then
-		task.defer(fn)
+		defer(fn)
 		return
 	end
-	task.defer(coroutine.running())
+	defer(coroutine.running())
 	coroutine.yield()
 end
 
@@ -162,7 +184,7 @@ function scheduler.queueEffect(fn: () -> ()): ()
 	table.insert(microQueue, { fn = fn, cancelled = false })
 	if not microScheduled then
 		microScheduled = true
-		task.defer(flushMicro)
+		defer(flushMicro)
 	end
 end
 
@@ -216,7 +238,7 @@ function scheduler.queueUpdate(job: UpdateJob): ()
 	table.insert(updateQueue, job)
 	if not updateScheduled then
 		updateScheduled = true
-		task.defer(flushUpdates)
+		defer(flushUpdates)
 	end
 end
 
