@@ -137,6 +137,8 @@ export type VNode = {
 	_handlers: { [string]: (...any) -> () }?,
 	_dirs: { [string]: unknown }?,
 	_touched: { [string]: boolean }?,
+	-- Properties bound to a ref or Rivue.bind(), each with its own effect
+	_bindings: { [any]: any }?,
 	_fnTree: VNode?,
 	_owner: unknown?,
 	_transition: TransitionConfig?,

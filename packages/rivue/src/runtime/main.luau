@@ -16,6 +16,10 @@ local builtins = require("./builtins")
 local composables = require("./composables")
 local array = require("./array")
 local routerModule = require("./router")
+local testingModule = require("./testing")
+local uiModule = require("./ui")
+local transitionsModule = require("./transitions")
+local hotReloadModule = require("./hotreload")
 
 local RunService = game:GetService("RunService")
 
@@ -284,6 +288,14 @@ Rivue.TransitionGroup = builtins.TransitionGroup
 Rivue.VirtualList = builtins.VirtualList
 Rivue.ViewportModel = builtins.ViewportModel
 
+Rivue.ErrorBoundary = uiModule.ErrorBoundary
+Rivue.Dialog = uiModule.Dialog
+Rivue.Row = uiModule.Row
+Rivue.Column = uiModule.Column
+Rivue.Spacer = uiModule.Spacer
+Rivue.transitions = transitionsModule
+Rivue.hotReload = hotReloadModule.hotReload
+
 Rivue.defineAsyncComponent = builtins.defineAsyncComponent
 
 Rivue.useAttrs = composables.useAttrs
@@ -337,8 +349,21 @@ Rivue.useSpring = robloxUtils.useSpring
 -- Set by `lune run version`, same for every package
 Rivue.version = "2.57.0"
 
+--- A property value that follows `getter`: when what it reads changes, Rivue writes just that
+--- property, without re-rendering the component. A ref works the same way without bind()
+function Rivue.bind<T>(getter: () -> T): T
+	assert(type(getter) == "function", "Rivue.bind expects a function")
+	return table.freeze({ __rivueBinding = getter }) :: any
+end
+
 Rivue.createApp = renderer.createApp
-Rivue.testing = table.freeze({ trigger = renderer.trigger, setInteraction = renderer.setInteraction })
+Rivue.testing = table.freeze({
+	trigger = renderer.trigger,
+	setInteraction = renderer.setInteraction,
+	render = testingModule.render,
+	click = testingModule.click,
+	typeInto = testingModule.typeInto,
+})
 
 function Rivue.mount(componentOrVNode: ComponentDef | VNode, parent: Instance, opts: AppOptions?): App
 	local vnode: VNode = if (componentOrVNode :: ComponentDef).__is_component

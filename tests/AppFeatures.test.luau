@@ -1,5 +1,5 @@
 --!nonstrict
--- The router, useAsync and gamepad focus
+-- The router, useAsync, gamepad focus, bindings, testing helpers and the built-in UI components
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
@@ -193,6 +193,320 @@ return function()
 		Rivue.nextTick()
 		assertEquals(counterSetups, before, "keepAlive brings a screen back without setting it up again")
 		keptApp:unmount()
+	end
+
+	print("Bindings")
+	do
+		local seconds = Rivue.ref(10)
+		local renders = 0
+		local plain = Rivue.ref(false)
+		local Timer = Rivue.defineComponent({
+			name = "BoundTimer",
+			setup = function()
+				return { seconds = seconds }
+			end,
+			render = function(ctx)
+				renders += 1
+				return h("TextLabel", {
+					Name = "Clock",
+					Text = if plain.value
+						then "paused"
+						else Rivue.bind(function()
+							return `{ctx.seconds}s`
+						end),
+					TextTransparency = seconds,
+				})
+			end,
+		})
+		local folder = Instance.new("Folder")
+		local app = Rivue.createApp(Timer)
+		app:mount(folder)
+		local clock = find(folder, "Clock") :: TextLabel
+		assertEquals(clock.Text, "10s", "Rivue.bind sets the first value")
+		assertEquals(clock.TextTransparency, 10, "so does a plain ref")
+		seconds.value = 9
+		Rivue.nextTick()
+		assertEquals(clock.Text, "9s", "a bound property follows its state")
+		assertEquals(renders, 1, "without re-rendering the component")
+		plain.value = true
+		Rivue.nextTick()
+		assertEquals(clock.Text, "paused", "a plain value replaces the binding")
+		seconds.value = 8
+		Rivue.nextTick()
+		assertEquals(clock.Text, "paused", "and the old binding stops")
+		app:unmount()
+		seconds.value = 1
+		Rivue.nextTick()
+		assertEquals(clock.TextTransparency, 8, "unmounting stops bindings")
+	end
+
+	print("Testing helpers")
+	do
+		local Counter = Rivue.defineComponent({
+			name = "HelperCounter",
+			props = { start = { type = "number", default = 0 } },
+			setup = function(props)
+				local count = Rivue.ref(props.start)
+				local name = Rivue.ref("")
+				return {
+					count = count,
+					name = name,
+					add = function()
+						count.value += 1
+					end,
+				}
+			end,
+			render = function(ctx)
+				return h("Frame", nil, {
+					h("TextLabel", { Name = "Count", Text = `Count: {ctx.count}` }),
+					h("TextButton", { Text = "Add", onActivated = ctx.add }),
+					h("TextBox", { Name = "NameBox", model = "name" }),
+					h("TextLabel", { Text = `Hi {ctx.name}` }),
+				})
+			end,
+		})
+		local screen = Rivue.testing.render(Counter, { start = 5 })
+		assertTrue(screen.getByText("Count: 5") ~= nil, "render passes props, getByText finds by text")
+		Rivue.testing.click(screen.getByText("Add"))
+		assertTrue(screen.queryByText("Count: 6") ~= nil, "click works with onActivated and waits for the render")
+		assertEquals(screen.queryByText("Count: 5"), nil, "queryByText returns nil when missing")
+		assertTrue(not pcall(screen.getByText, "Nope"), "getByText errors when missing")
+		Rivue.testing.typeInto(screen.getByName("NameBox"), "Ana")
+		assertTrue(screen.queryByText("Hi Ana") ~= nil, "typeInto types into a TextBox")
+		assertEquals(#screen.getAllByText(function(text)
+			return string.sub(text, 1, 1) == "C"
+		end), 1, "matching with a function")
+		screen.unmount()
+	end
+
+	print("ErrorBoundary")
+	do
+		local broken = Rivue.ref(true)
+		local reported = nil
+		local Widget = Rivue.defineComponent({
+			name = "FlakyWidget",
+			render = function()
+				if broken.value then
+					error("widget exploded")
+				end
+				return h("TextLabel", { Text = "widget ok" })
+			end,
+		})
+		local resetFn = nil
+		local reachedApp = 0
+		local App = Rivue.defineComponent({
+			name = "BoundaryApp",
+			render = function()
+				return h(Rivue.ErrorBoundary, {
+					onError = function(message)
+						reported = message
+					end,
+					fallback = function(message, reset)
+						resetFn = reset
+						return h("TextLabel", { Text = "Couldn't load this panel" })
+					end,
+				}, { h(Widget) })
+			end,
+		})
+		local folder = Instance.new("Folder")
+		local app = Rivue.createApp(App)
+		app.config.errorHandler = function()
+			reachedApp += 1
+		end
+		app:mount(folder)
+		Rivue.nextTick()
+		local function hasText(text)
+			for _, d in folder:GetDescendants() do
+				if d:IsA("TextLabel") and d.Text == text then
+					return true
+				end
+			end
+			return false
+		end
+		assertTrue(hasText("Couldn't load this panel"), "the fallback replaces children that threw")
+		assertTrue(string.find(reported or "", "widget exploded", 1, true) ~= nil, "onError gets the message")
+		assertEquals(reachedApp, 0, "the error stops at the boundary")
+		broken.value = false
+		resetFn()
+		Rivue.nextTick()
+		assertTrue(hasText("widget ok"), "reset tries the children again")
+		app:unmount()
+	end
+
+	print("Transition presets")
+	do
+		local fade = Rivue.transitions.fade({ duration = 0.3, mode = "out-in" })
+		assertEquals(fade.tweenInfo.Time, 0.3, "duration sets the tween time")
+		assertEquals(fade.mode, "out-in", "other options pass through to the Transition")
+		assertEquals(fade.from.TextTransparency, 1, "fade hides text")
+		local slide = Rivue.transitions.slide({ direction = "up", distance = 30 })
+		assertEquals(
+			slide.from.Position(UDim2.fromOffset(10, 10)),
+			UDim2.fromOffset(10, 40),
+			"slide up starts below where the element sits"
+		)
+		local pop = Rivue.transitions.pop({ scale = 0.5, fade = false })
+		assertEquals(pop.from.Size(UDim2.fromOffset(100, 50)), UDim2.fromOffset(50, 25), "pop starts scaled down")
+		assertEquals(pop.from.BackgroundTransparency, nil, "fade = false leaves transparency alone")
+
+		local open = Rivue.ref(true)
+		local Panel = Rivue.defineComponent({
+			name = "PresetPanel",
+			render = function()
+				return h("Frame", { Name = "Root" }, {
+					h(Rivue.Transition, Rivue.transitions.slide({ duration = 0.1 }), {
+						Rivue.hIf(open.value, h("Frame", { Name = "Sheet", Position = UDim2.fromOffset(0, 100) })),
+					}),
+				})
+			end,
+		})
+		local folder = Instance.new("Folder")
+		local app = Rivue.createApp(Panel)
+		app:mount(folder)
+		open.value = false
+		Rivue.nextTick()
+		task.wait(0.3)
+		assertEquals(find(folder, "Sheet"), nil, "a preset with a relative Position plays and removes the element")
+		app:unmount()
+	end
+
+	print("Suspense waits for useAsync")
+	do
+		local Shop = Rivue.defineComponent({
+			name = "SuspenseShop",
+			setup = function()
+				local items = Rivue.useAsync(function()
+					task.wait(0.15)
+					return { "Sword" }
+				end, { initial = {} })
+				return { items = items.data }
+			end,
+			render = function(ctx)
+				return h("TextLabel", { Name = "Items", Text = table.concat(ctx.items, ",") })
+			end,
+		})
+		local App = Rivue.defineComponent({
+			name = "SuspenseApp",
+			render = function()
+				return h(Rivue.Suspense, nil, { h(Shop) })
+			end,
+		})
+		local folder = Instance.new("Folder")
+		local app = Rivue.createApp(App)
+		app:mount(folder)
+		Rivue.nextTick()
+		assertTrue(find(folder, "SuspenseFallback") ~= nil, "the fallback shows while useAsync loads")
+		task.wait(0.3)
+		Rivue.nextTick()
+		assertEquals(find(folder, "SuspenseFallback"), nil, "and goes once the data arrives")
+		assertEquals((find(folder, "Items") :: TextLabel).Text, "Sword", "with the data rendered")
+		app:unmount()
+	end
+
+	print("Dialog")
+	do
+		local open = Rivue.ref(false)
+		local closes = 0
+		local App = Rivue.defineComponent({
+			name = "DialogApp",
+			render = function()
+				return h(Rivue.Dialog, {
+					open = open.value,
+					onClose = function()
+						closes += 1
+						open.value = false
+					end,
+				}, {
+					h("TextButton", { Name = "Confirm", Text = "Confirm", Selectable = true }),
+				})
+			end,
+		})
+		local folder = Instance.new("Folder")
+		local app = Rivue.createApp(App)
+		app:mount(folder)
+		assertEquals(find(folder, "DialogBackdrop"), nil, "closed, nothing renders")
+		open.value = true
+		Rivue.nextTick()
+		local backdrop = find(folder, "DialogBackdrop")
+		assertTrue(backdrop ~= nil, "open, the backdrop renders")
+		assertTrue(find(folder, "Confirm") ~= nil, "with the content inside")
+		assertTrue((find(folder, "DialogPanel") :: Frame).SelectionGroup, "gamepad navigation is kept inside")
+		Rivue.testing.trigger(backdrop :: Instance, "onActivated")
+		Rivue.nextTick()
+		assertEquals(closes, 1, "a backdrop click asks to close")
+		assertEquals(find(folder, "DialogBackdrop"), nil, "and the dialog goes")
+		app:unmount()
+	end
+
+	print("Row, Column and Spacer")
+	do
+		local App = Rivue.defineComponent({
+			name = "LayoutApp",
+			render = function()
+				return h(Rivue.Row, { Name = "Toolbar", gap = 8, align = "center" }, {
+					h("TextButton", { Name = "Back" }),
+					h(Rivue.Spacer),
+					h("TextButton", { Name = "Close" }),
+				})
+			end,
+		})
+		local folder = Instance.new("Folder")
+		local app = Rivue.createApp(App)
+		app:mount(folder)
+		local row = find(folder, "Toolbar") :: Frame
+		assertTrue(row ~= nil, "extra props like Name reach the Frame")
+		local list = row:FindFirstChildWhichIsA("UIListLayout") :: UIListLayout
+		assertTrue(list ~= nil, "a Row gets a UIListLayout")
+		assertEquals(list.FillDirection, Enum.FillDirection.Horizontal, "laid out horizontally")
+		assertEquals(list.Padding, UDim.new(0, 8), "with the gap")
+		local spacer = nil
+		for _, child in row:GetChildren() do
+			if child:FindFirstChildWhichIsA("UIFlexItem") then
+				spacer = child
+			end
+		end
+		assertTrue(spacer ~= nil, "a Spacer flexes to fill")
+		app:unmount()
+	end
+
+	print("hotReload")
+	do
+		local folder = Instance.new("Folder")
+		folder.Name = "Screens"
+		folder.Parent = Instance.new("Folder")
+		local module = Instance.new("ModuleScript")
+		module.Name = "Shop"
+		module.Parent = folder
+		local helper = Instance.new("ModuleScript")
+		helper.Name = "Helper"
+		helper.Parent = folder
+		local version = 0
+		local loadedFrom = nil
+		local received = {}
+		local handle = Rivue.hotReload(module, function(exported)
+			table.insert(received, exported)
+		end, {
+			watch = folder,
+			debounce = 0.05,
+			require = function(target)
+				version += 1
+				loadedFrom = target
+				return `v{version}`
+			end,
+		})
+		module.Source = "edit 1"
+		module.Source = "edit 2"
+		task.wait(0.15)
+		assertEquals(#received, 1, "edits close together reload once")
+		assertEquals(received[1], "v1", "with the new export")
+		assertTrue(loadedFrom ~= module and loadedFrom.Name == "Shop", "loaded from a fresh copy, past require's cache")
+		helper.Source = "edit"
+		task.wait(0.15)
+		assertEquals(received[2], "v2", "a dependency in the watched folder reloads it too")
+		handle.stop()
+		module.Source = "edit 3"
+		task.wait(0.15)
+		assertEquals(#received, 2, "stop() stops watching")
 	end
 
 	-- A server has no selection to move

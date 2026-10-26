@@ -37,19 +37,20 @@ for _, file in suites() do
 	else
 		failed += 1
 		print(string.format("%-40s FAILED", name))
+		-- Failures first: a passing line that mentions "error" mustn't push the real one out of view
 		local shown = 0
-		for _, line in result.output do
-			if
-				shown < 5
-				and (
-					string.find(line, "FAIL")
-					or string.find(line, "TIMEOUT")
-					or string.find(line, "THREAD ERROR")
-					or string.find(line, "error")
-				)
-			then
-				print("  " .. line)
-				shown += 1
+		for _, patterns in { { "FAIL", "TIMEOUT", "THREAD ERROR" }, { "error" } } do
+			for _, line in result.output do
+				local hit = false
+				for _, pattern in patterns do
+					if string.find(line, pattern, 1, true) then
+						hit = true
+					end
+				end
+				if hit and shown < 5 and not string.find(line, "✓", 1, true) then
+					print("  " .. line)
+					shown += 1
+				end
 			end
 		end
 	end

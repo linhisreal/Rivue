@@ -100,6 +100,8 @@ export type AsyncOptions<T> = {
 	args: { any }?,
 	--- `data` before the first result
 	initial: T?,
+	--- Hold a surrounding Suspense on its fallback while loading (default true)
+	suspense: boolean?,
 }
 
 export type AsyncState<T> = {
@@ -121,12 +123,29 @@ function composables.useAsync<T>(fn: (...any) -> T, options: AsyncOptions<T>?): 
 	local lastArgs = table.pack(table.unpack(opts.args or {}))
 	local disposed = false
 
+	-- A Suspense above waits for every run in flight, the same way it waits for async components
+	local suspense: Types.SuspenseContext? = nil
+	if opts.suspense ~= false and componentModule.getCurrentInstance() then
+		suspense = componentModule.inject("suspense") :: Types.SuspenseContext?
+	end
+	local holdingSuspense = false
+	local function releaseSuspense()
+		if holdingSuspense and suspense then
+			holdingSuspense = false
+			suspense.resolve()
+		end
+	end
+
 	local function run(...: any)
 		latest += 1
 		local id = latest
 		lastArgs = table.pack(...)
 		loading.value = true
 		err.value = nil
+		if suspense and not holdingSuspense then
+			holdingSuspense = true
+			suspense.register()
+		end
 		task.spawn(function(...: any)
 			local ok, result = pcall(fn, ...)
 			if disposed or id ~= latest then
@@ -135,15 +154,18 @@ function composables.useAsync<T>(fn: (...any) -> T, options: AsyncOptions<T>?): 
 			if ok then
 				data.value = result
 			else
+				-- Kept here rather than failing the Suspense, so the component can offer a retry
 				err.value = tostring(result)
 			end
 			loading.value = false
+			releaseSuspense()
 		end, ...)
 	end
 
 	-- Results that arrive after the component is gone are dropped
 	reactivity.onScopeDispose(function()
 		disposed = true
+		releaseSuspense()
 	end, true)
 
 	if opts.immediate ~= false then
