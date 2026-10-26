@@ -80,6 +80,8 @@ type InstanceData = {
 	_pendingUpdate: boolean,
 	_idCount: number,
 	_keepAliveRenderer: { unmount: (vnode: VNode) -> () }?,
+	-- What made the next render happen, for app.config.devtools
+	_devtoolsTriggers: { string }?,
 }
 
 export type ComponentInstance = typeof(setmetatable({} :: InstanceData, ComponentInstance))
@@ -690,6 +692,7 @@ local function createComponentInstance(
 		_pendingUpdate = false,
 		_idCount = 0,
 		_keepAliveRenderer = nil,
+		_devtoolsTriggers = nil,
 	}
 	local instance = setmetatable(data, ComponentInstance)
 	instance.ctx = createSetupContext(instance)

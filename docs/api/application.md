@@ -597,11 +597,21 @@ Lets the [Rivue DevTools plugin](../DEVTOOLS.md) show this app's components whil
 
 - **Details**
 
-  Each component's root Instance gets the `RivueComponent` tag and four attributes, updated on
-  every render: `RivueComponent` (its name), `RivueProps`, `RivueState` (the refs `setup`
-  returned) and `RivueRenders` (how many times it rendered). Reading them doesn't add
-  dependencies, so it doesn't change what re-renders. It does cost an engine call per attribute
-  per render, so leave it off in live games. Set it before `app:mount()`.
+  Each component's root Instance gets the `RivueComponent` tag and these attributes, updated on
+  every render:
+
+  | Attribute | Holds |
+  |---|---|
+  | `RivueComponent` | its name |
+  | `RivueProps` | its props, one `key = value` per line |
+  | `RivueState` | the refs `setup` returned, the same way |
+  | `RivueRenders` | how many times it rendered |
+  | `RivueRenderMs` | how long the last render and patch took, in milliseconds |
+  | `RivueTrigger` | what caused the last render: `mount`, `parent`, or the state that changed, like `count` or `props.title` |
+
+  Writing them doesn't add dependencies, so it doesn't change what re-renders. It does cost an
+  engine call per attribute per render, so leave it off in live games. Set it before
+  `app:mount()`.
 
 - **Type**
 

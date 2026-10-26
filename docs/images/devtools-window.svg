@@ -1,40 +1,54 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 760 400" width="760" height="400">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" width="800" height="450">
 <title>The Rivue DevTools window</title>
-<rect width="760" height="400" rx="12" fill="#ffffff" stroke="#d0d7de"/>
-<rect x="24" y="20" width="380" height="360" rx="6" fill="#252525"/>
-<text x="36" y="40" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#969696">Rivue 2.57.0 · 4 components</text>
-<rect x="36" y="50" width="356" height="24" rx="3" fill="#2e2e2e"/>
+<rect width="800" height="450" rx="12" fill="#ffffff" stroke="#d0d7de"/>
+<rect x="24" y="20" width="400" height="410" rx="6" fill="#252525"/>
+<text x="36" y="40" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#969696">Rivue 2.57.0 · 5 components</text>
+<rect x="36" y="50" width="376" height="24" rx="4" fill="#2e2e2e"/>
 <text x="44" y="66" font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#787878">Filter by name</text>
-<g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13">
-<text x="44" y="98" fill="#dcdcdc" xml:space="preserve">&lt;App&gt;  1</text>
-<text x="44" y="120" fill="#dcdcdc" xml:space="preserve">  &lt;Shop&gt;  3</text>
-<rect x="36" y="127" width="356" height="22" fill="#1f6feb"/>
-<text x="44" y="142" fill="#ffffff" xml:space="preserve">    &lt;ShopRow&gt;  3</text>
-<text x="44" y="164" fill="#ffaa3c" xml:space="preserve">    &lt;Ping&gt;  58</text>
+<g font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="12" fill="#dcdcdc" text-anchor="middle">
+<rect x="36" y="80" width="98" height="22" rx="4" fill="#353535"/><text x="85" y="95">Sort: tree</text>
+<rect x="138" y="80" width="54" height="22" rx="4" fill="#353535"/><text x="165" y="95">Pause</text>
+<rect x="196" y="80" width="92" height="22" rx="4" fill="#353535"/><text x="242" y="95">Reset counts</text>
 </g>
-<line x1="36" y1="196" x2="392" y2="196" stroke="#3a3a3a"/>
+<g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="13">
+<text x="44" y="126" fill="#dcdcdc" xml:space="preserve">&lt;App&gt;  1</text>
+<text x="44" y="148" fill="#dcdcdc" xml:space="preserve">  &lt;Shop&gt;  3</text>
+<rect x="36" y="155" width="376" height="22" fill="#1f6feb"/>
+<text x="44" y="170" fill="#ffffff" xml:space="preserve">    &lt;ShopRow&gt;  3</text>
+<text x="44" y="192" fill="#ffaa3c" xml:space="preserve">    &lt;Ping&gt;  58</text>
+<text x="44" y="214" fill="#ff5f5f" xml:space="preserve">    &lt;Inventory&gt;  4  3.80 ms</text>
+</g>
+<line x1="36" y1="230" x2="412" y2="230" stroke="#3a3a3a"/>
 <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="12" fill="#c8c8c8">
-<text x="44" y="216" xml:space="preserve">&lt;ShopRow&gt;  rendered 3×</text>
-<text x="44" y="244">Props</text>
-<text x="44" y="262">item = table</text>
-<text x="44" y="280">selected = true</text>
-<text x="44" y="308">State</text>
-<text x="44" y="326">(none)</text>
+<text x="44" y="252" xml:space="preserve">&lt;ShopRow&gt;  rendered 3×, the last one took 0.21 ms</text>
+<text x="44" y="270">Last render: props.selected changed</text>
+<text x="44" y="298">Props</text>
+<text x="44" y="316">item = table</text>
+<text x="44" y="334">selected = true</text>
+<text x="44" y="362">State</text>
+<text x="44" y="380">hovered = false</text>
 </g>
 <g font-family="-apple-system, Segoe UI, Helvetica, Arial, sans-serif" font-size="13" fill="#1f2328">
-<path d="M420 40 L404 40" stroke="#59636e"/>
-<text x="428" y="44">how many components are mounted</text>
-<path d="M420 62 L396 62" stroke="#59636e"/>
-<text x="428" y="66">type to narrow the list</text>
-<path d="M420 120 L396 120" stroke="#59636e"/>
-<text x="428" y="112">indented under its parent,</text>
-<text x="428" y="128">with its render count</text>
-<path d="M420 142 L396 142" stroke="#59636e"/>
-<text x="428" y="146" fill="#1f6feb">selected: also selected in the Explorer</text>
-<path d="M420 164 L396 164" stroke="#59636e"/>
-<text x="428" y="168" fill="#bc4c00">orange: rendered again since the last refresh</text>
-<path d="M420 262 L396 262" stroke="#59636e"/>
-<text x="428" y="258">props and state of the selected</text>
-<text x="428" y="274">component, values summarised</text>
+<path d="M440 36 L430 36" stroke="#59636e"/>
+<text x="448" y="40">how many components are mounted</text>
+<path d="M440 62 L418 62" stroke="#59636e"/>
+<text x="448" y="66">type to narrow the list</text>
+<path d="M440 91 L294 91" stroke="#59636e"/>
+<text x="448" y="88">sort by tree, most renders or slowest;</text>
+<text x="448" y="104">freeze the list; count from zero</text>
+<path d="M440 142 L418 142" stroke="#59636e"/>
+<text x="448" y="136">indented under its parent,</text>
+<text x="448" y="152">with its render count</text>
+<path d="M440 166 L418 166" stroke="#59636e"/>
+<text x="448" y="170" fill="#1f6feb">selected: also selected in the Explorer</text>
+<path d="M440 188 L418 188" stroke="#59636e"/>
+<text x="448" y="192" fill="#bc4c00">orange: rendered again since the last refresh</text>
+<path d="M440 210 L418 210" stroke="#59636e"/>
+<text x="448" y="214" fill="#cf222e">red: the last render took 2 ms or more</text>
+<path d="M440 270 L418 270" stroke="#59636e"/>
+<text x="448" y="258">how long the last render took, and</text>
+<text x="448" y="274">which state change caused it</text>
+<path d="M440 334 L418 334" stroke="#59636e"/>
+<text x="448" y="330">props and state, values summarised</text>
 </g>
 </svg>

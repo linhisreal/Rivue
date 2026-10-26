@@ -409,14 +409,16 @@ local function runTests()
 
 	print("app.config.devtools mirrors components onto their roots")
 	do
+		local count = Rivue.ref(3)
+		local bag = Rivue.reactive({ gems = 1 })
 		local Counter = Rivue.defineComponent({
 			name = "DevtoolsCounter",
 			props = { label = { type = "string", default = "Coins" } },
 			setup = function()
-				return { count = Rivue.ref(3), unused = Rivue.ref("hidden") }
+				return { count = count, unused = Rivue.ref("hidden"), bag = bag }
 			end,
 			render = function(ctx)
-				return Rivue.h("TextLabel", { Text = `{ctx.label}: {ctx.count}` })
+				return Rivue.h("TextLabel", { Text = `{ctx.label}: {ctx.count} {ctx.bag.gems}` })
 			end,
 		})
 		local container = Instance.new("Folder")
@@ -430,9 +432,34 @@ local function runTests()
 		assertEquals(root:GetAttribute("RivueProps"), 'label = "Gems"', "its props")
 		assertEquals(root:GetAttribute("RivueState"), 'count = 3\nunused = "hidden"', "its state refs")
 		assertEquals(root:GetAttribute("RivueRenders"), 1, "how many times it rendered")
+		assertEquals(root:GetAttribute("RivueTrigger"), "mount", "the first render is the mount")
+		assertTrue((root:GetAttribute("RivueRenderMs") :: number) >= 0, "how long the render took")
+
+		count.value = 4
+		Rivue.nextTick()
+		assertEquals(root:GetAttribute("RivueRenders"), 2, "re-renders are counted")
+		assertEquals(root:GetAttribute("RivueTrigger"), "count", "a ref is named after its setup key")
+
+		bag.gems = 2
+		count.value = 5
+		Rivue.nextTick()
+		assertEquals(root:GetAttribute("RivueTrigger"), "bag.gems, count", "batched writes are all listed")
+
+		local unrelated = Rivue.ref(0)
+		local conn = root.AttributeChanged:Connect(function()
+			local _ = unrelated.value
+		end)
+		count.value = 6
+		Rivue.nextTick()
+		conn:Disconnect()
+		local renders = root:GetAttribute("RivueRenders")
+		unrelated.value = 1
+		Rivue.nextTick()
+		assertEquals(root:GetAttribute("RivueRenders"), renders, "state read by attribute listeners isn't tracked")
 		app:unmount()
 		assertTrue(not CollectionService:HasTag(root, "RivueComponent"), "unmounting removes the tag")
 		assertEquals(root:GetAttribute("RivueProps"), nil, "and the attributes")
+		assertEquals(root:GetAttribute("RivueTrigger"), nil, "all of them")
 
 		local plain = Instance.new("Folder")
 		local quiet = Rivue.createApp(Rivue.h(Counter))

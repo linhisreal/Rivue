@@ -144,7 +144,7 @@ const DEVTOOLS_TAG = "RivueComponent"
 -- Unmounted roots leave the DevTools list, and pooled Instances don't carry old data
 local function clearDevtools(el: Instance)
 	CollectionService:RemoveTag(el, DEVTOOLS_TAG)
-	for _, name in { "RivueComponent", "RivueProps", "RivueState", "RivueRenders" } do
+	for _, name in { "RivueComponent", "RivueProps", "RivueState", "RivueRenders", "RivueRenderMs", "RivueTrigger" } do
 		el:SetAttribute(name, nil)
 	end
 end
@@ -1720,9 +1720,41 @@ local function devtoolsText(lines: { string }): string
 	return if #text > DEVTOOLS_TEXT_LIMIT then string.sub(text, 1, DEVTOOLS_TEXT_LIMIT - 3) .. "..." else text
 end
 
+local function describeKey(key: unknown): string
+	return if type(key) == "string" then `.{key}` elseif type(key) == "number" then `[{key}]` else " (items)"
+end
+
+-- Names the state behind a re-render: "count", "props.title", "items[2]". A computed's target is
+-- its internal effect, which nothing in setupState points at, so it falls through to the last line
+local function describeTrigger(inst: ComponentInstance, target: unknown, key: unknown): string
+	if target == _reactivity.toRaw(inst.props) then
+		return `props{describeKey(key)}`
+	end
+	local setupState = inst.setupState
+	if type(setupState) == "table" then
+		for name, value in next, setupState do
+			if value == target then
+				return tostring(name)
+			elseif type(value) == "table" and _reactivity.toRaw(value) == target then
+				return `{name}{describeKey(key)}`
+			end
+		end
+	end
+	return "a computed or outside state"
+end
+
+local function recordTrigger(inst: ComponentInstance, event: Types.DebuggerEvent)
+	local list: { string } = inst._devtoolsTriggers or {}
+	inst._devtoolsTriggers = list
+	local text = describeTrigger(inst, event.target, event.key)
+	if #list < 3 and not table.find(list, text) then
+		table.insert(list, text)
+	end
+end
+
 --- Mirrors a component's name, props and state onto its root Instance for the DevTools plugin.
 --- Reads refs' raw values, so it never adds dependencies to the render
-local function writeDevtools(inst: ComponentInstance, el: Instance)
+local function writeDevtools(inst: ComponentInstance, el: Instance, renderMs: number)
 	local props: { string } = {}
 	for key, value in _reactivity.toRaw(inst.props) do
 		table.insert(props, `{key} = {describeValue(value)}`)
@@ -1742,7 +1774,17 @@ local function writeDevtools(inst: ComponentInstance, el: Instance)
 	el:SetAttribute("RivueComponent", inst.type.__name or "Anonymous")
 	el:SetAttribute("RivueProps", devtoolsText(props))
 	el:SetAttribute("RivueState", devtoolsText(state))
-	el:SetAttribute("RivueRenders", ((el:GetAttribute("RivueRenders") :: number?) or 0) + 1)
+	local renders = ((el:GetAttribute("RivueRenders") :: number?) or 0) + 1
+	el:SetAttribute("RivueRenders", renders)
+	el:SetAttribute("RivueRenderMs", math.round(renderMs * 100) / 100)
+	local triggers = inst._devtoolsTriggers
+	inst._devtoolsTriggers = nil
+	-- No trigger means nothing this component reads changed: its parent passed new slots, or
+	-- something called forceUpdate
+	el:SetAttribute(
+		"RivueTrigger",
+		if renders == 1 then "mount" elseif triggers then table.concat(triggers, ", ") else "parent"
+	)
 end
 
 local function applyFallthroughAttrs(props: Props?, attrs: Props): Props?
@@ -1781,6 +1823,9 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 	inst:setupComponent()
 	inst:runBeforeMount()
 
+	local devtools = inst.appContext.config.devtools == true
+	local renderStart = 0
+
 	local function commit(nextTree: VNode?)
 		if nextTree then
 			if inst.type.inheritAttrs ~= false and type(nextTree.type) == "string" then
@@ -1814,8 +1859,11 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 			end
 		end
 		inst.el = el
-		if el and inst.appContext.config.devtools then
-			writeDevtools(inst, el)
+		if el and devtools then
+			local renderMs = (os.clock() - renderStart) * 1000
+			_reactivity._untracked(function()
+				writeDevtools(inst, el, renderMs)
+			end)
 		end
 	end
 
@@ -1833,6 +1881,9 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 		end,
 	}
 	renderEffect = _reactivity.effect(function()
+		if devtools then
+			renderStart = os.clock()
+		end
 		local render = inst.render
 		local prevRendering = componentAPI.setRenderingInstance(inst)
 		local ok, sub = pcall(function(): unknown
@@ -1888,8 +1939,11 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 				end
 			end
 			else nil,
-		onTrigger = if #inst.renderTriggeredCbs > 0
+		onTrigger = if #inst.renderTriggeredCbs > 0 or devtools
 			then function(event: Types.DebuggerEvent)
+				if devtools then
+					recordTrigger(inst, event)
+				end
 				for _, fn in inst.renderTriggeredCbs do
 					pcall(fn, event)
 				end
