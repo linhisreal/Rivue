@@ -482,6 +482,104 @@ local virtualList: ComponentDef = {
 }
 builtins.VirtualList = table.freeze(virtualList)
 
+--- Where to put the camera so a box of this size fills the view: on a sphere around its centre,
+--- turned angle degrees around and pitch degrees up
+local function viewportCamera(
+	center: Vector3,
+	size: Vector3,
+	fieldOfView: number,
+	angle: number,
+	pitch: number,
+	distance: number
+): (Vector3, Vector3)
+	local radius = size.Magnitude / 2
+	local away = radius / math.tan(math.rad(fieldOfView) / 2) * distance
+	local yaw, tilt = math.rad(angle), math.rad(pitch)
+	local direction = Vector3.new(math.sin(yaw) * math.cos(tilt), math.sin(tilt), math.cos(yaw) * math.cos(tilt))
+	return center + direction * away, center
+end
+builtins.viewportCamera = viewportCamera
+
+local viewportModel = {
+	__is_component = true,
+	__name = "ViewportModel",
+	props = {
+		model = { type = "Instance" :: "Instance", required = true },
+		angle = { type = "number" :: "number", default = 30 },
+		pitch = { type = "number" :: "number", default = 20 },
+		fieldOfView = { type = "number" :: "number", default = 40 },
+		distance = { type = "number" :: "number", default = 1 },
+	},
+	setup = function(props: Props, _context: SetupContext)
+		local frameRef = shallowRef(nil :: ViewportFrame?)
+		local clone: Instance? = nil
+		local camera: Camera? = nil
+
+		local function refresh()
+			local frame = frameRef.value
+			if not frame then
+				return
+			end
+			if clone then
+				clone:Destroy()
+				clone = nil
+			end
+			local copy = (props.model :: Instance):Clone()
+			if not copy then
+				warn("[Rivue] ViewportModel: the model isn't Archivable, so it can't be cloned")
+				return
+			end
+			local view = camera or Instance.new("Camera")
+			camera = view
+			view.FieldOfView = props.fieldOfView :: number
+			view.Parent = frame
+			frame.CurrentCamera = view
+
+			local center: CFrame, size: Vector3
+			if copy:IsA("Model") then
+				center, size = copy:GetBoundingBox()
+			elseif copy:IsA("BasePart") then
+				center, size = copy.CFrame, copy.Size
+			else
+				warn(`[Rivue] ViewportModel needs a Model or a BasePart, got a {copy.ClassName}`)
+				copy:Destroy()
+				return
+			end
+			local eye, target = viewportCamera(
+				center.Position,
+				size,
+				props.fieldOfView :: number,
+				props.angle :: number,
+				props.pitch :: number,
+				props.distance :: number
+			)
+			view.CFrame = CFrame.lookAt(eye, target)
+			copy.Parent = frame
+			clone = copy
+		end
+
+		componentModule.onMounted(function()
+			refresh()
+			reactivity.watch(function()
+				return { props.model, props.angle, props.pitch, props.fieldOfView, props.distance }
+			end, refresh)
+		end)
+		componentModule.onUnmounted(function()
+			if clone then
+				clone:Destroy()
+			end
+			if camera then
+				camera:Destroy()
+			end
+		end)
+
+		return function(): VNode
+			return h("ViewportFrame", { ref = frameRef, BackgroundTransparency = 1 })
+		end
+	end,
+}
+builtins.ViewportModel = table.freeze(viewportModel)
+
 function builtins.defineAsyncComponent(loader: () -> ComponentDef, opts: AsyncComponentOptions?): ComponentDef
 	local options: AsyncComponentOptions = opts or {}
 

@@ -36,6 +36,10 @@
 | load data from the server | [Guide 8](guide/08-state-and-server.md#talking-to-the-server) | [Remote](api/remote.md) | [Shop](../examples/components/Shop.luau) |
 | show a long list fast | [Guide 9](guide/09-performance-and-debugging.md), [15](guide/15-performance-in-depth.md) | [VirtualList](api/builtins.md#virtuallist) | [Inventory](../examples/components/Inventory.luau) |
 | organise files once there are many screens | [Guide 10](guide/10-organising-a-project.md) | [components](api/component.md#components) | [Demo app](../src/shared/Demo) |
+| close a menu with Escape or the B button | [Guide 5](guide/05-forms-and-input.md#keyboard-and-gamepad-shortcuts) | [useKeybind()](api/roblox.md#usekeybind) | |
+| translate text into the player's language | | [useTranslator()](api/roblox.md#usetranslator) | |
+| load more when the player scrolls to the end | | [useScroll()](api/roblox.md#usescroll) | |
+| show a 3D item in a shop or inventory | | [ViewportModel](api/builtins.md#viewportmodel) | |
 | check my code follows the conventions | [Guide 11](guide/11-style-rules.md) | | |
 | reuse logic between components | [Guide 12](guide/12-writing-composables.md) | [toValue()](api/reactivity-utilities.md#tovalue), [onScopeDispose()](api/reactivity-advanced.md#onscopedispose) | |
 | build tabs, menus or modals that fit together | [Guide 13](guide/13-advanced-components.md) | [provide()](api/component.md#provide), [Teleport](api/builtins.md#teleport) | [Tabs](../examples/components/Tabs.luau) |

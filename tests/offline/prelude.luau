@@ -411,6 +411,21 @@ Vector2 = {
 }
 VECTOR3_MT = {
 	__rbxtype = "Vector3",
+	__index = function(v, k)
+		if k == "Magnitude" then
+			return math.sqrt(v.X * v.X + v.Y * v.Y + v.Z * v.Z)
+		end
+		return nil
+	end,
+	__add = function(a, b)
+		return Vector3.new(a.X + b.X, a.Y + b.Y, a.Z + b.Z)
+	end,
+	__mul = function(a, b)
+		if type(a) == "number" then
+			a, b = b, a
+		end
+		return Vector3.new(a.X * b, a.Y * b, a.Z * b)
+	end,
 	__sub = function(a, b)
 		return Vector3.new(a.X - b.X, a.Y - b.Y, a.Z - b.Z)
 	end,
@@ -483,7 +498,16 @@ local CLASSES = {
 	Frame = { bases = { "GuiObject", "GuiBase2d" }, props = { GUI_PROPS } },
 	ScrollingFrame = {
 		bases = { "GuiObject", "GuiBase2d" },
-		props = { GUI_PROPS, { CanvasSize = UDim2.new(), CanvasPosition = Vector2.new(), ScrollingDirection = "XY" } },
+		props = {
+			GUI_PROPS,
+			{
+				CanvasSize = UDim2.new(),
+				CanvasPosition = Vector2.new(),
+				ScrollingDirection = "XY",
+				AbsoluteCanvasSize = Vector2.new(100, 100),
+				AbsoluteWindowSize = Vector2.new(100, 100),
+			},
+		},
 	},
 	TextLabel = { bases = { "GuiObject", "GuiBase2d" }, props = { GUI_PROPS, TEXT_PROPS } },
 	TextButton = {
@@ -553,7 +577,12 @@ local CLASSES = {
 		events = { "Touched" },
 	},
 	Model = { bases = { "PVInstance" }, props = {} },
-	Player = { bases = {}, props = { { UserId = 1, DisplayName = "Player" } }, events = { "CharacterAdded" } },
+	Player = {
+		bases = {},
+		props = { { UserId = 1, DisplayName = "Player", LocaleId = "en-us" } },
+		events = { "CharacterAdded" },
+	},
+	ViewportFrame = { bases = { "GuiObject", "GuiBase2d" }, props = { GUI_PROPS, { CurrentCamera = false } } },
 	CanvasGroup = { bases = { "GuiObject", "GuiBase2d" }, props = { GUI_PROPS, { GroupTransparency = 0 } } },
 	UICorner = { bases = {}, props = { { CornerRadius = 0 } } },
 	UIStroke = { bases = {}, props = { { Thickness = 1, Transparency = 0, Color = Color3.new(0, 0, 0) } } },
@@ -850,6 +879,45 @@ do
 	pg.Name = "PlayerGui"
 	pg.Parent = player
 	services.Players = { LocalPlayer = player, PlayerRemoving = makeSignal(), PlayerAdded = makeSignal() }
+	-- Keybinds: tests press keys with __pressKey(Enum.KeyCode.X)
+	local actions = {}
+	services.ContextActionService = {
+		BindActionAtPriority = function(_, name, fn, _button, _priority, ...)
+			actions[name] = { fn = fn, keys = { ... } }
+		end,
+		UnbindAction = function(_, name)
+			actions[name] = nil
+		end,
+	}
+	function __pressKey(key)
+		for name, action in actions do
+			if table.find(action.keys, key) then
+				action.fn(name, Enum.UserInputState.Begin, { KeyCode = key })
+			end
+		end
+	end
+	-- Translations: tests set __translations[locale][key]
+	__translations = {}
+	services.LocalizationService = {
+		RobloxLocaleId = "en-us",
+		GetTranslatorForPlayerAsync = function(_, who)
+			local localeId = who.LocaleId
+			return {
+				LocaleId = localeId,
+				FormatByKey = function(_, key, args)
+					local text = (__translations[localeId] or {})[key]
+					if not text then
+						error("missing key " .. key)
+					end
+					return (
+						string.gsub(text, "{(%w+)}", function(name)
+							return tostring(args and args[name])
+						end)
+					)
+				end,
+			}
+		end,
+	}
 	workspace = Instance.new("Workspace")
 	services.Workspace = workspace
 	local camera = Instance.new("Camera")

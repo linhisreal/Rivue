@@ -18,6 +18,7 @@ local h = Rivue.h
 - [Teleport](#teleport)
 - [Suspense](#suspense)
 - [VirtualList](#virtuallist)
+- [ViewportModel](#viewportmodel)
 
 ---
 
@@ -404,6 +405,47 @@ about as much as one of 20.
   	overscan: number?, -- extra rows rendered above and below (default 2)
   	horizontal: boolean?,
   	-- Any other prop (Size, Position, ...) goes to the ScrollingFrame
+  }
+  ```
+
+---
+
+## ViewportModel
+
+Shows a 3D model in the UI, framed by a camera that fits it. For shop and inventory previews.
+
+- **Example**
+
+  ```lua
+  local ItemPreview = Rivue.defineComponent({
+  	name = "ItemPreview",
+  	props = { model = { type = "Instance", required = true } },
+  	render = function(ctx)
+  		return h(Rivue.ViewportModel, {
+  			model = ctx.model, -- e.g. ReplicatedStorage.Items.Sword
+  			Size = UDim2.fromOffset(120, 120),
+  			angle = 45,
+  		})
+  	end,
+  })
+  ```
+
+- **Details**
+
+  Clones the model (it must be `Archivable`) into a ViewportFrame with its own Camera. The camera
+  sits on a sphere around the model's bounding box, `angle` degrees around and `pitch` degrees up,
+  far enough back for the whole model to fit. Changing any prop, or passing another model,
+  re-frames it. Other props, such as `Size`, go to the ViewportFrame.
+
+- **Props**
+
+  ```lua
+  type ViewportModelProps = {
+  	model: Model | BasePart, -- (required)
+  	angle: number?, -- degrees around the model (default 30)
+  	pitch: number?, -- degrees above it (default 20)
+  	fieldOfView: number?, -- camera field of view (default 40)
+  	distance: number?, -- 1 just fits, 2 is twice as far (default 1)
   }
   ```
 

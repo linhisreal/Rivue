@@ -276,6 +276,7 @@ Rivue.KeepAlive = builtins.KeepAlive
 Rivue.Transition = builtins.Transition
 Rivue.TransitionGroup = builtins.TransitionGroup
 Rivue.VirtualList = builtins.VirtualList
+Rivue.ViewportModel = builtins.ViewportModel
 
 Rivue.defineAsyncComponent = builtins.defineAsyncComponent
 
@@ -311,6 +312,10 @@ Rivue.onHeartbeat = robloxUtils.onHeartbeat
 Rivue.onStepped = robloxUtils.onStepped
 Rivue.useViewportSize = robloxUtils.useViewportSize
 Rivue.useDevice = robloxUtils.useDevice
+Rivue.useKeybind = robloxUtils.useKeybind
+Rivue.useLocale = robloxUtils.useLocale
+Rivue.useTranslator = robloxUtils.useTranslator
+Rivue.useScroll = robloxUtils.useScroll
 Rivue.useInputType = robloxUtils.useInputType
 Rivue.useSafeArea = robloxUtils.useSafeArea
 Rivue.useSelection = robloxUtils.useSelection
