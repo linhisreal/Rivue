@@ -1,5 +1,4 @@
 --!strict
--- throttle, debounce, nextTick, nextFrame, iterArray, useRaf, the profiler and shallowEqual
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))

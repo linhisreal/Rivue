@@ -163,7 +163,7 @@ local function createKeepAlive(): ComponentDef
 			local renderer = if self then self._keepAliveRenderer else nil
 			-- Shared by every cached vnode, the renderer detaches them instead of unmounting
 			local marker = { disposed = false }
-			-- Plain tables, not refs: render reads and writes these
+			-- Plain tables: render writes these, and as refs that would re-run the render
 			local cache: { [unknown]: VNode } = {}
 			local keys: { unknown } = {}
 			local current: VNode? = nil

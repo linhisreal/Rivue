@@ -1,5 +1,4 @@
 --!strict
--- Lifecycle hooks, prop defaults and expose()
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))

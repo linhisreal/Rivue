@@ -254,7 +254,7 @@ local function resetInstance(inst: Instance, touched: { [string]: boolean }?): (
 			)
 		end
 
-		-- Back to the default name, a reused Instance shouldn't show up as "PooledFrame"
+		-- A reused Instance shouldn't keep the name its last vnode gave it
 		inst.Name = inst.ClassName
 
 		if inst.GetAttributes then

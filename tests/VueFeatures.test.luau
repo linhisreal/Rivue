@@ -1,5 +1,5 @@
 --!strict
--- Writable computed, watch sources and once, provide/inject, the app API, Fragment and nextTick
+-- Vue APIs past the basics: writable computed, watch options, provide/inject and the app API
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))

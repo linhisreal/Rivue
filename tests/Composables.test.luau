@@ -1,5 +1,4 @@
 --!strict
--- useAttrs, useSlots, defineModel, useTheme and useStyles
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))

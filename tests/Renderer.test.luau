@@ -1,5 +1,4 @@
 --!strict
--- Mounting, patching and unmounting, lifecycle hooks, and the pool
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))

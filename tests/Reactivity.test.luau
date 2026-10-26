@@ -1,5 +1,4 @@
 --!strict
--- toRefs, iterArray, scopes, readonly, customRef and other reactivity edge cases
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
@@ -228,7 +227,7 @@ local function runTests()
 		end)
 		task.wait(0.05)
 		triggered = false
-		shallowRef.value.count = 10 -- Internal mutation, no auto-trigger
+		shallowRef.value.count = 10 -- shallow, so this triggers nothing
 		task.wait(0.05)
 		assertFalse(triggered, "Shallow ref mutation should not auto-trigger")
 		Rivue.triggerRef(shallowRef)

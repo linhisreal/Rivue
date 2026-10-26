@@ -61,7 +61,7 @@ local function defer(item: thread | () -> ()): ()
 	end)
 end
 
--- One connection per mode, not per job
+-- One connection per mode, shared by its jobs
 type FrameMode = "render" | "heartbeat"
 local frameQueues: { [FrameMode]: { Job } } = { render = {}, heartbeat = {} }
 -- Queuing the same function twice before its frame runs it once, as in micro mode

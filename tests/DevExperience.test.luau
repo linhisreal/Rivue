@@ -1,7 +1,5 @@
 --!strict
--- Directive props, model, nested children, style, mergeProps/cloneVNode, createApp with a
--- component, defineComponent(setup), Explorer names, printTree, render debug hooks, error
--- reporting, Teleport defer and the app context helpers
+-- Authoring helpers: v* props, model, style, mergeProps, printTree and error reporting
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))

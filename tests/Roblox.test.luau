@@ -1,5 +1,4 @@
 --!strict
--- attributeRef, useTag, the RunService hooks and the other Roblox helpers
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))

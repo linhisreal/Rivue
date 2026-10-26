@@ -1,5 +1,4 @@
 --!strict
--- Registering directives, the built-in ones, vModelText and vModelProp
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))

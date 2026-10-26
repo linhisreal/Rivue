@@ -388,7 +388,7 @@ function createRenderContext(self: ComponentInstance): { [string]: any }
 end
 
 function ComponentInstance.setupComponent(self: ComponentInstance)
-	-- Restored after, setup can mount other components
+	-- Restored afterwards, because setup can mount other components
 	local prevInstance = currentInstance
 	setCurrentInstance(self)
 
@@ -550,7 +550,6 @@ function ComponentInstance.handleError(self: ComponentInstance, err: string, inf
 		end
 		warn(`[Rivue] app.config.errorHandler failed: {handlerErr}`)
 	end
-	-- Nothing handled it, always report
 	warn(`[Rivue] Error in {info} of {formatComponentTrace(self)}: {err}`)
 end
 

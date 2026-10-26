@@ -1,5 +1,4 @@
 --!strict
--- Rivue.debug: log, measure, prettyPrint, inspect and assertInvariant
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))

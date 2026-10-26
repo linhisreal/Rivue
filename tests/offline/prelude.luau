@@ -1,8 +1,5 @@
 --!nocheck
 --[[
-	Offline test prelude
-	====================
-
 	Minimal Roblox stand-ins (game, task, signals, Instances) so the test suites can run in
 	Lune. Time is virtual: each step advances 1/60s and fires RenderStepped/Stepped/Heartbeat.
 	Only what the runtime and tests use is implemented.

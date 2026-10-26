@@ -42,7 +42,6 @@ local function fullName(instance: Instance): string
 	return if ok then name else instance.Name
 end
 
---- Reads every tagged component's attributes into entries
 local function collect()
 	local list: { Entry } = {}
 	for _, instance in CollectionService:GetTagged(TAG) do

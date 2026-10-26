@@ -54,7 +54,7 @@ local function runTests()
 		local count = Rivue.ref(0)
 		local maxReached = false
 
-		-- An effect that keeps changing what it reads has to stop, not loop forever
+		-- An effect that keeps changing what it reads must stop eventually
 		pcall(function()
 			local trigger = Rivue.ref(0)
 

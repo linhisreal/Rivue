@@ -1,5 +1,4 @@
 --!strict
--- RivueRemote, client and server side
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Remote = require(ReplicatedStorage:WaitForChild("RivueRemote"))

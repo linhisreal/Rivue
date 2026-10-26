@@ -1,5 +1,4 @@
 --!strict
--- h(), hIf() and hFor()
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local h_module = require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("h"))

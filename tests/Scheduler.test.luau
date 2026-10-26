@@ -1,5 +1,4 @@
 --!strict
--- queueJob in micro, render and heartbeat modes
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = ReplicatedStorage:WaitForChild("Rivue")

@@ -1,5 +1,4 @@
 --!strict
--- Pool.acquire(), release(), clear() and the statistics
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Pool = require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("pool"))
