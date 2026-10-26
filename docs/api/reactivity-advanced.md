@@ -32,7 +32,7 @@ big data you swap out wholesale, like a server response or a 1,000-row table.
   ```lua
   local state = Rivue.shallowRef({ count = 1 })
 
-  state.value.count = 2 -- does NOT trigger anything
+  state.value.count = 2 -- doesn't trigger anything
   state.value = { count = 2 } -- triggers
   ```
 
