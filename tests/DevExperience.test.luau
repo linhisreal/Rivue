@@ -30,19 +30,19 @@ local function assertTrue(condition: boolean, message: string?)
 	print("✓", message or "Assertion passed")
 end
 
---- Runs fn and collects what it passed to warn()
+--- Runs fn and collects the warnings it caused. Through LogService, because in Roblox each module
+--- has its own globals: replacing warn here wouldn't catch Rivue's own warn calls
 local function captureWarnings(fn: () -> ()): { string }
 	local warnings: { string } = {}
-	local realWarn = warn
-	warn = function(...: any)
-		local parts = {}
-		for i = 1, select("#", ...) do
-			table.insert(parts, tostring((select(i, ...))))
+	local conn = game:GetService("LogService").MessageOut:Connect(function(message, kind)
+		if kind == Enum.MessageType.MessageWarning then
+			table.insert(warnings, message)
 		end
-		table.insert(warnings, table.concat(parts, " "))
-	end :: any
+	end)
 	local ok, err = pcall(fn)
-	warn = realWarn
+	-- MessageOut can fire deferred
+	task.wait()
+	conn:Disconnect()
 	if not ok then
 		error(err, 0)
 	end

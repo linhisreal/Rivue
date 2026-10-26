@@ -34,6 +34,12 @@ local function assertFalse(condition: boolean, message: string?)
 end
 
 -- Wrap all tests in a function that can be called
+-- Nil on a server, where there's no local player: the ScreenGui then stays unparented
+local function playerGui(): Instance?
+	local player = game:GetService("Players").LocalPlayer
+	return if player then player:WaitForChild("PlayerGui") else nil
+end
+
 local function runTests()
 	print("\n========== API VALIDATION TEST SUITE ==========\n")
 
@@ -490,7 +496,7 @@ local function runTests()
 		-- Create and mount app
 		local app = Rivue.createApp(Rivue.h(TestComponent))
 		local container = Instance.new("ScreenGui")
-		container.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+		container.Parent = playerGui()
 
 		app:mount(container)
 
@@ -618,7 +624,7 @@ local function runTests()
 			dataId = 123, -- This is also an attr
 		}))
 		local container = Instance.new("ScreenGui")
-		container.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+		container.Parent = playerGui()
 
 		app:mount(container)
 		task.wait(0.1) -- Wait for mount to complete
@@ -660,7 +666,7 @@ local function runTests()
 			Rivue.h("TextLabel", { Text = "Slot content 2" }),
 		}))
 		local container = Instance.new("ScreenGui")
-		container.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+		container.Parent = playerGui()
 
 		app:mount(container)
 		task.wait(0.1) -- Wait for mount to complete
@@ -907,7 +913,7 @@ local function runTests()
 
 		local app = Rivue.createApp(Rivue.h(TestComponent))
 		local container = Instance.new("ScreenGui")
-		container.Parent = game:GetService("Players").LocalPlayer:WaitForChild("PlayerGui")
+		container.Parent = playerGui()
 
 		app:mount(container)
 		task.wait(0.2)

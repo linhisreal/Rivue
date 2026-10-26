@@ -33,25 +33,40 @@ table.sort(modules, function(a, b)
 	return a.Name < b.Name
 end)
 local results = { passed = 0, failed = 0, failures = {} }
+-- A suite that hangs is reported and skipped, so one wait that never ends doesn't hide the rest
+local SUITE_TIMEOUT = 30
 for _, module in modules do
 	if module:IsA("ModuleScript") then
 		print(`Running {module.Name}...`)
-		local ok, err = pcall(function()
-			local suite = require(module)
-			if type(suite) == "function" then
-				suite()
-			elseif type(suite) == "table" and type(suite.runAllTests) == "function" then
-				suite.runAllTests()
-			else
-				error("suite returned nothing runnable")
-			end
+		local started = os.clock()
+		local done, ok, err = false, false, nil
+		task.spawn(function()
+			ok, err = pcall(function()
+				local suite = require(module)
+				if type(suite) == "function" then
+					suite()
+				elseif type(suite) == "table" and type(suite.runAllTests) == "function" then
+					suite.runAllTests()
+				else
+					error("suite returned nothing runnable")
+				end
+			end)
+			done = true
 		end)
+		while not done and os.clock() - started < SUITE_TIMEOUT do
+			task.wait(0.1)
+		end
+		if not done then
+			ok, err = false, `didn't finish within {SUITE_TIMEOUT} s`
+		end
+		local took = string.format("%.1f s", os.clock() - started)
 		if ok then
 			results.passed += 1
+			print(`passed {module.Name} ({took})`)
 		else
 			results.failed += 1
 			table.insert(results.failures, `{module.Name}: {err}`)
-			print(`FAILED {module.Name}: {err}`)
+			print(`FAILED {module.Name} ({took}): {err}`)
 		end
 	end
 end
@@ -106,12 +121,17 @@ for _ = 1, 120 do
 	end
 end
 
-local logs = call("GET", `{API}/cloud/v2/{path}/logs`)
-for _, entry in logs.luauExecutionSessionTaskLogs or {} do
-	for _, message in entry.messages or {} do
-		print(message)
+-- Logs come a page at a time
+local pageToken = ""
+repeat
+	local logs = call("GET", `{API}/cloud/v2/{path}/logs?maxPageSize=10000&pageToken={pageToken}`)
+	for _, entry in logs.luauExecutionSessionTaskLogs or {} do
+		for _, message in entry.messages or {} do
+			print(message)
+		end
 	end
-end
+	pageToken = logs.nextPageToken or ""
+until pageToken == ""
 
 if not current or current.state ~= "COMPLETE" then
 	print(

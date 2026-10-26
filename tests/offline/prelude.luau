@@ -167,6 +167,15 @@ NumberSequence = {
 }
 warn = function(...)
 	print("WARN", ...)
+	-- Like Roblox, warnings also reach LogService.MessageOut
+	local logService = services and services.LogService
+	if logService then
+		local parts = {}
+		for i = 1, select("#", ...) do
+			table.insert(parts, tostring((select(i, ...))))
+		end
+		logService.MessageOut:Fire(table.concat(parts, " "), Enum.MessageType.MessageWarning)
+	end
 end
 typeof = function(v)
 	if type(v) == "table" and rawget(v, "__rbxtype") then
@@ -892,6 +901,7 @@ do
 	pg.Name = "PlayerGui"
 	pg.Parent = player
 	services.Players = { LocalPlayer = player, PlayerRemoving = makeSignal(), PlayerAdded = makeSignal() }
+	services.LogService = { MessageOut = makeSignal() }
 	local selection = {}
 	services.Selection = {
 		Set = function(_, list)
