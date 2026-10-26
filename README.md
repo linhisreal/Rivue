@@ -36,6 +36,9 @@ local TodoList = Rivue.defineComponent({
 			todos = todos,
 			draft = draft,
 			add = function()
+				if draft.value == "" then
+					return
+				end
 				nextId += 1
 				Rivue.array.push(todos.value, { id = nextId, text = draft.value })
 				draft.value = ""
@@ -99,13 +102,16 @@ Rivue is a ModuleScript with a `runtime` folder. Put it in `ReplicatedStorage`.
 }
 ```
 
-**Without Rojo**, download `Rivue.rbxm` from the latest
-[CI run](https://github.com/linhisreal/Rivue/actions/workflows/build.yml) (or build it with
-`lune run build`) and drop it into `ReplicatedStorage` in Studio.
+**Without Rojo**, open the latest successful
+[CI run](https://github.com/linhisreal/Rivue/actions/workflows/build.yml), download the `rivue`
+artifact, and drag `Rivue.rbxm` into `ReplicatedStorage` in Studio. `Rivue.min.rbxm` is the same
+without comments. You can also build both with `lune run build minify`.
 
 ## Docs
 
-[Docs home](docs/README.md) (with an "I want to…" index) · [Guide](docs/GUIDE.md) · [Examples](examples) · [API reference](docs/API.md) ·
+Start at the [docs home](docs/README.md), which has an "I want to…" index.
+
+[Guide](docs/GUIDE.md) · [Examples](examples) · [API reference](docs/API.md) ·
 [Coming from Vue](docs/VUE.md) · [Architecture](docs/ARCHITECTURE.md)
 
 ## Contributing
@@ -114,7 +120,7 @@ Tools are pinned in `rokit.toml` ([Rokit](https://github.com/rojo-rbx/rokit)):
 
 ```sh
 rokit install
-lune setup
+lune setup                        # editor types for the Lune scripts
 lune run test                     # all suites, without Studio
 lune run check-docs               # links resolve and every API example runs
 lune run build                    # Rivue.rbxm and places, into build/
