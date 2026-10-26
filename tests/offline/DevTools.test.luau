@@ -96,7 +96,7 @@ return function()
 	assertTrue(wallet.TextColor3.R == 1 and wallet.TextColor3.G < 0.7, "a component that just re-rendered is orange")
 	assertTrue(string.find(find(widget, "Details").Text, "coins = 11", 1, true) ~= nil, "details follow the state")
 	assertTrue(
-		string.find(find(widget, "Details").Text, "Last render: coins changed", 1, true) ~= nil,
+		string.find(find(widget, "Details").Text, "\ncoins changed\n", 1, true) ~= nil,
 		"details say what caused the render"
 	)
 

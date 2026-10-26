@@ -177,12 +177,12 @@ end
 local function detailsFor(entry: Entry): string
 	local trigger = if entry.trigger == "mount"
 		then "first render"
-		elseif entry.trigger == "parent" then "its parent updated it (new slots or forceUpdate)"
-		elseif entry.trigger == "" then "(unknown)"
+		elseif entry.trigger == "parent" then "parent update"
+		elseif entry.trigger == "" then ""
 		else `{entry.trigger} changed`
 	return table.concat({
-		`<{entry.name}>  rendered {entry.renders}×, the last one took {formatMs(entry.renderMs)}`,
-		`Last render: {trigger}`,
+		`<{entry.name}>  rendered {entry.renders}×, {formatMs(entry.renderMs)}`,
+		trigger,
 		"",
 		"Props",
 		if entry.props == "" then "(none)" else entry.props,

@@ -24,33 +24,21 @@ app.config.devtools = game:GetService("RunService"):IsStudio()
 
 Then press Play and click **Rivue → DevTools** in the Plugins toolbar.
 
-Every component shows up indented under its parent, with its render count next to it. A row
-turns orange when that component rendered again since the last refresh, so a row that keeps
-flashing is one re-rendering more than it should ([Guide 15](guide/15-performance-in-depth.md)
-helps with that). A row turns red, with the time next to it, when its last render took 2 ms or
-more. Big UI? Type in the filter box to narrow the list down by name. The header tells you how
-many components are mounted, and which Rivue version the plugin was built with.
+Components show up as a tree with their render counts. Row colours:
 
-The details under the list say what caused the last render:
+- **orange**: rendered again since the last refresh. One that keeps flashing re-renders too
+  often ([Guide 15](guide/15-performance-in-depth.md)).
+- **red**: the last render took 2 ms or more.
 
-| It says | Meaning |
-|---|---|
-| `first render` | the component just mounted |
-| `count changed` | a ref returned from `setup` as `count` |
-| `bag.gems changed` | the `gems` key of a reactive table returned as `bag` |
-| `props.title changed` | the parent passed a new `title` |
-| `a computed or outside state changed` | a computed, or state from a store or module |
-| `its parent updated it` | nothing it reads changed: new slots, or `forceUpdate` |
+Click a row for its props, its state, how long the last render took, and what caused it: `count
+changed`, `props.title changed`, `first render` or `parent update` (new slots or
+`forceUpdate`). A computed or a store shows as `a computed or outside state`.
 
-Writes in the same frame are batched into one render, so you can see up to three causes at once.
-The time covers the render function and the patch, which includes any children mounted with it.
+The buttons:
 
-The buttons above the list:
-
-- **Sort** cycles between the tree, most renders first, and slowest first.
-- **Pause** freezes the list so you can read it while the UI keeps changing. **Resume** catches up.
-- **Reset counts** starts every render count from zero. Reset, do one thing in the game, and you
-  see exactly which components that one thing re-rendered.
+- **Sort**: tree, most renders, or slowest first.
+- **Pause**: freeze the list while the UI keeps changing.
+- **Reset counts**: count from zero, do one thing in the game, and see what it re-rendered.
 
 ## How it works
 
