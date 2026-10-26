@@ -19,6 +19,10 @@ local h = Rivue.h
 - [Suspense](#suspense)
 - [VirtualList](#virtuallist)
 - [ViewportModel](#viewportmodel)
+- [transitions](#transitions)
+- [ErrorBoundary](#errorboundary)
+- [Dialog](#dialog)
+- [Row, Column and Spacer](#row-column-and-spacer)
 
 ---
 
@@ -445,6 +449,233 @@ Shows a 3D model in the UI, framed by a camera that fits it. For shop and invent
   	fieldOfView: number?, -- camera field of view (default 40)
   	distance: number?, -- 1 just fits, 2 is twice as far (default 1)
   }
+  ```
+
+---
+
+## transitions
+
+Ready-made props for [Transition](#transition), so a fade or a slide doesn't need its TweenInfo
+and start values written out each time.
+
+![what fade, slide and pop do when an element enters](../images/transition-presets.svg)
+
+- **Example**
+
+  A toast that slides up into view and back down when it goes:
+
+  ```lua
+  local Toast = Rivue.defineComponent({
+  	name = "Toast",
+  	props = { message = { type = "string" } },
+  	render = function(ctx)
+  		return h(Rivue.Transition, Rivue.transitions.slide({ direction = "up" }), {
+  			Rivue.hIf(
+  				ctx.message ~= nil,
+  				h("TextLabel", {
+  					Text = ctx.message,
+  					Size = UDim2.fromOffset(260, 40),
+  					Position = UDim2.new(0.5, -130, 1, -60),
+  				})
+  			),
+  		})
+  	end,
+  })
+  ```
+
+- **Details**
+
+  - `fade()` fades the element in and out. It covers every transparency an element can have, so
+    the same preset works on a Frame, a TextLabel or an ImageButton. Children don't fade with
+    their parent; to fade a whole panel at once, make it a `CanvasGroup`, whose
+    `GroupTransparency` fades too.
+  - `slide({ direction, distance })` moves the element in from `distance` pixels away (24 by
+    default), fading as it goes. `direction` is the way it moves when it enters: `"up"`,
+    `"down"`, `"left"` or `"right"`.
+  - `pop({ scale })` grows the element from `scale` of its size (0.9 by default). It looks best
+    with `AnchorPoint = Vector2.new(0.5, 0.5)`, so it grows from the centre.
+  - All three take `duration` and `easing`, and `fade = false` turns the fading off for `slide`
+    and `pop`. Any other option, such as `mode = "out-in"`, is passed on to the Transition.
+
+  You can write your own the same way. A value in `from` can be a function: it gets the
+  element's current value and returns the start value, which is how `slide` starts "24 pixels
+  below wherever the element sits".
+
+- **Type**
+
+  ```lua
+  transitions.fade(options: { duration: number?, easing: Enum.EasingStyle?, [string]: any }?): TransitionProps
+  transitions.slide(options: { direction: ("up" | "down" | "left" | "right")?, distance: number?, fade: boolean?, ... }?): TransitionProps
+  transitions.pop(options: { scale: number?, fade: boolean?, ... }?): TransitionProps
+  ```
+
+---
+
+## ErrorBoundary
+
+Shows a fallback instead of its children when something inside them throws, so one broken widget
+doesn't take the rest of the screen with it.
+
+- **Example**
+
+  A shop panel that offers a retry if it fails:
+
+  ```lua
+  local ShopItems = Rivue.defineComponent({
+  	name = "ShopItems",
+  	render = function()
+  		return h("Frame")
+  	end,
+  })
+
+  local ShopPanel = Rivue.defineComponent({
+  	name = "ShopPanel",
+  	render = function()
+  		return h(Rivue.ErrorBoundary, {
+  			onError = function(message)
+  				warn("Shop failed:", message)
+  			end,
+  			fallback = function(_message, reset)
+  				return h("TextButton", { Text = "The shop didn't load. Tap to try again", onActivated = reset })
+  			end,
+  		}, {
+  			h(ShopItems),
+  		})
+  	end,
+  })
+  ```
+
+- **Details**
+
+  - It catches what [`onErrorCaptured()`](lifecycle.md#onerrorcaptured) catches: errors in
+    descendants' render, lifecycle hooks and emit handlers.
+  - `fallback` is a vnode, or a function of `(message, reset)` that returns one. `reset()` clears
+    the error and mounts the children again.
+  - `onError(message, info)` runs first, for logging.
+  - The error stops at the boundary, so it doesn't reach `app.config.errorHandler`.
+
+- **Props**
+
+  ```lua
+  type ErrorBoundaryProps = {
+  	fallback: VNode | ((message: string, reset: () -> ()) -> VNode?)?,
+  	onError: ((message: string, info: string) -> ())?,
+  }
+  ```
+
+---
+
+## Dialog
+
+A modal: a dark backdrop over the screen, with your content in the middle.
+
+![the parts of a Dialog](../images/dialog-anatomy.svg)
+
+- **Example**
+
+  A confirm prompt that closes on Stay, a backdrop click, Escape or B:
+
+  ```lua
+  local LeaveButton = Rivue.defineComponent({
+  	name = "LeaveButton",
+  	setup = function()
+  		local asking = Rivue.ref(false)
+  		return {
+  			asking = asking,
+  			ask = function()
+  				asking.value = true
+  			end,
+  			close = function()
+  				asking.value = false
+  			end,
+  		}
+  	end,
+  	render = function(ctx)
+  		return h("Frame", { Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1 }, {
+  			h("TextButton", { Text = "Leave match", onActivated = ctx.ask }),
+  			h(Rivue.Dialog, { open = ctx.asking, onClose = ctx.close, transition = Rivue.transitions.pop() }, {
+  				h(Rivue.Column, { gap = 12 }, {
+  					h("TextLabel", { Text = "Leave the match?", Size = UDim2.fromOffset(220, 30) }),
+  					h("TextButton", { Text = "Stay", Size = UDim2.fromOffset(100, 36), onActivated = ctx.close }),
+  				}),
+  			}),
+  		})
+  	end,
+  })
+  ```
+
+- **Details**
+
+  - The dialog renders while `open` is true. It never closes itself: a backdrop click, Escape
+    and the gamepad's B button call `onClose`, and you set `open` to false.
+  - While it's open, the gamepad can't move out of the panel (it's a `SelectionGroup`), and a
+    gamepad player starts on its first button. When it closes, the selection goes back where it
+    was.
+  - It covers its parent, so render it inside a full-screen ScreenGui, or move it there with
+    [Teleport](#teleport).
+  - `transition` takes Transition props such as `Rivue.transitions.pop()` and animates the panel.
+
+- **Props**
+
+  ```lua
+  type DialogProps = {
+  	open: boolean,
+  	onClose: (() -> ())?,
+  	closeOnBackdrop: boolean?, -- default true
+  	closeOnEscape: boolean?, -- Escape and B, default true
+  	backdropColor: Color3?, -- default black
+  	backdropTransparency: number?, -- default 0.4
+  	zIndex: number?, -- default 100
+  	transition: TransitionProps?,
+  }
+  ```
+
+---
+
+## Row, Column and Spacer
+
+Layout without writing out a `layout` table. A Row lays its children left to right, a Column top
+to bottom, and a Spacer takes up whatever room is left.
+
+![a Row with a Spacer pushing the last button to the far end](../images/row-spacer.svg)
+
+- **Example**
+
+  A title bar with the close button pushed to the right:
+
+  ```lua
+  local TitleBar = Rivue.defineComponent({
+  	name = "TitleBar",
+  	render = function()
+  		return h(Rivue.Row, { gap = 8, align = "center", Size = UDim2.new(1, 0, 0, 40) }, {
+  			h("TextButton", { Text = "Back", Size = UDim2.fromOffset(80, 32) }),
+  			h("TextLabel", { Text = "Inventory", Size = UDim2.fromOffset(120, 32) }),
+  			h(Rivue.Spacer),
+  			h("TextButton", { Text = "Close", Size = UDim2.fromOffset(80, 32) }),
+  		})
+  	end,
+  })
+  ```
+
+- **Details**
+
+  - `gap`, `align`, `justify` and `wrap` mean the same as in the [`layout`
+    prop](render-function.md#element-props).
+  - Every other prop (`Size`, `Position`, `Name`, a `class`) goes to the Frame. A Row fills the
+    width and grows to fit its children's height; a Column the other way round.
+  - A Spacer is an empty Frame with `flex = "fill"`, so it only works inside a Row or Column (or
+    any `layout`).
+
+- **Props**
+
+  ```lua
+  type RowProps = {
+  	gap: (number | UDim)?,
+  	align: ("start" | "center" | "end")?,
+  	justify: ("start" | "center" | "end" | "space-between" | "space-around" | "space-evenly" | "fill")?,
+  	wrap: boolean?,
+  }
+  -- Column takes the same props. Spacer takes none.
   ```
 
 ---

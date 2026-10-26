@@ -171,6 +171,28 @@ local App = Rivue.defineComponent({
 Normally, switching away unmounts a screen. `KeepAlive` keeps the ones in `include` alive instead,
 so the shop is still scrolled where the player left it.
 
+Once screens need a back button, or pass each other data, use the router instead of a lookup
+table. It keeps the history for you, passes params to the screen as props, and can keep screens
+alive the same way:
+
+```lua
+local router = Rivue.createRouter({
+	routes = { lobby = Lobby, shop = Shop, item = Item },
+	initial = "lobby",
+})
+
+-- In App's render
+h(Rivue.RouterView, { keepAlive = true })
+
+-- In any screen's setup
+local router = Rivue.useRouter()
+router.push("item", { id = 7 }) -- Item gets props.id = 7
+router.back()
+```
+
+Install it with `app:use(router)` before mounting. See [Navigation and
+loading](../api/navigation.md) for guards and `replace`.
+
 ## Modals
 
 A modal opened from deep inside the tree needs three built-ins working together:
@@ -211,6 +233,49 @@ local Modal = Rivue.defineComponent({
 
 The full version, with a backdrop and buttons, is in
 [examples/components/Modal.luau](../../examples/components/Modal.luau).
+
+### Or use Dialog
+
+Building a modal yourself is worth doing once to see how the parts fit. After that,
+`Rivue.Dialog` does the usual job: a backdrop, closing on a backdrop click, Escape or the
+gamepad's B button, and gamepad focus that starts on the first button and can't wander off the
+panel.
+
+![the parts of a Dialog](../images/dialog-anatomy.svg)
+
+```lua
+h(Rivue.Dialog, { open = ctx.confirming, onClose = ctx.cancel, transition = Rivue.transitions.pop() }, {
+	h(Rivue.Column, { gap = 12 }, {
+		h("TextLabel", { Text = "Leave the match?" }),
+		h(Rivue.Row, { gap = 8 }, {
+			h("TextButton", { Text = "Stay", onActivated = ctx.cancel }),
+			h("TextButton", { Text = "Leave", onActivated = ctx.leave }),
+		}),
+	}),
+})
+```
+
+The dialog doesn't close itself: `onClose` tells you the player wants out, and you set `open` to
+false. It covers its parent, so put it under a full-screen ScreenGui, or Teleport it to one.
+
+## Error boundaries
+
+One broken component shouldn't blank the whole screen. Wrap a risky part, like a panel that shows
+data from the server, in `Rivue.ErrorBoundary`, and it shows a fallback when anything inside
+throws:
+
+```lua
+h(Rivue.ErrorBoundary, {
+	fallback = function(_message, reset)
+		return h("TextButton", { Text = "The shop didn't load. Tap to try again", onActivated = reset })
+	end,
+}, {
+	h(ShopItems),
+})
+```
+
+`reset` mounts the children again. The error stops at the boundary, so it doesn't reach
+`app.config.errorHandler`; pass `onError` if you still want to log it.
 
 ## Calling a child with expose
 

@@ -26,6 +26,9 @@ All examples assume `local Rivue = require(game.ReplicatedStorage.Rivue)`.
 - [iterArray()](#iterarray)
 - [testing.trigger()](#testingtrigger)
 - [testing.setInteraction()](#testingsetinteraction)
+- [testing.render()](#testingrender)
+- [testing.click() and testing.typeInto()](#testingclick-and-testingtypeinto)
+- [hotReload()](#hotreload)
 - [story()](#story)
 - [Types](#types)
 
@@ -577,6 +580,151 @@ test [style class variants](application.md#appstyles), since scripts can't move 
 
   ```lua
   function testing.setInteraction(element: Instance, state: "hover" | "pressed" | "selected", on: boolean)
+  ```
+
+
+## testing.render()
+
+Mounts a component for a test and gives you ways to find things by what the player would see,
+the way Testing Library does on the web.
+
+- **Example**
+
+  ```lua
+  local Counter = Rivue.defineComponent({
+  	name = "Counter",
+  	props = { start = { type = "number", default = 0 } },
+  	setup = function(props)
+  		local count = Rivue.ref(props.start)
+  		return {
+  			count = count,
+  			add = function()
+  				count.value += 1
+  			end,
+  		}
+  	end,
+  	render = function(ctx)
+  		return h("Frame", nil, {
+  			h("TextLabel", { Text = `Count: {ctx.count}` }),
+  			h("TextButton", { Text = "Add", onActivated = ctx.add }),
+  		})
+  	end,
+  })
+
+  local screen = Rivue.testing.render(Counter, { start = 5 })
+  Rivue.testing.click(screen.getByText("Add"))
+  assert(screen.queryByText("Count: 6"), "the count went up")
+  screen.unmount()
+  ```
+
+- **Details**
+
+  - The second argument is the component's props. A vnode works too: `render(h(Counter))`.
+  - `getByText` finds the one TextLabel, TextButton or TextBox showing that text, and errors if
+    there's none or more than one. `queryByText` returns nil instead of erroring when there's
+    none. `getAllByText` returns every match.
+  - A text match can be a function: `getAllByText(function(text) return text:find("Coins") end)`.
+  - `getByName` and `queryByName` find by Instance `Name`.
+  - `unmount()` unmounts and destroys the container.
+
+- **Type**
+
+  ```lua
+  function testing.render(component: ComponentDef | VNode, props: { [string]: any }?): {
+  	container: Instance,
+  	app: App,
+  	getByText: (text: string | (string) -> boolean) -> Instance,
+  	queryByText: (text: string | (string) -> boolean) -> Instance?,
+  	getAllByText: (text: string | (string) -> boolean) -> { Instance },
+  	getByName: (name: string) -> Instance,
+  	queryByName: (name: string) -> Instance?,
+  	unmount: () -> (),
+  }
+  ```
+
+---
+
+## testing.click() and testing.typeInto()
+
+Act like the player, then wait for the re-render, so the next line can check the result.
+
+- **Example**
+
+  ```lua
+  local NameForm = Rivue.defineComponent({
+  	name = "NameForm",
+  	setup = function()
+  		return { name = Rivue.ref("") }
+  	end,
+  	render = function(ctx)
+  		return h("Frame", nil, {
+  			h("TextBox", { Name = "NameBox", model = "name" }),
+  			h("TextLabel", { Text = `Hi {ctx.name}` }),
+  		})
+  	end,
+  })
+
+  local screen = Rivue.testing.render(NameForm)
+  Rivue.testing.typeInto(screen.getByName("NameBox"), "Ana")
+  assert(screen.queryByText("Hi Ana"))
+  screen.unmount()
+  ```
+
+- **Details**
+
+  - `click` runs the button's `onClick`, `onActivated` or `onMouseButton1Click` handler, and
+    errors if it has none.
+  - `typeInto` sets the TextBox's `Text`, then runs its `onFocusLost` handler as if the player
+    pressed Enter.
+  - For any other event, use [`testing.trigger()`](#testingtrigger).
+
+- **Type**
+
+  ```lua
+  function testing.click(inst: Instance)
+  function testing.typeInto(box: TextBox, text: string)
+  ```
+
+---
+
+## hotReload()
+
+Reloads a module when you edit it, for tools that run while you work in Studio: plugins, story
+previews and preview widgets.
+
+- **Example**
+
+  A preview plugin that shows the Shop screen and swaps it in whenever its code changes:
+
+  ```lua
+  local function previewShop(shopModule: ModuleScript, target: Instance)
+  	local app = Rivue.createApp(require(shopModule))
+  	app:mount(target)
+  	return Rivue.hotReload(shopModule, function(Shop)
+  		app:swapRoot(h(Shop))
+  	end, { watch = shopModule.Parent })
+  end
+  ```
+
+- **Details**
+
+  - It doesn't work during a playtest. Studio runs the game from a copy of the place, and edits
+    don't reach that copy, so there's nothing to reload. It's for edit mode.
+  - `require` keeps the first result of each ModuleScript, so new code is loaded from a fresh
+    copy. With `watch` set to a folder, an edit anywhere in it reloads the module, and the
+    module's own requires inside the folder load fresh too. Modules outside the folder, Rivue
+    included, stay shared.
+  - Edits within `debounce` seconds of each other (0.15 by default) reload once.
+  - `swapRoot` starts the component over, so its state resets on each reload.
+  - It returns `{ reload, stop }`. `stop()` stops watching and cleans up the last copy.
+
+- **Type**
+
+  ```lua
+  function hotReload(module: ModuleScript, onReload: (exported: any) -> (), options: {
+  	watch: Instance?, -- default: just the module
+  	debounce: number?, -- seconds, default 0.15
+  }?): { reload: () -> (), stop: () -> () }
   ```
 
 ---

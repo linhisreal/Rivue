@@ -252,6 +252,20 @@ setup = function()
 end,
 ```
 
+Writing this once shows how the request numbering works. In your own code, `Rivue.useAsync` does
+the same job: data, loading and error refs, only the newest answer kept, and it holds a
+surrounding `Suspense` on its loading screen until the data arrives:
+
+```lua
+local shop = Rivue.useAsync(function(page: number)
+	return Remote.request("shop:list", { page = page })
+end, { args = { 1 } })
+
+shop.run(2) -- load page 2; a late answer for page 1 is dropped
+```
+
+See [useAsync()](../api/navigation.md#useasync).
+
 ---
 
 **Reference:** [toValue()](../api/reactivity-utilities.md#tovalue) ·

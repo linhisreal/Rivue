@@ -78,10 +78,10 @@ and `flex` replace the usual UIListLayout boilerplate, and tweens, springs, `Tra
 | Reactivity | `ref`, `reactive`, `computed`, `watch`, `watchEffect`, effect scopes, readonly and shallow variants |
 | Components | `setup` + `render(ctx)`, validated props, emits, slots, provide/inject, every lifecycle hook |
 | Styling | style classes per app or component; `layout`, `flex`, `cornerRadius`, `padding`, `stroke` props |
-| Performance | keyed diffing, batched parent-first updates, `memo`, optional Instance pool |
-| Built-ins | `Transition`, `TransitionGroup`, `KeepAlive`, `Teleport`, `Suspense`, `VirtualList`, async components |
+| Performance | keyed diffing, batched parent-first updates, `Rivue.bind` for properties that change every frame, `memo`, optional Instance pool |
+| Built-ins | `Transition` with fade/slide/pop presets, `TransitionGroup`, `KeepAlive`, `Teleport`, `Suspense`, `VirtualList`, `Dialog`, `ErrorBoundary`, `Row`/`Column`/`Spacer`, a router, `useAsync` |
 | Roblox | tweens, springs, viewport and input-type composables, gamepad selection, attribute refs, tags |
-| Studio | warnings that name the component chain, roots named after components, `app:printTree()` |
+| Studio | warnings that name the component chain, roots named after components, `app:printTree()`, a DevTools plugin, `testing.render` for tests, `hotReload` for previews |
 | Types | strict Luau with exported types like `Rivue.Ref<T>` and `Rivue.VNode` |
 
 ## Installation

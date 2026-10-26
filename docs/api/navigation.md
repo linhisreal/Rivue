@@ -210,6 +210,9 @@ in refs.
     newer one.
   - An error goes into `error` as a string, and `data` keeps its last good value.
   - Called in `setup()`, results that arrive after the component unmounts are dropped.
+  - Inside a [Suspense](builtins.md#suspense), the Suspense shows its fallback until every
+    `useAsync` under it has its first result, so one loading screen covers a whole panel.
+    `suspense = false` opts out. A failed load stays in `error` and doesn't fail the Suspense.
 
 - **Type**
 
@@ -218,6 +221,7 @@ in refs.
   	immediate: boolean?, -- default true
   	args: { any }?,
   	initial: T?,
+  	suspense: boolean?, -- default true
   }?): {
   	data: Ref<T?>,
   	loading: Ref<boolean>,

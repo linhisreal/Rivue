@@ -184,4 +184,6 @@ routes, params, history and `beforeEach` guards, without URLs
 
 Roblox needs a few extras with no Vue counterpart: `VirtualList`, `useTween` and `useSpring`,
 `useViewportSize`, `useInputType`, `useSafeArea`, `useSelection`, `useGamepadFocus`, `useAsync`,
-`attributeRef`, `useTag`, and the Instance pool.
+`attributeRef`, `useTag`, and the Instance pool. A few more cover what Vue leaves to libraries:
+`Dialog`, `ErrorBoundary`, `Row`/`Column`/`Spacer`, `Rivue.transitions`, `Rivue.bind` for
+property bindings, and `testing.render` in the style of Vue Testing Library.

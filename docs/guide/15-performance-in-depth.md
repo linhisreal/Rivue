@@ -32,6 +32,27 @@ local PingLabel = Rivue.defineComponent({
 h(PingLabel)
 ```
 
+### Or bind the one property
+
+When the value only feeds one property, you can skip the extra component and bind that property
+instead. `Rivue.bind` gives the property its own small effect, so a change writes the label's
+`Text` and nothing else re-renders, not even the component that drew it:
+
+![a value read in render versus a bound property](../images/bindings.svg)
+
+```lua
+-- In Hud's render
+h("TextLabel", {
+	Text = Rivue.bind(function()
+		return `{Network.state.ping} ms`
+	end),
+})
+```
+
+A ref works too, with no `bind()`: `TextTransparency = fadeRef`. Bindings suit anything that
+changes many times a second, like timers, springs and bars. For a value that changes now and
+then, reading it in render is simpler and fast enough.
+
 ## Finding what re-renders
 
 Besides `onRenderTriggered` and `app:printTree()` from

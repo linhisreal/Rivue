@@ -79,11 +79,27 @@ h(Rivue.Transition, {
 })
 ```
 
+Most UI uses the same few moves, so Rivue has them ready in `Rivue.transitions`: `fade`, `slide`
+and `pop`. Each returns the props for a Transition:
+
+![what fade, slide and pop do when an element enters](../images/transition-presets.svg)
+
+```lua
+h(Rivue.Transition, Rivue.transitions.slide({ direction = "up" }), {
+	Rivue.hIf(ctx.toast ~= nil, h("TextLabel", { Text = ctx.toast })),
+})
+```
+
+They take a `duration`, and anything else you pass, like `mode = "out-in"`, goes on to the
+Transition.
+
 Lists get `TransitionGroup`, where keyed items tween in when they're added and out when they're
 removed.
 
 Then there are values that move, like a health bar sliding down. `useTween` and `useSpring` turn
-state into an animated value you can bind to a prop:
+state into an animated value. It changes every frame while it moves, so bind it to the property
+with `Rivue.bind`. Each frame then writes only the bar's `Size`, and the component doesn't
+re-render:
 
 ```lua
 setup = function(props)
@@ -95,7 +111,11 @@ setup = function(props)
 end,
 
 render = function(ctx)
-	return h("Frame", { Size = UDim2.fromScale(ctx.shown, 1) })
+	return h("Frame", {
+		Size = Rivue.bind(function()
+			return UDim2.fromScale(ctx.shown, 1)
+		end),
+	})
 end,
 ```
 
@@ -106,6 +126,7 @@ end,
 **Reference:** [watch()](../api/reactivity-core.md#watch) ·
 [watchEffect()](../api/reactivity-core.md#watcheffect) · [Lifecycle hooks](../api/lifecycle.md) ·
 [Update timing](../api/scheduler.md#update-timing) · [Transition](../api/builtins.md#transition) ·
-[useSpring()](../api/roblox.md#usespring)
+[transitions](../api/builtins.md#transitions) · [useSpring()](../api/roblox.md#usespring) ·
+[bind()](../api/render-function.md#bind)
 
 [← 6. Styling and layout](06-styling-and-layout.md) · [Guide contents](../GUIDE.md) · [8. Sharing state and the server →](08-state-and-server.md)

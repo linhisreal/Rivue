@@ -102,6 +102,24 @@ And `flex` decides how a child shares whatever space is left over:
 
 ![flex](../images/layout-flex.svg)
 
+For the common cases there are shorter components. `Rivue.Row` lays its children left to right,
+`Rivue.Column` top to bottom, and `Rivue.Spacer` soaks up the leftover space, which pushes
+whatever comes after it to the far end:
+
+![a Row with a Spacer pushing the last button to the far end](../images/row-spacer.svg)
+
+```lua
+h(Rivue.Row, { gap = 8, align = "center", Size = UDim2.new(1, 0, 0, 40) }, {
+	h("TextButton", { class = "button", Text = "Back" }),
+	h("TextLabel", { Text = "Inventory" }),
+	h(Rivue.Spacer),
+	h("TextButton", { class = "button", Text = "Close" }),
+})
+```
+
+They take the same `gap`, `align`, `justify` and `wrap` as `layout`, and pass everything else to
+their Frame.
+
 If you need a property `layout` doesn't cover, add a `UIListLayout` or `UIGridLayout` child
 yourself. Rivue keeps `LayoutOrder` in render order either way.
 
