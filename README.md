@@ -47,7 +47,8 @@ A bigger example with a text box, a keyed list and styles:
 [TodoList](examples/components/TodoList.luau). More in [examples](examples).
 
 **Status:** Rivue is under active development and the API can still change between releases.
-It runs in LocalScripts; `Rivue.Remote` also has a server half.
+It runs in LocalScripts. For client/server calls, the separate [RivueRemote](docs/api/remote.md)
+package adds requests and events with rate limits.
 
 ## Why Rivue
 
@@ -56,8 +57,7 @@ It runs in LocalScripts; `Rivue.Remote` also has a server half.
 - **Fine-grained updates, with components.** Reactivity is tracked per value, so a parent
   re-rendering doesn't re-render children whose props didn't change. No `memo` needed for that.
 - **Made for Roblox UI.** Style classes, `layout`/`flex` props instead of UIListLayout
-  boilerplate, and built-in tweens, springs, `Transition`, `VirtualList` and a rate-limited
-  `Remote`.
+  boilerplate, and built-in tweens, springs, `Transition` and `VirtualList`.
 
 ## Features
 
@@ -68,7 +68,7 @@ It runs in LocalScripts; `Rivue.Remote` also has a server half.
 | Styling | style classes per app or component; `layout`, `flex`, `cornerRadius`, `padding`, `stroke` props |
 | Performance | keyed diffing, batched parent-first updates, `memo`, optional Instance pool |
 | Built-ins | `Transition`, `TransitionGroup`, `KeepAlive`, `Teleport`, `Suspense`, `VirtualList`, async components |
-| Roblox | tweens, springs, viewport and input-type composables, gamepad selection, attribute refs, tags, `Remote` |
+| Roblox | tweens, springs, viewport and input-type composables, gamepad selection, attribute refs, tags |
 | Studio | warnings that name the component chain, roots named after components, `app:printTree()` |
 | Types | strict Luau with exported types like `Rivue.Ref<T>` and `Rivue.VNode` |
 
@@ -87,7 +87,8 @@ Rivue is a ModuleScript with a `runtime` folder. Put it in `ReplicatedStorage`.
 
 **Without Rojo**, download `Rivue.rbxm` from the latest
 [release](https://github.com/linhisreal/Rivue/releases) and drag it into `ReplicatedStorage`.
-`Rivue.min.rbxm` is the same without comments.
+`Rivue.min.rbxm` is the same without comments. `RivueRemote.rbxm` is optional, for client/server
+calls; put it next to Rivue.
 
 ## Docs
 

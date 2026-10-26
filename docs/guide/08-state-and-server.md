@@ -49,7 +49,8 @@ Keep the writes in the module's functions, so there's one place to look when a v
 
 ## Talking to the server
 
-`Rivue.Remote` gives you request/response and fire-and-forget calls over RemoteEvents, with
+[RivueRemote](../api/remote.md), a separate package you put next to Rivue, gives you
+request/response and fire-and-forget calls over RemoteEvents, with
 per-player rate limits on the server:
 
 ```mermaid
@@ -64,8 +65,9 @@ sequenceDiagram
 
 ```lua
 -- Server
-Rivue.Remote.setupServer()
-Rivue.Remote.handle("shop:buy", function(player, payload)
+local Remote = require(game.ReplicatedStorage.RivueRemote)
+Remote.setupServer()
+Remote.handle("shop:buy", function(player, payload)
 	return ShopService.buy(player, payload.id) -- validate everything the client sends
 end, { maxPerSecond = 5 })
 ```
@@ -73,13 +75,16 @@ end, { maxPerSecond = 5 })
 In a component, call it off the render path and keep loading and error state:
 
 ```lua
+-- At the top of the component's module
+local Remote = require(game.ReplicatedStorage.RivueRemote)
+
 setup = function()
 	local items = Rivue.shallowRef(nil)
 	local errorText = Rivue.ref(nil)
 
 	Rivue.onMounted(function()
 		task.spawn(function()
-			local result, err = Rivue.Remote.request("shop:list", nil)
+			local result, err = Remote.request("shop:list", nil)
 			if result then
 				items.value = result
 			else
@@ -96,6 +101,6 @@ end,
 
 **Try it:** [Shop example](../../examples/components/Shop.luau) (loading, errors, pending buys)
 **Reference:** [provide()](../api/component.md#provide) · [inject()](../api/component.md#inject) ·
-[readonly()](../api/reactivity-core.md#readonly) · [Remote](../api/remote.md)
+[readonly()](../api/reactivity-core.md#readonly) · [RivueRemote](../api/remote.md)
 
 [← 7. Effects and animation](07-effects-and-animation.md) · [Guide contents](../GUIDE.md) · [9. Performance and debugging →](09-performance-and-debugging.md)

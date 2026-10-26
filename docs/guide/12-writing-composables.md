@@ -195,6 +195,8 @@ answers arriving out of order:
 Numbering requests and dropping any answer that isn't the latest fixes it:
 
 ```lua
+local Remote = require(game.ReplicatedStorage.RivueRemote)
+
 local function useRemoteData(action: string, payload: Rivue.MaybeRefOrGetter<any>?)
 	local data = Rivue.shallowRef(nil) -- replaced as a whole, so no need to track inside it
 	local loading = Rivue.ref(false)
@@ -208,7 +210,7 @@ local function useRemoteData(action: string, payload: Rivue.MaybeRefOrGetter<any
 		errorText.value = nil
 
 		task.spawn(function()
-			local result, err = Rivue.Remote.request(action, Rivue.toValue(payload))
+			local result, err = Remote.request(action, Rivue.toValue(payload))
 			if mine ~= latest then
 				return -- a newer request was made while this one was waiting
 			end

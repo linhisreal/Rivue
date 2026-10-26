@@ -8,7 +8,6 @@ local renderer = require("./renderer")
 local componentAPI = require("./component")
 local utils = require("./utils")
 local directives = require("./directives")
-local remote = require("./remote")
 local robloxUtils = require("./roblox")
 local debugModule = require("./debug")
 local schedulerModule = require("./scheduler")
@@ -238,7 +237,6 @@ Rivue.pool = poolModule
 
 Rivue.utils = utils
 Rivue.directives = directives
-Rivue.Remote = remote
 
 Rivue.iterArray = utils.iterArray
 

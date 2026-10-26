@@ -167,7 +167,7 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [useTheme()](api/roblox.md#usetheme) ·
 [useStyles()](api/roblox.md#usestyles)
 
-**[Remote](api/remote.md)**
+**[RivueRemote](api/remote.md)** (separate package)
 [setupServer()](api/remote.md#remotesetupserver) ·
 [handle()](api/remote.md#remotehandle) ·
 [request()](api/remote.md#remoterequest) ·

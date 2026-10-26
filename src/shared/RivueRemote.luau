@@ -1,5 +1,7 @@
 --!strict
 --!optimize 2
+-- RivueRemote: request/response and events between client and server over RemoteEvents, with
+-- payload checks and per-player rate limits. Separate from Rivue, which only does UI.
 
 export type RemoteRequest = {
 	action: string,
@@ -19,7 +21,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
 local Players = game:GetService("Players")
-local debugModule = require("./debug")
 
 local Remote = {}
 Remote.__index = Remote
@@ -41,7 +42,7 @@ local function findOrCreate(parent: Instance, className: string, name: string): 
 		end
 		-- Server never set up remotes (e.g. no Remote.handle/setupServer call); create locally so
 		-- the client doesn't error, but nothing will reach the server
-		warn(`[Rivue] {name} not found in {parent:GetFullName()}, call Remote.setupServer() on the server`)
+		warn(`[RivueRemote] {name} not found in {parent:GetFullName()}, call Remote.setupServer() on the server`)
 	end
 
 	local created = Instance.new(className)
@@ -141,12 +142,6 @@ end
 
 --- Returns the response data, unchecked: refine it before use
 function Remote.request(actionName: string, payload: unknown, timeout: number?): (unknown?, string?)
-	if debugModule.enabled then
-		debugModule.log("Remote", "Sending request to server", {
-			action = actionName,
-			timeoutSec = timeout or 10,
-		})
-	end
 	if type(actionName) ~= "string" or #actionName == 0 or #actionName > 100 then
 		return nil, "invalid_action_name"
 	end
@@ -194,31 +189,22 @@ function Remote.request(actionName: string, payload: unknown, timeout: number?):
 	end
 
 	if result == nil then
-		debugModule.log("Remote", "Request timed out", { action = actionName, timeout = timeoutValue })
 		return nil, "timeout"
 	end
 
 	if result and result.ok then
-		debugModule.log("Remote", "Request successful", { action = actionName })
 		return result.data, nil
 	else
-		debugModule.log(
-			"Remote",
-			"Request failed",
-			{ action = actionName, error = result and result.error or "unknown" }
-		)
 		return nil, if result then result.error else "unknown error"
 	end
 end
 
 function Remote.fire(actionName: string, payload: unknown): ()
-	debugModule.log("Remote", "Firing one-way event to server", { action = actionName })
 	local reqEv = getRequestEvent()
 	reqEv:FireServer({ action = actionName, payload = payload })
 end
 
 function Remote.on(name: string, fn: (...any) -> ()): RBXScriptConnection
-	debugModule.log("Remote", "Registering server event listener", { eventName = name })
 	local ev = findOrCreate(getFolder(), "RemoteEvent", name) :: RemoteEvent
 	return ev.OnClientEvent:Connect(fn)
 end
@@ -323,7 +309,7 @@ function Remote.handle(actionName: string, handler: RequestHandler, opts: Handle
 			respond(true, result)
 		else
 			-- Don't send server error details to the client
-			warn(`[Rivue] Remote handler '{action}' failed: {result}`)
+			warn(`[RivueRemote] Remote handler '{action}' failed: {result}`)
 			respond(false, nil, "handler_error")
 		end
 	end)
