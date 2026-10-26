@@ -89,7 +89,9 @@ function utils.useRaf(fn: (dt: number) -> ()): RafHandle
 	if debugModule.enabled then
 		debugModule.log("Utils", "Starting RenderStepped RAF")
 	end
-	local conn: RBXScriptConnection? = RunService.RenderStepped:Connect(function(dt: number)
+	-- RenderStepped only exists on the client
+	local signal = if RunService:IsClient() then RunService.RenderStepped else RunService.Heartbeat
+	local conn: RBXScriptConnection? = signal:Connect(function(dt: number)
 		pcall(fn, dt)
 	end)
 	return {

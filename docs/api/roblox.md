@@ -563,6 +563,7 @@ cleans up when the tag goes away. Great for world UI like nameplates or shop pro
 ## onRenderStepped() / onHeartbeat() / onStepped()
 
 Runs your code every frame for as long as the component is mounted, and disconnects by itself.
+On the server, where RenderStepped doesn't exist, `onRenderStepped` uses Heartbeat.
 
 - **Example**
 

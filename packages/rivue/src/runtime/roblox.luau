@@ -151,6 +151,9 @@ local function useTag(tagName: string, onAdded: (instance: Instance) -> (() -> (
 	end, true)
 end
 
+-- Per-frame signal for animations and onRenderStepped (RenderStepped only exists on the client)
+local frameSignal: RBXScriptSignal = if RunService:IsClient() then RunService.RenderStepped else RunService.Heartbeat
+
 local function onRenderStepped(callback: (deltaTime: number) -> ()): ()
 	debugModule.log("Roblox", "Registering RenderStepped callback")
 	local currentInstance = componentAPI.getCurrentInstance()
@@ -158,7 +161,7 @@ local function onRenderStepped(callback: (deltaTime: number) -> ()): ()
 		error("onRenderStepped must be called during component setup()")
 	end
 
-	local conn = RunService.RenderStepped:Connect(callback)
+	local conn = frameSignal:Connect(callback)
 
 	componentAPI.onUnmounted(function()
 		conn:Disconnect()
@@ -564,9 +567,6 @@ local function useSelection(): (Ref<GuiObject?>, (target: GuiObject?) -> ())
 		GuiService.SelectedObject = target
 	end
 end
-
--- Per-frame signal for animations (RenderStepped only exists on the client)
-local frameSignal: RBXScriptSignal = if RunService:IsClient() then RunService.RenderStepped else RunService.Heartbeat
 
 local function toGetter<T>(source: Ref<T> | () -> T): () -> T
 	if type(source) == "function" then
