@@ -154,6 +154,10 @@ started yourself.
   Watchers, computeds and `Rivue.onHeartbeat` connections from `setup()` are stopped
   automatically. Connections, threads and tags you made yourself need cleaning up here.
 
+  Children run their `onUnmounted` first, then the parent, as in Vue. So a parent can safely tear
+  down something its children still clean up into. `onBeforeUnmount` goes the other way: parent
+  first, while everything is still on screen.
+
 - **Type**
 
   ```lua

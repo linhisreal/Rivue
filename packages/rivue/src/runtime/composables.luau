@@ -78,10 +78,12 @@ end
 
 --- styleFactory gets an empty table when no theme is provided
 function composables.useStyles<Theme, Styles>(styleFactory: (theme: Theme) -> Styles): ComputedRef<Styles>
-	local themeRef = reactivity.ref(composables.useTheme() :: Theme?)
+	local provided = composables.useTheme() :: unknown
 
 	return reactivity.computed(function(): Styles
-		return styleFactory(themeRef.value or ({} :: any))
+		-- A theme provided as a ref is read here, so swapping its value rebuilds the styles
+		local theme = reactivity.unref(provided :: any) :: Theme?
+		return styleFactory(theme or ({} :: any))
 	end)
 end
 

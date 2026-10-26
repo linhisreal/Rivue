@@ -211,6 +211,50 @@ local function runTests()
 	end
 
 	local printFooter = "COMPONENT TESTS COMPLETE"
+	print("Children run onUnmounted before their parent")
+	do
+		local order = {}
+		local failed = nil
+		local Item = Rivue.defineComponent({
+			name = "RegistryItem",
+			setup = function()
+				local registry = Rivue.inject("registry") :: any
+				registry.items.item = true
+				Rivue.onUnmounted(function()
+					table.insert(order, "child")
+					registry.items.item = nil
+				end)
+				return {}
+			end,
+			render = function()
+				return Rivue.h("Frame")
+			end,
+		})
+		local List = Rivue.defineComponent({
+			name = "RegistryList",
+			setup = function()
+				local registry = { items = {} }
+				Rivue.provide("registry", registry)
+				Rivue.onUnmounted(function()
+					table.insert(order, "parent")
+					registry.items = nil
+				end)
+				return {}
+			end,
+			render = function()
+				return Rivue.h("Frame", nil, { Rivue.h(Item) })
+			end,
+		})
+		local app = Rivue.createApp(List)
+		app.config.errorHandler = function(err)
+			failed = tostring(err)
+		end
+		app:mount(Instance.new("Folder"))
+		app:unmount()
+		assertEquals(table.concat(order, ","), "child,parent", "children first, like Vue")
+		assertEquals(failed, nil, "so a child can still clean up into what its parent owns")
+	end
+
 	print("\n" .. string.rep("=", 40))
 	print(printFooter)
 	print(string.rep("=", 40) .. "\n")
