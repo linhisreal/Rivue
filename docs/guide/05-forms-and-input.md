@@ -2,13 +2,14 @@
 
 # 5. Forms and input
 
-**You'll learn:** two-way binding for text boxes and your own components, and the directives
-that handle focus, clicks outside, dragging and gamepad selection.
+Text boxes are where state flows both ways: the player changes it, and so does your code. This
+chapter covers binding them, shortcuts, and the small helpers for focus, clicks outside, dragging
+and gamepad selection.
 
 ## Binding a TextBox
 
-`model` binds a TextBox to state both ways: typing updates the ref, and setting the ref updates
-the box. In `render(ctx)`, pass the **name** of a ref that setup returned:
+`model` ties a TextBox to a ref. Typing updates the ref, and setting the ref updates the box. In
+`render(ctx)` you pass the ref's name, as a string:
 
 ```lua
 local NameForm = Rivue.defineComponent({
@@ -46,10 +47,11 @@ flowchart LR
     R -- "setting draft.value" --> T
 ```
 
-Why a name? `ctx.draft` is the ref's *value* (a string), so `model = ctx.draft` would bind to a
-plain string. Outside `render(ctx)`, pass the ref itself: `model = draftRef`.
+Why a string? Because `ctx.draft` is already the ref's value, so `model = ctx.draft` would bind to
+a plain string and nothing would update. Outside `render(ctx)` you pass the ref itself:
+`model = draftRef`.
 
-Like Vue's `v-model.trim`, `.number` and `.lazy`, `modelModifiers` changes what gets stored:
+`modelModifiers` changes what gets stored, the same way Vue's `.trim`, `.number` and `.lazy` do:
 
 ```lua
 h("TextBox", { model = "username", modelModifiers = { trim = true } }) -- "  Ada " → "Ada"
@@ -59,7 +61,8 @@ h("TextBox", { model = "search", modelModifiers = { lazy = true } }) -- updates 
 
 ## Keyboard and gamepad shortcuts
 
-`Rivue.useKeybind` binds keys or gamepad buttons while the component is mounted:
+Escape to close a menu, B on a controller: `Rivue.useKeybind` binds keys or gamepad buttons for as
+long as the component is mounted.
 
 ```lua
 setup = function(_props, ctx)
@@ -70,12 +73,13 @@ setup = function(_props, ctx)
 end,
 ```
 
-It unbinds when the component unmounts. Pass `{ enabled = someRef }` to switch it on and off.
+You don't unbind it yourself. If it should only work some of the time, pass
+`{ enabled = someRef }`.
 
 ## model on your own components
 
-A component supports `model` by reading `modelValue` and emitting `"update:modelValue"`.
-`Rivue.defineModel()` does both and gives you a ref:
+Your own components can take `model` too. For that, a component reads `modelValue` and emits
+`"update:modelValue"`, and `Rivue.defineModel()` does both for you, handing back a plain ref:
 
 ```lua
 local useModel = Rivue.defineModel()
@@ -100,7 +104,7 @@ h(Toggle, { model = musicEnabled })
 
 ## Directives
 
-Directives add behaviour to an element with `v` props:
+Directives are small behaviours you switch on with a `v` prop:
 
 | Prop | Does |
 |---|---|
@@ -110,7 +114,8 @@ Directives add behaviour to an element with `v` props:
 | `vSelect = true` | selects the element for gamepad navigation |
 | `vDrag = true` | makes it draggable with mouse or touch |
 
-You can register your own with [`app:directive()`](../api/application.md#appdirective).
+Need one that isn't here? Register it with
+[`app:directive()`](../api/application.md#appdirective).
 
 ---
 

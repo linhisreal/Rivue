@@ -2,13 +2,14 @@
 
 # 6. Styling and layout
 
-**You'll learn:** how to keep colours and sizes out of your render functions, how to lay elements
-out without positions, and how to adapt to phones, consoles and desktops.
+A render function full of `Color3.fromRGB` calls is hard to read and harder to restyle. This
+chapter moves the looks into style classes, lays things out without hand-placed positions, and
+makes the same UI work on a phone, a console and a desktop.
 
 ## Style classes
 
-Inline colours, fonts and sizes bury a render function's structure. Name them once as **style
-classes** and refer to them with `class`, like CSS:
+Give colours, fonts and sizes a name once, as a style class, and refer to them with `class`. If
+you've written CSS, this will feel familiar:
 
 ```lua
 -- UI/styles.luau
@@ -25,22 +26,22 @@ Rivue.createApp(App):styles(require(UI.styles)):mountToPlayerGui(player)
 h("TextButton", { class = { "button", ctx.isActive and "active" }, Text = "Play" })
 ```
 
-When several sources set the same property, the later one wins:
+When two places set the same property, the one further right here wins:
 
 ```mermaid
 flowchart LR
     A["app:styles()"] --> B["the component's<br/>styles option"] --> C["style = table"] --> D["the element's<br/>own props"]
 ```
 
-- `class` takes a name, a list (`{ "button", "active" }`, later wins) or a map
-  (`{ active = isActive }`, applied in alphabetical order).
-- Styles used by one component go in its `styles = { ... }` option.
-- State-driven values can stay inline: the element's own props always win.
+`class` takes a name, a list (`{ "button", "active" }`, where later entries win) or a map
+(`{ active = isActive }`, applied alphabetically). Styles only one component uses can live in its
+own `styles = { ... }` option. And values that follow state can stay inline, since the element's
+own props always win anyway.
 
 ### Hover, pressed, selected and disabled
 
-Like CSS's `:hover` and `:active`, a class can say how an element looks while the player interacts
-with it:
+A class can also say how an element looks while the player is interacting with it, much like
+`:hover` and `:active` in CSS:
 
 ```lua
 button = {
@@ -54,15 +55,14 @@ button = {
 h("TextButton", { class = "button", Text = "Buy", disabled = ctx.coins < price })
 ```
 
-- Hover, pressed and selected are applied straight to the Instance when the input happens. They
-  don't re-render anything.
-- `disabled = true` applies the `disabled` variant, sets `Interactable = false`, and turns hover
-  and pressed off.
-- When several are active, pressed wins over hover, and hover over selected.
+Hover, pressed and selected are written straight to the Instance as the input happens, so they
+don't cost a re-render. `disabled = true` is a bit more: it applies the `disabled` variant, sets
+`Interactable = false`, and switches hover and pressed off. If several are active at once, pressed
+beats hover, and hover beats selected.
 
 ### Different devices
 
-A class can also change per device, like a CSS media query:
+Classes can change per device too. Think media queries:
 
 ```lua
 panel = {
@@ -72,14 +72,15 @@ panel = {
 },
 ```
 
-The device is `"phone"`, `"tablet"`, `"desktop"` or `"console"`, and `Rivue.useDevice()` returns
-it as a ref. A touch screen whose short side is under 500 px is a phone, so a phone held
-sideways still counts. Components that use a device variant re-render when the device changes.
+There are four devices: `"phone"`, `"tablet"`, `"desktop"` and `"console"`. `Rivue.useDevice()`
+gives you the current one as a ref. A touch screen counts as a phone when its short side is under
+500 px, which keeps a phone held sideways a phone. When the device changes, components using a
+device variant re-render.
 
 ## Layout without positions
 
-Absolute positions break when text, screen size or content changes. The `layout` prop creates the
-layout object for you, and the children are placed in the order you render them:
+Hand-placed positions break the moment a label wraps or the screen gets smaller. The `layout` prop
+creates the layout object for you, and children show up in the order you render them:
 
 ![layout = "vertical", "horizontal" and grid](../images/layout-direction.svg)
 
@@ -93,20 +94,21 @@ h("Frame", { class = "panel", layout = { gap = 8 } }, { -- vertical list, 8 px a
 })
 ```
 
-`justify` places items along the layout's direction, `align` across it:
+`justify` spaces items along the layout's direction. `align` lines them up across it:
 
 ![justify and align](../images/layout-justify-align.svg)
 
-`flex` decides how a child shares the leftover space:
+And `flex` decides how a child shares whatever space is left over:
 
 ![flex](../images/layout-flex.svg)
 
-You can still add a `UIListLayout` or `UIGridLayout` child yourself when you need a property
-`layout` doesn't cover. Rivue keeps `LayoutOrder` in render order either way.
+If you need a property `layout` doesn't cover, add a `UIListLayout` or `UIGridLayout` child
+yourself. Rivue keeps `LayoutOrder` in render order either way.
 
 ## Input type, screen size and safe area
 
-For decisions a style class can't make, read the input type, screen size and safe area in render:
+Some decisions are too specific for a style class. For those, read the input type, screen size
+and safe area directly in render:
 
 ```lua
 setup = function()
@@ -126,8 +128,8 @@ render = function(ctx)
 end,
 ```
 
-For controllers, `vSelect = true` selects an element and `Rivue.useSelection()` reads and sets
-the selected object.
+Controllers need one more thing: something selected to start from. `vSelect = true` selects an
+element, and `Rivue.useSelection()` reads or changes the current selection.
 
 ---
 

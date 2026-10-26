@@ -2,8 +2,9 @@
 
 # 11. Style rules
 
-**You'll learn:** habits for writing Rivue code, each with the reason behind it. The first group
-prevents real bugs; the second keeps a growing project readable.
+These are the habits the rest of the docs follow, each with the reason for it. Break a "must" and
+you'll get a real bug sooner or later. The "should" rules are about keeping a big project easy to
+read.
 
 ## At a glance
 
@@ -27,7 +28,7 @@ prevents real bugs; the second keeps a growing project readable.
 ### Key every list item
 
 Keys tell Rivue which Instance belongs to which item ([chapter 3](03-describing-ui.md#lists-and-keys)).
-Use something that belongs to the item: its position changes when the list does.
+An index won't do, because it changes the moment the list does. Use something the item owns.
 
 ```lua
 -- ✗ No key, or the index as key
@@ -43,7 +44,7 @@ end)
 
 ### Read state in render, not setup
 
-A value copied in `setup` is a snapshot. It never updates.
+Copy a value in `setup` and you've taken a snapshot. It won't update, ever.
 
 ```lua
 -- ✗ Copied once
@@ -73,7 +74,8 @@ end)
 
 ### Emit, don't change props
 
-Change state where it lives. A child that wants something changed asks its parent with an event.
+State changes where it lives. If a child wants something changed, it asks with an event and lets
+the parent do it.
 
 ```lua
 -- ✗ The parent's next render overwrites this anyway
@@ -91,8 +93,8 @@ end
 
 ### Keep render free of side effects
 
-Render runs whenever its state changes, possibly every frame during an animation. Changing state,
-connecting signals or calling the server there causes loops and duplicate requests.
+Render runs whenever its state changes. During an animation that can be every frame. Change state
+in there and you get loops; call the server and you get duplicate requests.
 
 ```lua
 -- ✗
@@ -112,8 +114,8 @@ end,
 
 ### Clean up your own connections
 
-Watchers, computeds, `onHeartbeat` and `useTag` stop with the component. A `:Connect()` you wrote
-doesn't.
+Watchers, computeds, `onHeartbeat` and `useTag` stop with the component. Your own `:Connect()`
+calls keep going until you disconnect them.
 
 ```lua
 -- ✗ Keeps firing after the component is gone
@@ -128,8 +130,8 @@ end)
 
 ### Name every component
 
-`name` is what you see in errors (`Error in render of <ItemRow> in <Inventory>`), warnings,
-`printTree()` and the Explorer.
+You'll see `name` everywhere: in errors (`Error in render of <ItemRow> in <Inventory>`), in
+warnings, in `printTree()` and in the Explorer. Without one, errors just say `<Anonymous>`.
 
 ```lua
 Rivue.defineComponent({ name = "ItemRow", setup = setup, render = render })
@@ -139,7 +141,7 @@ Rivue.defineComponent({ name = "ItemRow", setup = setup, render = render })
 
 ### Put visuals in style classes
 
-Colours, fonts and sizes written inline bury what the render function is actually building.
+Five lines of colours and fonts make it hard to see what the render function is actually building.
 
 ```lua
 -- ✗
@@ -156,8 +158,8 @@ h("TextButton", {
 h("TextButton", { class = "button", Text = "Buy" })
 ```
 
-Keep values that change with state inline (`Visible = ctx.open`). For variants, combine classes:
-`class = { "button", danger and "button-danger" }`.
+Values that follow state can stay inline (`Visible = ctx.open`). For variants, combine classes,
+like `class = { "button", danger and "button-danger" }`.
 
 ### Lay out with layout, not positions
 
@@ -177,13 +179,14 @@ h("Frame", { layout = { gap = 8 }, padding = 10 }, {
 
 ### Use setup + render
 
-Return state from `setup` and write markup in `render(ctx)`: no `.value`, and each half reads on
-its own. Returning a render function from `setup` is fine for components of a few lines.
+Return state from `setup` and write markup in `render(ctx)`. You skip all the `.value`, and each
+half reads on its own. For a component of a few lines, returning a render function from `setup` is
+fine too.
 
 ### Declare props and emits
 
-Declared props are validated in Studio. Declared emits keep `on*` listeners out of the attributes
-passed to the root. Annotate setup's parameter for autocomplete:
+Studio validates declared props. Declared emits keep `on*` listeners out of the attributes that
+get passed to the root. Annotate setup's parameter and you get autocomplete too:
 
 ```lua
 type Props = { item: Item, selected: boolean }
@@ -219,18 +222,19 @@ h("TextBox", { model = "draft", vFocus = true })
 
 ## Tooling
 
-- **Snippets.** `.vscode/rivue.code-snippets` adds `rcomponent`, `rview`, `rcomposable`,
-  `rstyles`, `rwatch` and `rcomputed`. Copy it into your own project's `.vscode/` to use them.
-- **Formatting and types.** StyLua with the repo's `.stylua.toml`, and luau-lsp with the Roblox
-  definitions.
-- **Strict mode.** The old Luau type solver can't type mixed children lists
-  (`{ header, Rivue.hFor(...) }`). Use `--!strict` for logic and composables and `--!nonstrict` for
-  files with render functions, or `--!strict` everywhere with the new solver.
+The repo has VS Code snippets in `.vscode/rivue.code-snippets`: `rcomponent`, `rview`,
+`rcomposable`, `rstyles`, `rwatch` and `rcomputed`. Copy the file into your own project's
+`.vscode/` to use them. Formatting is StyLua with the repo's `.stylua.toml`, and types come from
+luau-lsp with the Roblox definitions.
+
+One catch with strict mode: the old Luau type solver can't type mixed children lists like
+`{ header, Rivue.hFor(...) }`. Either use `--!strict` for logic and composables and `--!nonstrict`
+for files with render functions, or switch to the new solver and use `--!strict` everywhere.
 
 ---
 
-Chapters 1 to 11 cover the core of Rivue. Keep the [API reference](../API.md) open while you
-build, and browse the [examples](../../examples) to see a feature in a real component. Chapters
-12–16 cover reusable composables, bigger apps, performance and testing.
+That's the core of Rivue. From here, keep the [API reference](../API.md) open while you build, and
+look at the [examples](../../examples) when you want to see a feature in a real component. Chapters
+12–16 go further, into reusable composables, bigger apps, performance and testing.
 
 [← 10. Organising a project](10-organising-a-project.md) · [Guide contents](../GUIDE.md) · [12. Writing composables →](12-writing-composables.md)

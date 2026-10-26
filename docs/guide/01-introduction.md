@@ -2,17 +2,17 @@
 
 # 1. Introduction
 
-**You'll learn:** what Rivue does for you, how to put a first component on screen, and the shape
-every component in these docs follows.
+Start here. By the end of this page you'll have a button on screen that counts clicks, and you'll
+know the shape every component in these docs follows.
 
 ## The idea
 
-Without a framework, UI code creates Instances and then keeps them in sync by hand. Every time
-the coins change, something has to find the label and set its `Text`, and that gets harder with
-every screen.
+Without a framework, UI code creates Instances and then keeps them in sync by hand. The coins
+change, so something has to find the label and set its `Text`. That's one label. Now do it for
+every value on every screen.
 
-With Rivue you describe what the UI should look like **for the current state**. When the state
-changes, Rivue works out what's different and updates only those Instance properties.
+Rivue turns this around. You describe what the UI should look like for the current state, and when
+the state changes, Rivue works out what's different and writes only those properties.
 
 ```mermaid
 flowchart LR
@@ -23,7 +23,7 @@ flowchart LR
     I -. "player clicks,<br/>server data" .-> S
 ```
 
-So you never write `label.Text = ...` yourself.
+You don't write `label.Text = ...` anywhere.
 
 ## Your first component
 
@@ -62,7 +62,7 @@ local Counter = Rivue.defineComponent({
 Rivue.createApp(Counter):mountToPlayerGui(Players.LocalPlayer)
 ```
 
-Press Play and click the button: the text updates.
+Press Play and click. The text counts up.
 
 ## The two halves of a component
 
@@ -77,18 +77,18 @@ flowchart LR
     Setup -- "returns { count, increment }" --> Render
 ```
 
-- **`setup()`** runs **once**. Create state here, and anything that should live as long as the
-  component.
-- **`render(ctx)`** runs **every time** state it read changes. It only describes UI: no
-  connections, no server calls, no state changes.
-- **`ctx`** gives render what setup returned, with refs already unwrapped (`ctx.count`, not
-  `ctx.count.value`), then the component's props, then helpers like `ctx.emit`.
+`setup()` runs once, when the component appears. State goes there, along with anything that should
+live as long as the component does. `render(ctx)` runs again every time state it read changes, so
+it only describes UI: no connections, no server calls, no changing state.
+
+What render gets as `ctx` is whatever setup returned, with refs already unwrapped (`ctx.count`,
+not `ctx.count.value`). After that come the component's props, then helpers like `ctx.emit`.
 
 `createApp(Counter):mountToPlayerGui(player)` creates a ScreenGui in the player's PlayerGui and
 renders into it. `app:mount(instance)` renders into any other Instance.
 
-> **Short form.** For tiny components, `setup` can return the render function itself instead of a
-> table. You'll see it in a few API examples. Everything else in these docs uses `setup` + `render`.
+> Tiny components can skip the table and return the render function straight from `setup`. A few
+> API examples do that. The rest of these docs stick to `setup` + `render`.
 
 ---
 

@@ -50,23 +50,24 @@ local Counter = Rivue.defineComponent({
 Rivue.createApp(Counter):mountToPlayerGui(game.Players.LocalPlayer)
 ```
 
-A bigger example with a text box, a keyed list and styles:
-[TodoList](examples/components/TodoList.luau). More in [examples](examples).
+Want something bigger? [TodoList](examples/components/TodoList.luau) has a text box, a keyed list
+and styles, and there are more in [examples](examples).
 
-Rivue is under active development, and the API can still change between releases. It runs in
-LocalScripts. For client/server calls, the separate [RivueRemote](docs/api/remote.md) package adds
-requests and events with rate limits.
+Rivue is still young, so the API can change between releases. It runs in LocalScripts. When you
+need the server, there's a separate package for that, [RivueRemote](docs/api/remote.md), with
+requests, events and rate limits.
 
 ## Why Rivue
 
-If you know Vue, the API will look familiar: `ref`, `computed`, `watch`, and components with props,
-emits, slots and provide/inject. There's a [cheat sheet](docs/VUE.md) for Vue users.
+Know Vue? Then you know most of Rivue already: `ref`, `computed`, `watch`, and components with
+props, emits, slots and provide/inject. The [cheat sheet](docs/VUE.md) covers the differences.
 
-Reactivity is tracked per value, so when a parent re-renders, children whose props didn't change
-are skipped without any `memo`.
+Updates are tracked per value. A parent re-rendering doesn't drag its children along unless their
+props changed, and you don't need `memo` to get that.
 
-It's built for Roblox UI, with style classes, `layout` and `flex` props in place of UIListLayout
-boilerplate, and tweens, springs, `Transition` and `VirtualList` built in.
+And it was made for Roblox UI from the start. Colours and fonts live in style classes, `layout`
+and `flex` replace the usual UIListLayout boilerplate, and tweens, springs, `Transition` and
+`VirtualList` come built in.
 
 ## Features
 
@@ -83,7 +84,8 @@ boilerplate, and tweens, springs, `Transition` and `VirtualList` built in.
 
 ## Installation
 
-Rivue is one ModuleScript (with a `runtime` folder inside). Put it in `ReplicatedStorage`.
+Rivue is a single ModuleScript with a `runtime` folder inside, and it goes in `ReplicatedStorage`.
+Use whichever install you already use for other packages.
 
 **With Wally**, add it to your `wally.toml` and run `wally install`:
 
@@ -105,13 +107,14 @@ RivueRemote = "linhisreal/rivue-remote@2.57.0" # optional, for client/server cal
 
 **Without Rojo**, download `Rivue.rbxm` from the latest
 [release](https://github.com/linhisreal/Rivue/releases) and drag it into `ReplicatedStorage`.
-`Rivue.min.rbxm` is the same without comments, and `RivueRemote.rbxm` is the optional client/server
-package.
+There's also `Rivue.min.rbxm` (same code, comments stripped) and `RivueRemote.rbxm`, the optional
+client/server package.
 
 ## Docs
 
-Read them at [linhisreal.github.io/Rivue](https://linhisreal.github.io/Rivue/), or start at the
-[docs home](docs/README.md) here, which has an "I want to…" index.
+They're at [linhisreal.github.io/Rivue](https://linhisreal.github.io/Rivue/). If you'd rather read
+them on GitHub, the [docs home](docs/README.md) has an "I want to…" table that points you at the
+right page.
 
 [Guide](docs/GUIDE.md) · [Examples](examples) · [API reference](docs/API.md) ·
 [Coming from Vue](docs/VUE.md) ·
@@ -132,8 +135,9 @@ lune run version 2.57.0           # one version for every package
 rojo serve                        # the dev place in Studio
 ```
 
-CI also runs StyLua and luau-lsp, and checks the packages for Wally and pesde. Releases and
-publishing: [docs/RELEASING.md](docs/RELEASING.md).
+CI runs StyLua and luau-lsp, checks the packages for Wally and pesde, and runs every test suite a
+second time inside a real Roblox server. How releases and publishing work is in
+[docs/RELEASING.md](docs/RELEASING.md).
 
 ```
 packages/rivue/            the UI framework                 Wally, pesde, Rivue.rbxm

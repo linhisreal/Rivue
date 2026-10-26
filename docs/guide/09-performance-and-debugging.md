@@ -2,12 +2,13 @@
 
 # 9. Performance, debugging and common mistakes
 
-**You'll learn:** the few things that make Rivue UI slow, how to find out why something rendered,
-and the mistakes almost everyone makes once.
+Most of the time you won't think about performance. This chapter is for when you do: the few
+things that make a Rivue UI slow, how to find out why something rendered, and the mistakes almost
+everyone makes once.
 
 ## Performance
 
-Rivue is fast by default. These cover the cases where it isn't:
+Rivue is fast by default. When it isn't, it's usually one of these:
 
 | Situation | Do this |
 |---|---|
@@ -20,25 +21,28 @@ Rivue is fast by default. These cover the cases where it isn't:
 
 ## Debugging
 
-- **Look in the Explorer.** Each component's root Instance is named after the component, so the
-  Explorer reads like your component tree.
-- **Print the tree.** `app:printTree()` prints components with their props and what they rendered:
+Start in the Explorer. Each component's root Instance is named after the component, so the tree
+there already reads like your component tree.
 
-  ```
-  <TodoList>
-    Frame "TodoList"
-      TextBox "Input"
-      <TodoItem todo=table>
-        Frame "TodoItem"
-  ```
+For more detail, `app:printTree()` prints the components with their props and what they rendered:
 
-- **"Why did this re-render?"** Add `Rivue.onRenderTriggered(function(e) print(e.key) end)` to
-  the component's setup.
-- **Errors name the component chain:** `[Rivue] Error in render of <ItemRow> in <Inventory> in <App>`.
-  Errors in watchers and effects are always reported.
-- **Studio warnings** cover unknown properties, wrong prop types, duplicate keys, list items
-  without keys and undeclared events.
-- `Rivue.inspect(value)` prints reactive state readably.
+```
+<TodoList>
+  Frame "TodoList"
+    TextBox "Input"
+    <TodoItem todo=table>
+      Frame "TodoItem"
+```
+
+If something re-renders and you can't see why, add
+`Rivue.onRenderTriggered(function(e) print(e.key) end)` to its setup. It prints the key that
+changed.
+
+Errors tell you where they came from, like
+`[Rivue] Error in render of <ItemRow> in <Inventory> in <App>`, and errors in watchers and effects
+are always reported. In Studio you also get warnings for unknown properties, wrong prop types,
+duplicate keys, list items without keys and undeclared events. And when `print` shows a reactive
+table as empty, `Rivue.inspect(value)` shows what's actually in it.
 
 ## Common mistakes
 

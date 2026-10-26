@@ -2,8 +2,8 @@
 
 # 2. State
 
-**You'll learn:** the three kinds of reactive state, which reads are tracked, and how to change
-lists.
+Rivue has three kinds of reactive state. Which one you pick matters less than where you read it,
+and lists need a little care of their own.
 
 ## ref, reactive and computed
 
@@ -26,12 +26,14 @@ end)
 print(label.value) -- "Grace: 10 coins"
 ```
 
-A computed is cached: it only re-runs when something it read changes.
+Computeds are cached. Reading `label.value` ten times runs the function once, and it only runs
+again after something it read has changed.
 
 ## Reads during render are tracked
 
-Rivue remembers **what each render function (or computed, or watcher) read while it ran**. When
-one of those values changes, that function runs again. Nothing else does.
+While a render function runs (or a computed, or a watcher), Rivue writes down everything it reads.
+Change one of those values later and that function runs again. Change something it never read and
+nothing happens.
 
 ```mermaid
 sequenceDiagram
@@ -42,7 +44,7 @@ sequenceDiagram
     S-->>R: count.value = 2 → render runs again
 ```
 
-That explains most surprises:
+Most "why didn't my UI update?" questions come down to this:
 
 ```lua
 setup = function()
@@ -58,8 +60,8 @@ end,
 
 ## Changing lists
 
-`table.insert`, `table.remove` and `table.sort` write to the table behind the proxy, so nothing
-notices. Use `Rivue.array`, which has the same operations and tells the UI:
+`table.insert`, `table.remove` and `table.sort` write straight to the table behind the proxy, so
+nothing notices. `Rivue.array` has the same operations, and it does tell the UI:
 
 ```lua
 local array = Rivue.array
@@ -74,8 +76,8 @@ array.sort(items.value, function(a, b)
 end)
 ```
 
-Also: loop over reactive tables with `for k, v in state do` or `for i = 1, #list do`. Luau's
-`pairs`/`ipairs` skip proxies.
+Looping has a catch too. Luau's `pairs` and `ipairs` skip proxies, so loop with
+`for k, v in state do` or `for i = 1, #list do` instead.
 
 ---
 

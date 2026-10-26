@@ -2,13 +2,14 @@
 
 # 4. Components, props, events and slots
 
-**You'll learn:** how components talk to each other, how to pass UI into one, and when each
-lifecycle hook runs.
+One big render function gets hard to read fast. This chapter splits UI into components and covers
+how they talk to each other, how to hand UI to one, and when each lifecycle hook runs.
 
 ## Props down, events up
 
-Split UI into components the way you split code into functions. A parent passes **props** down;
-a child sends **events** up. A child never changes its props: it asks the parent to.
+Split UI into components the way you'd split code into functions. Data goes down as props.
+Requests come back up as events. A child never changes its own props; it asks the parent, and the
+parent decides.
 
 ```mermaid
 flowchart TB
@@ -64,19 +65,21 @@ local Inventory = Rivue.defineComponent({
 })
 ```
 
-- **`props`** declares what a component accepts. In Studio, Rivue warns when a required prop is
-  missing or has the wrong type. Types can be Luau types (`"number"`) or Roblox ones (`"UDim2"`).
-- **`emits`** declares events. `ctx.emit("select", id)` calls the parent's `onSelect(id)`.
-- **Undeclared props** (`Position`, `LayoutOrder`, `class`, ...) are passed on to the component's
-  root element, so `LayoutOrder = 3` in `h("ItemRow", { item = item, LayoutOrder = 3 })` ends up on
-  the row's root.
-- **Typed props:** annotate setup's parameter, `setup = function(props: Props, ctx)`, to get
-  autocomplete and type errors on typos.
+`props` lists what a component accepts. Types can be Luau ones (`"number"`) or Roblox ones
+(`"UDim2"`), and in Studio Rivue warns when a required prop is missing or the type is wrong.
+`emits` lists the events: `ctx.emit("select", id)` calls the parent's `onSelect(id)`.
+
+Anything you pass that isn't declared, like `Position`, `LayoutOrder` or `class`, goes to the
+component's root element. So `h("ItemRow", { item = item, LayoutOrder = 3 })` puts the row in
+third place without `ItemRow` doing anything.
+
+Want autocomplete? Annotate setup's parameter, `setup = function(props: Props, ctx)`, and typos in
+prop names become type errors.
 
 ## Slots: passing UI into a component
 
-Wrappers like panels, cards and modals take UI from their parent. Array children are the
-**default slot**; named functions are **named slots**:
+Panels, cards and modals wrap UI that comes from their parent. Plain array children become the
+default slot, and named functions become named slots:
 
 ```lua
 local Card = Rivue.defineComponent({
@@ -100,8 +103,8 @@ h(Card, nil, {
 })
 ```
 
-A slot function can also receive data from the child, `ctx.renderSlot("row", { item = item })`,
-which is a **scoped slot**.
+The child can hand data back to a slot, too: `ctx.renderSlot("row", { item = item })`. That's
+called a scoped slot.
 
 ## Lifecycle
 
@@ -113,10 +116,12 @@ flowchart TD
     D --> I["removed from the tree"] --> J["onBeforeUnmount"] --> K["onUnmounted<br/>watchers stop, connections close"]
 ```
 
-- Register hooks at the top of `setup`. They can't be called later.
-- Use `onMounted` for anything that needs the real Instances: `AbsoluteSize`, focus, tweens.
-- Watchers, `onHeartbeat` connections and `queueJob` jobs created in setup are cleaned up for you.
-  Your own `:Connect()` calls need an `onUnmounted`. See [chapter 7](07-effects-and-animation.md).
+Register hooks at the top of `setup`; calling one later errors. Anything that needs the real
+Instances, like `AbsoluteSize`, focus or a tween, belongs in `onMounted`.
+
+Cleanup is mostly automatic. Watchers, `onHeartbeat` connections and `queueJob` jobs from setup stop
+on their own, but a `:Connect()` you wrote yourself needs an `onUnmounted`
+([chapter 7](07-effects-and-animation.md) has more).
 
 ---
 

@@ -2,8 +2,8 @@
 
 # 3. Describing UI with h()
 
-**You'll learn:** how `h()` describes Instances, what each kind of prop does, and how to render
-conditions and lists.
+Everything on screen in a Rivue UI comes from calls to `h()`. This chapter goes through what you
+can pass it, and how to show things only sometimes, or once per item in a list.
 
 ## One call per Instance
 
@@ -14,11 +14,9 @@ h("Frame", { Size = UDim2.fromScale(1, 1), cornerRadius = 8 }, {
 })
 ```
 
-`h(type, props, children)`:
-
-- **type**: a ClassName (`"Frame"`), a component, or a component's registered name (`"ItemRow"`).
-- **props**: properties, events, modifiers, `class`, `key`, `ref` (table below).
-- **children**: a list, a single vnode, or a string.
+One `h(type, props, children)` call describes one Instance. The type is a ClassName like
+`"Frame"`, a component, or a name you registered (`"ItemRow"`). Props are everything in the table
+below, and children come last.
 
 ## What a prop can be
 
@@ -40,7 +38,8 @@ Lists can hold other lists and `nil`, which is what makes conditions and loops w
 
 ## Conditions
 
-Render functions are plain Luau, so a condition is an `if` expression. `Rivue.hIf` is shorthand:
+There's no special syntax for conditions. A render function is plain Luau, so you write an `if`
+expression, or `Rivue.hIf` if you like it shorter:
 
 ```lua
 render = function(ctx)
@@ -52,11 +51,13 @@ render = function(ctx)
 end,
 ```
 
-To hide something without destroying it, keep it and set `vShow = condition`.
+For something that toggles a lot, you can keep it mounted and set `vShow = condition` instead. That
+hides it without destroying it.
 
 ## Lists and keys
 
-`Rivue.hFor(list, fn)` maps a list to vnodes, and its result goes straight into a children list:
+For lists, `Rivue.hFor(list, fn)` turns each item into a vnode. The result goes straight into a
+children list:
 
 ```lua
 h("ScrollingFrame", { layout = "vertical" }, {
@@ -66,13 +67,14 @@ h("ScrollingFrame", { layout = "vertical" }, {
 })
 ```
 
-**Give every list item a `key`** that belongs to the item (an id, not its position). Keys are how
-Rivue knows which Instance is which when the list changes:
+Give every list item a `key`, and make it something that belongs to the item, like an id. Its
+position in the list won't do. Keys are how Rivue tells which Instance is which when the list
+changes:
 
 ![keys let Rivue keep the right Instances](../images/keyed-list.svg)
 
-Without keys, every row after a removal gets patched, and state inside a row component (a hover,
-a typed value) ends up on the wrong item.
+Leave them out and removing one row re-patches every row after it. Worse, state inside a row
+component, like a hover or a half-typed value, ends up on the wrong item.
 
 ---
 

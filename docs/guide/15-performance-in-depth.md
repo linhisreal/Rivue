@@ -2,20 +2,20 @@
 
 # 15. Performance in depth
 
-**You'll learn:** where render time goes, how to find what re-renders, and the fixes beyond the
-basics in [chapter 9](09-performance-and-debugging.md#performance).
+[Chapter 9](09-performance-and-debugging.md#performance) covered the usual fixes. This one goes
+further: where render time actually goes, how to see what re-renders, and what to do about it.
 
 ## Where the time goes
 
-A state change costs the render functions that read it, plus a diff against the Instances.
-Rivue only writes properties that changed, so engine calls stay small. What you control is how
-often renders run and how big they are.
+A state change costs two things: the render functions that read it, and a diff against the
+Instances. Rivue only writes properties that changed, so the engine side stays small. What's left
+is up to you: how often renders run, and how much each one does.
 
 ## Keep fast-changing reads small
 
-Only components whose render read a changed value re-render. Children whose props didn't change
-are skipped. So a value that changes 10 times a second should be read in the smallest component
-that shows it:
+Only components whose render read a changed value re-render, and children whose props didn't
+change are skipped. So a value that changes ten times a second, like ping, should be read in the
+smallest component that shows it:
 
 ![moving a fast-changing read into a small component](../images/rerender-split.svg)
 
@@ -34,16 +34,15 @@ h(PingLabel)
 
 ## Finding what re-renders
 
-On top of `onRenderTriggered` and `app:printTree()` from
-[chapter 9](09-performance-and-debugging.md#debugging):
-
-- `Rivue.onRenderTracked(fn)` lists every value a render read, i.e. everything that can
-  re-render it.
-- `Rivue.debug.measure("label", fn)` logs how long `fn` took, when `Rivue.debug.enabled` is on.
+Besides `onRenderTriggered` and `app:printTree()` from
+[chapter 9](09-performance-and-debugging.md#debugging), there are two more tools.
+`Rivue.onRenderTracked(fn)` lists every value a render read, which is everything that can make it
+re-render. And with `Rivue.debug.enabled` on, `Rivue.debug.measure("label", fn)` logs how long
+`fn` took.
 
 ## memo and throttle
 
-`memo` skips an element and its subtree while the listed values are unchanged:
+`memo` skips an element and everything under it while the listed values stay the same:
 
 ```lua
 Rivue.hFor(ctx.items, function(item)
@@ -57,9 +56,11 @@ Rivue.hFor(ctx.items, function(item)
 end)
 ```
 
-A value missing from the list won't update the row, so list everything it renders from.
+Careful, though: a value missing from the list won't update the row. List everything it renders
+from.
 
-For per-frame sources, throttle the writes to the ref rather than the render:
+For sources that change every frame, throttle the writes to the ref. The render then follows on
+its own:
 
 ```lua
 setup = function()
@@ -79,13 +80,10 @@ end,
 
 ## What Rivue already does for you
 
-No need to work around these:
-
-- **Inline handlers.** A new `onClick` closure each render is swapped into the existing
-  connection, not reconnected.
-- **Reordering.** Adding, removing or moving a row writes one `LayoutOrder`, not one per row.
-- **Many writes in a row.** Updates are batched; each affected component renders once, parents
-  first.
+Some things look expensive but aren't, so don't work around them. A new `onClick` closure on
+every render is swapped into the existing connection rather than reconnected. Adding, removing or
+moving a row writes one `LayoutOrder`, however long the list. And many writes in a row are
+batched, so each affected component renders once, parents first.
 
 ---
 
