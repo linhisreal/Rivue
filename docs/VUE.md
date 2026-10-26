@@ -1,5 +1,7 @@
 [Docs](README.md) › **Rivue for Vue developers**
 
+![Vue / Rivue](images/vue-rivue-banner.svg)
+
 # Rivue for Vue developers
 
 If you know Vue 3, you already know most of Rivue. It's Vue's runtime (reactivity, components,
