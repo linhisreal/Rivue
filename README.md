@@ -10,9 +10,11 @@
 
 <p align="center">
   <a href="https://create.roblox.com/store/models?keyword=Rivue"><img src="docs/assets/badges/creator-store.svg" height="40" alt="Get it on the Roblox Creator Store"></a>
-  <a href="https://wally.run/package/linhisreal/rivue"><img src="docs/assets/badges/wally.svg" height="40" alt="Wally: linhisreal/rivue"></a>
+  <a href="https://wally.run/package/linhisreal/rivue"><img src="docs/assets/badges/wally.svg" height="40" alt="Install with Wally"></a>
+  <a href="https://pesde.dev/packages/linhisreal/rivue"><img src="docs/assets/badges/pesde.svg" height="40" alt="Install with pesde"></a>
+  <a href="rokit.toml"><img src="docs/assets/badges/rokit.svg" height="40" alt="Tools pinned with Rokit"></a>
   <a href="https://luau.org"><img src="docs/assets/badges/luau.svg" height="40" alt="Written in Luau"></a>
-  <a href="https://linhisreal.github.io/Rivue/"><img src="docs/assets/badges/docs.svg" height="40" alt="Docs"></a>
+  <a href="https://linhisreal.github.io/Rivue/"><img src="docs/assets/badges/docs.svg" height="40" alt="Read the docs"></a>
 </p>
 
 <p align="center">

@@ -55,7 +55,16 @@ SIL Open Font License.
 
 ## Badges
 
-The README's link badges in `badges/`, each on its brand's colour: `creator-store.svg` (the Roblox
-mark on black), `wally.svg` (Wally's logo from [wally.run](https://wally.run) on its red),
-`luau.svg` (Luau's logo from [luau.org](https://luau.org) on its navy) and `docs.svg` (the Guide
-icon on Rivue blue).
+The README's link badges in `badges/`. They share one layout (icon, small caption, bold name,
+40 px tall) and each sits on its brand's colour:
+
+| File | Icon and colour |
+|---|---|
+| `creator-store.svg` | the Roblox mark on black |
+| `wally.svg` | Wally's logo from [wally.run](https://wally.run) on its red |
+| `pesde.svg` | pesde's logo from [pesde.dev](https://pesde.dev) on its black |
+| `rokit.svg` | a terminal prompt on dark grey (Rokit has no logo) |
+| `luau.svg` | Luau's logo from [luau.org](https://luau.org) on its navy |
+| `docs.svg` | the Guide icon on Rivue blue |
+
+The dark badges have a grey outline so they don't vanish on GitHub's dark theme.
