@@ -86,8 +86,8 @@ Rivue is one ModuleScript (with a `runtime` folder inside). Put it in `Replicate
 
 ```toml
 [dependencies]
-Rivue = "linhisreal/rivue@2.56.0"
-RivueRemote = "linhisreal/rivue-remote@2.56.0" # optional, for client/server calls
+Rivue = "linhisreal/rivue@2.57.0"
+RivueRemote = "linhisreal/rivue-remote@2.57.0" # optional, for client/server calls
 ```
 
 **With pesde**, run `pesde add linhisreal/rivue` (and `linhisreal/rivue_remote` if you want it).
