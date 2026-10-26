@@ -141,10 +141,30 @@ end
 -- Off unless app.config.devtools is set
 const DEVTOOLS_TAG = "RivueComponent"
 
+const DEVTOOLS_ATTRIBUTES = {
+	"RivueComponent",
+	"RivueProps",
+	"RivueState",
+	"RivueRenders",
+	"RivueRenderMs",
+	"RivueTrigger",
+	"RivueSource",
+	"RivueEmit",
+	"RivueEdit",
+}
+
+-- Each root listens for state edits sent by the DevTools plugin
+local devtoolsEditConns: { [Instance]: RBXScriptConnection } = setmetatable({}, { __mode = "k" }) :: any
+
 -- Unmounted roots leave the DevTools list, and pooled Instances don't carry old data
 local function clearDevtools(el: Instance)
+	local conn = devtoolsEditConns[el]
+	if conn then
+		conn:Disconnect()
+		devtoolsEditConns[el] = nil
+	end
 	CollectionService:RemoveTag(el, DEVTOOLS_TAG)
-	for _, name in { "RivueComponent", "RivueProps", "RivueState", "RivueRenders", "RivueRenderMs", "RivueTrigger" } do
+	for _, name in DEVTOOLS_ATTRIBUTES do
 		el:SetAttribute(name, nil)
 	end
 end
@@ -1752,13 +1772,7 @@ local function recordTrigger(inst: ComponentInstance, event: Types.DebuggerEvent
 	end
 end
 
---- Mirrors a component's name, props and state onto its root Instance for the DevTools plugin.
---- Reads refs' raw values, so it never adds dependencies to the render
-local function writeDevtools(inst: ComponentInstance, el: Instance, renderMs: number)
-	local props: { string } = {}
-	for key, value in _reactivity.toRaw(inst.props) do
-		table.insert(props, `{key} = {describeValue(value)}`)
-	end
+local function writeDevtoolsState(inst: ComponentInstance, el: Instance)
 	local state: { string } = {}
 	local setupState = inst.setupState
 	if type(setupState) == "table" then
@@ -1768,12 +1782,80 @@ local function writeDevtools(inst: ComponentInstance, el: Instance, renderMs: nu
 			end
 		end
 	end
+	el:SetAttribute("RivueState", devtoolsText(state))
+end
+
+--- Applies "key=value" from the DevTools plugin to the ref setup returned as `key`. Only numbers,
+--- strings and booleans, and only when the text parses as the ref's current type
+local function applyDevtoolsEdit(inst: ComponentInstance, el: Instance)
+	local raw = el:GetAttribute("RivueEdit")
+	if type(raw) ~= "string" then
+		return
+	end
+	el:SetAttribute("RivueEdit", nil)
+	local key, text = string.match(raw, "^([^=]+)=(.*)$")
+	local setupState = inst.setupState
+	if not key or not text or type(setupState) ~= "table" then
+		return
+	end
+	local target = rawget(setupState :: any, key)
+	if type(target) ~= "table" or not rawget(target, "_is_ref") then
+		return
+	end
+	local current = rawget(target, "_value")
+	local value: unknown = nil
+	if type(current) == "number" then
+		value = tonumber(text)
+	elseif type(current) == "boolean" then
+		value = if text == "true" then true elseif text == "false" then false else nil
+	elseif type(current) == "string" then
+		value = string.match(text, '^"(.*)"$') or text
+	end
+	if value ~= nil then
+		(target :: any).value = value
+		-- A ref the render doesn't read won't re-render, so its new value is written here
+		writeDevtoolsState(inst, el)
+	end
+end
+
+-- Changes on every emit, so the plugin hears two identical events in a row
+local devtoolsEmitCount = 0
+
+componentAPI.devtoolsHooks.emit = function(inst: ComponentInstance, eventName: string, args: { unknown })
+	local el = inst.el
+	if not el then
+		return
+	end
+	local parts = {}
+	for i = 1, #args do
+		parts[i] = describeValue(args[i])
+	end
+	devtoolsEmitCount += 1
+	local text = `{devtoolsEmitCount}|{eventName}|{table.concat(parts, ", ")}`
+	_reactivity._untracked(function()
+		(el :: Instance):SetAttribute("RivueEmit", text)
+	end)
+end
+
+--- Mirrors a component's name, props and state onto its root Instance for the DevTools plugin.
+--- Reads refs' raw values, so it never adds dependencies to the render
+local function writeDevtools(inst: ComponentInstance, el: Instance, renderMs: number)
+	if not devtoolsEditConns[el] then
+		devtoolsEditConns[el] = el:GetAttributeChangedSignal("RivueEdit"):Connect(function()
+			applyDevtoolsEdit(inst, el)
+		end)
+		el:SetAttribute("RivueSource", inst.type.__source)
+	end
+	local props: { string } = {}
+	for key, value in _reactivity.toRaw(inst.props) do
+		table.insert(props, `{key} = {describeValue(value)}`)
+	end
 	if not CollectionService:HasTag(el, DEVTOOLS_TAG) then
 		CollectionService:AddTag(el, DEVTOOLS_TAG)
 	end
 	el:SetAttribute("RivueComponent", inst.type.__name or "Anonymous")
 	el:SetAttribute("RivueProps", devtoolsText(props))
-	el:SetAttribute("RivueState", devtoolsText(state))
+	writeDevtoolsState(inst, el)
 	local renders = ((el:GetAttribute("RivueRenders") :: number?) or 0) + 1
 	el:SetAttribute("RivueRenders", renders)
 	el:SetAttribute("RivueRenderMs", math.round(renderMs * 100) / 100)

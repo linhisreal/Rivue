@@ -608,6 +608,12 @@ Lets the [Rivue DevTools plugin](../DEVTOOLS.md) show this app's components whil
   | `RivueRenders` | how many times it rendered |
   | `RivueRenderMs` | how long the last render and patch took, in milliseconds |
   | `RivueTrigger` | what caused the last render: `mount`, `parent`, or the state that changed, like `count` or `props.title` |
+  | `RivueSource` | where `defineComponent` was called, like `ReplicatedStorage.UI.Shop:12` |
+  | `RivueEmit` | the latest `emit`: a counter, the event name and its arguments |
+
+  The plugin can also set `RivueEdit` to `"key=value"`. Rivue sets the ref `setup` returned as
+  `key`, if the value parses as the ref's current type (number, string or boolean), and clears the
+  attribute.
 
   Writing them doesn't add dependencies, so it doesn't change what re-renders. It does cost an
   engine call per attribute per render, so leave it off in live games. Set it before
