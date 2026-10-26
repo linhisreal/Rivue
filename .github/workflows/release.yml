@@ -1,7 +1,7 @@
 name: Release
 
 # Publish a release with RivueUI.rbxm and RivueUI.min.rbxm attached, either by pushing a tag
-# (v2.56.0, or pre-v2.56 for a pre-release) or by running this workflow from the Actions tab,
+# (v2.58.4, or pre-v2.58.4a for a pre-release) or by running this workflow from the Actions tab,
 # which creates the tag on the current main. Notes come from .github/release-notes/<tag>.md.
 on:
   push:
@@ -11,7 +11,7 @@ on:
       tag:
         description: Tag to create and release (pre-* tags become pre-releases)
         required: true
-        default: pre-v2.56
+        default: pre-v2.58.4a
 
 permissions:
   contents: write
