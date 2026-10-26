@@ -222,7 +222,7 @@ local function createEffect(fn: () -> (), opts: EffectOptions?): Effect
 		end
 
 		if not ok then
-			-- Always reported, a silent effect is a nightmare to debug
+			-- Always reported: an effect that fails silently is hard to track down
 			warn(`[Rivue] Error in effect: {err}`)
 		end
 	end
@@ -315,7 +315,7 @@ local function trigger(target: unknown, key: unknown)
 	if not dep then
 		return
 	end
-	-- Copy first, sync effects modify dep while we iterate. Scratch arrays are reused per
+	-- Copy first, sync effects change dep during the loop. Scratch arrays are reused per
 	-- nesting depth so a write doesn't allocate.
 	triggerDepth += 1
 	local effects = triggerScratch[triggerDepth]

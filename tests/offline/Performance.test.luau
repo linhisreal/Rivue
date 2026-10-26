@@ -1,11 +1,6 @@
 --!nonstrict
---[[
-	Performance Tests (offline only)
-	================================
-
-	Counts engine calls (Instance property reads/writes and method lookups), which is what
-	costs the most in Roblox. Fails if a common update gets more expensive.
-]]
+-- Offline only: counts engine calls (Instance property reads/writes and method lookups), which
+-- is what costs the most in Roblox, and fails if a common update gets more expensive
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))

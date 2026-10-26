@@ -1,5 +1,5 @@
 --!strict
--- Tests for directives.luau - Custom directive system and vModel helpers
+-- Registering directives, the built-in ones, vModelText and vModelProp
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
@@ -33,7 +33,6 @@ local function runTests()
 	print(printHeader)
 	print(string.rep("=", 40) .. "\n")
 
-	-- Test 1: register() adds directive to registry
 	print("Test 1: register() adds directive to registry")
 	do
 		local testDirective = {
@@ -44,7 +43,6 @@ local function runTests()
 		assertTrue(retrieved and true or false, "Should register and retrieve directive")
 	end
 
-	-- Test 2: Built-in focus directive exists
 	print("Test 2: Built-in focus directive exists")
 	do
 		local focusDirective = directives_module.get("focus")
@@ -52,7 +50,6 @@ local function runTests()
 		assertTrue(focusDirective.mounted and true or false, "Should have mounted hook")
 	end
 
-	-- Test 3: Built-in click-outside directive exists
 	print("Test 3: Built-in click-outside directive exists")
 	do
 		local clickOutsideDirective = directives_module.get("click-outside")
@@ -60,7 +57,6 @@ local function runTests()
 		assertTrue(clickOutsideDirective.mounted and true or false, "Should have mounted hook")
 	end
 
-	-- Test 4: vModelText creates two-way binding props
 	print("Test 4: vModelText creates two-way binding props")
 	do
 		local textRef = Rivue.ref("initial")
@@ -69,13 +65,11 @@ local function runTests()
 		assertEquals(props.Text, "initial", "Should have Text property with ref value")
 		assertTrue(type(props.onTextChanged) == "function", "Should have onTextChanged handler")
 
-		-- Test binding
 		props.onTextChanged("updated")
 		task.wait(0.05)
 		assertEquals(textRef.value, "updated", "Should update ref when onTextChanged is called")
 	end
 
-	-- Test 5: vModelText with debounce option
 	print("Test 5: vModelText with debounce option")
 	do
 		local textRef = Rivue.ref("initial")
@@ -85,7 +79,6 @@ local function runTests()
 		assertTrue(type(props.onTextChanged) == "function", "Should have debounced handler")
 	end
 
-	-- Test 6: vModelProp creates generic two-way binding
 	print("Test 6: vModelProp creates generic two-way binding")
 	do
 		local valueRef = Rivue.ref(50)
@@ -94,12 +87,10 @@ local function runTests()
 		assertEquals(props.Value, 50, "Should have Value property with ref value")
 		assertTrue(type(props.onValue) == "function", "Should have onValue handler")
 
-		-- Test binding
 		props.onValue(75)
 		assertEquals(valueRef.value, 75, "Should update ref when handler is called")
 	end
 
-	-- Test 7: vModelProp with custom event name
 	print("Test 7: vModelProp with custom event name")
 	do
 		local valueRef = Rivue.ref(100)
@@ -109,7 +100,6 @@ local function runTests()
 		assertTrue(type(props.onPositionChanged) == "function", "Should have custom event handler")
 	end
 
-	-- Test 8: Built-in show directive exists
 	print("Test 8: Built-in show directive exists")
 	do
 		local showDirective = directives_module.get("show")
@@ -118,7 +108,6 @@ local function runTests()
 		assertTrue(showDirective.updated and true or false, "Should have updated hook")
 	end
 
-	-- Test 9: Built-in drag directive exists
 	print("Test 9: Built-in drag directive exists")
 	do
 		local dragDirective = directives_module.get("drag")
@@ -126,7 +115,6 @@ local function runTests()
 		assertTrue(dragDirective.mounted and true or false, "Should have mounted hook")
 	end
 
-	-- Test 10: Built-in fade-in directive exists
 	print("Test 10: Built-in fade-in directive exists")
 	do
 		local fadeInDirective = directives_module.get("fade-in")
@@ -135,7 +123,6 @@ local function runTests()
 		assertTrue(fadeInDirective.unmounted and true or false, "Should have unmounted hook")
 	end
 
-	-- Test 11: Built-in preload directive exists
 	print("Test 11: Built-in preload directive exists")
 	do
 		local preloadDirective = directives_module.get("preload")
@@ -143,21 +130,17 @@ local function runTests()
 		assertTrue(preloadDirective.mounted and true or false, "Should have mounted hook")
 	end
 
-	-- Test 12: vModelText handles debounce correctly
 	print("Test 12: vModelText handles debounce correctly")
 	do
 		local textRef = Rivue.ref("initial")
 		local props = directives_module.vModelText(textRef, { debounce = 50 })
 
-		-- Rapid updates
 		props.onTextChanged("a")
 		props.onTextChanged("ab")
 		props.onTextChanged("abc")
 
-		-- Should still be initial (debounced)
 		assertEquals(textRef.value, "initial", "Should not update immediately when debounced")
 
-		-- Wait for debounce
 		task.wait(0.1)
 		assertEquals(textRef.value, "abc", "Should update after debounce delay")
 	end

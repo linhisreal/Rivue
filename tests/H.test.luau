@@ -1,5 +1,5 @@
 --!strict
--- Tests for h.luau - Virtual DOM node creation
+-- h(), hIf() and hFor()
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local h_module = require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("h"))
@@ -32,7 +32,6 @@ end
 local function runTests()
 	print("\n========== H (HYPERSCRIPT) TEST SUITE ==========\n")
 
-	-- Test 1: h() creates valid VNode
 	print("Test 1: h() creates valid VNode")
 	do
 		local vnode = h("Frame", { Name = "TestFrame" })
@@ -43,7 +42,6 @@ local function runTests()
 		end
 	end
 
-	-- Test 2: h() handles nil props
 	print("Test 2: h() handles nil props")
 	do
 		local vnode = h("Frame")
@@ -51,7 +49,6 @@ local function runTests()
 		assertTrue(vnode.props and true or false, "Should create empty props table")
 	end
 
-	-- Test 3: h() normalizes string children
 	print("Test 3: h() normalizes string children")
 	do
 		local vnode = h("TextLabel", {}, "Hello World")
@@ -59,7 +56,6 @@ local function runTests()
 		assertEquals(vnode.children[1], "Hello World", "Should normalize string child")
 	end
 
-	-- Test 4: h() normalizes number children
 	print("Test 4: h() normalizes number children")
 	do
 		local vnode = h("TextLabel", {}, 123)
@@ -67,7 +63,6 @@ local function runTests()
 		assertEquals(vnode.children[1], "123", "Should convert number to string")
 	end
 
-	-- Test 5: h() handles array children
 	print("Test 5: h() handles array children")
 	do
 		local child1 = h("Frame", { key = "1" })
@@ -76,7 +71,6 @@ local function runTests()
 		assertEquals(#vnode.children, 2, "Should have 2 children")
 	end
 
-	-- Test 6: h() extracts key from props
 	print("Test 6: h() extracts key from props")
 	do
 		local vnode = h("Frame", { key = "unique-key", Name = "Test" })
@@ -84,7 +78,6 @@ local function runTests()
 		assertTrue(vnode.props and vnode.props.key and true or false, "Key should still be in props")
 	end
 
-	-- Test 7: hIf() returns vnode when true
 	print("Test 7: hIf() returns vnode when true")
 	do
 		local vnode = h("Frame")
@@ -92,7 +85,6 @@ local function runTests()
 		assertEquals(result, vnode, "Should return vnode when condition is true")
 	end
 
-	-- Test 8: hIf() returns nil when false
 	print("Test 8: hIf() returns nil when false")
 	do
 		local vnode = h("Frame")
@@ -100,7 +92,6 @@ local function runTests()
 		assertEquals(result, nil, "Should return nil when condition is false")
 	end
 
-	-- Test 9: hFor() maps list to vnodes
 	print("Test 9: hFor() maps list to vnodes")
 	do
 		local items = { "a", "b", "c" }
@@ -109,11 +100,10 @@ local function runTests()
 		end)
 
 		assertEquals(#vnodes, 3, "Should create 3 vnodes")
-		-- Props exist but strict typing prevents checking without extensive nil checks
-		print("  ✓ VNodes have correct prop mappings")
+		assertEquals((vnodes[2].props :: any).Text, "b", "Each vnode gets its item")
+		assertEquals(vnodes[2].key, 2, "and its key")
 	end
 
-	-- Test 10: hFor() filters nil results
 	print("Test 10: hFor() filters nil results")
 	do
 		local items = { 1, 2, 3, 4, 5 }
@@ -127,7 +117,6 @@ local function runTests()
 		assertEquals(#vnodes, 2, "Should filter to only even numbers")
 	end
 
-	-- Test 11: h() handles function children
 	print("Test 11: h() handles function children")
 	do
 		local renderFn = function()
@@ -138,7 +127,6 @@ local function runTests()
 		assertEquals(vnode.children[1], renderFn, "Should preserve function child")
 	end
 
-	-- Test 12: h() assigns unique UIDs
 	print("Test 12: h() assigns unique UIDs")
 	do
 		local vnode1 = h("Frame")

@@ -1,5 +1,5 @@
 --!strict
--- Tests for composables.luau - Composition API utilities
+-- useAttrs, useSlots, defineModel, useTheme and useStyles
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
@@ -40,7 +40,6 @@ local function runTests()
 	print(printHeader)
 	print(string.rep("=", 40) .. "\n")
 
-	-- Test 1: defineModel creates two-way binding ref
 	print("Test 1: defineModel creates two-way binding ref")
 	do
 		local emitted = false
@@ -59,13 +58,11 @@ local function runTests()
 
 		assertEquals(model.value, "initial", "Should read initial value from props")
 
-		-- Set value (should emit)
 		model.value = "updated"
 		assertTrue(emitted, "Should emit update event")
 		assertEquals(emittedValue, "updated", "Should emit new value")
 	end
 
-	-- Test 2: defineModel with custom name and event
 	print("Test 2: defineModel with custom name and event")
 	do
 		local emittedEvent = ""
@@ -89,7 +86,6 @@ local function runTests()
 		assertEquals(emittedValue, "World", "Should emit new value")
 	end
 
-	-- Test 3: useAttrs outside setup throws error
 	print("Test 3: useAttrs outside setup throws error")
 	do
 		local success = pcall(function()
@@ -98,7 +94,6 @@ local function runTests()
 		assertFalse(success, "useAttrs should throw error outside setup")
 	end
 
-	-- Test 4: useSlots outside setup throws error
 	print("Test 4: useSlots outside setup throws error")
 	do
 		local success = pcall(function()
@@ -107,14 +102,12 @@ local function runTests()
 		assertFalse(success, "useSlots should throw error outside setup")
 	end
 
-	-- Test 5: useTheme returns nil when no theme provided
 	print("Test 5: useTheme returns nil when no theme provided")
 	do
 		local theme = composables_module.useTheme()
 		assertTrue(theme == nil, "Should return nil when no theme is provided")
 	end
 
-	-- Test 6: useStyles creates computed styles
 	print("Test 6: useStyles creates computed styles")
 	do
 		local styles = composables_module.useStyles(function(theme)
@@ -124,13 +117,11 @@ local function runTests()
 			}
 		end)
 
-		-- Should return computed ref with default styles
 		assertTrue(styles.value ~= nil, "Should create computed styles")
 		assertTrue(styles.value.backgroundColor ~= nil, "Should have backgroundColor")
 		assertTrue(styles.value.textColor ~= nil, "Should have textColor")
 	end
 
-	-- Test 7: defineModel with number types
 	print("Test 7: defineModel with number types")
 	do
 		local emittedValue = nil
@@ -150,7 +141,6 @@ local function runTests()
 		assertEquals(emittedValue, 100, "Should emit updated number value")
 	end
 
-	-- Test 8: defineModel tracks reactive changes
 	print("Test 8: defineModel tracks reactive changes")
 	do
 		local props = Rivue.reactive({ modelValue = "test" })
@@ -163,7 +153,6 @@ local function runTests()
 
 		assertEquals(model.value, "test", "Should read reactive prop")
 
-		-- Change source prop
 		props.modelValue = "changed"
 		assertEquals(model.value, "changed", "Should reflect prop changes")
 	end

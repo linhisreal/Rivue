@@ -1,5 +1,5 @@
 --!strict
--- Tests for roblox.luau - attributeRef, useTag, RunService hooks
+-- attributeRef, useTag, the RunService hooks and the other Roblox helpers
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
@@ -29,7 +29,6 @@ end
 local function runTests()
 	print("\n========== ROBLOX UTILS TEST SUITE ==========\n")
 
-	-- Test 1: attributeRef creates reactive attribute binding
 	print("Test 1: attributeRef creates reactive attribute binding")
 	do
 		local instance = Instance.new("Folder")
@@ -39,7 +38,6 @@ local function runTests()
 		instance:Destroy()
 	end
 
-	-- Test 2: attributeRef syncs changes from attribute to ref
 	print("Test 2: attributeRef syncs changes from attribute to ref")
 	do
 		local instance = Instance.new("Folder")
@@ -52,7 +50,6 @@ local function runTests()
 			setup = function()
 				local attrRef = Rivue.attributeRef(instance, "counter")
 
-				-- Watch the ref and update our test variable
 				Rivue.watch(attrRef, function(newVal)
 					refValue = newVal
 				end)
@@ -80,7 +77,6 @@ local function runTests()
 		instance:Destroy()
 	end
 
-	-- Test 3: attributeRef syncs changes from ref to attribute
 	print("Test 3: attributeRef syncs changes from ref to attribute")
 	do
 		local instance = Instance.new("Folder")
@@ -116,7 +112,6 @@ local function runTests()
 		instance:Destroy()
 	end
 
-	-- Test 4: attributeRef applies default value
 	print("Test 4: attributeRef applies default value")
 	do
 		local instance = Instance.new("Folder")
@@ -126,7 +121,6 @@ local function runTests()
 		instance:Destroy()
 	end
 
-	-- Test 5: useTag detects tagged instances
 	print("Test 5: useTag detects tagged instances")
 	do
 		local container = Instance.new("Folder")
@@ -156,7 +150,7 @@ local function runTests()
 		obj1.Name = "Tagged1"
 		obj1.Parent = container
 		CollectionService:AddTag(obj1, "TestTag")
-		task.wait(0.2) -- Longer wait for CollectionService events
+		task.wait(0.2)
 
 		assertTrue(#detected > 0, "Should detect tagged instance")
 		assertTrue(detected[1] == "Tagged1", "Should call callback with correct instance")
@@ -165,7 +159,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 6: useTag cleanup on tag removal
 	print("Test 6: useTag cleanup on tag removal")
 	do
 		local container = Instance.new("Folder")
@@ -195,7 +188,7 @@ local function runTests()
 		local obj = Instance.new("Part")
 		obj.Parent = container
 		CollectionService:AddTag(obj, "CleanupTag")
-		task.wait(0.2) -- Longer wait for CollectionService events
+		task.wait(0.2)
 
 		CollectionService:RemoveTag(obj, "CleanupTag")
 		task.wait(0.2)
@@ -206,7 +199,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 7: onRenderStepped executes each frame
 	print("Test 7: onRenderStepped executes each frame")
 	do
 		local container = Instance.new("Folder")
@@ -228,7 +220,7 @@ local function runTests()
 			require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("renderer"))
 		local app = renderer.createApp(Rivue.h(TestComponent, {}))
 		app:mount(container)
-		task.wait(0.3) -- Wait longer for frames to accumulate
+		task.wait(0.3)
 
 		assertTrue(frameCount >= 3, "Should execute multiple times per frame")
 
@@ -236,7 +228,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 8: onHeartbeat executes regularly
 	print("Test 8: onHeartbeat executes regularly")
 	do
 		local container = Instance.new("Folder")
@@ -258,7 +249,7 @@ local function runTests()
 			require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("renderer"))
 		local app = renderer.createApp(Rivue.h(TestComponent, {}))
 		app:mount(container)
-		task.wait(0.3) -- Wait longer for heartbeats
+		task.wait(0.3)
 
 		assertTrue(heartbeatCount >= 3, "Should execute multiple heartbeats")
 
@@ -266,7 +257,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 9: onStepped executes with time parameters
 	print("Test 9: onStepped executes with time parameters")
 	-- Stepped is a physics step, and Open Cloud sessions run with physics off
 	if _G.__CLOUD then
@@ -295,7 +285,7 @@ local function runTests()
 			require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("renderer"))
 		local app = renderer.createApp(Rivue.h(TestComponent, {}))
 		app:mount(container)
-		task.wait(0.3) -- Wait longer for steps
+		task.wait(0.3)
 
 		assertTrue(steppedCount >= 3, "Should execute multiple steps")
 		assertTrue(receivedTime, "Should receive time and deltaTime parameters")
@@ -304,7 +294,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 10: RunService hooks auto-disconnect on unmount
 	print("Test 10: RunService hooks auto-disconnect on unmount")
 	do
 		local container = Instance.new("Folder")
@@ -337,7 +326,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 11: attributeRef reactivity triggers watchers
 	print("Test 11: attributeRef reactivity triggers watchers")
 	do
 		local instance = Instance.new("Folder")

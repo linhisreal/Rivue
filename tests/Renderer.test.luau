@@ -1,5 +1,5 @@
 --!strict
--- Tests for renderer.luau - VNode patching, mounting, unmounting, lifecycle, and pooling
+-- Mounting, patching and unmounting, lifecycle hooks, and the pool
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
@@ -30,7 +30,6 @@ end
 local function runTests()
 	print("\n========== RENDERER TEST SUITE ==========\n")
 
-	-- Test 1: createApp creates valid app instance
 	print("Test 1: createApp creates valid app instance")
 	do
 		local vnode = Rivue.h("Frame", { Name = "TestFrame" })
@@ -41,7 +40,6 @@ local function runTests()
 		assertTrue(type(app.rerender) == "function", "Should have rerender method")
 	end
 
-	-- Test 2: Mount creates DOM element
 	print("Test 2: Mount creates DOM element")
 	do
 		local container = Instance.new("Folder")
@@ -58,7 +56,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 3: Unmount removes DOM element
 	print("Test 3: Unmount removes DOM element")
 	do
 		local container = Instance.new("Folder")
@@ -73,7 +70,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 4: Patch updates properties
 	print("Test 4: Patch updates properties")
 	do
 		local container = Instance.new("Folder")
@@ -90,7 +86,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 5: Keyed children are mounted
 	print("Test 5: Keyed children are mounted")
 	do
 		local container = Instance.new("Folder")
@@ -110,7 +105,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 6: Component mounting with setup
 	print("Test 6: Component mounting with setup")
 	do
 		local container = Instance.new("Folder")
@@ -137,7 +131,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 8: Pool reuses instances when enabled
 	print("Test 8: Pool reuses instances when enabled")
 	do
 		Pool.clear()
@@ -150,7 +143,6 @@ local function runTests()
 		assertTrue(frame and true or false, "Should mount with pool")
 		app:unmount()
 		task.wait(0.05)
-		-- Frame should be in pool now
 		local pooledFrame = Pool.acquire("Frame")
 		assertTrue(pooledFrame and true or false, "Should have pooled instance")
 		Pool.release(pooledFrame)
@@ -158,7 +150,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 9: Lifecycle hooks execute in order
 	print("Test 9: Lifecycle hooks execute in order")
 	do
 		local container = Instance.new("Folder")
@@ -195,7 +186,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 10: Template refs work correctly
 	print("Test 10: Template refs work correctly")
 	do
 		local container = Instance.new("Folder")
@@ -214,7 +204,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 11: Children rendering
 	print("Test 11: Children rendering")
 	do
 		local container = Instance.new("Folder")
@@ -235,7 +224,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 12: Reactive re-rendering with component
 	print("Test 12: Reactive re-rendering with component")
 	do
 		local container = Instance.new("Folder")
@@ -260,7 +248,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 13: Child component re-renders when parent passes new props
 	print("Test 13: Child component reacts to new props")
 	do
 		local Child = Rivue.defineComponent({
@@ -295,7 +282,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 14: Shrinking an unkeyed child list removes the extra Instances
 	print("Test 14: Unkeyed children removed when list shrinks")
 	do
 		local count = Rivue.ref(3)
@@ -324,7 +310,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 15: rerender() reuses the previous container
 	print("Test 15: rerender() remounts into the same container")
 	do
 		local container = Instance.new("Folder")
@@ -340,7 +325,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 16: Nested components get their parent, so inject() sees an ancestor's provide()
 	print("Test 16: inject() resolves values provided by an ancestor component")
 	do
 		local injected: any = nil
@@ -370,7 +354,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 17: Directive updated hooks run when the bound value changes
 	print("Test 17: Directive updated hook runs on re-render")
 	do
 		local visible = Rivue.ref(true)
@@ -397,7 +380,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 18: Functional components update in place instead of remounting
 	print("Test 18: Functional component output is diffed, not remounted")
 	do
 		local label = Rivue.ref("a")
@@ -425,7 +407,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 19: Undeclared props fall through to the root element (inheritAttrs)
 	print("Test 19: inheritAttrs applies undeclared props to the root element")
 	do
 		local Button = Rivue.defineComponent({
@@ -463,7 +444,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 20: Slot content updates when the parent re-renders
 	print("Test 20: Slots update on parent re-render")
 	do
 		local Card = Rivue.defineComponent({
@@ -496,7 +476,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 21: Unmounting right after a state change doesn't re-render the component
 	print("Test 21: No render after unmount")
 	do
 		local text = Rivue.ref("a")
@@ -521,7 +500,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 22: Parent and child changing together render the child once, after the parent
 	print("Test 22: Child renders once when parent and child update together")
 	do
 		local parentValue = Rivue.ref(1)
@@ -560,7 +538,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 23: Named and scoped slots
 	print("Test 23: Named slots, scoped slots, and fallback content")
 	do
 		local Card = Rivue.defineComponent({
@@ -626,7 +603,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 24: A single vnode can be passed as children
 	print("Test 24: Single vnode as children")
 	do
 		local container = Instance.new("Folder")

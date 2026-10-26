@@ -29,7 +29,6 @@ end
 local function runTests()
 	print("\n========== SCHEDULER ENHANCEMENTS TEST SUITE ==========\n")
 
-	-- Test 1: Nested effect triggering
 	print("Test 1: Nested effect triggering")
 	do
 		local count = Rivue.ref(0)
@@ -37,7 +36,6 @@ local function runTests()
 		Rivue.watchEffect(function()
 			local val = count.value
 			if val < 5 then
-				-- Trigger another update within the effect
 				task.defer(function()
 					count.value = val + 1
 				end)
@@ -46,38 +44,32 @@ local function runTests()
 
 		count.value = 1
 
-		-- Wait for effects to settle
 		task.wait(0.1)
 
-		-- Should reach 5 without infinite loop
 		assertEquals(count.value, 5, "Should handle nested effects without infinite loop")
 	end
 
-	-- Test 2: Prevent infinite loops with max reentrancy depth
 	print("Test 2: Max reentrancy depth protection")
 	do
 		local count = Rivue.ref(0)
 		local maxReached = false
 
-		-- This would cause infinite loop without protection
-		-- The scheduler uses deduplication to prevent infinite loops
+		-- An effect that keeps changing what it reads has to stop, not loop forever
 		pcall(function()
 			local trigger = Rivue.ref(0)
 
-			-- Create a circular dependency that causes immediate reentrancy
 			Rivue.watchEffect(function()
 				local _ = trigger.value
-				-- Synchronously trigger another update within the same effect
 				if count.value < 200 then
 					count.value = count.value + 1
-					trigger.value = trigger.value + 1 -- This causes immediate reentrancy
+					trigger.value = trigger.value + 1
 				else
 					maxReached = true
 				end
 			end)
 
-			trigger.value = 1 -- Start the chain
-			task.wait(0.2) -- Wait longer for all updates to settle
+			trigger.value = 1
+			task.wait(0.2)
 		end)
 
 		-- Like Vue, an effect writing state it reads doesn't re-trigger itself: it runs once on
@@ -86,7 +78,6 @@ local function runTests()
 		print("  Final count:", count.value, "- Effect executed and terminated properly")
 	end
 
-	-- Test 3: Jobs added during flush
 	print("Test 3: Jobs added during flush are scheduled")
 	do
 		local results: { number } = {}
@@ -97,7 +88,6 @@ local function runTests()
 			table.insert(results, val)
 
 			if val == 1 then
-				-- Add another job during flush
 				task.defer(function()
 					count.value = 2
 				end)
@@ -107,11 +97,9 @@ local function runTests()
 		count.value = 1
 		task.wait(0.2)
 
-		-- Should have processed both updates
 		assertTrue(#results >= 2, "Should process jobs added during flush")
 	end
 
-	-- Test 4: Job deduplication
 	print("Test 4: Job deduplication in micro queue")
 	do
 		local callCount = 0
@@ -119,14 +107,12 @@ local function runTests()
 			callCount = callCount + 1
 		end
 
-		-- Queue the same function multiple times
 		Rivue.scheduler.queueJob(fn)
 		Rivue.scheduler.queueJob(fn)
 		Rivue.scheduler.queueJob(fn)
 
 		task.wait(0.1)
 
-		-- Should only execute once due to deduplication
 		assertEquals(callCount, 1, "Should deduplicate identical jobs")
 	end
 

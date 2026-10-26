@@ -1,5 +1,5 @@
 --!strict
--- Tests for array helpers, proxyRefs, the render(ctx) option, local components, the class prop with
+-- Array helpers, proxyRefs, the render(ctx) option, local components, the class prop with
 -- app/component styles, and the layout/flex props
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

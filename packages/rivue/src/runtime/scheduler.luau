@@ -27,7 +27,8 @@ local NOOP_HANDLE: JobHandle = table.freeze({ cancel = function() end })
 
 -- Roblox drops a task.defer more than 80 deferred levels deep (a loop of nextTick() calls gets
 -- there), and it only logs, so pcall can't see it. The flush would never run and updateScheduled
--- would stay true forever, so count our own depth and move to the next Heartbeat well before that.
+-- would stay true forever, so the depth is counted here and anything past 60 waits for the next
+-- Heartbeat.
 const MAX_DEFER_DEPTH = 60
 local deferDepth = 0
 local overflow: { thread | () -> () } = {}

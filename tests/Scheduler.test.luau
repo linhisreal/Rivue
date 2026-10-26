@@ -1,5 +1,5 @@
 --!strict
--- Tests for scheduler.queueJob with micro, render, and heartbeat modes
+-- queueJob in micro, render and heartbeat modes
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = ReplicatedStorage:WaitForChild("Rivue")
@@ -36,7 +36,6 @@ end
 local function runTests()
 	print("\n========== SCHEDULER TEST SUITE ==========\n")
 
-	-- Test 1: Micro mode executes function
 	print("Test 1: queueJob micro mode executes function")
 	do
 		local executed = false
@@ -47,7 +46,6 @@ local function runTests()
 		assertTrue(executed, "Micro job should have executed")
 	end
 
-	-- Test 2: Micro mode deduplicates same function
 	print("Test 2: queueJob micro mode deduplicates same function")
 	do
 		local count = 0
@@ -61,7 +59,6 @@ local function runTests()
 		assertTrue(count == 1, "Should execute only once due to deduplication")
 	end
 
-	-- Test 3: Micro mode allows re-queue after flush
 	print("Test 3: queueJob micro mode allows re-queue after flush")
 	do
 		local count = 0
@@ -76,7 +73,6 @@ local function runTests()
 		assertEquals(count, 2, "Should allow re-queue after flush")
 	end
 
-	-- Test 4: Micro mode cancels correctly
 	print("Test 4: queueJob micro mode cancels correctly")
 	do
 		local executed = false
@@ -88,7 +84,6 @@ local function runTests()
 		assertFalse(executed, "Cancelled job should not execute")
 	end
 
-	-- Test 5: Micro mode batches multiple different functions
 	print("Test 5: queueJob micro mode batches multiple different functions")
 	do
 		local count1, count2, count3 = 0, 0, 0
@@ -105,7 +100,6 @@ local function runTests()
 		assertTrue(count1 == 1 and count2 == 1 and count3 == 1, "All different jobs should execute")
 	end
 
-	-- Test 6: Render mode executes on next RenderStepped
 	print("Test 6: queueJob render mode executes on next RenderStepped")
 	do
 		local executed = false
@@ -116,7 +110,6 @@ local function runTests()
 		assertTrue(executed, "Render job should have executed")
 	end
 
-	-- Test 7: Render mode cancels correctly
 	print("Test 7: queueJob render mode cancels correctly")
 	do
 		local executed = false
@@ -128,7 +121,6 @@ local function runTests()
 		assertFalse(executed, "Cancelled render job should not execute")
 	end
 
-	-- Test 8: Heartbeat mode executes on next Heartbeat
 	print("Test 8: queueJob heartbeat mode executes on next Heartbeat")
 	do
 		local executed = false
@@ -139,7 +131,6 @@ local function runTests()
 		assertTrue(executed, "Heartbeat job should have executed")
 	end
 
-	-- Test 9: Heartbeat mode cancels correctly
 	print("Test 9: queueJob heartbeat mode cancels correctly")
 	do
 		local executed = false
@@ -151,7 +142,6 @@ local function runTests()
 		assertFalse(executed, "Cancelled heartbeat job should not execute")
 	end
 
-	-- Test 10: Error handling
 	print("Test 10: queueJob micro mode handles errors gracefully")
 	do
 		local executed = false
@@ -165,7 +155,6 @@ local function runTests()
 		assertTrue(executed, "Subsequent jobs should execute even after error")
 	end
 
-	-- Test 11: Defaults to micro mode
 	print("Test 11: queueJob defaults to micro mode")
 	do
 		local executed = false
@@ -176,7 +165,6 @@ local function runTests()
 		assertTrue(executed, "Should default to micro mode")
 	end
 
-	-- Test 12: Multiple render jobs execute in order
 	print("Test 12: Multiple render jobs execute in order")
 	do
 		local order = {}
@@ -193,7 +181,6 @@ local function runTests()
 		assertEquals(#order, 3, "All render jobs should execute")
 	end
 
-	-- Test 13: Multiple heartbeat jobs execute in order
 	print("Test 13: Multiple heartbeat jobs execute in order")
 	do
 		local order = {}
@@ -210,11 +197,8 @@ local function runTests()
 		assertEquals(#order, 3, "All heartbeat jobs should execute")
 	end
 
-	-- Test 14: Flush modes work correctly
 	print("Test 14: Scheduler supports different flush modes")
 	do
-		-- This test validates that the scheduler respects different modes
-		-- The actual flush timing is tested indirectly through reactivity watch()
 		local microExecuted = false
 		local renderExecuted = false
 		local heartbeatExecuted = false

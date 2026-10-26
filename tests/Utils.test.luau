@@ -1,5 +1,5 @@
 --!strict
--- Tests for throttle, debounce, nextTick, nextFrame, and iterArray
+-- throttle, debounce, nextTick, nextFrame, iterArray, useRaf, the profiler and shallowEqual
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
@@ -35,7 +35,6 @@ end
 local function runTests()
 	print("\n========== UTILS TEST SUITE ==========\n")
 
-	-- Test 1: Debounce delays execution
 	print("Test 1: debounce delays execution")
 	do
 		local count = 0
@@ -50,7 +49,6 @@ local function runTests()
 		assertEquals(count, 1, "Should execute once after delay")
 	end
 
-	-- Test 2: Debounce can be cancelled
 	print("Test 2: debounce can be cancelled")
 	do
 		local executed = false
@@ -63,7 +61,6 @@ local function runTests()
 		assertFalse(executed, "Cancelled debounce should not execute")
 	end
 
-	-- Test 3: Debounce auto-converts seconds to milliseconds
 	print("Test 3: debounce auto-converts seconds to milliseconds")
 	do
 		local count = 0
@@ -75,7 +72,6 @@ local function runTests()
 		assertEquals(count, 1, "Should auto-convert 0.1 seconds to 100ms")
 	end
 
-	-- Test 4: Throttle limits execution frequency
 	print("Test 4: throttle limits execution frequency")
 	do
 		local count = 0
@@ -90,7 +86,6 @@ local function runTests()
 		assertTrue(count <= 2, "Should throttle subsequent calls")
 	end
 
-	-- Test 5: Throttle executes immediately on first call
 	print("Test 5: throttle executes immediately on first call")
 	do
 		local count = 0
@@ -101,7 +96,6 @@ local function runTests()
 		assertEquals(count, 1, "Should execute immediately on first call")
 	end
 
-	-- Test 6: Throttle auto-converts seconds to milliseconds
 	print("Test 6: throttle auto-converts seconds to milliseconds")
 	do
 		local count = 0
@@ -115,7 +109,6 @@ local function runTests()
 		assertEquals(count, 2, "Should allow second call after interval")
 	end
 
-	-- Test 7: nextTick defers execution
 	print("Test 7: nextTick defers execution")
 	do
 		local executed = false
@@ -127,7 +120,6 @@ local function runTests()
 		assertTrue(executed, "nextTick should execute after deferral")
 	end
 
-	-- Test 8: nextFrame defers to next Heartbeat
 	print("Test 8: nextFrame defers to next Heartbeat")
 	do
 		local executed = false
@@ -139,7 +131,6 @@ local function runTests()
 		assertTrue(executed, "nextFrame should execute after Heartbeat")
 	end
 
-	-- Test 9: iterArray iterates reactive arrays
 	print("Test 9: iterArray iterates reactive arrays")
 	do
 		local arr = Rivue.reactive({ 1, 2, 3 })
@@ -150,7 +141,6 @@ local function runTests()
 		assertEquals(sum, 6, "Should iterate all elements and sum to 6")
 	end
 
-	-- Test 10: iterArray works with non-reactive arrays
 	print("Test 10: iterArray works with non-reactive arrays")
 	do
 		local arr = { 10, 20, 30 }
@@ -161,7 +151,6 @@ local function runTests()
 		assertEquals(sum, 60, "Should work with non-reactive arrays")
 	end
 
-	-- Test 11: iterArray handles empty arrays
 	print("Test 11: iterArray handles empty arrays")
 	do
 		local arr = Rivue.reactive({})
@@ -172,7 +161,6 @@ local function runTests()
 		assertEquals(count, 0, "Should handle empty arrays")
 	end
 
-	-- Test 12: useRaf runs on every RenderStepped frame
 	print("Test 12: useRaf runs on every RenderStepped frame")
 	do
 		local frameCount = 0
@@ -188,7 +176,6 @@ local function runTests()
 		assertEquals(frameCount, prevCount, "Should stop after handle.stop()")
 	end
 
-	-- Test 13: Profiler tracks execution time
 	print("Test 13: Profiler tracks execution time")
 	do
 		Rivue.utils.profiler:start("test-operation")
@@ -198,7 +185,6 @@ local function runTests()
 		assertTrue(elapsed >= 0.05, "Elapsed time should be at least delay duration")
 	end
 
-	-- Test 14: Profiler handles multiple operations
 	print("Test 14: Profiler handles multiple operations")
 	do
 		Rivue.utils.profiler:start("op1")
@@ -209,7 +195,6 @@ local function runTests()
 		assertTrue(elapsed1 ~= nil and elapsed2 ~= nil, "Should track multiple operations")
 	end
 
-	-- Test 15: shallowEqual compares primitives
 	print("Test 15: shallowEqual compares primitives")
 	do
 		assertTrue(Rivue.utils.shallowEqual(1, 1), "Should be equal for same numbers")
@@ -218,7 +203,6 @@ local function runTests()
 		assertFalse(Rivue.utils.shallowEqual("a", "b"), "Should not be equal for different strings")
 	end
 
-	-- Test 16: shallowEqual compares tables shallowly
 	print("Test 16: shallowEqual compares tables shallowly")
 	do
 		local a = { x = 1, y = 2 }
@@ -228,7 +212,6 @@ local function runTests()
 		assertFalse(Rivue.utils.shallowEqual(a, c), "Should not be equal for different values")
 	end
 
-	-- Test 17: shallowEqual only checks top level
 	print("Test 17: shallowEqual only checks top level")
 	do
 		local a = { nested = { value = 1 } }
@@ -239,7 +222,6 @@ local function runTests()
 		assertTrue(Rivue.utils.shallowEqual(a, c), "Should be equal if nested reference is same")
 	end
 
-	-- Test 18: filterForClient handles text filtering
 	print("Test 18: filterForClient handles text filtering")
 	do
 		local Players = game:GetService("Players")

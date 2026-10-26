@@ -1,5 +1,5 @@
 --!strict
--- Tests for writable computed, watch sources/once, provide/inject, app API, Fragment, nextTick
+-- Writable computed, watch sources and once, provide/inject, the app API, Fragment and nextTick
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
@@ -37,7 +37,6 @@ end
 local function runTests()
 	print("\n========== VUE FEATURES TEST SUITE ==========\n")
 
-	-- Test 1: Writable computed
 	print("Test 1: Writable computed")
 	do
 		local first = Rivue.ref("Ada")
@@ -59,7 +58,6 @@ local function runTests()
 		assertEquals(Rivue.unref(full), "Grace Hopper", "unref unwraps computed")
 	end
 
-	-- Test 2: Watch multiple sources
 	print("Test 2: watch() with an array of sources")
 	do
 		local a = Rivue.ref(1)
@@ -83,7 +81,6 @@ local function runTests()
 		assertTrue(seen[1] == 5 and seen[2] == 30, "Any source change fires")
 	end
 
-	-- Test 3: watch once
 	print("Test 3: watch() with once")
 	do
 		local count = Rivue.ref(0)
@@ -96,7 +93,6 @@ local function runTests()
 		assertEquals(calls, 1, "Fires only once")
 	end
 
-	-- Test 4: Watching a reactive object is deep
 	print("Test 4: watch() on a reactive object fires on nested changes")
 	do
 		local state = Rivue.reactive({ nested = { value = 1 } })
@@ -108,7 +104,6 @@ local function runTests()
 		assertEquals(calls, 1, "Nested mutation fires the watcher")
 	end
 
-	-- Test 5: toValue, isShallow, shallowReadonly
 	print("Test 5: toValue, isShallow, shallowReadonly")
 	do
 		local r = Rivue.ref(3)
@@ -128,7 +123,6 @@ local function runTests()
 		assertTrue(not Rivue.isReadonly(ro.inner), "Nested table is not wrapped")
 	end
 
-	-- Test 6: Standalone provide/inject and app.provide
 	print("Test 6: provide()/inject() and app:provide()")
 	do
 		local injectedTheme: any, injectedVersion: any = nil, nil
@@ -161,7 +155,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 7: app:use and app.config.errorHandler
 	print("Test 7: app:use() and app.config.errorHandler")
 	do
 		local installed = false
@@ -195,7 +188,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 8: Fragment and multiple root nodes
 	print("Test 8: Fragment and array roots")
 	do
 		local show = Rivue.ref(true)
@@ -225,7 +217,6 @@ local function runTests()
 		container:Destroy()
 	end
 
-	-- Test 9: nextTick waits for pending renders
 	print("Test 9: nextTick() runs after the re-render")
 	do
 		local text = Rivue.ref("before")

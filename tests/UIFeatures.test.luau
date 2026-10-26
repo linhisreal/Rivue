@@ -1,5 +1,5 @@
 --!strict
--- Tests for Transition/TransitionGroup, KeepAlive, Teleport, memo, template refs, emits, app
+-- Transition/TransitionGroup, KeepAlive, Teleport, memo, template refs, emits, app
 -- components, watch handles, modifier props, VirtualList and the Roblox composables
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -33,7 +33,6 @@ end
 local function runTests()
 	print("\n========== UI FEATURES TEST SUITE ==========\n")
 
-	-- Test 1: Leave transitions don't block the patch
 	print("Test 1: Leave transition runs in the background")
 	do
 		local container = Instance.new("Frame")
@@ -52,7 +51,6 @@ local function runTests()
 		assertEquals(el.BackgroundTransparency, 1, "Leave goals were tweened to")
 	end
 
-	-- Test 2: <Transition> with appear, from and toggling
 	print("Test 2: Transition component")
 	do
 		local show = Rivue.ref(true)
@@ -102,7 +100,6 @@ local function runTests()
 		app:unmount()
 	end
 
-	-- Test 3: out-in waits for the old child to leave
 	print("Test 3: Transition mode out-in")
 	do
 		local tab = Rivue.ref("A")
@@ -133,7 +130,6 @@ local function runTests()
 		app:unmount()
 	end
 
-	-- Test 4: TransitionGroup animates removed list items
 	print("Test 4: TransitionGroup")
 	do
 		local items = Rivue.ref({ "a", "b", "c" })
@@ -164,7 +160,6 @@ local function runTests()
 		app:unmount()
 	end
 
-	-- Test 5: KeepAlive keeps state and runs activated/deactivated
 	print("Test 5: KeepAlive with onActivated/onDeactivated")
 	do
 		local activated, deactivated, unmounted = 0, 0, 0
@@ -232,7 +227,6 @@ local function runTests()
 		assertEquals(unmounted, 1, "Unmounting KeepAlive unmounts the cached component")
 	end
 
-	-- Test 6: Teleport updates, unmounts and disabled
 	print("Test 6: Teleport patch and unmount")
 	do
 		local target = Instance.new("Frame")
@@ -270,7 +264,6 @@ local function runTests()
 		assertEquals(#target:GetChildren(), 0, "Unmount removes teleported children")
 	end
 
-	-- Test 7: memo skips patching while deps match
 	print("Test 7: memo prop")
 	do
 		local container = Instance.new("Frame")
@@ -285,7 +278,6 @@ local function runTests()
 		assertEquals(el.Text, "c", "Changed deps patch")
 	end
 
-	-- Test 8: String and function template refs
 	print("Test 8: useTemplateRef and function refs")
 	do
 		local mountedEl: Instance? = nil
@@ -319,7 +311,6 @@ local function runTests()
 		assertTrue(fnEl == nil, "Function ref is called with nil on unmount")
 	end
 
-	-- Test 9: Declared emits
 	print("Test 9: emits")
 	do
 		local selected: number? = nil
@@ -353,7 +344,6 @@ local function runTests()
 		app:unmount()
 	end
 
-	-- Test 10: app:component() and useId()
 	print("Test 10: app:component() registration and useId()")
 	do
 		local ids: { string } = {}
@@ -377,7 +367,6 @@ local function runTests()
 		app:unmount()
 	end
 
-	-- Test 11: watch pause/resume and onWatcherCleanup
 	print("Test 11: watch handles")
 	do
 		local count = Rivue.ref(0)
@@ -422,7 +411,6 @@ local function runTests()
 		assertEquals(effectCleanups, 2, "watchEffect onCleanup runs on stop")
 	end
 
-	-- Test 12: Modifier props create UI children
 	print("Test 12: cornerRadius / padding / stroke / aspectRatio")
 	do
 		local container = Instance.new("Frame")
@@ -446,7 +434,6 @@ local function runTests()
 		assertTrue(card:FindFirstChildOfClass("UIPadding") == nil, "Removed prop destroys its child")
 	end
 
-	-- Test 13: onMounted and directives run with the tree parented
 	print("Test 13: Mounted hooks see a parented tree")
 	do
 		local container = Instance.new("Frame")
@@ -476,7 +463,6 @@ local function runTests()
 		assertTrue(directiveParented, "Directive mounted runs after the tree is parented")
 	end
 
-	-- Test 14: VirtualList renders only the rows in view
 	print("Test 14: VirtualList")
 	do
 		local items = {}
@@ -596,7 +582,6 @@ local function runTests()
 		app:unmount()
 	end
 
-	-- Test 15: Roblox composables
 	print("Test 15: useViewportSize / useInputType / useSelection / useTween / useSpring")
 	do
 		-- The camera size and input type are read-only in Studio
@@ -642,7 +627,6 @@ local function runTests()
 		scope:stop()
 	end
 
-	-- Test 16: Same type with a different key remounts
 	print("Test 16: key change replaces the element")
 	do
 		local container = Instance.new("Frame")
@@ -655,7 +639,6 @@ local function runTests()
 		assertEquals(#container:GetChildren(), 1, "Old Instance removed")
 	end
 
-	-- Test 17: select directive drives gamepad selection
 	print("Test 17: select directive")
 	do
 		if not game:GetService("RunService"):IsClient() then
@@ -671,7 +654,6 @@ local function runTests()
 		end
 	end
 
-	-- Test 18: Property change handlers get the new value
 	print("Test 18: onXChanged handlers")
 	do
 		local container = Instance.new("Frame")
@@ -697,7 +679,6 @@ local function runTests()
 		assertEquals(seen, false, "onVisible receives the new Visible")
 	end
 
-	-- Test 19: TextBox keeps typed text, but takes Text from props when it changes
 	print("Test 19: TextBox text on re-render")
 	do
 		local container = Instance.new("Frame")
