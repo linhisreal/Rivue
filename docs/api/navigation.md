@@ -1,69 +1,13 @@
-[Docs](../README.md) › [API](../API.md) › **State and navigation**
+[Docs](../README.md) › [API](../API.md) › **Navigation and loading**
 
-# State and navigation
+# Navigation and loading
 
-**Learn it:** [Guide 14: Organising state](../guide/14-state-architecture.md)
+Moving between screens, and loading data that takes a while to arrive.
 
-Shared stores, moving between screens, and loading data that takes a while to arrive.
-
-- [defineStore()](#definestore)
 - [createRouter()](#createrouter)
 - [RouterView](#routerview)
 - [useRouter()](#userouter)
 - [useAsync()](#useasync)
-
----
-
-## defineStore()
-
-Shared state for the whole game UI, like Vue's Pinia. You write a setup function once; every
-component that calls the store gets the same one.
-
-- **Example**
-
-  A wallet any screen can read and spend from:
-
-  ```lua
-  local useWallet = Rivue.defineStore("wallet", function()
-  	local coins = Rivue.ref(100)
-  	local canAffordSword = Rivue.computed(function()
-  		return coins.value >= 50
-  	end)
-  	return {
-  		coins = coins,
-  		canAffordSword = canAffordSword,
-  		spend = function(amount: number)
-  			coins.value -= amount
-  		end,
-  	}
-  end)
-
-  local CoinLabel = Rivue.defineComponent({
-  	name = "CoinLabel",
-  	render = function()
-  		local wallet = useWallet()
-  		return h("TextLabel", { Text = `{wallet.coins} coins` })
-  	end,
-  })
-
-  useWallet().spend(30)
-  print(useWallet().coins) -- 70
-  ```
-
-- **Details**
-
-  - The setup function runs the first time the store is used. Refs, computeds and watchers in it
-    live as long as the store, not as long as whichever component used it first.
-  - Refs and computeds read and write without `.value`: `wallet.coins`, `wallet.coins = 5`.
-  - `store["$id"]` is the id. `store["$dispose"]()` stops the store's watchers and forgets it,
-    so the next call starts fresh, which is handy between tests.
-  - Two `defineStore` calls with the same id share one store. Studio warns about it.
-
-- **Type**
-
-  ```lua
-  function defineStore<T>(id: string, setup: () -> T): () -> T
-  ```
 
 ---
 

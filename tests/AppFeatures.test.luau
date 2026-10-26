@@ -1,5 +1,5 @@
 --!nonstrict
--- Stores, the router, useAsync and gamepad focus
+-- The router, useAsync and gamepad focus
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
@@ -29,56 +29,6 @@ local function find(root: Instance, name: string): Instance?
 end
 
 return function()
-	print("defineStore")
-	do
-		local setups = 0
-		local useCart = Rivue.defineStore("cart", function()
-			setups += 1
-			local items = Rivue.ref(0)
-			local doubled = Rivue.computed(function()
-				return items.value * 2
-			end)
-			return {
-				items = items,
-				doubled = doubled,
-				add = function()
-					items.value += 1
-				end,
-			}
-		end)
-		local a, b = useCart(), useCart()
-		assertTrue(a == b, "every caller gets the same store")
-		assertEquals(setups, 1, "setup runs once")
-		a.add()
-		assertEquals(b.items, 1, "refs read without .value")
-		assertEquals(b.doubled, 2, "computeds too")
-		b.items = 5
-		assertEquals(a.items, 5, "and write without .value")
-		assertEquals(a["$id"], "cart", "$id names the store")
-
-		local seen = nil
-		local Badge = Rivue.defineComponent({
-			name = "CartBadge",
-			render = function()
-				seen = useCart().items
-				return h("Frame")
-			end,
-		})
-		local app = Rivue.createApp(Badge)
-		app:mount(Instance.new("Folder"))
-		a.add()
-		Rivue.nextTick()
-		assertEquals(seen, 6, "a component reading the store re-renders")
-		app:unmount()
-		a.add()
-		assertEquals(useCart().doubled, 14, "the store outlives the component that used it first")
-
-		a["$dispose"]()
-		assertEquals(useCart().items, 0, "after $dispose the next call starts fresh")
-		assertEquals(setups, 2, "by running setup again")
-		useCart()["$dispose"]()
-	end
-
 	print("useAsync")
 	do
 		local calls = 0

@@ -15,7 +15,6 @@ local poolModule = require("./pool")
 local builtins = require("./builtins")
 local composables = require("./composables")
 local array = require("./array")
-local storeModule = require("./store")
 local routerModule = require("./router")
 
 local RunService = game:GetService("RunService")
@@ -294,8 +293,6 @@ Rivue.useModel = composables.useModel
 Rivue.useTheme = composables.useTheme
 Rivue.useStyles = composables.useStyles
 Rivue.useAsync = composables.useAsync
-
-Rivue.defineStore = storeModule.defineStore
 
 Rivue.createRouter = routerModule.createRouter
 Rivue.useRouter = routerModule.useRouter

@@ -68,43 +68,6 @@ render = function()
 end,
 ```
 
-### The same store with defineStore
-
-[`Rivue.defineStore`](../api/state-and-navigation.md#definestore) does the detached scope for
-you, and lets you read refs without `.value`. It's the same store as above, shorter:
-
-```lua
--- UI/stores/Inventory.luau
-local Rivue = require(game.ReplicatedStorage.Rivue)
-
-return Rivue.defineStore("inventory", function()
-	local coins = Rivue.ref(100)
-	local owned = Rivue.ref({} :: { string })
-	return {
-		coins = coins,
-		ownedCount = Rivue.computed(function()
-			return #owned.value
-		end),
-		owns = function(id: string): boolean
-			return table.find(Rivue.toRaw(owned.value), id) ~= nil
-		end,
-	}
-end)
-```
-
-```lua
--- UI/components/CoinCounter.luau
-local useInventory = require("../stores/Inventory")
-
-render = function()
-	local inventory = useInventory()
-	return h("TextLabel", { Text = `{inventory.coins} coins · {inventory.ownedCount} items` })
-end,
-```
-
-The trade-off: everything a defineStore returns can be written from outside, where the module
-above hands components a read-only view. Use whichever suits the store.
-
 ## Server-owned data
 
 For a few simple values, attributes are the easy route. `attributeRef` gives you a ref that

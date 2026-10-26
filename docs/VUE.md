@@ -174,11 +174,11 @@ the animating.
 
 There's no SSR and no hydration. Rivue runs on the client.
 
-### Pinia and Vue Router
+### Vue Router
 
-Both are built in, in a smaller form. `Rivue.defineStore(id, setup)` is a Pinia setup store.
-`Rivue.createRouter`, `RouterView` and `useRouter` cover named routes, params, history and
-`beforeEach` guards, without URLs ([State and navigation](api/state-and-navigation.md)).
+A smaller version is built in: `Rivue.createRouter`, `RouterView` and `useRouter` cover named
+routes, params, history and `beforeEach` guards, without URLs
+([Navigation and loading](api/navigation.md)).
 
 ### Things Vue doesn't have
 
