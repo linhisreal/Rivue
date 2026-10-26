@@ -246,6 +246,54 @@ local function takeToken(player: Player, action: string, rate: number): boolean
 end
 local serverConn: RBXScriptConnection? = nil
 
+--- The reply to one request, or nil when none is sent. fire() sends no id and gets no reply
+local function processRequest(player: Player, req: unknown): RemoteResponse?
+	-- Everything here comes from the client, so check the shape before using it
+	if type(req) ~= "table" then
+		return nil
+	end
+	local request = req :: { action: unknown, id: unknown, payload: unknown }
+	local action = request.action
+	if type(action) ~= "string" then
+		return nil
+	end
+	local id = request.id
+	local function reply(ok: boolean, data: unknown?, err: string?): RemoteResponse?
+		return if type(id) == "string" then { id = id, ok = ok, data = data, error = err } else nil
+	end
+
+	local actionHandler = handlers[action]
+	if not actionHandler then
+		-- Limited too, or a client could make the server reply as fast as it sends. Real action
+		-- names are never empty, so "" can't clash with one
+		if takeToken(player, "", DEFAULT_MAX_PER_SECOND) then
+			return reply(false, nil, "unknown_action")
+		end
+		return nil
+	end
+
+	local rate = limits[action]
+	if rate > 0 and not takeToken(player, action, rate) then
+		return reply(false, nil, "rate_limited")
+	end
+
+	local valid, validErr = validatePayload(request.payload)
+	if not valid then
+		return reply(false, nil, validErr)
+	end
+
+	local ok, result = pcall(actionHandler, player, request.payload)
+	if not ok then
+		-- The error stays in the server log, the client only learns that it failed
+		warn(`[RivueRemote] Remote handler '{action}' failed: {result}`)
+		return reply(false, nil, "handler_error")
+	end
+	return reply(true, result)
+end
+
+-- A server can't fire its own OnServerEvent, so the tests call this directly
+Remote._processRequest = processRequest
+
 --- Creates the RemoteEvents folder and events. Call once on the server at startup
 --- so clients don't wait for them.
 function Remote.setupServer(): ()
@@ -268,53 +316,9 @@ function Remote.handle(actionName: string, handler: RequestHandler, opts: Handle
 
 	local resEv = getResponseEvent()
 	serverConn = getRequestEvent().OnServerEvent:Connect(function(player: Player, req: unknown)
-		-- Never trust the client: check the shape before using anything
-		if type(req) ~= "table" then
-			return
-		end
-		local request = req :: { action: unknown, id: unknown, payload: unknown }
-		local action = request.action
-		if type(action) ~= "string" then
-			return
-		end
-
-		-- fire() sends no id and expects no response
-		local id = request.id
-		local function respond(ok: boolean, data: unknown?, err: string?)
-			if type(id) == "string" then
-				resEv:FireClient(player, { id = id, ok = ok, data = data, error = err })
-			end
-		end
-
-		local actionHandler = handlers[action]
-		if not actionHandler then
-			-- Limited too, or a client could make the server reply as fast as it sends. The key
-			-- can't clash with a real action name, which is never empty
-			if takeToken(player, "", DEFAULT_MAX_PER_SECOND) then
-				respond(false, nil, "unknown_action")
-			end
-			return
-		end
-
-		local rate = limits[action]
-		if rate > 0 and not takeToken(player, action, rate) then
-			respond(false, nil, "rate_limited")
-			return
-		end
-
-		local valid, validErr = validatePayload(request.payload)
-		if not valid then
-			respond(false, nil, validErr)
-			return
-		end
-
-		local ok, result = pcall(actionHandler, player, request.payload)
-		if ok then
-			respond(true, result)
-		else
-			-- Don't send server error details to the client
-			warn(`[RivueRemote] Remote handler '{action}' failed: {result}`)
-			respond(false, nil, "handler_error")
+		local response = processRequest(player, req)
+		if response then
+			resEv:FireClient(player, response)
 		end
 	end)
 end
