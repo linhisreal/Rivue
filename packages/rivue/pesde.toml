@@ -4,7 +4,7 @@ description = "Vue 3's component model for Roblox UI, in Luau"
 license = "PolyForm-Noncommercial-1.0.0"
 authors = ["linhisreal"]
 repository = "https://github.com/linhisreal/Rivue"
-includes = ["pesde.toml", "README.md", "LICENSE.md", "default.project.json", "src/**/*.luau"]
+includes = ["pesde.toml", "README.md", "LICENSE.md", "src/**/*.luau"]
 
 [target]
 environment = "roblox"
