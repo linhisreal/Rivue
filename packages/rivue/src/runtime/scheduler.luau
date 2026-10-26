@@ -63,6 +63,8 @@ end
 -- One connection per mode, not per job
 type FrameMode = "render" | "heartbeat"
 local frameQueues: { [FrameMode]: { Job } } = { render = {}, heartbeat = {} }
+-- Queuing the same function twice before its frame runs it once, as in micro mode
+local frameQueued: { [FrameMode]: { [() -> ()]: Job } } = { render = {}, heartbeat = {} }
 local frameConns: { [FrameMode]: RBXScriptConnection? } = {}
 
 local function flushFrame(mode: FrameMode): ()
@@ -75,6 +77,7 @@ local function flushFrame(mode: FrameMode): ()
 	-- Swap first, jobs queued during flush run next frame
 	local q = frameQueues[mode]
 	frameQueues[mode] = {}
+	frameQueued[mode] = {}
 
 	for _, job in q do
 		if not job.cancelled then
@@ -154,10 +157,20 @@ function scheduler.queueJob(fn: () -> (), opts: QueueOptions?): JobHandle
 	end
 
 	if mode == "render" or mode == "heartbeat" then
-		queueFrameJob(mode, job)
+		local queued = frameQueued[mode]
+		local existing = queued[fn]
+		if existing and not existing.cancelled then
+			job = existing
+		else
+			queued[fn] = job
+			queueFrameJob(mode, job)
+		end
 		return {
 			cancel = function()
 				job.cancelled = true
+				if frameQueued[mode][fn] == job then
+					frameQueued[mode][fn] = nil
+				end
 			end,
 		}
 	else
