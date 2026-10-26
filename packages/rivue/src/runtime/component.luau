@@ -417,6 +417,9 @@ function ComponentInstance.setupComponent(self: ComponentInstance)
 		end)
 		if setupErr ~= nil then
 			setCurrentInstance(prevInstance)
+			-- The component never mounts, so nothing else would stop what setup() started
+			scope:stop()
+			self._scope = nil
 			error(`[Rivue] setup() of {formatComponentTrace(self)} failed: {setupErr}`, 0)
 		end
 	end
