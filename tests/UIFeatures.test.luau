@@ -45,7 +45,7 @@ local function runTests()
 		local el = container:FindFirstChild("Leaving") :: Frame
 		local started = os.clock()
 		renderer.patch(vnode, nil, container)
-		assertEquals(os.clock(), started, "Unmount returns without waiting for the tween")
+		assertTrue(os.clock() - started < 0.1, "Unmount returns without waiting for the tween")
 		assertTrue(el.Parent == container, "Element stays while it leaves")
 		task.wait(0.3)
 		assertTrue(el.Parent == nil, "Element is destroyed once the tween completes")

@@ -27,6 +27,10 @@ end
 
 local function runTests()
 	print("\n========== REMOTE COMMUNICATION TEST SUITE ==========\n")
+	if not game:GetService("RunService"):IsClient() then
+		print("  skipped: Remote's client API needs a client")
+		return
+	end
 
 	-- Test 1: Remote events folder is created
 	print("Test 1: Remote events folder is created")
