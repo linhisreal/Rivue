@@ -388,7 +388,6 @@ function createRenderContext(self: ComponentInstance): { [string]: any }
 end
 
 function ComponentInstance.setupComponent(self: ComponentInstance)
-	-- Restored afterwards, because setup can mount other components
 	local prevInstance = currentInstance
 	setCurrentInstance(self)
 
@@ -644,9 +643,7 @@ local function createComponentInstance(
 	) :: any
 
 	local declaredProps, attrs = separatePropsAndAttrs(def, vnode.props or {})
-	-- Shallow reactive so the component re-renders on new props
 	local props = _reactivity.shallowReactive(table.clone(declaredProps))
-	-- Reactive too, so fallthrough attrs re-render the component when they change
 	local reactiveAttrs = _reactivity.shallowReactive(attrs)
 
 	uidCounter += 1

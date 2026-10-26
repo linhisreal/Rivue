@@ -172,7 +172,7 @@ local function runTests()
 	print("Test 6: Payload validation rejects non-serializable data")
 	do
 		local badPayload = {
-			func = function() end, -- Functions can't be serialized
+			func = function() end,
 		}
 		local data, err = Remote.request("badPayload", badPayload, 0.1)
 		assertTrue(data == nil, "Should reject non-serializable payload")
@@ -190,7 +190,7 @@ local function runTests()
 	print("Test 8: Payload validation rejects unsafe types")
 	do
 		local unsafePayload = {
-			thread = coroutine.create(function() end), -- RemoteEvents can't carry threads
+			thread = coroutine.create(function() end),
 		}
 		local data, err = Remote.request("unsafePayload", unsafePayload, 0.1)
 		assertTrue(data == nil, "Should reject unsafe types")

@@ -122,7 +122,6 @@ local function getTypeInfo(className: string): { isGuiObject: boolean, isText: b
 end
 
 local function isInstanceValid(inst: Instance): boolean
-	-- Destroyed instances have a locked Parent
 	return pcall(function()
 		inst.Parent = nil
 	end)
@@ -254,7 +253,6 @@ local function resetInstance(inst: Instance, touched: { [string]: boolean }?): (
 			)
 		end
 
-		-- A reused Instance shouldn't keep the name its last vnode gave it
 		inst.Name = inst.ClassName
 
 		if inst.GetAttributes then

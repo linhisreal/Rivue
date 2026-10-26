@@ -53,7 +53,6 @@ local function defer(item: thread | () -> ()): ()
 	task.defer(function()
 		local previous = deferDepth
 		deferDepth = depth
-		-- A thread cancelled while it waited is dead and can't be resumed
 		if type(item) == "function" or coroutine.status(item) == "suspended" then
 			task.spawn(item)
 		end
@@ -61,7 +60,6 @@ local function defer(item: thread | () -> ()): ()
 	end)
 end
 
--- One connection per mode, shared by its jobs
 type FrameMode = "render" | "heartbeat"
 local frameQueues: { [FrameMode]: { Job } } = { render = {}, heartbeat = {} }
 -- Queuing the same function twice before its frame runs it once, as in micro mode
@@ -126,7 +124,6 @@ local function flushMicro(): ()
 		if not job.cancelled then
 			local ok, err = pcall(job.fn :: () -> ...unknown)
 			if not ok then
-				-- Watch callbacks and queued jobs land here, always report
 				warn(`[Rivue] Error in queued job: {err}`)
 			end
 		end

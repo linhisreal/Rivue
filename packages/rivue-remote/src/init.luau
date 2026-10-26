@@ -248,7 +248,6 @@ local serverConn: RBXScriptConnection? = nil
 
 --- The reply to one request, or nil when none is sent. fire() sends no id and gets no reply
 local function processRequest(player: Player, req: unknown): RemoteResponse?
-	-- Everything here comes from the client, so check the shape before using it
 	if type(req) ~= "table" then
 		return nil
 	end

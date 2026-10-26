@@ -87,7 +87,6 @@ local function attributeRef<T>(
 		end
 
 		local currentAttr = instance:GetAttribute(attributeName)
-		-- Skip equal values, setting an attribute fires its changed signal
 		if currentAttr ~= newValue then
 			isUpdatingFromRef = true
 			instance:SetAttribute(attributeName, newValue)
@@ -151,7 +150,6 @@ local function useTag(tagName: string, onAdded: (instance: Instance) -> (() -> (
 	end, true)
 end
 
--- Per-frame signal for animations and onRenderStepped (RenderStepped only exists on the client)
 local frameSignal: RBXScriptSignal = if RunService:IsClient() then RunService.RenderStepped else RunService.Heartbeat
 
 local function onRenderStepped(callback: (deltaTime: number) -> ()): ()
@@ -319,7 +317,6 @@ local function loadTranslator(target: Ref<Translator?>)
 		return
 	end
 	task.spawn(function()
-		-- Yields while the localization table loads
 		local ok, result = pcall(LocalizationService.GetTranslatorForPlayerAsync, LocalizationService, player)
 		if ok then
 			target.value = result
@@ -645,7 +642,6 @@ local function useSpring<T>(source: Ref<T> | () -> T, opts: SpringOptions?): Ref
 	local conn: RBXScriptConnection? = nil
 
 	local function step(dt: number)
-		-- Fixed substeps keep it stable on long frames
 		local steps = math.max(1, math.ceil(dt / (1 / 120)))
 		local h = dt / steps
 		for _ = 1, steps do

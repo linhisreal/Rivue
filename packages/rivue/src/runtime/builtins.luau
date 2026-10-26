@@ -618,7 +618,6 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, opts: AsyncCo
 		__is_component = true,
 		__name = "AsyncComponent",
 		setup = function(props: Props, context: SetupContext)
-			-- shallowRef so the component definition isn't wrapped in a proxy
 			local component = shallowRef(nil :: ComponentDef?)
 			local loading = ref(false)
 			local error = ref(nil :: string?)
