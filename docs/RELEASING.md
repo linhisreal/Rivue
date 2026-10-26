@@ -39,9 +39,10 @@ so with Wally each package is published from its own folder.
 
 To publish:
 
-1. Bump the version everywhere with `lune run version 2.57.0`, and commit.
-2. If you haven't before, install the tools with `rokit add UpliftGames/wally` and
-   `rokit add pesde-pkg/pesde`, then log in with `wally login` and `pesde auth login`.
+1. Bump the version everywhere with `lune run version 2.57.0` (manifests and lockfiles), and
+   commit.
+2. `rokit install` gets you Wally and pesde along with the other tools. Log in once with
+   `wally login` and `pesde auth login`.
 3. Publish each package:
 
    ```sh
