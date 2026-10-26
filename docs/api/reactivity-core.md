@@ -7,7 +7,7 @@
 The building blocks of state in Rivue. All examples assume:
 
 ```lua
-local Rivue = require(game.ReplicatedStorage.Rivue)
+local Rivue = require(game.ReplicatedStorage.RivueUI)
 local h = Rivue.h
 ```
 

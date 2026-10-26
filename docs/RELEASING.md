@@ -19,7 +19,7 @@ the files to the release:
 ```mermaid
 flowchart LR
     T["tag pre-v2.58.4a"] --> W["Release workflow<br/>test, build"]
-    W --> R1["Rivue.rbxm<br/>Rivue.min.rbxm"]
+    W --> R1["RivueUI.rbxm<br/>RivueUI.min.rbxm"]
     W --> R2["RivueRemote.rbxm"]
     W --> R4["RivueRouter.rbxm"]
     W --> R3["RivueDevTools.rbxm"]
@@ -32,7 +32,7 @@ when it's ready, without waiting for the others. Where each one stands:
 
 | Folder | Stage | Wally | pesde | Release file |
 |---|---|---|---|---|
-| `packages/rivue` | release candidate | `linhisreal/rivue` | `linhisreal/rivue` | `Rivue.rbxm`, `Rivue.min.rbxm` |
+| `packages/rivue-ui` | release candidate | `linhisreal/rivue-ui` | `linhisreal/rivue_ui` | `RivueUI.rbxm`, `RivueUI.min.rbxm` |
 | `packages/rivue-remote` | beta | `linhisreal/rivue-remote` | `linhisreal/rivue_remote` | `RivueRemote.rbxm` |
 | `packages/rivue-router` | beta | `linhisreal/rivue-router` | `linhisreal/rivue_router` | `RivueRouter.rbxm` |
 | `packages/rivue-devtools` | follows Rivue | — | — | `RivueDevTools.rbxm` (a Studio plugin) |
@@ -53,10 +53,10 @@ To publish:
 3. Publish the packages you bumped:
 
    ```sh
-   wally publish --project-path packages/rivue
+   wally publish --project-path packages/rivue-ui
    wally publish --project-path packages/rivue-remote
    wally publish --project-path packages/rivue-router
-   cd packages/rivue && pesde publish && cd ../..
+   cd packages/rivue-ui && pesde publish && cd ../..
    cd packages/rivue-remote && pesde publish && cd ../..
    cd packages/rivue-router && pesde publish && cd ../..
    ```

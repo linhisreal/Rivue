@@ -4,7 +4,7 @@
 -- Instance and mirrors its data into attributes. A plugin can't read a game script's modules, so
 -- attributes are how the data gets here.
 
-local Rivue = require(script.Parent:WaitForChild("Rivue"))
+local Rivue = require(script.Parent:WaitForChild("RivueUI"))
 local DevTools = require(script.Parent:WaitForChild("App"))
 
 local self = plugin :: Plugin

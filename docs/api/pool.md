@@ -7,7 +7,7 @@
 Reuses Instances instead of destroying and creating them. Most apps only need the
 [pooling options](application.md#pooling-options) of `createApp`. These functions are for tuning
 and for using the pool directly. All examples assume
-`local Rivue = require(game.ReplicatedStorage.Rivue)` and `local Pool = Rivue.pool`.
+`local Rivue = require(game.ReplicatedStorage.RivueUI)` and `local Pool = Rivue.pool`.
 
 - [Pool.configure()](#poolconfigure)
 - [Pool.warmup()](#poolwarmup)

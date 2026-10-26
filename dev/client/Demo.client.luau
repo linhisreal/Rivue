@@ -3,7 +3,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
+local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
 local Demo = ReplicatedStorage:WaitForChild("Demo")
 
 local App = require(Demo:WaitForChild("App"))

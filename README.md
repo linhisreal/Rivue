@@ -10,8 +10,8 @@
 
 <p align="center">
   <a href="https://create.roblox.com/store/models?keyword=Rivue"><img src="docs/assets/badges/creator-store.webp" height="32" alt="Get it on the Roblox Creator Store"></a>
-  <a href="https://wally.run/package/linhisreal/rivue"><img src="docs/assets/badges/wally.webp" height="32" alt="Install with Wally"></a>
-  <a href="https://pesde.dev/packages/linhisreal/rivue"><img src="docs/assets/badges/pesde.webp" height="32" alt="Install with pesde"></a>
+  <a href="https://wally.run/package/linhisreal/rivue-ui"><img src="docs/assets/badges/wally.webp" height="32" alt="Install with Wally"></a>
+  <a href="https://pesde.dev/packages/linhisreal/rivue_ui"><img src="docs/assets/badges/pesde.webp" height="32" alt="Install with pesde"></a>
   <a href="rokit.toml"><img src="docs/assets/badges/rokit.webp" height="32" alt="Tools pinned with Rokit"></a>
   <a href="https://luau.org"><img src="docs/assets/badges/luau.webp" height="32" alt="Written in Luau"></a>
   <a href="https://linhisreal.github.io/Rivue/"><img src="docs/assets/badges/docs.webp" height="32" alt="Read the docs"></a>
@@ -26,7 +26,7 @@ state, and Rivue keeps the Instances in sync: when a value changes, only the com
 it re-render, and only the properties that changed get written.
 
 ```lua
-local Rivue = require(game.ReplicatedStorage.Rivue)
+local Rivue = require(game.ReplicatedStorage.RivueUI)
 local h = Rivue.h
 
 local Counter = Rivue.defineComponent({
@@ -94,25 +94,25 @@ Use whichever install you already use for other packages.
 
 ```toml
 [dependencies]
-Rivue = "linhisreal/rivue@0.9.0-rc.1"
+RivueUI = "linhisreal/rivue-ui@0.9.0-rc.1"
 RivueRemote = "linhisreal/rivue-remote@0.5.0-beta.1" # optional, for client/server calls
 RivueRouter = "linhisreal/rivue-router@0.1.0-beta.1" # optional, for screens and back/forward
 ```
 
-**With pesde**, run `pesde add linhisreal/rivue` (and `linhisreal/rivue_remote` or
+**With pesde**, run `pesde add linhisreal/rivue_ui` (and `linhisreal/rivue_remote` or
 `linhisreal/rivue_router` if you want them).
 
 **With Rojo**, add this repo as a git submodule and point your project at the package:
 
 ```json
 "ReplicatedStorage": {
-  "Rivue": { "$path": "vendor/Rivue/packages/rivue" }
+  "RivueUI": { "$path": "vendor/Rivue/packages/rivue-ui" }
 }
 ```
 
-**Without Rojo**, download `Rivue.rbxm` from the latest
+**Without Rojo**, download `RivueUI.rbxm` from the latest
 [release](https://github.com/linhisreal/Rivue/releases) and drag it into `ReplicatedStorage`.
-There's also `Rivue.min.rbxm` (same code, comments stripped), and the optional `RivueRemote.rbxm`
+There's also `RivueUI.min.rbxm` (same code, comments stripped), and the optional `RivueRemote.rbxm`
 and `RivueRouter.rbxm`, which go next to it.
 
 ## Docs
@@ -145,7 +145,7 @@ second time inside a real Roblox server. How releases and publishing work is in
 [docs/RELEASING.md](docs/RELEASING.md).
 
 ```
-packages/rivue/            the UI framework                 Wally, pesde, Rivue.rbxm
+packages/rivue-ui/         the UI framework                 Wally, pesde, RivueUI.rbxm
 packages/rivue-remote/     client/server calls              Wally, pesde, RivueRemote.rbxm
 packages/rivue-router/     screens and history              Wally, pesde, RivueRouter.rbxm
 packages/rivue-devtools/   Studio plugin                    RivueDevTools.rbxm

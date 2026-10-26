@@ -4,7 +4,7 @@ Screen navigation for [Rivue](https://github.com/linhisreal/Rivue), like a small
 routes, params passed to the screen as props, back and forward history, and guards that can cancel
 a move.
 
-Install Rivue too. RivueRouter uses the copy of Rivue your game already has, so keep both in the
+Install RivueUI too. RivueRouter uses the copy of RivueUI your game already has, so keep both in the
 same Packages folder (Wally and pesde do this), or both in ReplicatedStorage.
 
 ```lua

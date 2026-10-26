@@ -6,7 +6,7 @@
 
 Request/response and events between client and server over RemoteEvents, with payload validation
 and per-player rate limits. It's a separate package from Rivue, which only does UI: put
-`RivueRemote` next to `Rivue` in ReplicatedStorage. All examples assume
+`RivueRemote` next to `RivueUI` in ReplicatedStorage. All examples assume
 `local Remote = require(game.ReplicatedStorage.RivueRemote)`.
 
 - [Remote.setupServer()](#remotesetupserver)

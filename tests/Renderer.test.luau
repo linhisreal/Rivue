@@ -1,9 +1,9 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
-local renderer = require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("renderer"))
-local Pool = require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("pool"))
+local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
+local renderer = require(ReplicatedStorage:WaitForChild("RivueUI"):WaitForChild("runtime"):WaitForChild("renderer"))
+local Pool = require(ReplicatedStorage:WaitForChild("RivueUI"):WaitForChild("runtime"):WaitForChild("pool"))
 
 local function assertEquals(actual: any, expected: any, message: string?)
 	if actual ~= expected then

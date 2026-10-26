@@ -4,7 +4,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Selection = game:GetService("Selection")
-local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
+local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
 local DevTools = require(ReplicatedStorage:WaitForChild("RivueDevTools"):WaitForChild("App"))
 local Highlight = require(ReplicatedStorage:WaitForChild("RivueDevTools"):WaitForChild("Highlight"))
 local Theme = require(ReplicatedStorage:WaitForChild("RivueDevTools"):WaitForChild("Theme"))

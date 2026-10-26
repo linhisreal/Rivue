@@ -2,7 +2,7 @@
 -- Vue APIs past the basics: writable computed, watch options, provide/inject and the app API
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
+local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
 
 local function assertEquals(actual: any, expected: any, message: string?)
 	if actual ~= expected then

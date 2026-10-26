@@ -3,8 +3,8 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local GuiService = game:GetService("GuiService")
-local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
-local renderer = require(ReplicatedStorage:WaitForChild("Rivue"):WaitForChild("runtime"):WaitForChild("renderer"))
+local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
+local renderer = require(ReplicatedStorage:WaitForChild("RivueUI"):WaitForChild("runtime"):WaitForChild("renderer"))
 
 local h = Rivue.h
 

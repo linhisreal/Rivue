@@ -9,7 +9,7 @@
 -- `api` can be swapped (tests pass a fake); by default it calls the server through Remote.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
+local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
 local Remote = require(ReplicatedStorage:WaitForChild("RivueRemote"))
 local h = Rivue.h
 

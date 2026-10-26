@@ -24,17 +24,17 @@ local function findRivue(): any
 	-- installed copy. A manual install keeps both in ReplicatedStorage
 	local node: Instance? = script.Parent
 	while node do
-		local found = loadRivue(node:FindFirstChild("Rivue"))
+		local found = loadRivue(node:FindFirstChild("RivueUI"))
 		if not found then
 			local pesdePackages = node:FindFirstChild("roblox_packages")
-			found = loadRivue(if pesdePackages then pesdePackages:FindFirstChild("Rivue") else nil)
+			found = loadRivue(if pesdePackages then pesdePackages:FindFirstChild("RivueUI") else nil)
 		end
 		if found then
 			return found
 		end
 		node = node.Parent
 	end
-	error("[RivueRouter] Couldn't find Rivue. Install it next to RivueRouter, named Rivue", 0)
+	error("[RivueRouter] Couldn't find Rivue. Install RivueUI next to RivueRouter", 0)
 end
 
 local Rivue = findRivue()

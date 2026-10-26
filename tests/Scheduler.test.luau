@@ -1,7 +1,7 @@
 --!strict
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Rivue = ReplicatedStorage:WaitForChild("Rivue")
+local Rivue = ReplicatedStorage:WaitForChild("RivueUI")
 local scheduler = require(Rivue:WaitForChild("runtime"):WaitForChild("scheduler"))
 
 local function assertEquals(actual: any, expected: any, message: string?)

@@ -4,7 +4,7 @@
 
 local CollectionService = game:GetService("CollectionService")
 local Selection = game:GetService("Selection")
-local Rivue = require(script.Parent:WaitForChild("Rivue"))
+local Rivue = require(script.Parent:WaitForChild("RivueUI"))
 local Highlight = require(script.Parent:WaitForChild("Highlight"))
 local Theme = require(script.Parent:WaitForChild("Theme"))
 local h = Rivue.h

@@ -31,7 +31,7 @@ component that reads it updates when it changes:
 
 ```lua
 -- ReplicatedStorage/Stores/PlayerData.luau
-local Rivue = require(game.ReplicatedStorage.Rivue)
+local Rivue = require(game.ReplicatedStorage.RivueUI)
 
 local state = Rivue.reactive({ coins = 0, level = 1 })
 

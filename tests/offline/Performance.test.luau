@@ -3,7 +3,7 @@
 -- is what costs the most in Roblox, and fails if a common update gets more expensive
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local Rivue = require(ReplicatedStorage:WaitForChild("Rivue"))
+local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
 local h = Rivue.h
 
 local function engineCalls(fn: () -> ()): number

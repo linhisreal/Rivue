@@ -8,7 +8,7 @@ Rivue has no templates: components return a tree of vnodes built with `h()`. All
 assume:
 
 ```lua
-local Rivue = require(game.ReplicatedStorage.Rivue)
+local Rivue = require(game.ReplicatedStorage.RivueUI)
 local h = Rivue.h
 ```
 

@@ -2,8 +2,8 @@
   "name": "RivueDevTools",
   "tree": {
     "$className": "Folder",
-    "Rivue": {
-      "$path": "../rivue"
+    "RivueUI": {
+      "$path": "../rivue-ui"
     },
     "Main": {
       "$path": "src/Main.server.luau"
