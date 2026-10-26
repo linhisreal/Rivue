@@ -148,6 +148,13 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [app.config](api/application.md#appconfigerrorhandler) ·
 [Pooling options](api/application.md#pooling-options)
 
+**[State and navigation](api/state-and-navigation.md)**
+[defineStore()](api/state-and-navigation.md#definestore) ·
+[createRouter()](api/state-and-navigation.md#createrouter) ·
+[RouterView](api/state-and-navigation.md#routerview) ·
+[useRouter()](api/state-and-navigation.md#userouter) ·
+[useAsync()](api/state-and-navigation.md#useasync)
+
 **[Scheduler](api/scheduler.md)**
 [nextTick()](api/scheduler.md#nexttick) ·
 [queueJob()](api/scheduler.md#queuejob) ·
@@ -165,6 +172,7 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [useInputType()](api/roblox.md#useinputtype) ·
 [useSafeArea()](api/roblox.md#usesafearea) ·
 [useSelection()](api/roblox.md#useselection) ·
+[useGamepadFocus()](api/roblox.md#usegamepadfocus) ·
 [useTween()](api/roblox.md#usetween) ·
 [useSpring()](api/roblox.md#usespring) ·
 [attributeRef()](api/roblox.md#attributeref) ·

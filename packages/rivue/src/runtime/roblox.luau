@@ -565,6 +565,59 @@ local function useSelection(): (Ref<GuiObject?>, (target: GuiObject?) -> ())
 	end
 end
 
+export type GamepadFocusOptions = {
+	-- Focus even when the player is using a mouse or touch (default false)
+	always: boolean?,
+	-- Give the selection back to what had it before, when this component goes (default true)
+	restore: boolean?,
+}
+
+--- Selects `target` (usually a template ref) for gamepad navigation: when the component mounts,
+--- and when the player switches to a gamepad with nothing selected. Without this, a gamepad
+--- player opening a menu has to press the select button before anything responds
+local function useGamepadFocus(target: Ref<any>, options: GamepadFocusOptions?)
+	if not RunService:IsClient() then
+		return
+	end
+	local opts: GamepadFocusOptions = options or {}
+	local input = useInputType()
+	local previous: GuiObject? = nil
+	local captured = false
+
+	local function focus(object: unknown)
+		if typeof(object) ~= "Instance" or not (object :: Instance):IsA("GuiObject") then
+			return
+		end
+		local current = GuiService.SelectedObject
+		-- Something the player already moved to inside the game stays selected
+		if current and current ~= object and current:IsDescendantOf(game) and not opts.always then
+			return
+		end
+		if not captured then
+			captured = true
+			previous = current
+		end
+		GuiService.SelectedObject = object :: GuiObject
+	end
+
+	reactivity.watch({ target :: any, input :: any }, function(values: { any })
+		if opts.always or values[2] == "gamepad" then
+			focus(values[1])
+		end
+	end, { immediate = true, flush = "post" })
+
+	reactivity.onScopeDispose(function()
+		if opts.restore == false or not captured then
+			return
+		end
+		local current = GuiService.SelectedObject
+		-- By now this component's Instances are gone, so a selection inside it is out of the game
+		if current == nil or not current:IsDescendantOf(game) then
+			GuiService.SelectedObject = if previous and previous:IsDescendantOf(game) then previous else nil
+		end
+	end, true)
+end
+
 local function toGetter<T>(source: Ref<T> | () -> T): () -> T
 	if type(source) == "function" then
 		return source
@@ -626,8 +679,44 @@ local function useTween<T>(source: Ref<T> | () -> T, info: TweenInfo): Ref<T>
 	return out
 end
 
-local function magnitude(v: unknown): number
-	return if type(v) == "number" then math.abs(v) else (v :: Vector3).Magnitude
+-- A spring moves numbers, so each supported type is split into its numbers and built back after
+local function toNumbers(v: unknown): { number }
+	local t = typeof(v)
+	if t == "number" then
+		return { v :: number }
+	elseif t == "Vector2" then
+		local x = v :: Vector2
+		return { x.X, x.Y }
+	elseif t == "Vector3" then
+		local x = v :: Vector3
+		return { x.X, x.Y, x.Z }
+	elseif t == "UDim" then
+		local x = v :: UDim
+		return { x.Scale, x.Offset }
+	elseif t == "UDim2" then
+		local x = v :: UDim2
+		return { x.X.Scale, x.X.Offset, x.Y.Scale, x.Y.Offset }
+	elseif t == "Color3" then
+		local x = v :: Color3
+		return { x.R, x.G, x.B }
+	end
+	error(`[Rivue] useSpring can't animate a {t}: use a number, Vector2, Vector3, UDim, UDim2 or Color3`, 3)
+end
+
+local function fromNumbers(kind: string, n: { number }): any
+	if kind == "number" then
+		return n[1]
+	elseif kind == "Vector2" then
+		return Vector2.new(n[1], n[2])
+	elseif kind == "Vector3" then
+		return Vector3.new(n[1], n[2], n[3])
+	elseif kind == "UDim" then
+		return UDim.new(n[1], n[2])
+	elseif kind == "UDim2" then
+		return UDim2.new(n[1], n[2], n[3], n[4])
+	end
+	-- Overshoot can push a channel past 0..1, which Color3 doesn't allow
+	return Color3.new(math.clamp(n[1], 0, 1), math.clamp(n[2], 0, 1), math.clamp(n[3], 0, 1))
 end
 
 local function useSpring<T>(source: Ref<T> | () -> T, opts: SpringOptions?): Ref<T>
@@ -635,33 +724,46 @@ local function useSpring<T>(source: Ref<T> | () -> T, opts: SpringOptions?): Ref
 	local speed = options.speed or 12
 	local damping = options.damping or 1
 	local getter = toGetter(source)
-	local out = reactivity.ref(getter())
-	local position: any = out.value
-	local velocity: any = position * 0
-	local target: any = position
+	local initial = getter()
+	local kind = typeof(initial)
+	local out = reactivity.ref(initial)
+	local position = toNumbers(initial)
+	local velocity = table.create(#position, 0)
+	local target = table.clone(position)
 	local conn: RBXScriptConnection? = nil
 
 	local function step(dt: number)
 		local steps = math.max(1, math.ceil(dt / (1 / 120)))
 		local h = dt / steps
 		for _ = 1, steps do
-			local accel = (target - position) * (speed * speed) - velocity * (2 * damping * speed)
-			velocity += accel * h
-			position += velocity * h
+			for i = 1, #position do
+				local accel = (target[i] - position[i]) * (speed * speed) - velocity[i] * (2 * damping * speed)
+				velocity[i] += accel * h
+				position[i] += velocity[i] * h
+			end
 		end
-		if magnitude(target - position) < 1e-3 and magnitude(velocity) < 1e-3 then
-			position = target
-			velocity = target * 0
+		local settled = true
+		for i = 1, #position do
+			if math.abs(target[i] - position[i]) >= 1e-3 or math.abs(velocity[i]) >= 1e-3 then
+				settled = false
+				break
+			end
+		end
+		if settled then
+			position = table.clone(target)
+			for i = 1, #position do
+				velocity[i] = 0
+			end
 			if conn then
 				conn:Disconnect()
 				conn = nil
 			end
 		end
-		out.value = position
+		out.value = fromNumbers(kind, position)
 	end
 
 	local stopWatch = reactivity.watch(getter, function(value: T)
-		target = value
+		target = toNumbers(value)
 		if not conn then
 			conn = frameSignal:Connect(step)
 		end
@@ -689,6 +791,7 @@ return {
 	useInputType = useInputType,
 	useSafeArea = useSafeArea,
 	useSelection = useSelection,
+	useGamepadFocus = useGamepadFocus,
 	useTween = useTween,
 	useSpring = useSpring,
 	useTag = useTag,

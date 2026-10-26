@@ -624,6 +624,36 @@ local function runTests()
 		task.wait(1)
 		assertTrue(math.abs(sprung.value - 10) < 0.01, "useSpring settles on the target")
 		scope:stop()
+
+		-- shallowRef: offline, UDim2 and Color3 are tables that a ref would wrap (in Roblox they're userdata)
+		local size = Rivue.shallowRef(UDim2.fromOffset(0, 0))
+		local color = Rivue.shallowRef(Color3.new(0, 0, 0))
+		local springScope = Rivue.effectScope()
+		local sprungSize: any, sprungColor: any
+		springScope:run(function()
+			sprungSize = Rivue.useSpring(size)
+			sprungColor = Rivue.useSpring(color, { damping = 0.3 })
+			return nil
+		end)
+		size.value = UDim2.new(0.5, 100, 1, -20)
+		color.value = Color3.new(1, 1, 1)
+		task.wait(0.05)
+		local midway = sprungSize.value :: UDim2
+		assertTrue(midway.X.Offset > 0 and midway.X.Offset < 100, "a UDim2 springs part of the way")
+		local bouncing = sprungColor.value :: Color3
+		assertTrue(bouncing.R >= 0 and bouncing.R <= 1, "an underdamped Color3 stays in range")
+		task.wait(3)
+		local settled = sprungSize.value :: UDim2
+		assertEquals(
+			`{settled.X.Scale} {settled.X.Offset} {settled.Y.Scale} {settled.Y.Offset}`,
+			"0.5 100 1 -20",
+			"and settles exactly"
+		)
+		local color3 = sprungColor.value :: Color3
+		assertTrue(math.abs(color3.R - 1) < 0.01 and math.abs(color3.B - 1) < 0.01, "the Color3 bounces into place")
+		springScope:stop()
+		local ok = pcall(Rivue.useSpring, Rivue.ref(true))
+		assertTrue(not ok, "a type it can't spring errors")
 	end
 
 	print("Test 16: key change replaces the element")

@@ -15,6 +15,8 @@ local poolModule = require("./pool")
 local builtins = require("./builtins")
 local composables = require("./composables")
 local array = require("./array")
+local storeModule = require("./store")
+local routerModule = require("./router")
 
 local RunService = game:GetService("RunService")
 
@@ -52,6 +54,9 @@ export type App = renderer.App
 export type Plugin = renderer.Plugin
 export type WritableComputedOptions<T> = Types.WritableComputedOptions<T>
 export type ComponentInstance = componentAPI.ComponentInstance
+export type Router = routerModule.Router
+export type Route = routerModule.Route
+export type AsyncState<T> = composables.AsyncState<T>
 
 local Rivue = {}
 
@@ -288,6 +293,13 @@ Rivue.defineModel = composables.defineModel
 Rivue.useModel = composables.useModel
 Rivue.useTheme = composables.useTheme
 Rivue.useStyles = composables.useStyles
+Rivue.useAsync = composables.useAsync
+
+Rivue.defineStore = storeModule.defineStore
+
+Rivue.createRouter = routerModule.createRouter
+Rivue.useRouter = routerModule.useRouter
+Rivue.RouterView = routerModule.RouterView
 
 Rivue.scheduler = schedulerModule
 
@@ -321,6 +333,7 @@ Rivue.useScroll = robloxUtils.useScroll
 Rivue.useInputType = robloxUtils.useInputType
 Rivue.useSafeArea = robloxUtils.useSafeArea
 Rivue.useSelection = robloxUtils.useSelection
+Rivue.useGamepadFocus = robloxUtils.useGamepadFocus
 Rivue.useTween = robloxUtils.useTween
 Rivue.useSpring = robloxUtils.useSpring
 

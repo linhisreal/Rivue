@@ -810,7 +810,8 @@ the parent's value, writing it updates the parent.
   `name` changes the prop and `event` changes the event name.
 
   The parent binds it with `model = someRef`, which passes `modelValue` and the update handler
-  for you.
+  for you. If the parent passes no `model`, the ref keeps its own value instead, like Vue 3.4, so
+  the component works on its own too.
 
 - **Type**
 

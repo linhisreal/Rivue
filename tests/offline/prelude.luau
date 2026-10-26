@@ -150,12 +150,18 @@ os = setmetatable({
 		return now
 	end,
 }, { __index = realOs })
+COLOR3_MT = {
+	__rbxtype = "Color3",
+	__eq = function(a, b)
+		return a.R == b.R and a.G == b.G and a.B == b.B
+	end,
+}
 Color3 = {
 	fromRGB = function(r, g, b)
-		return { R = r / 255, G = g / 255, B = b / 255 }
+		return setmetatable({ R = r / 255, G = g / 255, B = b / 255 }, COLOR3_MT)
 	end,
 	new = function(r, g, b)
-		return { R = r, G = g, B = b }
+		return setmetatable({ R = r or 0, G = g or 0, B = b or 0 }, COLOR3_MT)
 	end,
 }
 local sequenceMt = {}
@@ -182,8 +188,14 @@ warn = function(...)
 	end
 end
 typeof = function(v)
-	if type(v) == "table" and rawget(v, "__rbxtype") then
-		return v.__rbxtype
+	if type(v) == "table" then
+		if rawget(v, "__rbxtype") then
+			return v.__rbxtype
+		end
+		local mt = getmetatable(v)
+		if type(mt) == "table" and rawget(mt, "__rbxtype") then
+			return mt.__rbxtype
+		end
 	end
 	return type(v)
 end
