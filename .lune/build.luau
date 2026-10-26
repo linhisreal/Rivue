@@ -24,9 +24,9 @@ if fs.isDir(OUT) then
 end
 fs.writeDir(OUT)
 
-exec("rojo", { "build", "rivue.project.json", "-o", `{OUT}/Rivue.rbxm` })
+exec("rojo", { "build", "default.project.json", "-o", `{OUT}/Rivue.rbxm` })
 exec("rojo", { "build", "rivue-remote.project.json", "-o", `{OUT}/RivueRemote.rbxm` })
-exec("rojo", { "build", "default.project.json", "-o", `{OUT}/RivueTestPlace.rbxl` })
+exec("rojo", { "build", "place.project.json", "-o", `{OUT}/RivueTestPlace.rbxl` })
 exec("rojo", { "build", "examples.project.json", "-o", `{OUT}/RivueExamples.rbxl` })
 
 if table.find(process.args, "minify") then

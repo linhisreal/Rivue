@@ -76,12 +76,11 @@ package adds requests and events with rate limits.
 
 Rivue is a ModuleScript with a `runtime` folder. Put it in `ReplicatedStorage`.
 
-**With Rojo**, add this repo as a git submodule and point your project at its
-`rivue.project.json`:
+**With Rojo**, add this repo as a git submodule and point your project at the folder:
 
 ```json
 "ReplicatedStorage": {
-  "Rivue": { "$path": "vendor/Rivue/rivue.project.json" }
+  "Rivue": { "$path": "vendor/Rivue" }
 }
 ```
 
@@ -107,9 +106,10 @@ lune setup                        # editor types for the Lune scripts
 lune run test                     # all suites, without Studio
 lune run check-docs               # links resolve and every API example runs
 lune run build                    # Rivue.rbxm and places, into build/
+rojo serve place.project.json     # the test place in Studio
 ```
 
-CI also runs StyLua and luau-lsp.
+CI also runs StyLua and luau-lsp. Releases and Wally publishing: [docs/RELEASING.md](docs/RELEASING.md).
 
 ```
 src/shared/Rivue/    the library
