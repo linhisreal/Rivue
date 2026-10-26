@@ -66,7 +66,7 @@ local function runTests()
 		Pool.release(label)
 
 		local reused = Pool.acquire("TextLabel") :: TextLabel
-		assertEquals(reused.Text, "", "Text should be reset")
+		assertEquals(reused.Text, Instance.new("TextLabel").Text, "Text should be reset to the default")
 	end
 
 	-- Test 5: clear() destroys pooled instances
