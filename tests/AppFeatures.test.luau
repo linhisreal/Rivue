@@ -469,6 +469,124 @@ return function()
 		app:unmount()
 	end
 
+	print("defineAsyncComponent onError")
+	do
+		local Shop = Rivue.defineComponent({
+			name = "LoadedShop",
+			render = function()
+				return h("TextLabel", { Name = "LoadedShop" })
+			end,
+		})
+		local tries = 0
+		local attemptsSeen = {}
+		local Lazy = Rivue.defineAsyncComponent(function()
+			tries += 1
+			task.wait(0.02)
+			if tries < 3 then
+				error("network")
+			end
+			return Shop
+		end, {
+			onError = function(_err, retry, fail, attempts)
+				table.insert(attemptsSeen, attempts)
+				if attempts < 5 then
+					retry()
+				else
+					fail()
+				end
+			end,
+		})
+		local folder = Instance.new("Folder")
+		local app = Rivue.createApp(Lazy)
+		app:mount(folder)
+		task.wait(0.3)
+		Rivue.nextTick()
+		assertEquals(tries, 3, "retry() loads again until it works")
+		assertTrue(find(folder, "LoadedShop") ~= nil, "and then shows the component")
+		assertEquals(table.concat(attemptsSeen, ","), "1,2", "onError gets the attempt count")
+		app:unmount()
+
+		local GaveUp = Rivue.defineAsyncComponent(function()
+			error("down")
+		end, {
+			errorComponent = h("TextLabel", { Name = "LoadFailed" }),
+			onError = function(_err, _retry, fail)
+				fail()
+			end,
+		})
+		local folder2 = Instance.new("Folder")
+		local app2 = Rivue.createApp(GaveUp)
+		app2:mount(folder2)
+		task.wait(0.1)
+		Rivue.nextTick()
+		assertTrue(find(folder2, "LoadFailed") ~= nil, "fail() shows the error component")
+		app2:unmount()
+
+		local slowTries = 0
+		local Slow = Rivue.defineAsyncComponent(function()
+			slowTries += 1
+			task.wait(if slowTries == 1 then 0.5 else 0.01)
+			return Shop
+		end, {
+			timeout = 100,
+			onError = function(err, retry)
+				if string.find(err, "timeout", 1, true) then
+					retry()
+				end
+			end,
+		})
+		local folder3 = Instance.new("Folder")
+		local app3 = Rivue.createApp(Slow)
+		app3:mount(folder3)
+		task.wait(0.3)
+		Rivue.nextTick()
+		assertEquals(slowTries, 2, "a timeout goes to onError too, and can retry")
+		assertTrue(find(folder3, "LoadedShop") ~= nil, "the late first answer is ignored")
+		app3:unmount()
+	end
+
+	print("models")
+	do
+		local useColor = Rivue.defineModel({ name = "color" })
+		local useAlpha = Rivue.defineModel({ name = "alpha" })
+		local picked: any = nil
+		local Picker = Rivue.defineComponent({
+			name = "ColorPicker",
+			props = { color = {}, alpha = {} },
+			setup = function(props, ctx)
+				picked = { color = useColor(props, ctx), alpha = useAlpha(props, ctx) }
+				return picked
+			end,
+			render = function(ctx)
+				return h("TextLabel", { Name = "Swatch", Text = `{ctx.color} {ctx.alpha}` })
+			end,
+		})
+		local color = Rivue.ref("red")
+		local App = Rivue.defineComponent({
+			name = "PickerApp",
+			setup = function()
+				return { alpha = Rivue.ref(0.5) }
+			end,
+			render = function()
+				return h(Picker, { models = { color = color, alpha = "alpha" } })
+			end,
+		})
+		local folder = Instance.new("Folder")
+		local app = Rivue.createApp(App)
+		app:mount(folder)
+		local swatch = find(folder, "Swatch") :: TextLabel
+		assertEquals(swatch.Text, "red 0.5", "each model passes its value, by ref or by setup name")
+		picked.color.value = "blue"
+		picked.alpha.value = 1
+		Rivue.nextTick()
+		assertEquals(color.value, "blue", "writing a model updates the parent's ref")
+		assertEquals(swatch.Text, "blue 1", "and both values re-render")
+		color.value = "green"
+		Rivue.nextTick()
+		assertEquals(swatch.Text, "green 1", "the parent's changes flow down")
+		app:unmount()
+	end
+
 	-- A server has no selection to move
 	if game:GetService("RunService"):IsClient() then
 		print("useGamepadFocus")

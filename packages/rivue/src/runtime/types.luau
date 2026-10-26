@@ -238,6 +238,8 @@ export type AsyncComponentOptions = {
 	delay: number?,
 	-- ms
 	timeout: number?,
+	-- Called when a load fails or times out: call retry() to load again, or fail() to give up
+	onError: ((err: string, retry: () -> (), fail: () -> (), attempts: number) -> ())?,
 }
 
 export type SuspenseContext = {

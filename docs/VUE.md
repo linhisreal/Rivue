@@ -37,6 +37,7 @@ The tables below are the cheat sheet. The differences worth knowing are at the e
 | `v-show="open"` | `vShow = open.value` |
 | `v-for="item in items" :key="item.id"` | `Rivue.hFor(items.value, function(item) return h(..., { key = item.id }) end)` |
 | `v-model="name"` | `model = name` (TextBox, or a component using `defineModel`), or `model = "name"` in `render(ctx)` |
+| `v-model:title="t" v-model:body="b"` | `models = { title = t, body = b }`, with `defineModel({ name = "title" })` and `defineModel({ name = "body" })` in the child |
 | `v-model.trim` / `.number` / `.lazy` | `modelModifiers = { trim = true }` (and `number`, `lazy`) |
 | `:hover` / `:active` / `:disabled` in CSS | `hover`, `pressed`, `disabled` variants in a style class |
 | `@media` queries | `phone`, `tablet`, `desktop`, `console` variants in a style class |

@@ -105,6 +105,20 @@ local function declaresModel(component: unknown): boolean
 	return type(declared) == "table" and (declared.model ~= nil or table.find(declared, "model") ~= nil)
 end
 
+-- model = "name" looks the ref up in the setup() of the component that's rendering
+local function resolveModelRef(model: unknown, label: string): Types.Ref<any>
+	if type(model) == "string" then
+		local owner = componentModule.getRenderingInstance()
+		local state = if owner then owner.setupState else nil
+		local found = if state then (state :: any)[model] else nil
+		if type(found) ~= "table" or not found._is_ref then
+			error(`[Rivue] {label} = "{model}": setup() didn't return a ref named '{model}'`, 4)
+		end
+		return found
+	end
+	return model :: Types.Ref<any>
+end
+
 local function expandProps(isElement: boolean, props: Props, ownModel: boolean): Props
 	local out: Props? = nil
 
@@ -143,16 +157,7 @@ local function expandProps(isElement: boolean, props: Props, ownModel: boolean):
 		local target: Props = out or table.clone(props)
 		out = target
 		target.model = nil
-		if type(model) == "string" then
-			local owner = componentModule.getRenderingInstance()
-			local state = if owner then owner.setupState else nil
-			local found = if state then (state :: any)[model] else nil
-			if type(found) ~= "table" or not found._is_ref then
-				error(`[Rivue] model = "{model}": setup() didn't return a ref named '{model}'`, 3)
-			end
-			model = found
-		end
-		local r = model :: Types.Ref<any>
+		local r = resolveModelRef(model, "model")
 		if isElement then
 			local modifiers = target.modelModifiers
 			target.modelModifiers = nil
@@ -184,6 +189,22 @@ local function expandProps(isElement: boolean, props: Props, ownModel: boolean):
 		else
 			target.modelValue = r.value
 			target["onUpdate:modelValue"] = function(value: unknown)
+				r.value = value
+			end
+		end
+	end
+
+	-- Several named models on one component, like Vue's v-model:title and v-model:body. Each pairs
+	-- with a defineModel({ name = ... }) in the child
+	local models = props.models
+	if type(models) == "table" and not isElement then
+		local target: Props = out or table.clone(props)
+		out = target
+		target.models = nil
+		for name, source in models :: { [string]: unknown } do
+			local r = resolveModelRef(source, `models.{name}`)
+			target[name] = r.value
+			target[`onUpdate:{name}`] = function(value: unknown)
 				r.value = value
 			end
 		end
@@ -231,7 +252,16 @@ local function h(type_: VNodeType, propsIn: Props?, children: Types.Children?): 
 		end
 	end
 	local props: Props = propsIn or {}
-	if propsIn and (props.style ~= nil or props.model ~= nil or props.vOnce ~= nil or type(type_) == "string") then
+	if
+		propsIn
+		and (
+			props.style ~= nil
+			or props.model ~= nil
+			or props.models ~= nil
+			or props.vOnce ~= nil
+			or type(type_) == "string"
+		)
+	then
 		props = expandProps(type(type_) == "string", props, props.model ~= nil and declaresModel(type_))
 	end
 	local ch: { Child }

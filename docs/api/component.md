@@ -810,7 +810,32 @@ the parent's value, writing it updates the parent.
   `name` changes the prop and `event` changes the event name.
 
   The parent binds it with `model = someRef`, which passes `modelValue` and the update handler
-  for you. If the parent passes no `model`, the ref keeps its own value instead, like Vue 3.4, so
+  for you.
+
+  A component can have several models, like Vue's `v-model:title` and `v-model:body`. Give each
+  `defineModel` a `name`, and the parent binds them all with `models`:
+
+  ```lua
+  local useColor = Rivue.defineModel({ name = "color" })
+  local useOpacity = Rivue.defineModel({ name = "opacity" })
+
+  local ColorPicker = Rivue.defineComponent({
+  	name = "ColorPicker",
+  	props = { color = {}, opacity = {} },
+  	setup = function(props, ctx)
+  		return { color = useColor(props, ctx), opacity = useOpacity(props, ctx) }
+  	end,
+  	render = function(ctx)
+  		return h("Frame", { BackgroundColor3 = ctx.color, BackgroundTransparency = 1 - ctx.opacity })
+  	end,
+  })
+
+  local trailColor = Rivue.ref(Color3.fromRGB(255, 120, 0))
+  local trailOpacity = Rivue.ref(0.8)
+  h(ColorPicker, { models = { color = trailColor, opacity = trailOpacity } })
+  ```
+
+  A value in `models` can also be the name of a ref your `setup()` returned, as with `model`. If the parent passes no `model`, the ref keeps its own value instead, like Vue 3.4, so
   the component works on its own too.
 
 - **Type**
@@ -943,6 +968,15 @@ Use it for big screens most players never open.
   	errorComponent = h("TextLabel", { Text = "Couldn't load the shop" }),
   	delay = 200,
   	timeout = 10000,
+  	-- A dropped connection shouldn't strand the player on an error: try three times
+  	onError = function(_err, retry, fail, attempts)
+  		if attempts < 3 then
+  			task.wait(1)
+  			retry()
+  		else
+  			fail()
+  		end
+  	end,
   })
 
   h(ShopPage)
@@ -950,8 +984,13 @@ Use it for big screens most players never open.
 
 - **Details**
 
-  The loader runs when the component first mounts. Inside a [`Suspense`](builtins.md#suspense)
-  it also counts as pending, so Suspense shows its fallback until it loads.
+  - The loader runs when the component first mounts. Inside a [`Suspense`](builtins.md#suspense)
+    it also counts as pending, so Suspense shows its fallback until it loads or gives up.
+  - Without `onError`, a failed load shows `errorComponent` straight away. With it, you decide:
+    call `retry()` to run the loader again, or `fail()` to show the error. `attempts` counts the
+    tries so far, starting at 1. Same as Vue.
+  - A timeout counts as a failure, so it goes to `onError` too. If an earlier attempt answers
+    after you've retried, its answer is ignored.
 
 - **Type**
 
@@ -962,7 +1001,8 @@ Use it for big screens most players never open.
   		loadingComponent: VNode?,
   		errorComponent: VNode?,
   		delay: number?, -- ms before showing loadingComponent
-  		timeout: number?, -- ms before giving up
+  		timeout: number?, -- ms before an attempt counts as failed
+  		onError: ((err: string, retry: () -> (), fail: () -> (), attempts: number) -> ())?,
   	}?
   ): ComponentDef
   ```

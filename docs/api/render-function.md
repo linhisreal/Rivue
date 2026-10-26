@@ -109,6 +109,7 @@ Everything you can put in an element's props table, and what Rivue does with it.
 | `ref` | A `Ref`, a function, or a string name. See [Template refs](component.md#usetemplateref) |
 | `vName = value` | A [directive](directives.md): `vShow`, `vFocus`, `vClickOutside`, `vSelect`, `vDrag`, ... |
 | `model = ref \| "name"` | Two-way `Text` binding on a TextBox. A string names a ref returned by `setup()` (for [`render(ctx)`](component.md#render)) |
+| `models = { name = ref }` | On a component: several named models, each paired with a [`defineModel({ name })`](component.md#definemodel) in the child |
 | `modelModifiers = { trim, number, lazy }` | With `model`: `trim` strips spaces, `number` stores a number when the text is one, `lazy` updates the ref when the box loses focus instead of on every key |
 | `class = "a" \| { "a", "b" } \| { a = bool }` | Applies named styles from the component's [`styles`](component.md#styles) and [`app:styles()`](application.md#appstyles). See below |
 | `style = table \| { tables }` | Prop tables merged under the element's own props. `false`/`nil` entries are skipped |
