@@ -136,7 +136,7 @@ lune setup                        # editor types for the Lune scripts
 lune run test                     # all suites, without Studio
 lune run check-docs               # links resolve and every API example runs
 lune run build                    # the packages and the dev place, into build/
-lune run version rivue 0.9.0-rc.2 # bump one package
+lune run version rivue-ui 0.9.0-rc.2 # bump one package
 rojo serve                        # the dev place in Studio
 ```
 
