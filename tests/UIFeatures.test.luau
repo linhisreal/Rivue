@@ -702,6 +702,43 @@ local function runTests()
 		app:unmount()
 	end
 
+	print("Sugar props: gradient, scale, sizeLimit, textSizeLimit")
+	do
+		local top, bottom = Color3.fromRGB(255, 200, 0), Color3.fromRGB(255, 80, 0)
+		local big = Rivue.ref(true)
+		local Card = Rivue.defineComponent({
+			name = "SugarCard",
+			render = function()
+				return Rivue.h("TextLabel", {
+					Name = "Card",
+					gradient = if big.value then { top, bottom, rotation = 90 } else { top, bottom },
+					scale = if big.value then 1.5 else nil,
+					sizeLimit = { max = Vector2.new(300, 200) },
+					textSizeLimit = { min = 10, max = 24 },
+				})
+			end,
+		})
+		local container = Instance.new("Folder")
+		local app = Rivue.createApp(Card)
+		app:mount(container)
+		local card = container:FindFirstChild("Card") :: TextLabel
+		local gradient = card:FindFirstChildOfClass("UIGradient") :: UIGradient
+		assertTrue(gradient ~= nil, "gradient creates a UIGradient")
+		assertEquals(gradient.Rotation, 90, "gradient rotation")
+		assertEquals(typeof(gradient.Color), "ColorSequence", "two colours become a ColorSequence")
+		assertEquals((card:FindFirstChildOfClass("UIScale") :: UIScale).Scale, 1.5, "scale creates a UIScale")
+		local size = card:FindFirstChildOfClass("UISizeConstraint") :: UISizeConstraint
+		assertTrue(size.MaxSize == Vector2.new(300, 200) or size.MaxSize.X == 300, "sizeLimit sets MaxSize")
+		local text = card:FindFirstChildOfClass("UITextSizeConstraint") :: UITextSizeConstraint
+		assertEquals(text.MinTextSize, 10, "textSizeLimit sets MinTextSize")
+		assertEquals(text.MaxTextSize, 24, "textSizeLimit sets MaxTextSize")
+		big.value = false
+		Rivue.nextTick()
+		assertEquals(gradient.Rotation, 0, "a removed gradient field goes back to its default")
+		assertTrue(card:FindFirstChildOfClass("UIScale") == nil, "removing scale destroys the UIScale")
+		app:unmount()
+	end
+
 	print("\n========== UI FEATURES TESTS COMPLETE ==========\n")
 end
 

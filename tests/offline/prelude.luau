@@ -154,6 +154,17 @@ Color3 = {
 		return { R = r, G = g, B = b }
 	end,
 }
+local sequenceMt = {}
+ColorSequence = {
+	new = function(a, b)
+		return setmetatable({ __rbxtype = "ColorSequence", from = a, to = b or a }, sequenceMt)
+	end,
+}
+NumberSequence = {
+	new = function(a, b)
+		return setmetatable({ __rbxtype = "NumberSequence", from = a, to = b or a }, sequenceMt)
+	end,
+}
 warn = function(...)
 	print("WARN", ...)
 end
@@ -544,6 +555,10 @@ local CLASSES = {
 	UIStroke = { bases = {}, props = { { Thickness = 1, Transparency = 0, Color = Color3.new(0, 0, 0) } } },
 	UIPadding = { bases = {}, props = { { PaddingTop = 0, PaddingLeft = 0, PaddingBottom = 0, PaddingRight = 0 } } },
 	UIAspectRatioConstraint = { bases = {}, props = { { AspectRatio = 1 } } },
+	UIGradient = { bases = {}, props = { { Color = false, Rotation = 0, Offset = false, Transparency = false } } },
+	UIScale = { bases = {}, props = { { Scale = 1 } } },
+	UISizeConstraint = { bases = {}, props = { { MinSize = false, MaxSize = false } } },
+	UITextSizeConstraint = { bases = {}, props = { { MinTextSize = 1, MaxTextSize = 100 } } },
 	Camera = { bases = {}, props = { { ViewportSize = Vector2.new(1280, 720) } } },
 	Workspace = { bases = {}, props = { { CurrentCamera = false } } },
 }

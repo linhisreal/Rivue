@@ -312,6 +312,52 @@ local sugarSpecs: { [string]: SugarSpec } = {
 			end
 		end,
 	},
+	gradient = {
+		className = "UIGradient",
+		apply = function(c: Instance, v: any)
+			local gradient = c :: UIGradient
+			local kind = typeof(v)
+			if kind == "ColorSequence" or kind == "Color3" then
+				gradient.Color = if kind == "Color3" then ColorSequence.new(v) else v
+				return
+			end
+			local first, second = v[1], v[2]
+			if first ~= nil then
+				gradient.Color = if second ~= nil then ColorSequence.new(first, second) else ColorSequence.new(first)
+			elseif v.color ~= nil then
+				gradient.Color = if typeof(v.color) == "Color3" then ColorSequence.new(v.color) else v.color
+			end
+			-- Unset fields go back to their defaults, so removing one from the table takes effect
+			gradient.Rotation = v.rotation or 0
+			gradient.Offset = v.offset or Vector2.new(0, 0)
+			local transparency = v.transparency or 0
+			gradient.Transparency = if type(transparency) == "number"
+				then NumberSequence.new(transparency)
+				else transparency
+		end,
+	},
+	scale = {
+		className = "UIScale",
+		apply = function(c: Instance, v: any)
+			(c :: UIScale).Scale = v
+		end,
+	},
+	sizeLimit = {
+		className = "UISizeConstraint",
+		apply = function(c: Instance, v: any)
+			local constraint = c :: UISizeConstraint
+			constraint.MinSize = v.min or Vector2.new(0, 0)
+			constraint.MaxSize = v.max or Vector2.new(math.huge, math.huge)
+		end,
+	},
+	textSizeLimit = {
+		className = "UITextSizeConstraint",
+		apply = function(c: Instance, v: any)
+			local constraint = c :: UITextSizeConstraint
+			constraint.MinTextSize = v.min or 1
+			constraint.MaxTextSize = v.max or 100
+		end,
+	},
 }
 const SUGAR_PROPS = table.freeze(sugarSpecs)
 

@@ -120,6 +120,10 @@ Everything you can put in an element's props table, and what Rivue does with it.
 | `aspectRatio` | Creates a `UIAspectRatioConstraint` |
 | `layout` | Creates a `UIListLayout` or `UIGridLayout`. See below |
 | `flex` | Creates a `UIFlexItem`: `"fill"`, `"grow"`, `"shrink"`, `"none"`, a grow ratio, or a table of UIFlexItem properties |
+| `gradient` | Creates a `UIGradient`: a Color3, a ColorSequence, or `{ from, to, rotation, transparency, offset }` with the two colours first |
+| `scale` | Creates a `UIScale` with that `Scale` |
+| `sizeLimit` | Creates a `UISizeConstraint`: `{ min = Vector2, max = Vector2 }` |
+| `textSizeLimit` | Creates a `UITextSizeConstraint`: `{ min = number, max = number }`, for `TextScaled` text |
 
 - **Example**
 
