@@ -16,3 +16,6 @@ globalTypes.d.luau
 !.vscode/rivue.code-snippets
 
 .DS_Store
+node_modules/
+docs/.vitepress/dist/
+docs/.vitepress/cache/

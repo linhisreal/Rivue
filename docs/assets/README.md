@@ -6,7 +6,7 @@ The mark for Rivue's documentation. It's a sibling of the [Rivue icon](../../ass
 the same tilted Studio-blue tile, with the V drawn as the pages of an open book and the mint V as
 the spread inside.
 
-<img src="guide-lockup.svg" height="64" alt="Rivue Guide">
+<img src="./guide-lockup.svg" height="64" alt="Rivue Guide">
 
 ## Files
 

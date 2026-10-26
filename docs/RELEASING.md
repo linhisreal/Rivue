@@ -31,3 +31,14 @@ Rivue = "linhisreal/rivue@2.57.0"
 ```
 
 `RivueRemote` isn't on Wally: a package needs its own `wally.toml` at the root of a repository.
+
+## Docs site
+
+The `docs/` folder is also a [VitePress](https://vitepress.dev) site, published to GitHub Pages
+by the **Docs site** workflow on every push that changes `docs/`. Turn it on once under
+**Settings → Pages → Source: GitHub Actions**. To preview locally:
+
+```sh
+npm install --no-save vitepress@1.6.4 vitepress-plugin-mermaid@2.0.17 mermaid@11
+npx vitepress dev docs
+```
