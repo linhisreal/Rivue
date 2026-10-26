@@ -187,7 +187,7 @@ Ties one property to state, so Rivue can update that property alone instead of r
 component. Use it for values that change many times a second: a countdown, a health bar, a ping
 counter.
 
-![a value read in render versus a bound property](../images/bindings.svg)
+![a value read in render versus a bound property](../assets/diagrams/bindings.svg)
 
 - **Example**
 

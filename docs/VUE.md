@@ -1,6 +1,6 @@
 [Docs](README.md) › **Rivue for Vue developers**
 
-![Vue / Rivue](images/vue-rivue-banner.svg)
+![Vue / Rivue](assets/diagrams/vue-rivue-banner.svg)
 
 # Rivue for Vue developers
 

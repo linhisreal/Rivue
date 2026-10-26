@@ -7,7 +7,7 @@ these docs use: where files go, the order a component's parts go in, and when to
 
 ## Folders by role
 
-![project structure](../images/project-structure.svg)
+![project structure](../assets/diagrams/project-structure.svg)
 
 Each folder has one job. `views/` holds the screens (Shop, Inventory, Settings). A view owns its
 screen's state and arranges components, with little markup of its own. The components themselves
@@ -34,7 +34,7 @@ The [demo app](../../dev/Demo) in this repo is laid out this way.
 If every component lists its parts in the same order, you can open any file and know where to
 look:
 
-![anatomy of a component](../images/component-anatomy.svg)
+![anatomy of a component](../assets/diagrams/component-anatomy.svg)
 
 Most components skip some of these. A small one might only have `name`, `props` and `render`.
 
@@ -44,7 +44,7 @@ A render function that does everything gets long and deeply nested, and it re-re
 whenever anything in it changes. A rough rule: once a render passes 40 lines or 4 levels of
 nesting, pull pieces out into components.
 
-![splitting a big render into components](../images/split-components.svg)
+![splitting a big render into components](../assets/diagrams/split-components.svg)
 
 ```lua
 render = function(ctx)

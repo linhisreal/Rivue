@@ -10,7 +10,7 @@ component with no visuals of its own, switching screens, modals, and calling int
 One `Tabs` component that owns the whole layout gets rigid fast. Three small ones that cooperate
 are easier to arrange:
 
-![the parts of a Tabs component](../images/tabs-parts.svg)
+![the parts of a Tabs component](../assets/diagrams/tabs-parts.svg)
 
 `Tabs` provides the active tab once, and every `Tab` and `TabPanel` below it injects it, at any
 depth ([chapter 8](08-state-and-server.md)):
@@ -203,7 +203,7 @@ A modal opened from deep inside the tree needs three built-ins working together:
 | `Transition` | fades it in when it appears and out when it goes |
 | `vClickOutside` | calls a function when the player clicks anywhere outside it |
 
-![Teleport moves a modal to the top layer](../images/teleport-modal.svg)
+![Teleport moves a modal to the top layer](../assets/diagrams/teleport-modal.svg)
 
 ```lua
 local Modal = Rivue.defineComponent({
@@ -241,7 +241,7 @@ Building a modal yourself is worth doing once to see how the parts fit. After th
 gamepad's B button, and gamepad focus that starts on the first button and can't wander off the
 panel.
 
-![the parts of a Dialog](../images/dialog-anatomy.svg)
+![the parts of a Dialog](../assets/diagrams/dialog-anatomy.svg)
 
 ```lua
 h(Rivue.Dialog, { open = ctx.confirming, onClose = ctx.cancel, transition = Rivue.transitions.pop() }, {

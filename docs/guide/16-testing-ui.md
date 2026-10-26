@@ -97,7 +97,7 @@ assert(#saves == 1) -- stopping the scope stopped the watcher
 
 ## Testing a component
 
-![the steps of a component test](../images/test-steps.svg)
+![the steps of a component test](../assets/diagrams/test-steps.svg)
 
 Mount into a Frame that isn't parented anywhere. Rivue still creates real Instances, so a test can
 read their `Text` and `Visible` directly. This helper mounts a component and finds elements by
