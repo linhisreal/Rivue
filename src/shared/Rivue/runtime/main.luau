@@ -246,6 +246,7 @@ Rivue.onRenderStepped = robloxUtils.onRenderStepped
 Rivue.onHeartbeat = robloxUtils.onHeartbeat
 Rivue.onStepped = robloxUtils.onStepped
 Rivue.useViewportSize = robloxUtils.useViewportSize
+Rivue.useDevice = robloxUtils.useDevice
 Rivue.useInputType = robloxUtils.useInputType
 Rivue.useSafeArea = robloxUtils.useSafeArea
 Rivue.useSelection = robloxUtils.useSelection
@@ -253,7 +254,7 @@ Rivue.useTween = robloxUtils.useTween
 Rivue.useSpring = robloxUtils.useSpring
 
 Rivue.createApp = renderer.createApp
-Rivue.testing = table.freeze({ trigger = renderer.trigger })
+Rivue.testing = table.freeze({ trigger = renderer.trigger, setInteraction = renderer.setInteraction })
 
 function Rivue.mount(componentOrVNode: ComponentDef | VNode, parent: Instance, opts: AppOptions?): App
 	local vnode: VNode = if (componentOrVNode :: ComponentDef).__is_component

@@ -615,6 +615,93 @@ local function runTests()
 		assertEquals(box.Text, "cleared", "New Text from props is applied")
 	end
 
+	print("State styles: hover, pressed, selected, disabled")
+	do
+		local white = Color3.new(1, 1, 1)
+		local grey = Color3.new(0.8, 0.8, 0.8)
+		local dark = Color3.new(0.5, 0.5, 0.5)
+		local enabled = Rivue.ref(true)
+		local Button = Rivue.defineComponent({
+			name = "StateStyles",
+			styles = {
+				button = {
+					BackgroundColor3 = white,
+					hover = { BackgroundColor3 = grey },
+					pressed = { BackgroundColor3 = dark, BackgroundTransparency = 0.2 },
+					disabled = { BackgroundTransparency = 0.5 },
+				},
+			},
+			render = function()
+				return Rivue.h("TextButton", { Name = "Buy", class = "button", disabled = not enabled.value })
+			end,
+		})
+		local container = Instance.new("Folder")
+		local app = Rivue.createApp(Button)
+		app:mount(container)
+		local button = container:FindFirstChild("Buy") :: TextButton
+		assertTrue(button.BackgroundColor3 == white, "base style applies")
+		Rivue.testing.setInteraction(button, "hover", true)
+		assertTrue(button.BackgroundColor3 == grey, "hover style applies")
+		Rivue.testing.setInteraction(button, "pressed", true)
+		assertTrue(button.BackgroundColor3 == dark, "pressed wins over hover")
+		assertEquals(button.BackgroundTransparency, 0.2, "pressed can set extra properties")
+		Rivue.testing.setInteraction(button, "pressed", false)
+		assertTrue(button.BackgroundColor3 == grey, "back to hover when released")
+		assertEquals(button.BackgroundTransparency, 0, "extra properties are restored")
+		Rivue.testing.setInteraction(button, "hover", false)
+		assertTrue(button.BackgroundColor3 == white, "back to base when the mouse leaves")
+		if __OFFLINE then
+			(button.MouseEnter :: any):Fire()
+			assertTrue(button.BackgroundColor3 == grey, "MouseEnter turns hover on");
+			(button.MouseLeave :: any):Fire()
+			assertTrue(button.BackgroundColor3 == white, "MouseLeave turns hover off")
+		end
+		enabled.value = false
+		Rivue.nextTick()
+		assertEquals(button.BackgroundTransparency, 0.5, "disabled style applies")
+		assertEquals(button.Interactable, false, "disabled makes the element not interactable")
+		Rivue.testing.setInteraction(button, "hover", true)
+		assertTrue(button.BackgroundColor3 == white, "no hover style while disabled")
+		enabled.value = true
+		Rivue.nextTick()
+		assertEquals(button.Interactable, true, "enabled again")
+		assertTrue(button.BackgroundColor3 == grey, "hover style comes back once enabled")
+		app:unmount()
+	end
+
+	print("Responsive styles follow the device")
+	do
+		local Panel = Rivue.defineComponent({
+			name = "Responsive",
+			styles = {
+				panel = { Size = UDim2.fromOffset(600, 400), phone = { Size = UDim2.fromScale(1, 1) } },
+			},
+			render = function()
+				return Rivue.h("Frame", { Name = "Panel", class = "panel" })
+			end,
+		})
+		local container = Instance.new("Folder")
+		local app = Rivue.createApp(Panel)
+		app:mount(container)
+		local panel = container:FindFirstChild("Panel") :: Frame
+		assertEquals(Rivue.useDevice().value, "desktop", "Studio and tests run as desktop")
+		assertTrue(panel.Size == UDim2.fromOffset(600, 400), "desktop uses the base style")
+		if __OFFLINE then
+			local UserInputService = game:GetService("UserInputService") :: any
+			local camera = workspace.CurrentCamera :: Camera
+			UserInputService.TouchEnabled, UserInputService.KeyboardEnabled = true, false
+			camera.ViewportSize = Vector2.new(844, 390)
+			assertEquals(Rivue.useDevice().value, "phone", "a touch screen with a short side under 500 is a phone")
+			Rivue.nextTick()
+			assertTrue(panel.Size == UDim2.fromScale(1, 1), "phone variant applies after the device changes")
+			UserInputService.TouchEnabled, UserInputService.KeyboardEnabled = false, true
+			camera.ViewportSize = Vector2.new(1280, 720)
+			Rivue.nextTick()
+			assertTrue(panel.Size == UDim2.fromOffset(600, 400), "back to desktop")
+		end
+		app:unmount()
+	end
+
 	print("\n========== UI FEATURES TESTS COMPLETE ==========\n")
 end
 

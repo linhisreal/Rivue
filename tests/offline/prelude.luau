@@ -450,6 +450,7 @@ local GUI_PROPS = {
 	AbsoluteSize = Vector2.new(100, 100),
 	AbsolutePosition = Vector2.new(0, 0),
 	Selectable = false,
+	Interactable = true,
 }
 local TEXT_PROPS = {
 	Text = "",
@@ -557,6 +558,8 @@ local COMMON_EVENTS = {
 	"InputEnded",
 	"MouseEnter",
 	"MouseLeave",
+	"SelectionGained",
+	"SelectionLost",
 }
 local instanceCount = 0
 Instance = {}
@@ -838,6 +841,9 @@ do
 	local guiSignals = {}
 	local selected = nil
 	services.GuiService = setmetatable({
+		IsTenFootInterface = function()
+			return false
+		end,
 		GetGuiInset = function()
 			return Vector2.new(0, 58), Vector2.new(0, 0)
 		end,

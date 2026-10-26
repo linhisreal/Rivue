@@ -111,6 +111,7 @@ Everything you can put in an element's props table, and what Rivue does with it.
 | `class = "a" \| { "a", "b" } \| { a = bool }` | Applies named styles from the component's [`styles`](component.md#styles) and [`app:styles()`](application.md#appstyles). See below |
 | `style = table \| { tables }` | Prop tables merged under the element's own props. `false`/`nil` entries are skipped |
 | `memo = { deps }` | Skips patching this element and its children while every dep is `==` |
+| `disabled = true` | Applies the classes' `disabled` variants, sets `Interactable = false`, and turns hover and pressed styles off |
 | `vOnce = true` | Renders the element and its children once, then never patches them again |
 | `transition` | Enter/leave tween config, see [Transition](builtins.md#transition) |
 | `cornerRadius` | Creates a `UICorner` (number of pixels, or a UDim) |

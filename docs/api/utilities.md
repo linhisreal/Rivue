@@ -24,6 +24,7 @@ All examples assume `local Rivue = require(game.ReplicatedStorage.Rivue)`.
 - [utils.profiler](#utilsprofiler)
 - [iterArray()](#iterarray)
 - [testing.trigger()](#testingtrigger)
+- [testing.setInteraction()](#testingsetinteraction)
 - [Types](#types)
 
 ---
@@ -509,6 +510,52 @@ Calls an element's event handler as if the event fired. Scripts can't fire engin
 
   ```lua
   function testing.trigger(element: Instance, key: string, ...: any)
+  ```
+
+---
+
+## testing.setInteraction()
+
+Turns an element's hover, pressed or selected state on or off, as if the player did it. Use it to
+test [style class variants](application.md#appstyles), since scripts can't move the mouse.
+
+- **Example**
+
+  ```lua
+  local hoverColor = Color3.fromRGB(200, 200, 200)
+
+  local Button = Rivue.defineComponent({
+  	name = "HoverButton",
+  	styles = {
+  		button = {
+  			BackgroundColor3 = Color3.fromRGB(255, 255, 255),
+  			hover = { BackgroundColor3 = hoverColor },
+  		},
+  	},
+  	render = function()
+  		return h("TextButton", { Name = "Play", class = "button" })
+  	end,
+  })
+
+  local screen = Instance.new("Frame")
+  local app = Rivue.mount(Button, screen)
+  local button = screen:FindFirstChild("Play") :: TextButton
+
+  Rivue.testing.setInteraction(button, "hover", true)
+  assert(button.BackgroundColor3 == hoverColor)
+
+  app:unmount()
+  ```
+
+- **Details**
+
+  `state` is `"hover"`, `"pressed"` or `"selected"`. It does nothing on elements whose classes have
+  no state variants. The change is applied straight away, no `nextTick()` needed.
+
+- **Type**
+
+  ```lua
+  function testing.setInteraction(element: Instance, state: "hover" | "pressed" | "selected", on: boolean)
   ```
 
 ---

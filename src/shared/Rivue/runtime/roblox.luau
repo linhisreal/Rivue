@@ -228,6 +228,40 @@ local function useViewportSize(): Ref<Vector2>
 	return created
 end
 
+export type Device = "phone" | "tablet" | "desktop" | "console"
+
+-- Short side of a touch screen below which it counts as a phone, so landscape phones still do
+const PHONE_SHORT_SIDE = 500
+
+local device: Ref<Device>? = nil
+
+local function deviceFor(size: Vector2): Device
+	if GuiService:IsTenFootInterface() then
+		return "console"
+	elseif UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled then
+		return if math.min(size.X, size.Y) < PHONE_SHORT_SIDE then "phone" else "tablet"
+	end
+	return "desktop"
+end
+
+--- The kind of device the game runs on. Shared by every caller and never stopped, so it's safe to
+--- read in render, which is what responsive style classes do
+local function useDevice(): Ref<Device>
+	local existing = device
+	if existing then
+		return existing
+	end
+	local created: Ref<Device> = reactivity.ref(deviceFor(Vector2.new(0, 0))) :: any
+	device = created
+	bindViewport(function(size)
+		local current: Device = deviceFor(size)
+		if created.value ~= current then
+			created.value = current
+		end
+	end)
+	return created
+end
+
 --- Returns nil for types that don't say anything (Focus, TextInput, ...)
 local function classifyInput(t: Enum.UserInputType): InputType?
 	if t == Enum.UserInputType.Touch then
@@ -435,6 +469,7 @@ end
 return {
 	attributeRef = attributeRef,
 	useViewportSize = useViewportSize,
+	useDevice = useDevice,
 	useInputType = useInputType,
 	useSafeArea = useSafeArea,
 	useSelection = useSelection,

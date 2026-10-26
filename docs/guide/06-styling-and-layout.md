@@ -37,6 +37,45 @@ flowchart LR
 - Styles used by one component go in its `styles = { ... }` option.
 - State-driven values can stay inline: the element's own props always win.
 
+### Hover, pressed, selected and disabled
+
+Like CSS's `:hover` and `:active`, a class can say how an element looks while the player interacts
+with it:
+
+```lua
+button = {
+	BackgroundColor3 = Color3.fromRGB(40, 40, 40),
+	hover = { BackgroundColor3 = Color3.fromRGB(60, 60, 60) },
+	pressed = { BackgroundColor3 = Color3.fromRGB(25, 25, 25) },
+	selected = { BackgroundColor3 = Color3.fromRGB(60, 120, 220) }, -- gamepad selection
+	disabled = { BackgroundTransparency = 0.5 },
+},
+
+h("TextButton", { class = "button", Text = "Buy", disabled = ctx.coins < price })
+```
+
+- Hover, pressed and selected are applied straight to the Instance when the input happens. They
+  don't re-render anything.
+- `disabled = true` applies the `disabled` variant, sets `Interactable = false`, and turns hover
+  and pressed off.
+- When several are active, pressed wins over hover, and hover over selected.
+
+### Different devices
+
+A class can also change per device, like a CSS media query:
+
+```lua
+panel = {
+	Size = UDim2.fromOffset(600, 400),
+	phone = { Size = UDim2.fromScale(1, 1) },
+	console = { TextSize = 24 },
+},
+```
+
+The device is `"phone"`, `"tablet"`, `"desktop"` or `"console"`, and `Rivue.useDevice()` returns
+it as a ref. A touch screen whose short side is under 500 px is a phone, so a phone held
+sideways still counts. Components that use a device variant re-render when the device changes.
+
 ## Layout without positions
 
 Absolute positions break when text, screen size or content changes. The `layout` prop creates the

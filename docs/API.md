@@ -156,6 +156,7 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 
 **[Roblox Composables](api/roblox.md)**
 [useViewportSize()](api/roblox.md#useviewportsize) ·
+[useDevice()](api/roblox.md#usedevice) ·
 [useInputType()](api/roblox.md#useinputtype) ·
 [useSafeArea()](api/roblox.md#usesafearea) ·
 [useSelection()](api/roblox.md#useselection) ·
@@ -208,4 +209,5 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [utils.profiler](api/utilities.md#utilsprofiler) ·
 [iterArray()](api/utilities.md#iterarray) ·
 [testing.trigger()](api/utilities.md#testingtrigger) ·
+[testing.setInteraction()](api/utilities.md#testingsetinteraction) ·
 [Types](api/utilities.md#types)

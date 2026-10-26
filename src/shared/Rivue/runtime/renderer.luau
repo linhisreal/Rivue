@@ -9,6 +9,7 @@ local Pool = require("./pool")
 local scheduler = require("./scheduler")
 local _utils = require("./utils")
 local directives = require("./directives")
+local robloxModule = require("./roblox")
 
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
@@ -113,6 +114,28 @@ end
 -- Instance -> its current event handlers, for Rivue.testing.trigger. The table is shared by every
 -- vnode of the element, so it's set once
 local elementHandlers: { [Instance]: { [string]: any } } = setmetatable({}, { __mode = "k" }) :: any
+
+type StateRecord = {
+	vnode: RenderVNode,
+	variants: { [string]: Props },
+	active: { [string]: boolean },
+	applied: { [string]: boolean },
+	original: { [string]: unknown },
+	conns: { RBXScriptConnection },
+}
+
+-- Interaction state of elements whose classes have hover/pressed/selected variants
+local stateRecords: { [Instance]: StateRecord } = setmetatable({}, { __mode = "k" }) :: any
+
+local function clearStates(el: Instance)
+	local record = stateRecords[el]
+	if record then
+		for _, conn in record.conns do
+			conn:Disconnect()
+		end
+		stateRecords[el] = nil
+	end
+end
 
 -- IsA is an engine call. Element vnodes carry their ClassName, so these answer from it
 local guiObjectClasses: { [string]: boolean } = {}
@@ -563,6 +586,9 @@ local function clearVNodeConns(vnode: RenderVNode?)
 
 	local dirs = vnode._dirs
 	local el = vnode.el
+	if el and stateRecords[el] then
+		clearStates(el)
+	end
 	if dirs then
 		for name, state in dirs do
 			local hook = directives.get(name)
@@ -721,8 +747,16 @@ local function asComponent(vnodeType: unknown): ComponentDef?
 	return nil
 end
 
-const RESERVED_PROPS =
-	table.freeze({ __directives = true, key = true, ref = true, transition = true, memo = true, class = true })
+const RESERVED_PROPS = table.freeze({
+	__directives = true,
+	__states = true,
+	key = true,
+	ref = true,
+	transition = true,
+	memo = true,
+	class = true,
+	disabled = true,
+})
 
 local function collectClassNames(value: unknown, out: { string })
 	if type(value) == "string" then
@@ -746,21 +780,67 @@ local function collectClassNames(value: unknown, out: { string })
 	end
 end
 
---- The owner's styles option is checked before the app's styles
+-- Keys inside a style class that hold variants rather than properties
+const STYLE_VARIANTS = table.freeze({
+	hover = true,
+	pressed = true,
+	selected = true,
+	disabled = true,
+	phone = true,
+	tablet = true,
+	desktop = true,
+	console = true,
+})
+-- Later states win: a pressed button is also hovered
+const INTERACTION_STATES = table.freeze({ "selected", "hover", "pressed" })
+
+local function mergeInto(into: Props, from: unknown)
+	if type(from) == "table" then
+		for k, v in from :: Props do
+			into[k] = v
+		end
+	end
+end
+
+--- The owner's styles option is checked before the app's styles. Device variants are merged here,
+--- interaction states are left in __states for the element to apply on input
 local function applyClasses(props: Props, owner: ComponentInstance?, appContext: AppContext?): Props
 	local names: { string } = {}
 	collectClassNames(props.class, names)
-	if #names == 0 then
+	if #names == 0 and props.disabled == nil then
 		return props
 	end
+	local disabled = props.disabled == true
 	local localStyles = if owner then owner.type.styles else nil
 	local appStyles = if appContext then appContext.styles else nil
 	local fromClasses: Props = {}
+	local states: { [string]: Props }? = nil
+	local device: string? = nil
 	for _, name in names do
 		local style = (localStyles and localStyles[name]) or (appStyles and appStyles[name])
 		if style then
 			for k, v in style do
-				fromClasses[k] = v
+				if not STYLE_VARIANTS[k] then
+					fromClasses[k] = v
+				end
+			end
+			if style.phone or style.tablet or style.desktop or style.console then
+				-- Reading the device during render re-renders this component when it changes
+				device = device or robloxModule.useDevice().value
+				mergeInto(fromClasses, style[device :: string])
+			end
+			if disabled then
+				mergeInto(fromClasses, style.disabled)
+			end
+			for _, state in INTERACTION_STATES do
+				local variant = style[state]
+				if type(variant) == "table" and not (disabled and state ~= "selected") then
+					local all = states or {}
+					states = all
+					local into = all[state] or {}
+					all[state] = into
+					mergeInto(into, variant)
+				end
 			end
 		elseif IS_STUDIO then
 			devWarn(`Unknown class '{name}', register it with app:styles() or the component's styles option`)
@@ -772,7 +852,163 @@ local function applyClasses(props: Props, owner: ComponentInstance?, appContext:
 			merged[k] = v
 		end
 	end
+	if props.disabled ~= nil and merged.Interactable == nil then
+		merged.Interactable = not disabled
+	end
+	if states then
+		-- Props written on the element win over its classes, interaction states included
+		for _, variant in states do
+			for k in variant do
+				if props[k] ~= nil then
+					variant[k] = nil
+				end
+			end
+		end
+		merged.__states = states
+	end
 	return merged
+end
+
+local function statesEqual(a: unknown, b: unknown): boolean
+	if type(a) ~= "table" or type(b) ~= "table" then
+		return a == b
+	end
+	local left, right = a :: { [string]: Props }, b :: { [string]: Props }
+	for _, state in INTERACTION_STATES do
+		local x, y = left[state], right[state]
+		if (x == nil) ~= (y == nil) then
+			return false
+		elseif x and y then
+			for k, v in x do
+				if y[k] ~= v then
+					return false
+				end
+			end
+			for k in y do
+				if x[k] == nil then
+					return false
+				end
+			end
+		end
+	end
+	return true
+end
+
+local function applyStates(el: Instance, record: StateRecord)
+	local props: Props = record.vnode.props or {}
+	local wanted: Props = {}
+	for _, state in INTERACTION_STATES do
+		if record.active[state] then
+			mergeInto(wanted, record.variants[state])
+		end
+	end
+	for k in record.applied do
+		if wanted[k] == nil then
+			local base = props[k]
+			if base == nil then
+				base = record.original[k]
+			end
+			if base ~= nil then
+				setProp(el, k, base, record.vnode)
+			end
+			record.applied[k] = nil
+		end
+	end
+	for k, v in wanted do
+		if not record.applied[k] and props[k] == nil and record.original[k] == nil then
+			local ok, current = pcall(function()
+				return (el :: any)[k]
+			end)
+			if ok then
+				record.original[k] = current
+			end
+		end
+		setProp(el, k, v, record.vnode)
+		record.applied[k] = true
+	end
+end
+
+local function setInteraction(el: Instance, state: string, on: boolean)
+	local record = stateRecords[el]
+	if record and record.active[state] ~= on then
+		record.active[state] = on
+		applyStates(el, record)
+	end
+end
+
+local function isPress(input: InputObject): boolean
+	return input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch
+end
+
+--- Runs after an element's props are written, so active states sit on top of the new base values
+local function syncStates(vnode: RenderVNode, el: Instance)
+	local props = vnode.props
+	local variants = if props then props.__states else nil
+	local record = stateRecords[el]
+	if type(variants) ~= "table" then
+		if record then
+			-- Keep listening, so a hover that started while disabled shows once enabled again
+			record.vnode = vnode
+			record.variants = {}
+			applyStates(el, record)
+		end
+		return
+	end
+	if not el:IsA("GuiObject") then
+		return
+	end
+	if not record then
+		local gui = el :: GuiObject
+		local created: StateRecord =
+			{ vnode = vnode, variants = variants, active = {}, applied = {}, original = {}, conns = {} }
+		record = created
+		stateRecords[el] = created
+		table.insert(
+			created.conns,
+			gui.MouseEnter:Connect(function()
+				setInteraction(el, "hover", true)
+			end)
+		)
+		table.insert(
+			created.conns,
+			gui.MouseLeave:Connect(function()
+				created.active.pressed = false
+				setInteraction(el, "hover", false)
+			end)
+		)
+		table.insert(
+			created.conns,
+			gui.InputBegan:Connect(function(input)
+				if isPress(input) then
+					setInteraction(el, "pressed", true)
+				end
+			end)
+		)
+		table.insert(
+			created.conns,
+			gui.InputEnded:Connect(function(input)
+				if isPress(input) then
+					setInteraction(el, "pressed", false)
+				end
+			end)
+		)
+		table.insert(
+			created.conns,
+			gui.SelectionGained:Connect(function()
+				setInteraction(el, "selected", true)
+			end)
+		)
+		table.insert(
+			created.conns,
+			gui.SelectionLost:Connect(function()
+				setInteraction(el, "selected", false)
+			end)
+		)
+	end
+	local current = record :: StateRecord
+	current.vnode = vnode
+	current.variants = variants :: { [string]: Props }
+	applyStates(el, current)
 end
 
 const LAYOUT_CLASSES =
@@ -939,6 +1175,10 @@ local function mountElement(vnode: RenderVNode, container: Instance, poolOpt: Po
 				setProp(inst, k, v, vnode)
 			end
 		end
+	end
+
+	if props and props.__states ~= nil then
+		syncStates(vnode, inst)
 	end
 
 	local transition = getTransition(vnode)
@@ -1672,7 +1912,7 @@ local function propsEqualSwappingHandlers(oldProps: Props?, newProps: Props?, vn
 	for key, value in newProps do
 		count += 1
 		local old = oldProps[key]
-		if old ~= value then
+		if old ~= value and not (key == "__states" and statesEqual(old, value)) then
 			if
 				handlers
 				and handlers[key] ~= nil
@@ -1707,6 +1947,10 @@ local function patchElement(oldVNode: RenderVNode, newVNode: RenderVNode, poolOp
 	newVNode._touched = oldVNode._touched
 	newVNode._sugar = oldVNode._sugar
 	newVNode._tween = oldVNode._tween
+	local stateRecord = stateRecords[el]
+	if stateRecord then
+		stateRecord.vnode = newVNode
+	end
 
 	local oldProps, newProps = oldVNode.props, newVNode.props
 	local memo = if newProps then newProps.memo else nil
@@ -1765,6 +2009,10 @@ local function patchElement(oldVNode: RenderVNode, newVNode: RenderVNode, poolOp
 	else
 		update()
 	end
+
+	if propsChanged and ((newProps and newProps.__states ~= nil) or stateRecords[el]) then
+		syncStates(newVNode, el)
+	end
 end
 
 local function firstChildEl(children: { Child }): Instance?
@@ -1807,7 +2055,7 @@ local function patchInner(oldVNode: RenderVNode?, newVNode: RenderVNode?, contai
 	end
 	if type(newType) == "string" then
 		local props = newVNode.props
-		if props and props.class ~= nil and not newVNode._classApplied then
+		if props and (props.class ~= nil or props.disabled ~= nil) and not newVNode._classApplied then
 			newVNode._classApplied = true
 			newVNode.props = applyClasses(
 				props,
@@ -2157,6 +2405,7 @@ end
 
 return {
 	trigger = trigger,
+	setInteraction = setInteraction,
 	createApp = createApp,
 	patch = patch,
 	formatTree = formatTree,
