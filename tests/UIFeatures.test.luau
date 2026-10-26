@@ -80,7 +80,10 @@ local function runTests()
 		local app = Rivue.createApp(h(App))
 		app:mount(container)
 		local panel = container:FindFirstChild("Panel") :: Frame
-		assertEquals(panel.BackgroundTransparency, 0.2, "No enter animation on first render without appear")
+		assertTrue(
+			math.abs(panel.BackgroundTransparency - 0.2) < 1e-3,
+			"No enter animation on first render without appear"
+		)
 
 		show.value = false
 		task.wait()

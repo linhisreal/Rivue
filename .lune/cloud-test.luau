@@ -26,7 +26,7 @@ end
 -- Runs in the place. Scripts in the place don't start on their own, so this requires the suites
 -- itself, like dev/client/TestRunner.client.luau does
 local RUNNER = [[
-__CLOUD = true
+_G.__CLOUD = true
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local modules = ReplicatedStorage:WaitForChild("Tests"):GetChildren()
 table.sort(modules, function(a, b)

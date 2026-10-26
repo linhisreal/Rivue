@@ -920,7 +920,10 @@ local function runTests()
 
 		assertTrue(renderSteppedCalled, "onRenderStepped was called")
 		assertTrue(heartbeatCalled, "onHeartbeat was called")
-		assertTrue(steppedCalled, "onStepped was called")
+		-- Stepped is a physics step, and Open Cloud sessions run with physics off
+		if not _G.__CLOUD then
+			assertTrue(steppedCalled, "onStepped was called")
+		end
 
 		app:unmount()
 		container:Destroy()

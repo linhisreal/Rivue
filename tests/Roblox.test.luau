@@ -268,7 +268,10 @@ local function runTests()
 
 	-- Test 9: onStepped executes with time parameters
 	print("Test 9: onStepped executes with time parameters")
-	do
+	-- Stepped is a physics step, and Open Cloud sessions run with physics off
+	if _G.__CLOUD then
+		print("  skipped: no physics steps in Open Cloud")
+	else
 		local container = Instance.new("Folder")
 		local steppedCount = 0
 		local receivedTime = false
