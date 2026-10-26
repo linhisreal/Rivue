@@ -10,6 +10,8 @@
 
 <p align="center">
   <a href="https://github.com/linhisreal/Rivue/actions/workflows/build.yml"><img src="https://github.com/linhisreal/Rivue/actions/workflows/build.yml/badge.svg" alt="CI"></a>
+  <a href="https://wally.run/package/linhisreal/rivue"><img src="https://img.shields.io/badge/wally-linhisreal%2Frivue-ad4646.svg" alt="Wally: linhisreal/rivue"></a>
+  <a href="https://linhisreal.github.io/Rivue/"><img src="https://img.shields.io/badge/docs-linhisreal.github.io%2FRivue-1f6feb.svg" alt="Docs"></a>
   <a href="LICENSE.md"><img src="https://img.shields.io/badge/license-PolyForm%20Noncommercial-blue.svg" alt="License: PolyForm Noncommercial 1.0.0"></a>
 </p>
 
@@ -76,6 +78,13 @@ package adds requests and events with rate limits.
 
 Rivue is a ModuleScript with a `runtime` folder. Put it in `ReplicatedStorage`.
 
+**With Wally**, add Rivue to your `wally.toml` and run `wally install`:
+
+```toml
+[dependencies]
+Rivue = "linhisreal/rivue@2.56.0"
+```
+
 **With Rojo**, add this repo as a git submodule and point your project at the folder:
 
 ```json
@@ -91,7 +100,8 @@ calls; put it next to Rivue.
 
 ## Docs
 
-Start at the [docs home](docs/README.md), which has an "I want to…" index.
+Read them at **[linhisreal.github.io/Rivue](https://linhisreal.github.io/Rivue/)**, or start at the
+[docs home](docs/README.md) here, which has an "I want to…" index.
 
 [Guide](docs/GUIDE.md) · [Examples](examples) · [API reference](docs/API.md) ·
 [Coming from Vue](docs/VUE.md) ·

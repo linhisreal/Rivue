@@ -27,6 +27,16 @@ function githubLinks(md: any) {
 	}
 }
 
+// Heading ids made the way GitHub makes them, so the same #links work on GitHub and on the site
+function githubSlug(text: string): string {
+	return text
+		.trim()
+		.toLowerCase()
+		.replace(/<[^>]*>/g, "")
+		.replace(/[^\p{L}\p{N}\s_-]/gu, "")
+		.replace(/\s/g, "-")
+}
+
 const guide = [
 	["Introduction", "01-introduction"],
 	["State", "02-state"],
@@ -73,7 +83,7 @@ export default withMermaid(
 		cleanUrls: true,
 		rewrites: { "README.md": "index.md" },
 		srcExclude: ["assets/README.md"],
-		markdown: { config: githubLinks },
+		markdown: { config: githubLinks, anchor: { slugify: githubSlug } },
 		themeConfig: {
 			nav: [
 				{ text: "Guide", link: "/GUIDE" },

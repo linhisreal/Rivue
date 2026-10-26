@@ -23,12 +23,7 @@ which Wally users' Rojo projects build into the `Rivue` ModuleScript. Everything
 2. Install Wally (`rokit add UpliftGames/wally`) and log in once with `wally login`.
 3. Check what will be uploaded with `wally package --list`, then run `wally publish`.
 
-After the first publish, add the Wally install to the README:
-
-```toml
-[dependencies]
-Rivue = "linhisreal/rivue@2.57.0"
-```
+After publishing, update the version in the README's Wally install line.
 
 `RivueRemote` isn't on Wally: a package needs its own `wally.toml` at the root of a repository.
 
