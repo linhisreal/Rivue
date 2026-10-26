@@ -13,6 +13,7 @@ local robloxModule = require("./roblox")
 
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local CollectionService = game:GetService("CollectionService")
 local RunService = game:GetService("RunService")
 local debugModule = require("./debug")
 
@@ -1697,6 +1698,54 @@ local function patchTeleport(oldVNode: RenderVNode, newVNode: RenderVNode, conta
 	mountTeleport(newVNode, container, poolOpt)
 end
 
+local function describeValue(value: unknown): string
+	local t = typeof(value)
+	if t == "string" then
+		local text = value :: string
+		return if #text > 24 then `"{string.sub(text, 1, 21)}..."` else `"{text}"`
+	elseif t == "number" or t == "boolean" or t == "EnumItem" then
+		return tostring(value)
+	elseif t == "Instance" then
+		return (value :: Instance).Name
+	end
+	return t
+end
+
+-- Off unless app.config.devtools is set: these are engine calls on every render
+const DEVTOOLS_TAG = "RivueComponent"
+const DEVTOOLS_TEXT_LIMIT = 1000
+
+local function devtoolsText(lines: { string }): string
+	table.sort(lines)
+	local text = table.concat(lines, "\n")
+	return if #text > DEVTOOLS_TEXT_LIMIT then string.sub(text, 1, DEVTOOLS_TEXT_LIMIT - 3) .. "..." else text
+end
+
+--- Mirrors a component's name, props and state onto its root Instance for the DevTools plugin.
+--- Reads refs' raw values, so it never adds dependencies to the render
+local function writeDevtools(inst: ComponentInstance, el: Instance)
+	local props: { string } = {}
+	for key, value in _reactivity.toRaw(inst.props) do
+		table.insert(props, `{key} = {describeValue(value)}`)
+	end
+	local state: { string } = {}
+	local setupState = inst.setupState
+	if type(setupState) == "table" then
+		for key, value in next, setupState do
+			if type(value) == "table" and rawget(value :: any, "_is_ref") then
+				table.insert(state, `{key} = {describeValue(rawget(value :: any, "_value"))}`)
+			end
+		end
+	end
+	if not CollectionService:HasTag(el, DEVTOOLS_TAG) then
+		CollectionService:AddTag(el, DEVTOOLS_TAG)
+	end
+	el:SetAttribute("RivueComponent", inst.type.__name or "Anonymous")
+	el:SetAttribute("RivueProps", devtoolsText(props))
+	el:SetAttribute("RivueState", devtoolsText(state))
+	el:SetAttribute("RivueRenders", ((el:GetAttribute("RivueRenders") :: number?) or 0) + 1)
+end
+
 local function applyFallthroughAttrs(props: Props?, attrs: Props): Props?
 	local merged: Props? = nil
 	-- Iterates the reactive attrs inside the render effect, so changes are tracked
@@ -1768,6 +1817,9 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 			end
 		end
 		inst.el = el
+		if el and inst.appContext.config.devtools then
+			writeDevtools(inst, el)
+		end
 	end
 
 	local function renderAsync(result: AsyncRenderResult)
@@ -2198,19 +2250,6 @@ function patch(oldVNode: RenderVNode?, newVNode: RenderVNode?, container: Instan
 	if not ok then
 		error(err, 0)
 	end
-end
-
-local function describeValue(value: unknown): string
-	local t = typeof(value)
-	if t == "string" then
-		local text = value :: string
-		return if #text > 24 then `"{string.sub(text, 1, 21)}..."` else `"{text}"`
-	elseif t == "number" or t == "boolean" or t == "EnumItem" then
-		return tostring(value)
-	elseif t == "Instance" then
-		return (value :: Instance).Name
-	end
-	return t
 end
 
 function formatTree(vnode: VNode?): string

@@ -15,6 +15,7 @@
 | **[API reference](API.md)** | Every function, prop and component, with an example each |
 | **[Coming from Vue](VUE.md)** | Template-to-Luau cheat sheet |
 | **[Coming from Roact, React-lua or Fusion](COMING-FROM-REACT.md)** | API map and what works differently |
+| **[DevTools](DEVTOOLS.md)** | A Studio plugin that shows the live component tree |
 | **[Architecture](ARCHITECTURE.md)** | Renderer and reactivity internals, for contributors |
 
 ## I want to…

@@ -95,7 +95,8 @@ Start at the [docs home](docs/README.md), which has an "I want to…" index.
 
 [Guide](docs/GUIDE.md) · [Examples](examples) · [API reference](docs/API.md) ·
 [Coming from Vue](docs/VUE.md) ·
-[Coming from Roact, React-lua or Fusion](docs/COMING-FROM-REACT.md) · [Architecture](docs/ARCHITECTURE.md)
+[Coming from Roact, React-lua or Fusion](docs/COMING-FROM-REACT.md) · [DevTools](docs/DEVTOOLS.md) ·
+[Architecture](docs/ARCHITECTURE.md)
 
 ## Contributing
 

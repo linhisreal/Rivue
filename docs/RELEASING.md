@@ -10,7 +10,7 @@ For maintainers.
 2. Open **Actions → Release → Run workflow** and enter the tag. Tags starting with `pre-` become
    pre-releases.
 
-The workflow runs the tests, builds `Rivue.rbxm`, `Rivue.min.rbxm` and `RivueRemote.rbxm`, creates
+The workflow runs the tests, builds `Rivue.rbxm`, `Rivue.min.rbxm`, `RivueRemote.rbxm` and `RivueDevTools.rbxm`, creates
 the tag on the current `main`, and attaches the files.
 
 ## Wally

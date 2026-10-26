@@ -22,6 +22,8 @@ exclude = [
 	"src/shared/Demo",
 	"src/shared/RivueRemote.luau",
 	"place.project.json",
+	"plugin.project.json",
+	"src/plugin",
 	"examples.project.json",
 	"rivue-remote.project.json",
 	"rokit.toml",

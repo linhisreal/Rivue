@@ -2,7 +2,6 @@
   "name": "Rivue Test Place",
   "tree": {
     "$className": "DataModel",
-
     "ReplicatedStorage": {
       "$className": "ReplicatedStorage",
       "RivueRemote": {
@@ -135,13 +134,11 @@
         "$path": "src/shared/Demo"
       }
     },
-
     "ServerScriptService": {
       "Server": {
         "$path": "src/server"
       }
     },
-
     "StarterPlayer": {
       "$className": "StarterPlayer",
       "StarterPlayerScripts": {
@@ -157,7 +154,6 @@
         }
       }
     },
-
     "Workspace": {
       "$properties": {
         "FilteringEnabled": true
@@ -201,6 +197,12 @@
     "SoundService": {
       "$properties": {
         "RespectFilteringEnabled": true
+      }
+    },
+    "ServerStorage": {
+      "$className": "ServerStorage",
+      "RivueDevTools": {
+        "$path": "plugin.project.json"
       }
     }
   }
