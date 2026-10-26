@@ -614,12 +614,15 @@ local function runTests()
 			assertEquals(inputType.value, "gamepad", "Gamepad input switches the type")
 		end
 
-		local selected, select = Rivue.useSelection()
-		local button = Instance.new("TextButton")
-		select(button)
-		assertTrue(GuiService.SelectedObject == button, "select() sets GuiService.SelectedObject")
-		assertTrue(selected.value == button, "Selection ref follows")
-		select(nil)
+		-- A server has no PlayerGui, and SelectedObject needs one
+		if game:GetService("RunService"):IsClient() then
+			local selected, select = Rivue.useSelection()
+			local button = Instance.new("TextButton")
+			select(button)
+			assertTrue(GuiService.SelectedObject == button, "select() sets GuiService.SelectedObject")
+			assertTrue(selected.value == button, "Selection ref follows")
+			select(nil)
+		end
 
 		local target = Rivue.ref(0)
 		local scope = Rivue.effectScope()
@@ -655,13 +658,17 @@ local function runTests()
 	-- Test 17: select directive drives gamepad selection
 	print("Test 17: select directive")
 	do
-		local container = Instance.new("Frame")
-		local v1 = h("TextButton", { Name = "Sel", __directives = { { name = "select", value = true } } })
-		renderer.patch(nil, v1, container)
-		local el = container:FindFirstChild("Sel")
-		assertTrue(GuiService.SelectedObject == el, "Selected on mount")
-		renderer.patch(v1, nil, container)
-		assertTrue(GuiService.SelectedObject == nil, "Selection cleared on unmount")
+		if not game:GetService("RunService"):IsClient() then
+			print("  skipped: SelectedObject needs a client")
+		else
+			local container = Instance.new("Frame")
+			local v1 = h("TextButton", { Name = "Sel", __directives = { { name = "select", value = true } } })
+			renderer.patch(nil, v1, container)
+			local el = container:FindFirstChild("Sel")
+			assertTrue(GuiService.SelectedObject == el, "Selected on mount")
+			renderer.patch(v1, nil, container)
+			assertTrue(GuiService.SelectedObject == nil, "Selection cleared on unmount")
+		end
 	end
 
 	-- Test 18: Property change handlers get the new value
