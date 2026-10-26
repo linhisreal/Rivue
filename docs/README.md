@@ -14,6 +14,7 @@
 | **[Examples](../examples)** | Todo list, inventory, modal, tabs, shop and HUD, all tested |
 | **[API reference](API.md)** | Every function, prop and component, with an example each |
 | **[Coming from Vue](VUE.md)** | Template-to-Luau cheat sheet |
+| **[Coming from Roact, React-lua or Fusion](COMING-FROM-REACT.md)** | API map and what works differently |
 | **[Architecture](ARCHITECTURE.md)** | Renderer and reactivity internals, for contributors |
 
 ## I want to…
