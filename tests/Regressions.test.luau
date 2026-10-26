@@ -602,6 +602,86 @@ local function runTests()
 		end
 	end
 
+	print("inject() reads from above, not from the component's own provide()")
+	do
+		local depths: { number } = {}
+		local Nested
+		Nested = Rivue.defineComponent({
+			name = "Nested",
+			props = { levels = { type = "number" } },
+			setup = function(props)
+				-- Provided before injecting, which is the order that used to read its own value
+				Rivue.provide("depth", (Rivue.inject("depth", 0) :: number) + 1)
+				table.insert(depths, Rivue.inject("depth", 0) :: number)
+				return function()
+					local levels = props.levels :: number
+					return if levels > 1 then h(Nested, { levels = levels - 1 }) else h("Frame")
+				end
+			end,
+		})
+		local app = Rivue.createApp(h(Nested, { levels = 3 }))
+		app:mount(Instance.new("Frame"))
+		assertEquals(table.concat(depths, ","), "0,1,2", "each level sees its parent's depth")
+		app:unmount()
+	end
+
+	print("KeepAlive drops cached components that no longer match include/exclude")
+	do
+		local unmounted = 0
+		local Kept = Rivue.defineComponent({
+			name = "Kept",
+			setup = function()
+				Rivue.onUnmounted(function()
+					unmounted += 1
+				end)
+				return function()
+					return h("Frame", { Name = "Kept" })
+				end
+			end,
+		})
+		local Other = Rivue.defineComponent({
+			name = "OtherTab",
+			render = function()
+				return h("Frame", { Name = "OtherTab" })
+			end,
+		})
+		local tab = Rivue.ref("kept")
+		local exclude = Rivue.ref({} :: { string })
+		local App = Rivue.defineComponent({
+			name = "KeepAliveExclude",
+			setup = function()
+				return function()
+					return h(
+						Rivue.KeepAlive,
+						{ exclude = exclude.value },
+						{ if tab.value == "kept" then h(Kept) else h(Other) }
+					)
+				end
+			end,
+		})
+		local container = Instance.new("Frame")
+		local app = Rivue.createApp(h(App))
+		app:mount(container)
+		tab.value = "other"
+		task.wait()
+		assertEquals(unmounted, 0, "switched away, still cached")
+		exclude.value = { "Kept" }
+		task.wait()
+		assertEquals(unmounted, 1, "excluding it unmounts the cached copy")
+
+		-- Excluded while on screen: switching away unmounts it instead of caching it
+		exclude.value = {}
+		tab.value = "kept"
+		task.wait()
+		exclude.value = { "Kept" }
+		task.wait()
+		tab.value = "other"
+		task.wait()
+		assertEquals(unmounted, 2, "the shown one is unmounted when switched away")
+		app:unmount()
+		assertEquals(unmounted, 2, "nothing left over")
+	end
+
 	print("\n========== REGRESSION TESTS COMPLETE ==========\n")
 end
 
