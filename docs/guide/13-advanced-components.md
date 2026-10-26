@@ -171,27 +171,29 @@ local App = Rivue.defineComponent({
 Normally, switching away unmounts a screen. `KeepAlive` keeps the ones in `include` alive instead,
 so the shop is still scrolled where the player left it.
 
-Once screens need a back button, or pass each other data, use the router instead of a lookup
-table. It keeps the history for you, passes params to the screen as props, and can keep screens
-alive the same way:
+Once screens need a back button, or pass each other data, use RivueRouter instead of a lookup
+table. It's a separate package, like Vue Router, so install it next to Rivue. It keeps the history
+for you, passes params to the screen as props, and can keep screens alive the same way:
 
 ```lua
-local router = Rivue.createRouter({
+local Router = require(game.ReplicatedStorage.RivueRouter)
+
+local router = Router.createRouter({
 	routes = { lobby = Lobby, shop = Shop, item = Item },
 	initial = "lobby",
 })
 
 -- In App's render
-h(Rivue.RouterView, { keepAlive = true })
+h(Router.RouterView, { keepAlive = true })
 
 -- In any screen's setup
-local router = Rivue.useRouter()
+local router = Router.useRouter()
 router.push("item", { id = 7 }) -- Item gets props.id = 7
 router.back()
 ```
 
-Install it with `app:use(router)` before mounting. See [Navigation and
-loading](../api/navigation.md) for guards and `replace`.
+Install it with `app:use(router)` before mounting. See [RivueRouter](../api/router.md) for guards
+and `replace`.
 
 ## Modals
 

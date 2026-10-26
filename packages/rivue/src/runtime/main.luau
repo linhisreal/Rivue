@@ -15,7 +15,6 @@ local poolModule = require("./pool")
 local builtins = require("./builtins")
 local composables = require("./composables")
 local array = require("./array")
-local routerModule = require("./router")
 local testingModule = require("./testing")
 local uiModule = require("./ui")
 local transitionsModule = require("./transitions")
@@ -56,8 +55,6 @@ export type App = renderer.App
 export type Plugin = renderer.Plugin
 export type WritableComputedOptions<T> = Types.WritableComputedOptions<T>
 export type ComponentInstance = componentAPI.ComponentInstance
-export type Router = routerModule.Router
-export type Route = routerModule.Route
 export type AsyncState<T> = composables.AsyncState<T>
 
 local Rivue = {}
@@ -303,10 +300,6 @@ Rivue.useModel = composables.useModel
 Rivue.useTheme = composables.useTheme
 Rivue.useStyles = composables.useStyles
 Rivue.useAsync = composables.useAsync
-
-Rivue.createRouter = routerModule.createRouter
-Rivue.useRouter = routerModule.useRouter
-Rivue.RouterView = routerModule.RouterView
 
 Rivue.scheduler = schedulerModule
 

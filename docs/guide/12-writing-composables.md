@@ -264,7 +264,7 @@ end, { args = { 1 } })
 shop.run(2) -- load page 2; a late answer for page 1 is dropped
 ```
 
-See [useAsync()](../api/navigation.md#useasync).
+See [useAsync()](../api/component.md#useasync).
 
 ---
 

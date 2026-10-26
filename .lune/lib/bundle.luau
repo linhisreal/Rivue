@@ -60,6 +60,7 @@ local function bundle(suites: { Suite }): string
 	table.insert(out, "devtoolsFolder._children.Rivue = rivueScript")
 	defineModule(out, "nil", "Rivue", fs.readFile("packages/rivue/src/init.luau"))
 	defineModule(out, "ReplicatedStorage", "RivueRemote", fs.readFile("packages/rivue-remote/src/init.luau"))
+	defineModule(out, "ReplicatedStorage", "RivueRouter", fs.readFile("packages/rivue-router/src/init.luau"))
 
 	for _, suite in suites do
 		table.insert(out, `__runTest("{suite.name}", function(script)\n{suite.source}\nend)`)

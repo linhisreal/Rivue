@@ -1,0 +1,15 @@
+name = "linhisreal/rivue_router"
+version = "2.57.0"
+description = "Screen navigation for Rivue: named routes, params as props, history and guards"
+license = "PolyForm-Noncommercial-1.0.0"
+authors = ["linhisreal"]
+repository = "https://github.com/linhisreal/Rivue"
+includes = ["pesde.toml", "README.md", "LICENSE.md", "src/**/*.luau"]
+
+[target]
+environment = "roblox"
+lib = "src/init.luau"
+build_files = ["src"]
+
+[indices]
+default = "https://github.com/pesde-pkg/index"

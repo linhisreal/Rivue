@@ -93,7 +93,8 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [useModel()](api/component.md#usemodel) ·
 [useId()](api/component.md#useid) ·
 [getCurrentInstance()](api/component.md#getcurrentinstance) ·
-[defineAsyncComponent()](api/component.md#defineasynccomponent)
+[defineAsyncComponent()](api/component.md#defineasynccomponent) ·
+[useAsync()](api/component.md#useasync)
 
 **[Lifecycle hooks](api/lifecycle.md)**
 [onMounted()](api/lifecycle.md#onmounted) ·
@@ -153,12 +154,6 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [app.config](api/application.md#appconfigerrorhandler) ·
 [Pooling options](api/application.md#pooling-options)
 
-**[Navigation and loading](api/navigation.md)**
-[createRouter()](api/navigation.md#createrouter) ·
-[RouterView](api/navigation.md#routerview) ·
-[useRouter()](api/navigation.md#userouter) ·
-[useAsync()](api/navigation.md#useasync)
-
 **[Scheduler](api/scheduler.md)**
 [nextTick()](api/scheduler.md#nexttick) ·
 [queueJob()](api/scheduler.md#queuejob) ·
@@ -192,6 +187,11 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [fire()](api/remote.md#remotefire) ·
 [on()](api/remote.md#remoteon) ·
 [Payloads and errors](api/remote.md#payloads-and-errors)
+
+**[RivueRouter](api/router.md)** (separate package)
+[createRouter()](api/router.md#routercreaterouter) ·
+[RouterView](api/router.md#routerrouterview) ·
+[useRouter()](api/router.md#routeruserouter)
 
 **[Instance pool](api/pool.md)**
 [configure()](api/pool.md#poolconfigure) ·

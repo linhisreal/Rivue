@@ -1,17 +1,44 @@
 --!strict
 --!optimize 2
 
--- Screen navigation, like a small Vue Router: named routes, params passed as props, and a history
--- you can go back and forward in. No URLs, since Roblox UI has none
+-- RivueRouter: screen navigation for Rivue, like a small Vue Router. Named routes, params passed
+-- as props, and a history you can go back and forward in. No URLs, since Roblox UI has none.
+--
+-- It uses the Rivue your game already requires, the way Vue Router uses your Vue: two copies would
+-- track state separately and the router's components couldn't see the app's
 
-local Types = require("./types")
-local reactivity = require("./reactivity")
-local componentAPI = require("./component")
-local builtins = require("./builtins")
-local hModule = require("./h")
+-- Something else in the game may also be called Rivue, so check it really is
+local function loadRivue(candidate: Instance?): any
+	if not candidate then
+		return nil
+	end
+	local ok, loaded = pcall(require, candidate :: any)
+	if ok and type(loaded) == "table" and loaded.h and loaded.createApp then
+		return loaded
+	end
+	return nil
+end
 
-type ComponentDef = Types.ComponentDef
-type Ref<T> = Types.Ref<T>
+local function findRivue(): any
+	-- Wally and pesde put Rivue in the same Packages folder as the router, a few levels up from the
+	-- installed copy. A manual install keeps both in ReplicatedStorage
+	local node: Instance? = script.Parent
+	while node do
+		local found = loadRivue(node:FindFirstChild("Rivue"))
+		if not found then
+			local pesdePackages = node:FindFirstChild("roblox_packages")
+			found = loadRivue(if pesdePackages then pesdePackages:FindFirstChild("Rivue") else nil)
+		end
+		if found then
+			return found
+		end
+		node = node.Parent
+	end
+	error("[RivueRouter] Couldn't find Rivue. Install it next to RivueRouter, named Rivue", 0)
+end
+
+local Rivue = findRivue()
+local h = Rivue.h
 
 export type Route = {
 	name: string,
@@ -19,7 +46,7 @@ export type Route = {
 }
 
 export type RouterOptions = {
-	routes: { [string]: ComponentDef },
+	routes: { [string]: any },
 	initial: string,
 	initialParams: { [string]: any }?,
 }
@@ -27,16 +54,16 @@ export type RouterOptions = {
 export type Guard = (to: Route, from: Route) -> boolean?
 
 export type Router = {
-	current: Ref<Route>,
-	canGoBack: Ref<boolean>,
-	canGoForward: Ref<boolean>,
+	current: { value: Route },
+	canGoBack: { value: boolean },
+	canGoForward: { value: boolean },
 	push: (name: string, params: { [string]: any }?) -> boolean,
 	replace: (name: string, params: { [string]: any }?) -> boolean,
 	back: () -> boolean,
 	forward: () -> boolean,
 	beforeEach: (guard: Guard) -> () -> (),
 	install: (app: any) -> (),
-	routes: { [string]: ComponentDef },
+	routes: { [string]: any },
 }
 
 local INJECTION_KEY = "router"
@@ -48,9 +75,9 @@ local function createRouter(options: RouterOptions): Router
 
 	local history: { Route } = { { name = options.initial, params = options.initialParams or {} } }
 	local index = 1
-	local current = reactivity.shallowRef(history[1])
-	local canGoBack = reactivity.ref(false)
-	local canGoForward = reactivity.ref(false)
+	local current = Rivue.shallowRef(history[1])
+	local canGoBack = Rivue.ref(false)
+	local canGoForward = Rivue.ref(false)
 	local guards: { Guard } = {}
 
 	local function sync()
@@ -65,7 +92,7 @@ local function createRouter(options: RouterOptions): Router
 		for _, guard in table.clone(guards) do
 			local ok, result = pcall(guard, to, from)
 			if not ok then
-				warn(`[Rivue] A router guard failed: {result}`)
+				warn(`[RivueRouter] A guard failed: {result}`)
 				return false
 			elseif result == false then
 				return false
@@ -81,7 +108,7 @@ local function createRouter(options: RouterOptions): Router
 				table.insert(names, key)
 			end
 			table.sort(names)
-			error(`[Rivue] No route named '{name}'. Routes: {table.concat(names, ", ")}`, 3)
+			error(`[RivueRouter] No route named '{name}'. Routes: {table.concat(names, ", ")}`, 3)
 		end
 		return { name = name, params = params or {} }
 	end
@@ -149,38 +176,38 @@ end
 
 --- The router installed with app:use(router)
 local function useRouter(): Router
-	local router = componentAPI.inject(INJECTION_KEY) :: Router?
+	local router = Rivue.inject(INJECTION_KEY) :: Router?
 	if not router then
-		error("[Rivue] useRouter() found no router: call app:use(router) before mounting", 2)
+		error("[RivueRouter] useRouter() found no router: call app:use(router) before mounting", 2)
 	end
 	return router
 end
 
 --- Renders the current route's component, with the route's params as its props
-local RouterView: ComponentDef = {
-	__is_component = true :: true,
+local RouterView = table.freeze({
+	__is_component = true,
 	__name = "RouterView",
 	props = {
 		-- Keep screens you've left alive, so coming back keeps their state (see KeepAlive)
-		keepAlive = { type = "boolean" :: "boolean" },
+		keepAlive = { type = "boolean" },
 	},
-	setup = function(props: Types.Props)
+	setup = function(props: any)
 		local router = useRouter()
-		return function(): Types.VNode?
+		return function(): any
 			local route = router.current.value
-			local screen = hModule.h(router.routes[route.name] :: ComponentDef, table.clone(route.params))
+			local screen = h(router.routes[route.name], table.clone(route.params))
 			-- Keyed by route name, so two routes sharing a component still get separate instances
 			screen.key = route.name
 			if props.keepAlive then
-				return hModule.h(builtins.KeepAlive :: ComponentDef, nil, { screen })
+				return h(Rivue.KeepAlive, nil, { screen })
 			end
 			return screen
 		end
 	end,
-} :: any
+})
 
-return {
+return table.freeze({
 	createRouter = createRouter,
 	useRouter = useRouter,
 	RouterView = RouterView,
-}
+})

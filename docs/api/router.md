@@ -1,17 +1,21 @@
-[Docs](../README.md) › [API](../API.md) › **Navigation and loading**
+[Docs](../README.md) › [API](../API.md) › **RivueRouter**
 
-# Navigation and loading
+# RivueRouter
 
-Moving between screens, and loading data that takes a while to arrive.
+**Learn it:** [Guide 13: Component patterns](../guide/13-advanced-components.md#switching-screens)
 
-- [createRouter()](#createrouter)
-- [RouterView](#routerview)
-- [useRouter()](#userouter)
-- [useAsync()](#useasync)
+Screens with history, like a small Vue Router. It's a separate package, the way Vue Router is
+separate from Vue: install `RivueRouter` next to `Rivue`, in the same Packages folder or both in
+ReplicatedStorage. It uses the Rivue your game already requires. All examples assume
+`local Router = require(game.ReplicatedStorage.RivueRouter)`.
+
+- [Router.createRouter()](#routercreaterouter)
+- [Router.RouterView](#routerrouterview)
+- [Router.useRouter()](#routeruserouter)
 
 ---
 
-## createRouter()
+## Router.createRouter()
 
 Screens with history, like a small Vue Router: you name each screen, move between them with
 `push`, and go `back` and `forward`. There are no URLs, since Roblox UI has none.
@@ -24,7 +28,7 @@ Screens with history, like a small Vue Router: you name each screen, move betwee
   local Home = Rivue.defineComponent({
   	name = "Home",
   	setup = function()
-  		local router = Rivue.useRouter()
+  		local router = Router.useRouter()
   		return {
   			open = function()
   				router.push("item", { id = 7 })
@@ -40,7 +44,7 @@ Screens with history, like a small Vue Router: you name each screen, move betwee
   	name = "Item",
   	props = { id = { type = "number", required = true } },
   	setup = function()
-  		local router = Rivue.useRouter()
+  		local router = Router.useRouter()
   		return { back = router.back }
   	end,
   	render = function(ctx)
@@ -48,7 +52,7 @@ Screens with history, like a small Vue Router: you name each screen, move betwee
   	end,
   })
 
-  local router = Rivue.createRouter({
+  local router = Router.createRouter({
   	routes = { home = Home, item = Item },
   	initial = "home",
   })
@@ -56,7 +60,7 @@ Screens with history, like a small Vue Router: you name each screen, move betwee
   local App = Rivue.defineComponent({
   	name = "App",
   	render = function()
-  		return h("ScreenGui", { ResetOnSpawn = false }, { h(Rivue.RouterView) })
+  		return h("ScreenGui", { ResetOnSpawn = false }, { h(Router.RouterView) })
   	end,
   })
 
@@ -101,7 +105,7 @@ Screens with history, like a small Vue Router: you name each screen, move betwee
 
 ---
 
-## RouterView
+## Router.RouterView
 
 Renders the current screen, with the route's params as props. Put it where screens should appear.
 
@@ -114,7 +118,7 @@ Renders the current screen, with the route's params as props. Put it where scree
   	name = "Layout",
   	render = function()
   		return h("Frame", { Size = UDim2.fromScale(1, 1) }, {
-  			h(Rivue.RouterView, { keepAlive = true }),
+  			h(Router.RouterView, { keepAlive = true }),
   		})
   	end,
   })
@@ -136,7 +140,7 @@ Renders the current screen, with the route's params as props. Put it where scree
 
 ---
 
-## useRouter()
+## Router.useRouter()
 
 The router installed with `app:use(router)`. Call it in `setup()`.
 
@@ -148,7 +152,7 @@ The router installed with `app:use(router)`. Call it in `setup()`.
   local BackButton = Rivue.defineComponent({
   	name = "BackButton",
   	setup = function()
-  		local router = Rivue.useRouter()
+  		local router = Router.useRouter()
   		return { canGoBack = router.canGoBack, back = router.back }
   	end,
   	render = function(ctx)
@@ -169,64 +173,4 @@ The router installed with `app:use(router)`. Call it in `setup()`.
 
 ---
 
-## useAsync()
-
-Runs something that yields, like a RemoteFunction call or a
-[RivueRemote request](remote.md#remoterequest), and keeps its result, loading state and error
-in refs.
-
-- **Example**
-
-  A shop that loads its items, with a loading label and a retry button:
-
-  ```lua
-  local function fetchItems(category: string): { string }
-  	task.wait(0.1) -- stands in for a request to the server
-  	return { `{category} sword`, `{category} shield` }
-  end
-
-  local Shop = Rivue.defineComponent({
-  	name = "Shop",
-  	setup = function()
-  		local items = Rivue.useAsync(fetchItems, { args = { "Iron" }, initial = {} })
-  		return { items = items.data, loading = items.loading, failed = items.error, retry = items.refresh }
-  	end,
-  	render = function(ctx)
-  		if ctx.loading then
-  			return h("TextLabel", { Text = "Loading..." })
-  		elseif ctx.failed then
-  			return h("TextButton", { Text = "Couldn't load, tap to retry", onClick = ctx.retry })
-  		end
-  		return h("TextLabel", { Text = table.concat(ctx.items, ", ") })
-  	end,
-  })
-  ```
-
-- **Details**
-
-  - It runs straight away with `args`, unless `immediate = false`. `run(...)` runs it again
-    with new arguments, `refresh()` with the last ones.
-  - Only the newest run's result lands. A slow answer to an old request never overwrites a
-    newer one.
-  - An error goes into `error` as a string, and `data` keeps its last good value.
-  - Called in `setup()`, results that arrive after the component unmounts are dropped.
-  - Inside a [Suspense](builtins.md#suspense), the Suspense shows its fallback until every
-    `useAsync` under it has its first result, so one loading screen covers a whole panel.
-    `suspense = false` opts out. A failed load stays in `error` and doesn't fail the Suspense.
-
-- **Type**
-
-  ```lua
-  function useAsync<T>(fn: (...any) -> T, options: {
-  	immediate: boolean?, -- default true
-  	args: { any }?,
-  	initial: T?,
-  	suspense: boolean?, -- default true
-  }?): {
-  	data: Ref<T?>,
-  	loading: Ref<boolean>,
-  	error: Ref<string?>,
-  	run: (...any) -> (),
-  	refresh: () -> (),
-  }
-  ```
+[← RivueRemote](remote.md) · [API reference](../API.md) · [Instance pool →](pool.md)

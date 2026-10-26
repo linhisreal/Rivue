@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [rivue, rivue-remote]
+        package: [rivue, rivue-remote, rivue-router]
     steps:
       - uses: actions/checkout@v7
 

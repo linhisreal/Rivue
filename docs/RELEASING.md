@@ -19,6 +19,7 @@ flowchart LR
     T["tag pre-v2.57"] --> W["Release workflow<br/>test, build"]
     W --> R1["Rivue.rbxm<br/>Rivue.min.rbxm"]
     W --> R2["RivueRemote.rbxm"]
+    W --> R4["RivueRouter.rbxm"]
     W --> R3["RivueDevTools.rbxm"]
 ```
 
@@ -30,6 +31,7 @@ Every folder in `packages/` is published on its own, and they all share one vers
 |---|---|---|---|
 | `packages/rivue` | `linhisreal/rivue` | `linhisreal/rivue` | `Rivue.rbxm`, `Rivue.min.rbxm` |
 | `packages/rivue-remote` | `linhisreal/rivue-remote` | `linhisreal/rivue_remote` | `RivueRemote.rbxm` |
+| `packages/rivue-router` | `linhisreal/rivue-router` | `linhisreal/rivue_router` | `RivueRouter.rbxm` |
 | `packages/rivue-devtools` | — | — | `RivueDevTools.rbxm` (a Studio plugin) |
 
 pesde names can't have dashes, hence the underscore in `rivue_remote`. Each package folder has its
@@ -48,8 +50,10 @@ To publish:
    ```sh
    wally publish --project-path packages/rivue
    wally publish --project-path packages/rivue-remote
+   wally publish --project-path packages/rivue-router
    cd packages/rivue && pesde publish && cd ../..
    cd packages/rivue-remote && pesde publish && cd ../..
+   cd packages/rivue-router && pesde publish && cd ../..
    ```
 
 You'll find out early if something's wrong: the **Packages** workflow packs both packages for both

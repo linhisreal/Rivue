@@ -282,4 +282,4 @@ Saves what's in the pool and puts it back later. Mostly useful in tests.
 
 ---
 
-[← Remote](remote.md) · [API reference](../API.md) · [Utilities and debugging →](utilities.md)
+[← RivueRouter](router.md) · [API reference](../API.md) · [Utilities and debugging →](utilities.md)

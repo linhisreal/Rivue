@@ -10,3 +10,6 @@ roblox = "packages/rivue"
 
 [workspace."linhisreal/rivue_remote"]
 roblox = "packages/rivue-remote"
+
+[workspace."linhisreal/rivue_router"]
+roblox = "packages/rivue-router"
