@@ -623,6 +623,11 @@ local function computed<T>(getterOrOptions: ((previous: T?) -> T) | WritableComp
 			value = getter(value)
 			return
 		end
+		local cleanups = runner.cleanups
+		if cleanups then
+			runner.cleanups = nil
+			runEffectCleanups(cleanups)
+		end
 		clearDeps(runner)
 		local depth = #effectStack
 		effectStack[depth + 1] = runner
