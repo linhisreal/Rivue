@@ -1,6 +1,5 @@
 <p align="center">
-<img src="../../docs/assets/license-lockup.webp#gh-light-mode-only" height="140" alt="Rivue License, based on PolyForm Noncommercial 1.0.0, with the games permission">
-<img src="../../docs/assets/license-lockup-dark.webp#gh-dark-mode-only" height="140" alt="Rivue License, based on PolyForm Noncommercial 1.0.0, with the games permission">
+<img src="../../docs/assets/license-lockup.webp" height="140" alt="Rivue License, based on PolyForm Noncommercial 1.0.0, with the games permission">
 </p>
 
 # Rivue license
