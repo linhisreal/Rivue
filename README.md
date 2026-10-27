@@ -181,12 +181,15 @@ pesde.toml                 the pesde workspace
 </a>
 
 [PolyForm Noncommercial 1.0.0](LICENSE.md), with an extra permission for games. You can use, fork,
-port and change Rivue, in closed or open source, as long as you keep the credit notice. Games built
-with Rivue may make money, and you can be paid to build one. What you can't do is make money from
-Rivue's code itself: selling it, a fork of it, or a framework or UI kit made from it.
-[LICENSE](LICENSE.md) has the exact terms.
+port and change Rivue for noncommercial purposes, in closed or open source, as long as you keep the
+credit notice and the license. Games built with Rivue may make money from their players, and you
+can be paid to build one. What you can't do is make money from Rivue itself: selling it or a fork,
+a framework or UI kit made from it, copies of a game's project files, or paid services around it
+outside game work. Apps that only borrow game features don't count as games. Forks stay under the
+same license. [LICENSE](LICENSE.md) has the exact terms.
 
-Credit Rivue in the game's description or an in-game credits screen, for example:
+Credit Rivue in the game's public description, or in an in-game credits screen any player can open
+for free from the main menu or settings, for example:
 
 ```
 UI built with Rivue (github.com/linhisreal/Rivue)

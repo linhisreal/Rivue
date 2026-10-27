@@ -9,53 +9,91 @@ Copyright (c) 2025-2026 linhisreal (ThisisLinh)
 Required Notice: Copyright (c) 2025-2026 linhisreal (https://github.com/linhisreal/Rivue)
 
 Rivue is licensed under the PolyForm Noncommercial License 1.0.0, with one additional
-permission for games. Both are below.
+permission for games and the clarifications below. All of it is below.
 
 ## In short
 
-- You may use, copy, fork, port and change Rivue, and share it, closed source or open.
-- You may build games with Rivue and make money from them, and you may be paid to build a game
-  with Rivue for someone else.
-- You must give credit: keep the "Required Notice" line above and this license (or its URL)
-  with every copy, changed or not.
-- You may not make money from Rivue's code itself: not by selling it, a fork or port of it, or
-  another framework, library or UI kit made from it.
+- You may use, copy, fork, port and change Rivue for noncommercial purposes, closed source or
+  open.
+- You may make money from a game you build with Rivue, and be paid to build one for someone
+  else, if the game credits Rivue as described below.
+- You must keep the "Required Notice" line above and this license (or its URL) with every copy,
+  changed or not.
+- You may not make money from Rivue itself: not by selling it, a fork, port or translation of
+  it, a framework or tool made from it, copies of a game's project files that contain it, or
+  paid services built around it outside game work.
 
-This summary is not the license. The terms below are.
+This summary is not the license. The terms below are. Where the summary and the terms differ,
+the terms apply.
 
 ## Additional permission: games
 
 In addition to the PolyForm Noncommercial License, the licensor grants you permission to:
 
-1. use Rivue, changed or unchanged, in a game (on Roblox or elsewhere) and earn money from that
-   game, for example through game passes, developer products, Premium payouts, paid access or
-   ads; and
-2. be paid to build, change or maintain a game that uses Rivue for someone else, who may then use
-   this permission for that game.
+1. use Rivue, changed or unchanged, in a game and earn money from players of that game, for
+   example through game passes, developer products, Premium payouts, paid access, in-game
+   purchases, sponsorships or ads; and
+2. be paid to build, change or maintain a game that uses Rivue for someone else.
 
-Doing so does not count against the license's limit to noncommercial purposes. To use this
-permission, credit Rivue in the game's description or in an in-game credits screen, for example
-"UI built with Rivue (github.com/linhisreal/Rivue)".
+Doing so does not count against the license's limit to noncommercial purposes, as long as you
+meet every condition in this section.
 
-A "game" here means a game or interactive experience that players play. The money must come
-from the game itself, not from Rivue's code.
+**What counts as a game.** A game is interactive entertainment whose main purpose is to be
+played: a Roblox experience, or a game on another platform. Software whose main purpose is
+something else does not become a game by adding game-like features such as levels, points,
+avatars or minigames. That includes shopping, payments, fitness, productivity, education,
+social networking, dating and business tools, and any development tool.
+
+**Where the money comes from.** The money must come from players playing the game. This
+permission does not cover selling or charging for copies of a game's place file, model,
+source code or project, including copyable or uncopylocked versions of the game, or selling
+the game as a template, kit or starting point for other projects.
+
+**Credit.** The game must credit Rivue, for example "UI built with Rivue
+(github.com/linhisreal/Rivue)", in at least one of these places:
+
+- the game's public description, in text that's shown without extra purchases; or
+- an in-game credits screen that any player can open for free from the main menu or the
+  settings, in text that's as easy to read as the rest of that screen.
+
+**Changes of ownership.** These licenses are not transferred. When a game that uses Rivue is
+sold, given or otherwise passed to a new owner, the new owner gets their own license directly
+from the licensor by agreeing to these terms, and may use this permission for that game while
+they meet its conditions.
 
 ## What stays noncommercial
 
 The permission above does not cover, and the PolyForm Noncommercial License does not allow, any
 of the following when done for money or any other commercial advantage:
 
-- selling, licensing, renting or charging for access to Rivue, or to a fork, port or changed
-  version of it;
+- selling, licensing, renting or charging for access to Rivue, or to a fork, port, translation
+  into another language or changed version of it;
 - selling or charging for any framework, library, UI kit, component pack, template, starter
   place, model, plugin, package or other development tool that contains Rivue's code or is
   derived from it;
-- selling access to a place, model or file that can be copied and that contains Rivue's code,
-  such as a paid uncopylocked place, when getting the code is part of what is sold;
+- selling access to a place, model, file or project that contains Rivue's code and can be
+  copied, such as a paid uncopylocked place;
+- using Rivue in software that isn't a game, as defined above, including apps and websites with
+  game-like features;
+- being paid for installing, integrating, configuring, customizing, supporting or consulting on
+  Rivue, or for building software with it, except the game work allowed above;
 - presenting Rivue's code, or a framework derived from it, as your own work.
 
-Free and open forks, ports and frameworks built on Rivue are fine, under the PolyForm
-Noncommercial License, as long as they keep the "Required Notice" line and this license.
+## Forks and derived works
+
+Forks, ports, translations into other languages and other works based on Rivue stay under these
+terms, and the Notices section of the PolyForm Noncommercial License applies to them. You may
+not offer them under any other license, such as MIT or Apache, or say that they can be used for
+purposes these terms don't allow. Anyone who gets a copy from you gets it under these terms, not
+under any terms you add. Free and open forks, ports and frameworks built on Rivue are fine, as
+long as they keep the "Required Notice" line and this license.
+
+## Violations
+
+Coming back into compliance under the Violations section of the PolyForm Noncommercial License
+keeps your licenses going. It does not make the earlier use permitted. Practical steps to correct
+a commercial use that wasn't allowed include stopping all sales, taking down copies offered for
+sale, and no longer providing paid services that weren't allowed.
 
 ---
 
