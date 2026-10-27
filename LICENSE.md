@@ -1,8 +1,5 @@
 <p align="center">
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/license-lockup-dark.webp">
-  <img src="docs/assets/license-lockup.webp" height="64" alt="Rivue License: PolyForm Noncommercial 1.0.0 + games permission">
-</picture>
+<img src="docs/assets/license-lockup.webp" height="72" alt="Rivue License: PolyForm Noncommercial 1.0.0 + games permission">
 </p>
 
 # Rivue license
