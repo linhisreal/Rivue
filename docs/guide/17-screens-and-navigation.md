@@ -63,17 +63,19 @@ router.push("shop") -- open a screen, add it to the history
 router.back() -- the screen before
 router.forward() -- undo a back
 router.replace("lobby") -- swap the current screen, without adding to the history
+router.go(-2) -- two screens back
 ```
 
-Two things to know:
+A few things to know:
 
 - Pushing after going back drops the screens you could have gone forward to (step 4 in the
   picture).
 - `replace` suits screens you never want to come back to, like a loading or login screen. After
   `replace`, `back` skips it.
-
-All four return `false` when they don't move, either because there's nowhere to go or a guard
-said no.
+- Pushing the screen that's already open, with the same params, does nothing. A double-tapped
+  button doesn't leave two copies in the history for the player to back through.
+- They all return `nil` when they moved. When they didn't, they return a
+  [navigation failure](../api/router.md#navigation-failures) that says why.
 
 ## Passing data to a screen
 
@@ -104,6 +106,9 @@ Pass ids, and let the screen look the rest up in a store. If you pass the whole 
 instead, going back to that screen later shows the item as it was when you pushed it, even if
 the store has changed since.
 
+A component deeper inside the screen can read the params with `Router.useRoute()` instead of
+having them passed down: `route.params.id`.
+
 ## A back button
 
 `canGoBack` is a ref, so a back button can hide itself on the first screen. Bind Escape and the
@@ -115,7 +120,8 @@ local BackButton = Rivue.defineComponent({
 	setup = function()
 		local router = Router.useRouter()
 		Rivue.useKeybind({ Enum.KeyCode.Escape, Enum.KeyCode.ButtonB }, function()
-			router.back()
+			-- A guard may wait for the player, so don't hold up the input callback
+			task.spawn(router.back)
 		end, { enabled = router.canGoBack })
 		return { canGoBack = router.canGoBack, back = router.back }
 	end,
@@ -128,32 +134,89 @@ local BackButton = Rivue.defineComponent({
 Put it in `App`, next to the `RouterView`, rather than in each screen. Then there's one binding
 for the whole game.
 
+## Screens inside screens
+
+A shop with tabs for weapons and pets is one screen with smaller screens inside it. Make the tabs
+child routes, and give the shop its own `RouterView` for them:
+
+![a shop route with child routes for its tabs](../assets/diagrams/router-nested.webp)
+
+```lua
+local Shop = Rivue.defineComponent({
+	name = "Shop",
+	render = function()
+		return h(Rivue.Column, { gap = 8 }, {
+			h(Rivue.Row, { gap = 8 }, {
+				h(Router.RouterLink, { to = "weapons", class = "tab", Text = "Weapons" }),
+				h(Router.RouterLink, { to = "pets", class = "tab", Text = "Pets" }),
+			}),
+			h(Router.RouterView),
+		})
+	end,
+})
+
+local router = Router.createRouter({
+	routes = {
+		lobby = Lobby,
+		shop = {
+			component = Shop,
+			redirect = "weapons", -- opening the shop opens its first tab
+			children = {
+				weapons = Weapons,
+				pets = Pets,
+			},
+		},
+	},
+	initial = "lobby",
+})
+```
+
+`RouterLink` is a TextButton that opens its route when pressed. While its route is open it gets
+the `router-link-active` style class, so the open tab can look different:
+
+```lua
+app:styles({
+	tab = { TextColor3 = Color3.fromRGB(150, 150, 160) },
+	["router-link-active"] = { TextColor3 = Color3.new(1, 1, 1) },
+})
+```
+
+A link to `shop` stays active on either tab, since they're inside the shop. Use
+`router-link-exact-active` for a style that only applies to the exact route.
+
+Switching tabs keeps the `Shop` component mounted. Only the inner `RouterView` changes.
+
 ## Stopping the player from leaving
 
-`beforeEach` runs before every move, `back` and `forward` included. Return `false` to cancel:
+Before every move, `back` and `forward` included, the router runs its guards. Any of them can
+cancel the move or send the player somewhere else:
 
-![a guard deciding whether a move goes ahead](../assets/diagrams/router-guard.webp)
+![the order guards run in](../assets/diagrams/router-guard.webp)
 
-The usual case is a settings screen with changes that aren't saved yet, which the player leaves
-with Back. Cancel the move and ask. If the player says leave, mark the changes as dropped and go
-back again, which the guard now lets through:
+The usual case is a settings screen with changes that aren't saved yet. Put an
+`onBeforeRouteLeave` guard in the screen. It can wait for the player to answer, and the move
+waits with it:
 
 ```lua
 local Settings = Rivue.defineComponent({
 	name = "Settings",
 	setup = function()
-		local router = Router.useRouter()
 		local dirty = Rivue.ref(false)
 		local asking = Rivue.ref(false)
-
-		local removeGuard = router.beforeEach(function(_to, from)
-			if from.name == "settings" and dirty.value then
-				asking.value = true
-				return false
-			end
-			return true
+		local answer = Instance.new("BindableEvent")
+		Rivue.onUnmounted(function()
+			answer:Destroy()
 		end)
-		Rivue.onUnmounted(removeGuard)
+
+		Router.onBeforeRouteLeave(function()
+			if not dirty.value then
+				return true
+			end
+			asking.value = true
+			local leave = answer.Event:Wait()
+			asking.value = false
+			return leave
+		end)
 
 		return {
 			asking = asking,
@@ -161,12 +224,10 @@ local Settings = Rivue.defineComponent({
 				dirty.value = true
 			end,
 			stay = function()
-				asking.value = false
+				answer:Fire(false)
 			end,
 			leave = function()
-				asking.value = false
-				dirty.value = false
-				router.back()
+				answer:Fire(true)
 			end,
 		}
 	end,
@@ -187,15 +248,64 @@ local Settings = Rivue.defineComponent({
 })
 ```
 
-A few details from that example:
+It doesn't matter how the player tried to leave: Back, a tab, or a button that pushes another
+screen. The guard returns the player's answer, and the move goes ahead or doesn't.
 
-- `beforeEach` returns a function that removes the guard. Call it in `onUnmounted`, or the guard
-  outlives the screen.
-- Guards get the route being left as `from`, so one guard can ignore every screen but its own.
-- A guard is told where the player is going (`to`), but not whether it was a `push` or a `back`.
-  If Settings can also open other screens, have those buttons save changes first.
-- A guard that errors cancels the move and logs a warning, so a bug in a guard can't send the
-  player somewhere half set up.
+Guards that concern the whole game go on the router. `beforeEach` runs for every move, and can
+return a route to go to instead:
+
+```lua
+router.beforeEach(function(to)
+	if to.name == "shop" and not PlayerData.loaded then
+		return "loading"
+	end
+	return true
+end)
+```
+
+A guard that errors cancels the move and logs a warning, so a bug in a guard can't send the
+player somewhere half set up.
+
+## After every move
+
+`afterEach` runs once a move is done. Together with `meta` on a route, it handles things that
+depend on which screen is open, like music or the HUD:
+
+```lua
+local router = Router.createRouter({
+	routes = {
+		lobby = { component = Lobby, meta = { music = "calm" } },
+		shop = { component = Shop, meta = { music = "shop", hideHud = true } },
+	},
+	initial = "lobby",
+})
+
+router.afterEach(function(to, _from, failure)
+	if failure then
+		return
+	end
+	Music.play(to.meta.music)
+	Hud.setVisible(not to.meta.hideHud)
+end)
+```
+
+A child route's `meta` includes its parents', so the shop's tabs hide the HUD too.
+
+## Animating between screens
+
+Give the `RouterView` a slot and it hands you the screen instead of showing it, so you can wrap
+it in a `Transition`:
+
+```lua
+h(Router.RouterView, nil, {
+	default = function(view)
+		return h(Rivue.Transition, Rivue.transitions.fade({ mode = "out-in" }), { view.Component })
+	end,
+})
+```
+
+`mode = "out-in"` fades the old screen out before the new one fades in. The slot also gets
+`view.route`, so the animation can depend on the screen.
 
 ## Keeping screens alive
 
@@ -211,12 +321,26 @@ Screens you leave now stay in a [KeepAlive](../api/builtins.md#keepalive): the s
 scrolled where it was and the search still says "sword". Use `onActivated` and `onDeactivated`
 (see [lifecycle hooks](../api/lifecycle.md)) for work that should pause while a screen is hidden.
 
-Each route keeps its own instance, even when two routes use the same component.
+Keeping every screen alive costs memory. If all you want back is the scroll position, use
+`scrollBehavior` instead:
+
+```lua
+local router = Router.createRouter({
+	routes = routes,
+	initial = "lobby",
+	scrollBehavior = function(_to, _from, savedPosition)
+		return savedPosition or { top = 0 }
+	end,
+})
+```
+
+On `back` and `forward`, `savedPosition` holds where each ScrollingFrame in the screen was when
+the player left it. Returning it scrolls them back there. Any other move starts at the top.
 
 ## Testing navigation
 
 The router doesn't need a player or a ScreenGui. Mount the app into a Folder, move around, and
-check `current`:
+check `currentRoute`:
 
 ```lua
 local router = Router.createRouter({ routes = { lobby = Lobby, item = Item }, initial = "lobby" })
@@ -224,19 +348,20 @@ local app = Rivue.createApp(App)
 app:use(router)
 app:mount(Instance.new("Folder"))
 
-router.push("item", { id = "sword" })
-assert(router.current.value.name == "item")
+assert(router.push("item", { id = "sword" }) == nil)
+assert(router.currentRoute.value.name == "item")
 assert(router.canGoBack.value)
 
 router.back()
-assert(router.current.value.name == "lobby")
+assert(router.currentRoute.value.name == "lobby")
 app:unmount()
 ```
 
 ---
 
-**Try it:** the router suite in [tests/AppFeatures.test.luau](../../tests/AppFeatures.test.luau)
+**Try it:** [tests/Router.test.luau](../../tests/Router.test.luau) covers every feature in this chapter
 **Reference:** [RivueRouter](../api/router.md) · [KeepAlive](../api/builtins.md#keepalive) ·
-[Dialog](../api/builtins.md#dialog) · [useKeybind()](../api/roblox.md#usekeybind)
+[Dialog](../api/builtins.md#dialog) · [useKeybind()](../api/roblox.md#usekeybind) ·
+[Transition](../api/builtins.md#transition)
 
 [← 16. Testing UI](16-testing-ui.md) · [Guide contents](../GUIDE.md)
