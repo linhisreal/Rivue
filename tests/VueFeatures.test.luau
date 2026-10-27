@@ -479,6 +479,37 @@ local function runTests()
 		app:unmount()
 	end
 
+	print("kebab-case events reach camelCase handlers")
+	do
+		local got: { unknown } = {}
+		local Child = Rivue.defineComponent({
+			name = "KebabEmitter",
+			props = { label = {} },
+			emits = { "change-value" },
+			setup = function(_, ctx)
+				ctx.emit("change-value", 3)
+				return function()
+					return Rivue.h("Frame")
+				end
+			end,
+		})
+		local Wrapper = Rivue.defineComponent({
+			name = "KebabWrapper",
+			render = function()
+				return Rivue.h(Child, {
+					label = "x",
+					onChangeValue = function(v)
+						table.insert(got, v)
+					end,
+				})
+			end,
+		})
+		local app = Rivue.createApp(Wrapper)
+		app:mount(Instance.new("Folder"))
+		assertEquals(got[1], 3, "onChangeValue heard change-value")
+		app:unmount()
+	end
+
 	print("\n========== VUE FEATURES TESTS COMPLETE ==========\n")
 end
 

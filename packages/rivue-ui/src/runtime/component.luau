@@ -256,6 +256,10 @@ local function toHandlerKey(eventName: string): string
 	return `on{eventName:sub(1, 1):upper()}{eventName:sub(2)}`
 end
 
+local function camelize(eventName: string): string
+	return (eventName:gsub("%-(%w)", string.upper))
+end
+
 local emitKeysCache: { [ComponentDef]: { [string]: string } } = setmetatable({}, { __mode = "k" }) :: any
 
 local function getEmitKeys(def: ComponentDef): { [string]: string }?
@@ -272,6 +276,7 @@ local function getEmitKeys(def: ComponentDef): { [string]: string }?
 		local name: unknown = if type(k) == "number" then v else k
 		if type(name) == "string" then
 			keys[toHandlerKey(name)] = name
+			keys[toHandlerKey(camelize(name))] = name
 		end
 	end
 	emitKeysCache[def] = keys
@@ -626,6 +631,12 @@ local function createSetupContext(instance: ComponentInstance): SetupContext
 			local handler = if vnodeProps then vnodeProps[handlerName] else nil
 			if handler == nil then
 				handler = instance.props[handlerName] or instance.attrs[handlerName]
+			end
+			if handler == nil and string.find(eventName, "-", 1, true) then
+				local camelName = toHandlerKey(camelize(eventName))
+				handler = (if vnodeProps then vnodeProps[camelName] else nil)
+					or instance.props[camelName]
+					or instance.attrs[camelName]
 			end
 
 			if type(handler) == "function" then

@@ -18,6 +18,7 @@ Pre-release.
 - `computed` getters get the value they returned last time, as in Vue 3.4.
 - `Suspense` emits `pending`, `fallback` and `resolve`.
 - `onEffectCleanup()`, from Vue 3.5.
+- Kebab-case events: `emit("change-value")` calls an `onChangeValue` handler, as in Vue.
 - `app.config.performance` marks each component's setup, render and patch in the MicroProfiler.
 - With `app.config.devtools`, each app gets a `RivueDevTools` channel with a timeline of renders, emits, navigations and requests, and component roots list what they provide and inject.
 
