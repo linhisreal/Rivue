@@ -102,7 +102,6 @@ return function()
 	assertEquals(list[2].Text, "<Wallet>  1", "then children")
 	assertTrue(indentOf(list[2]) > indentOf(list[1]), "indented under their parent")
 
-	-- Hover
 	Rivue.testing.trigger(list[2], "onMouseEnter")
 	assertTrue(Highlight.current() ~= nil, "hovering a row outlines the component on screen")
 	Rivue.testing.trigger(list[2], "onMouseLeave")
@@ -111,7 +110,6 @@ return function()
 	assertEquals(#overlayParent:GetChildren(), 1, "moving to another row moves the one outline")
 	Rivue.testing.trigger(list[1], "onMouseLeave")
 
-	-- Collapse
 	Rivue.testing.trigger(find(list[1], "Toggle"), "onClick")
 	Rivue.nextTick()
 	assertEquals(#rows(widget), 1, "collapsing a row hides its children")
@@ -121,7 +119,6 @@ return function()
 	assertEquals(#rows(widget), 2, "expanding shows them again")
 	assertEquals(find(rows(widget)[2], "Toggle"), nil, "rows without children have no arrow")
 
-	-- Details
 	Rivue.testing.trigger(rows(widget)[2], "onClick")
 	Rivue.nextTick()
 	assertEquals(find(widget, "Summary").Text, "<Wallet>  rendered 1×, 0.00 ms", "details name the component")
@@ -137,7 +134,6 @@ return function()
 	assertEquals(find(find(widget, "coins"), "Value").Text, "11", "fields follow the state")
 	assertEquals(find(widget, "Cause").Text, "coins changed", "the cause follows too")
 
-	-- Live edit
 	local field = find(find(widget, "coins"), "Value")
 	field.Text = "50"
 	Rivue.testing.trigger(field, "onFocusLost", true)
@@ -151,7 +147,6 @@ return function()
 	waitRefresh()
 	assertEquals(find(find(widget, "owner"), "Value").Text, '"Bo"', "a ref the render doesn't read updates too")
 
-	-- Open source
 	assertEquals(find(widget, "OpenSource"), nil, "no Open source button when the script can't be found")
 	local root = Instance.new("Folder")
 	local ui = Instance.new("Folder")
@@ -165,7 +160,6 @@ return function()
 	assertEquals(line, 12, "with its line")
 	assertEquals(DevTools.resolveSource("UI.Missing:3", root), nil, "missing scripts resolve to nil")
 
-	-- Sort, pause, reset
 	Rivue.testing.trigger(find(widget, "Sort"), "onClick")
 	Rivue.nextTick()
 	assertEquals(find(widget, "Sort").Text, "Sort: most renders", "the sort button cycles")
@@ -199,7 +193,6 @@ return function()
 	find(widget, "Filter").Text = ""
 	Rivue.nextTick()
 
-	-- Events
 	Rivue.testing.trigger(find(game, "Wallet"), "onClick")
 	Rivue.testing.trigger(find(game, "Wallet"), "onClick")
 	Rivue.testing.trigger(find(widget, "EventsTab"), "onClick")
@@ -214,7 +207,6 @@ return function()
 	Rivue.testing.trigger(find(widget, "ComponentsTab"), "onClick")
 	Rivue.nextTick()
 
-	-- Slow renders
 	local Slow = Rivue.defineComponent({
 		name = "Slow",
 		render = function()
@@ -237,7 +229,6 @@ return function()
 	assertTrue(slowRow.TextColor3.R == 1 and slowRow.TextColor3.G < 0.5, "in red")
 	slowApp:unmount()
 
-	-- Theme
 	local light = table.clone(DevTools.palette.value)
 	light.background = Color3.fromRGB(255, 255, 255)
 	DevTools.setPalette(light)

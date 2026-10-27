@@ -719,7 +719,7 @@ local function updateComponentProps(instance: ComponentInstance, rawProps: Props
 			local spec = if schema then schema[key] else nil
 			local default = if spec then spec.default else nil
 			if default ~= nil then
-				-- Fall back to the default (factory defaults keep their current value)
+				-- Factory defaults keep their current value
 				if type(default) ~= "function" then
 					props[key] = default
 				end
