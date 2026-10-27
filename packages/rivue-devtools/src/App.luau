@@ -11,8 +11,10 @@ local Theme = require(script.Parent:WaitForChild("Theme"))
 local h = Rivue.h
 
 local TAG = "RivueComponent"
+local CHANNEL_TAG = "RivueDevToolsChannel"
 local SLOW_MS = 2
 local MAX_EVENTS = 100
+local MAX_TIMELINE = 200
 local INDENT = 14
 
 export type Entry = {
@@ -25,6 +27,8 @@ export type Entry = {
 	renderMs: number,
 	trigger: string,
 	source: string,
+	provides: string,
+	injects: string,
 	hasChildren: boolean,
 	changed: boolean,
 }
@@ -37,7 +41,17 @@ export type EmitEvent = {
 	instance: Instance,
 }
 
+export type TimelineEntry = {
+	seq: number,
+	at: number,
+	kind: string,
+	ms: string,
+	label: string,
+	detail: string,
+}
+
 export type SortMode = "tree" | "renders" | "slowest"
+export type View = "components" | "events" | "timeline" | "router"
 
 local SORT_LABELS: { [SortMode]: string } = { tree = "tree", renders = "most renders", slowest = "slowest" }
 local NEXT_SORT: { [SortMode]: SortMode } = { tree = "renders", renders = "slowest", slowest = "tree" }
@@ -48,7 +62,10 @@ local selected = Rivue.shallowRef(nil :: Instance?)
 local collapsed = Rivue.shallowRef(setmetatable({}, { __mode = "k" }) :: any)
 local paused = Rivue.ref(false)
 local sortMode = Rivue.ref("tree" :: SortMode)
-local view = Rivue.ref("components" :: "components" | "events")
+local view = Rivue.ref("components" :: View)
+local timeline = Rivue.shallowRef({} :: { TimelineEntry })
+local routeText = Rivue.ref("")
+local lastSeq = 0
 local palette = Rivue.shallowRef(Theme.read())
 local lastRenders: { [Instance]: number } = setmetatable({}, { __mode = "k" }) :: any
 local baselines: { [Instance]: number } = setmetatable({}, { __mode = "k" }) :: any
@@ -90,6 +107,8 @@ local function collect()
 				renderMs = (instance:GetAttribute("RivueRenderMs") :: number?) or 0,
 				trigger = (instance:GetAttribute("RivueTrigger") :: string?) or "",
 				source = (instance:GetAttribute("RivueSource") :: string?) or "",
+				provides = (instance:GetAttribute("RivueProvides") :: string?) or "",
+				injects = (instance:GetAttribute("RivueInjects") :: string?) or "",
 				hasChildren = false,
 				changed = before ~= nil and renders > before,
 			})
@@ -146,6 +165,50 @@ local function logEmit(instance: Instance)
 	events.value = list
 end
 
+-- The channel keeps the last 50 events, and several apps can share them, so lines are matched by
+-- their sequence number
+local function readTimeline(channel: Instance)
+	if paused.value then
+		return
+	end
+	local raw = channel:GetAttribute("RivueTimeline")
+	local added = {}
+	for line in string.gmatch(if type(raw) == "string" then raw else "", "[^\n]+") do
+		local seq, at, kind, ms, label, detail =
+			string.match(line, "^(%d+)\t(%d+)\t([^\t]*)\t([^\t]*)\t([^\t]*)\t(.*)$")
+		local number = tonumber(seq)
+		if number and number > lastSeq then
+			table.insert(added, 1, {
+				seq = number,
+				at = tonumber(at) :: number,
+				kind = kind :: string,
+				ms = ms :: string,
+				label = label :: string,
+				detail = detail :: string,
+			})
+		end
+	end
+	if #added == 0 then
+		return
+	end
+	lastSeq = added[1].seq
+	local list = table.clone(timeline.value)
+	for i = #added, 1, -1 do
+		table.insert(list, 1, added[i])
+	end
+	while #list > MAX_TIMELINE do
+		table.remove(list)
+	end
+	timeline.value = list
+end
+
+local function readRoute(channel: Instance)
+	local raw = channel:GetAttribute("RivueRoute")
+	if type(raw) == "string" then
+		routeText.value = raw
+	end
+end
+
 local function setPaused(value: boolean)
 	paused.value = value
 	if not value then
@@ -181,8 +244,24 @@ end
 
 local setPalette: (next: Theme.Palette) -> ()
 
+local function watchChannel(channel: Instance)
+	if watched[channel] then
+		return
+	end
+	watched[channel] = channel.AttributeChanged:Connect(function(name)
+		if name == "RivueTimeline" then
+			readTimeline(channel)
+		elseif name == "RivueRoute" then
+			readRoute(channel)
+		end
+	end)
+	readTimeline(channel)
+	readRoute(channel)
+end
+
 local function start(): () -> ()
 	local conns = {
+		CollectionService:GetInstanceAddedSignal(CHANNEL_TAG):Connect(watchChannel),
 		CollectionService:GetInstanceAddedSignal(TAG):Connect(function(instance)
 			watch(instance)
 			refreshSoon()
@@ -200,6 +279,9 @@ local function start(): () -> ()
 	local stopTheme = Theme.watch(setPalette)
 	for _, instance in CollectionService:GetTagged(TAG) do
 		watch(instance)
+	end
+	for _, channel in CollectionService:GetTagged(CHANNEL_TAG) do
+		watchChannel(channel)
 	end
 	collect()
 	return function()
@@ -297,7 +379,7 @@ local function buildStyles(p: Theme.Palette): { [string]: any }
 			layout = { direction = "horizontal", gap = 4, align = "center" },
 		},
 		header = {
-			Size = UDim2.new(1, -150, 1, 0),
+			Size = UDim2.new(1, -310, 1, 0),
 			BackgroundTransparency = 1,
 			TextColor3 = p.dimText,
 			TextXAlignment = Enum.TextXAlignment.Left,
@@ -491,7 +573,25 @@ local function detailsChildren(ctx, current: Entry?): { any }
 			BackgroundTransparency = 1,
 			layout = { gap = 2 },
 		}, if #stateRows == 0 then { h("TextLabel", { class = "label", Text = "(none)" }) } else stateRows),
+		h("TextLabel", { Name = "ProvidesHeading", class = { "heading", "dim" }, Text = "Provides" }),
+		h("TextLabel", {
+			Name = "Provides",
+			class = "label",
+			Text = if current.provides == "" then "(none)" else current.provides,
+		}),
+		h("TextLabel", { Name = "InjectsHeading", class = { "heading", "dim" }, Text = "Injects" }),
+		h("TextLabel", {
+			Name = "Injects",
+			class = "label",
+			Text = if current.injects == "" then "(none)" else current.injects,
+		}),
 	}
+end
+
+local function timelineText(entry: TimelineEntry): string
+	local ms = if entry.ms == "" then "" else `  {entry.ms} ms`
+	local detail = if entry.detail == "" then "" else `  {entry.detail}`
+	return `{string.format("%7.2fs", entry.at / 1000)}  {entry.kind}  {entry.label}{detail}{ms}`
 end
 
 local App = Rivue.defineComponent({
@@ -519,10 +619,15 @@ local App = Rivue.defineComponent({
 				setPaused(not paused.value)
 			end,
 			reset = resetCounts,
+			timeline = timeline,
+			routeText = routeText,
 			clearEvents = function()
 				events.value = {}
 			end,
-			showView = function(name: "components" | "events")
+			clearTimeline = function()
+				timeline.value = {}
+			end,
+			showView = function(name: View)
 				view.value = name
 			end,
 		}
@@ -530,11 +635,35 @@ local App = Rivue.defineComponent({
 	render = function(ctx)
 		local _ = ctx.palette
 		local query = string.lower(ctx.filter)
-		local tree = ctx.sortMode == "tree" and query == ""
+		local tree = ctx.sortMode == "tree"
+		local ordered = sorted(ctx.entries, ctx.sortMode)
+		-- A match keeps its parents, so it still shows where it sits in the tree
+		local keep: { [Entry]: boolean }? = nil
+		if query ~= "" then
+			local matches: { [Entry]: boolean } = {}
+			keep = matches
+			for i, entry in ordered do
+				if not string.find(string.lower(entry.name), query, 1, true) then
+					continue
+				end
+				matches[entry] = true
+				local depth = entry.depth
+				for j = i - 1, 1, -1 do
+					if not tree or depth == 0 then
+						break
+					end
+					local above = ordered[j]
+					if above.depth < depth then
+						matches[above] = true
+						depth = above.depth
+					end
+				end
+			end
+		end
 		local shown = {}
 		local current: Entry? = nil
 		local hiddenBelow: number? = nil
-		for _, entry in sorted(ctx.entries, ctx.sortMode) do
+		for _, entry in ordered do
 			if entry.instance == ctx.selected then
 				current = entry
 			end
@@ -545,13 +674,28 @@ local App = Rivue.defineComponent({
 			if tree and ctx.collapsed[entry.instance] then
 				hiddenBelow = entry.depth
 			end
-			if query == "" or string.find(string.lower(entry.name), query, 1, true) then
+			if keep == nil or keep[entry] then
 				table.insert(shown, entry)
 			end
 		end
 		local components = ctx.view == "components"
-		local list = if components
-			then Rivue.hFor(shown, function(entry: Entry)
+		local list = if ctx.view == "timeline"
+			then Rivue.hFor(ctx.timeline, function(entry: TimelineEntry)
+				return h("TextLabel", {
+					key = entry.seq,
+					class = "row",
+					padding = { left = 6 },
+					Text = timelineText(entry),
+				})
+			end)
+			elseif ctx.view == "router" then h("TextLabel", {
+				Name = "Route",
+				class = "label",
+				Text = if ctx.routeText == ""
+					then "No router yet. Use RivueRouter in an app with app.config.devtools = true."
+					else ctx.routeText,
+			})
+			elseif components then Rivue.hFor(shown, function(entry: Entry)
 				local slow = entry.renderMs >= SLOW_MS
 				local indent = if tree then 6 + INDENT * entry.depth + INDENT + 2 else 6
 				return h("TextButton", {
@@ -617,10 +761,26 @@ local App = Rivue.defineComponent({
 				}),
 				h("TextButton", {
 					Name = "EventsTab",
-					class = { "tool", if components then nil else "activeTool" },
+					class = { "tool", if ctx.view == "events" then "activeTool" else nil },
 					Text = "Events",
 					onClick = function()
 						ctx.showView("events")
+					end,
+				}),
+				h("TextButton", {
+					Name = "TimelineTab",
+					class = { "tool", if ctx.view == "timeline" then "activeTool" else nil },
+					Text = "Timeline",
+					onClick = function()
+						ctx.showView("timeline")
+					end,
+				}),
+				h("TextButton", {
+					Name = "RouterTab",
+					class = { "tool", if ctx.view == "router" then "activeTool" else nil },
+					Text = "Router",
+					onClick = function()
+						ctx.showView("router")
 					end,
 				}),
 			}),
@@ -649,13 +809,20 @@ local App = Rivue.defineComponent({
 				}),
 				if components
 					then h("TextButton", { Name = "Reset", class = "tool", Text = "Reset counts", onClick = ctx.reset })
-					else h(
-						"TextButton",
-						{ Name = "Clear", class = "tool", Text = "Clear", onClick = ctx.clearEvents }
-					),
+					elseif ctx.view == "router" then nil
+					else h("TextButton", {
+						Name = "Clear",
+						class = "tool",
+						Text = "Clear",
+						onClick = if ctx.view == "timeline" then ctx.clearTimeline else ctx.clearEvents,
+					}),
 			}),
 			h("ScrollingFrame", {
-				Name = if components then "Tree" else "Events",
+				Name = if components
+					then "Tree"
+					elseif ctx.view == "timeline" then "Timeline"
+					elseif ctx.view == "router" then "RouterView"
+					else "Events",
 				class = "list",
 				Size = if components then UDim2.new(1, 0, 0.55, -84) else UDim2.new(1, 0, 1, -56),
 			}, { list }),
@@ -683,6 +850,8 @@ return {
 	paused = paused,
 	sortMode = sortMode,
 	view = view,
+	timeline = timeline,
+	routeText = routeText,
 	palette = palette,
 	setPalette = setPalette,
 	resetCounts = resetCounts,
