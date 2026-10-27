@@ -36,12 +36,16 @@ Pre-release.
 
 ## RivueDevTools
 
-- A Timeline tab and a Router tab.
-- The details panel lists what a component provides and injects.
+- A new look: tabs with counts, render and time pills on each row, details as cards, and a split you can drag.
+- Highlight updates flashes an outline around components as they re-render.
+- A Timeline tab with filters per kind and duration bars, and a Router tab with the route's params, query, meta and history.
+- The details list what a component provides and injects.
 - The filter keeps the parents of matching components.
+- Settings for the slow-render threshold and timeline length, saved with the plugin.
 
 ## Fixed
 
+- RivueUI: a `class` on slot content was looked up in the styles of the component it was passed to, such as `Row` or `Column`, instead of the component that wrote it.
 - RivueUI: a `VirtualList` that shrank while scrolled down rendered nothing until the engine clamped its scroll.
 
 ## Install
