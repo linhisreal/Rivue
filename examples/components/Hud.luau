@@ -1,7 +1,7 @@
 --!nonstrict
--- A HUD that adapts to the device and animates smoothly: useInputType/useViewportSize for layout,
--- useSpring for the health bar, attributeRef to read state the server writes on the player. The bar
--- is a binding, so the spring moves it without re-rendering the HUD every frame.
+-- A health bar. It reads the Health attribute the server sets, and a spring eases the bar towards
+-- it through a binding, so the HUD doesn't re-render every frame. On touch screens and small
+-- windows the bar is shorter and sits higher.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")

@@ -1,6 +1,6 @@
 --!nonstrict
--- A long list that stays fast: VirtualList only renders the rows on screen, and each row is
--- its own component, so selecting one only re-renders two rows.
+-- VirtualList creates only the rows on screen. Each row is a component, so selecting one
+-- re-renders the old and the new selection and nothing else.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))

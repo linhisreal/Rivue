@@ -340,8 +340,6 @@ Rivue.useSpring = robloxUtils.useSpring
 -- Set by `lune run version rivue-ui <version>`
 Rivue.version = "0.9.0-rc.1"
 
---- A property value that follows `getter`: when what it reads changes, Rivue writes just that
---- property, without re-rendering the component. A ref works the same way without bind()
 function Rivue.bind<T>(getter: () -> T): T
 	assert(type(getter) == "function", "Rivue.bind expects a function")
 	return table.freeze({ __rivueBinding = getter }) :: any

@@ -1,6 +1,4 @@
 --!nonstrict
--- The DevTools window and the data behind it. Main.server.luau wires it into the plugin; tests
--- mount it on their own.
 
 local CollectionService = game:GetService("CollectionService")
 local Selection = game:GetService("Selection")
@@ -185,7 +183,6 @@ end
 
 local setPalette: (next: Theme.Palette) -> ()
 
---- Starts following tagged components and Studio's theme. Returns a function that stops
 local function start(): () -> ()
 	local conns = {
 		CollectionService:GetInstanceAddedSignal(TAG):Connect(function(instance)
@@ -413,7 +410,6 @@ function setPalette(next: Theme.Palette)
 	palette.value = next
 end
 
---- One editable state value. Enter or clicking away sends it to the game
 local StateField = Rivue.defineComponent({
 	name = "StateField",
 	props = {

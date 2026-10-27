@@ -1,12 +1,12 @@
 --!nonstrict
--- Loading data from the server with useAsync (loading, error, retry), and buying with a pending state.
--- The server side is two RivueRemote handlers:
+-- Loads the products with useAsync and shows "Buying..." on the item being bought. The server
+-- needs two RivueRemote handlers:
 --
 --   Remote.setupServer()
 --   Remote.handle("shop:list", function(player) return ShopService.list(player) end)
 --   Remote.handle("shop:buy", function(player, payload) return ShopService.buy(player, payload.id) end)
 --
--- `api` can be swapped (tests pass a fake); by default it calls the server through Remote.
+-- Tests pass their own `api`. Without one, it calls the server through Remote.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))

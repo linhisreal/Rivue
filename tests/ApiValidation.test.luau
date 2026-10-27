@@ -1,5 +1,4 @@
 --!strict
--- Checks that the documented API exists and behaves as described
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
@@ -569,7 +568,7 @@ local function runTests()
 		})
 
 		local app = Rivue.createApp(Rivue.h(TestComponent, {
-			title = "Test", -- declared
+			title = "Test",
 			customAttr = "value", -- not declared, so it lands in attrs
 			dataId = 123,
 		}))

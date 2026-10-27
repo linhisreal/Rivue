@@ -1,7 +1,5 @@
 --!strict
 
--- What Pool.release() resets before an Instance is reused
-
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Pool = require(ReplicatedStorage.RivueUI.runtime.pool)
 

@@ -1,5 +1,5 @@
 --!nonstrict
--- The smallest useful component: state, a computed value, an event handler.
+-- A ref, a computed value and a click handler.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))

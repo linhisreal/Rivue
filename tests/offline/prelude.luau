@@ -999,7 +999,6 @@ do
 	camera.Parent = workspace
 	workspace.CurrentCamera = camera
 
-	-- GuiService: SelectedObject with a change signal, fixed top bar inset
 	local guiSignals = {}
 	local selected = nil
 	services.GuiService = setmetatable({

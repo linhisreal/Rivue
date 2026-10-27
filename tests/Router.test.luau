@@ -1,5 +1,4 @@
 --!nonstrict
--- RivueRouter's Vue Router features: guards, nested routes, named views, RouterLink, scroll
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))

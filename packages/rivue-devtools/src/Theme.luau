@@ -67,7 +67,6 @@ local function read(): Palette
 	}
 end
 
---- Calls `onChange` with the new palette whenever Studio switches theme. Returns a disconnect
 local function watch(onChange: (Palette) -> ()): () -> ()
 	local ok, conn = pcall(function()
 		return (settings() :: any).Studio.ThemeChanged:Connect(function()

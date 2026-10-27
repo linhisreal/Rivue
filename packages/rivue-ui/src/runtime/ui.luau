@@ -1,8 +1,6 @@
 --!strict
 --!optimize 2
 
--- Ready-made components every game ends up writing: an error boundary, a dialog, and layout rows
-
 local Types = require("./types")
 local componentModule = require("./component")
 local hModule = require("./h")
@@ -69,8 +67,6 @@ local function firstSelectable(root: Instance): GuiObject?
 	return nil
 end
 
---- A modal: a backdrop over the screen with the content centred on it. It closes on a backdrop
---- click, Escape or the gamepad's B button, and gamepad navigation stays inside it while open
 ui.Dialog = table.freeze({
 	__is_component = true :: true,
 	__name = "Dialog",
@@ -188,7 +184,6 @@ end
 ui.Row = layoutComponent("Row", "horizontal")
 ui.Column = layoutComponent("Column", "vertical")
 
---- Takes up the leftover space in a Row or Column, pushing what comes after it to the far end
 ui.Spacer = table.freeze({
 	__is_component = true :: true,
 	__name = "Spacer",

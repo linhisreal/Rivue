@@ -1,4 +1,4 @@
-<img src="https://raw.githubusercontent.com/linhisreal/Rivue/main/docs/assets/packages/rivue-devtools.webp" width="96" height="96" alt="Rivue DevTools">
+<img src="../../docs/assets/packages/rivue-devtools.webp" width="96" height="96" alt="Rivue DevTools">
 
 # Rivue DevTools
 

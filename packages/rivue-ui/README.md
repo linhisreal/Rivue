@@ -1,4 +1,4 @@
-<img src="https://raw.githubusercontent.com/linhisreal/Rivue/main/docs/assets/packages/rivue-ui.webp" width="96" height="96" alt="RivueUI">
+<img src="../../docs/assets/packages/rivue-ui.webp" width="96" height="96" alt="RivueUI">
 
 # RivueUI
 

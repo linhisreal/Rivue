@@ -1,10 +1,6 @@
 --!strict
 --!optimize 2
 
--- RivueRouter: screen navigation for Rivue, modelled on Vue Router 4. Named routes, nested routes,
--- navigation guards, RouterView and RouterLink. No paths or URLs, since Roblox UI has none, so
--- routes are found by name.
---
 -- It uses the Rivue your game already requires, the way Vue Router uses your Vue: two copies would
 -- track state separately and the router's components couldn't see the app's
 

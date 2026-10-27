@@ -780,7 +780,7 @@ local function onTransition(name: string, fn: (el: Instance) -> ()): ()
 	table.insert(list, fn)
 end
 
---- Teleport: renders its children into `props.to`. Only a marker, the renderer implements it
+-- Only a marker: the renderer implements Teleport
 local Teleport: ComponentDef = table.freeze({
 	__is_component = true :: true,
 	__name = "Teleport",

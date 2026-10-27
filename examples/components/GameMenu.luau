@@ -1,7 +1,6 @@
 --!nonstrict
--- A game menu built on RivueRouter: a back button, a shop whose tabs are child routes, and a
--- settings screen that asks before the player leaves with unsaved changes. Screens fade into each
--- other through the RouterView slot, and the header shows each route's meta.title.
+-- A menu built on RivueRouter: a back button, shop tabs as child routes, and a settings screen
+-- that asks before the player leaves with unsaved changes.
 --
 --   local GameMenu = require(path.to.GameMenu)
 --   local app = Rivue.createApp(GameMenu.App)

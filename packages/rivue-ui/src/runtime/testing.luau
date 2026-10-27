@@ -1,9 +1,6 @@
 --!strict
 --!optimize 2
 
--- Test helpers in the style of Testing Library: mount a component, find things by what the player
--- would see, and act on them the way the player would
-
 local Types = require("./types")
 local renderer = require("./renderer")
 local hModule = require("./h")
@@ -45,7 +42,6 @@ local function describe(match: TextMatch): string
 	return if type(match) == "string" then `"{match}"` else "a matching function"
 end
 
---- Mounts a component (or vnode) into a fresh Folder and returns queries scoped to it
 local function render(component: ComponentDef | VNode, props: { [string]: any }?): Screen
 	local vnode = if (component :: any).__is_component
 		then hModule.h(component :: ComponentDef, props)

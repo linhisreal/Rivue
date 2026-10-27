@@ -1,5 +1,4 @@
 --!strict
--- Vue APIs past the basics: writable computed, watch options, provide/inject and the app API
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))

@@ -2589,7 +2589,6 @@ local function createApp(root: VNode | ComponentDef, opts: AppOptions?): App
 	end
 
 	local unmountCallbacks: { () -> () } = {}
-	-- The ScreenGui mountToPlayerGui made, removed with the app
 	local ownedGui: ScreenGui? = nil
 
 	function api.onUnmount(self: App, fn: () -> ()): App

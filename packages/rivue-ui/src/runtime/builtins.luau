@@ -430,7 +430,6 @@ local virtualList: ComponentDef = {
 			return list
 		end)
 
-		-- Last index whose offset is at or before position
 		local function indexAt(list: { number }, count: number, position: number): number
 			local low, high = 1, count
 			while low < high do

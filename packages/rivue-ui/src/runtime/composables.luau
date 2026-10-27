@@ -64,7 +64,6 @@ function composables.defineModel<T>(options: ModelOptions?): (props: Props, cont
 	end
 end
 
---- Vue's runtime useModel: a ref bound to a model prop of the component being set up
 function composables.useModel<T>(props: Props, context: SetupContext, name: string?): Ref<T>
 	return composables.defineModel({ name = name })(props, context)
 end
@@ -112,8 +111,7 @@ export type AsyncState<T> = {
 	refresh: () -> (),
 }
 
---- Runs a yielding function, such as a RemoteFunction call, and keeps its result in refs. Only the
---- latest run's result lands, so a slow answer to an old request never overwrites a newer one
+-- Only the latest run's result lands, so a slow answer to an old request never overwrites a newer one
 function composables.useAsync<T>(fn: (...any) -> T, options: AsyncOptions<T>?): AsyncState<T>
 	local opts: AsyncOptions<T> = options or {}
 	local data = reactivity.shallowRef(opts.initial :: T?)
