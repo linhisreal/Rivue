@@ -90,28 +90,18 @@ have their own versions, like Vue Router next to Vue.
 </tr>
 <tr>
 <td><img src="docs/assets/packages/rivue-remote.webp" width="56" height="56" alt="RivueRemote"></td>
-<td><a href="docs/api/remote.md">RivueRemote</a> sends calls between client and server over
-RemoteEvents. The server registers handlers with <code>Remote.handle</code>. The client calls
-<code>Remote.request</code> and gets the handler's result, or an error such as
-<code>"timeout"</code> or <code>"rate_limited"</code>. <code>fire</code> and <code>on</code> are
-for events that need no reply. Payloads are checked for size, nesting and types before they're
-sent, and each action has a per-player rate limit. It doesn't need RivueUI, so server scripts can
-use it on its own.</td>
+<td><a href="docs/api/remote.md">RivueRemote</a>: client/server calls and events over RemoteEvents,
+with payload checks and per-player rate limits.</td>
 </tr>
 <tr>
 <td><img src="docs/assets/packages/rivue-router.webp" width="56" height="56" alt="RivueRouter"></td>
-<td><a href="docs/api/router.md">RivueRouter</a> moves between screens and keeps a history, and
-follows Vue Router 4. It has named and nested routes, <code>RouterView</code>,
-<code>RouterLink</code>, redirects, aliases and <code>meta</code>. Guards run before each move and
-can wait for the player, for example to confirm leaving with unsaved changes. Routes can be added
-while the game runs, and Back can restore scroll positions. Routes are found by name, since
-Roblox has no URLs.</td>
+<td><a href="docs/api/router.md">RivueRouter</a>: screens with history, guards and nested routes,
+following Vue Router 4.</td>
 </tr>
 <tr>
 <td><img src="docs/assets/packages/rivue-devtools.webp" width="56" height="56" alt="RivueDevTools"></td>
-<td><a href="docs/DEVTOOLS.md">RivueDevTools</a> is a Studio plugin. During a playtest it lists
-the components on screen with their props and state, how often they rendered and what caused it,
-and the events they emitted. You can change state from the plugin while the game runs.</td>
+<td><a href="docs/DEVTOOLS.md">RivueDevTools</a>: a Studio plugin that shows each component's
+props, state and renders during a playtest.</td>
 </tr>
 </table>
 
