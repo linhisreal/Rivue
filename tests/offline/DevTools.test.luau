@@ -49,6 +49,29 @@ local function rows(root: Instance, listName: string?): { TextButton }
 	return list
 end
 
+local function rowText(row: Instance): string
+	local parts = {}
+	for _, name in { "Kind", "Label", "Detail" } do
+		local child = row:FindFirstChild(name)
+		if child and child.Text ~= "" then
+			table.insert(parts, child.Text)
+		end
+	end
+	local pills = {}
+	for _, child in row:GetChildren() do
+		if child.Name == "Pill" then
+			table.insert(pills, child)
+		end
+	end
+	table.sort(pills, function(a, b)
+		return a.LayoutOrder > b.LayoutOrder
+	end)
+	for _, pill in pills do
+		table.insert(parts, pill.Text)
+	end
+	return table.concat(parts, "  ")
+end
+
 local function indentOf(row: Instance): number
 	return (row:FindFirstChildWhichIsA("UIPadding") :: UIPadding).PaddingLeft.Offset
 end
@@ -107,8 +130,8 @@ return function()
 	)
 	local list = rows(widget)
 	assertEquals(#list, 2, "one row per component")
-	assertEquals(list[1].Text, "<Shop>  1", "parents first")
-	assertEquals(list[2].Text, "<Wallet>  1", "then children")
+	assertEquals(rowText(list[1]), "<Shop>  1", "parents first")
+	assertEquals(rowText(list[2]), "<Wallet>  1", "then children")
 	assertTrue(indentOf(list[2]) > indentOf(list[1]), "indented under their parent")
 
 	Rivue.testing.trigger(list[2], "onMouseEnter")
@@ -130,7 +153,7 @@ return function()
 
 	Rivue.testing.trigger(rows(widget)[2], "onClick")
 	Rivue.nextTick()
-	assertEquals(find(widget, "Summary").Text, "<Wallet>  rendered 1×, 0.00 ms", "details name the component")
+	assertEquals(find(widget, "Title").Text, "<Wallet>", "details name the component")
 	assertEquals(find(widget, "Cause").Text, "first render", "and what caused its last render")
 	assertEquals(find(find(widget, "coins"), "Value").Text, "10", "state values sit in editable fields")
 	assertEquals(Selection:Get()[1], find(game, "Wallet"), "clicking selects its root in the Explorer")
@@ -140,8 +163,13 @@ return function()
 	coins.value = 11
 	waitRefresh()
 	local wallet = rows(widget)[2]
-	assertEquals(wallet.Text, "<Wallet>  2", "render counts update")
-	assertTrue(wallet.TextColor3.R == 1 and wallet.TextColor3.G < 0.7, "a component that just re-rendered is orange")
+	assertEquals(rowText(wallet), "<Wallet>  2", "render counts update")
+	local walletLabel = wallet:FindFirstChild("Label")
+	assertTrue(
+		walletLabel.TextColor3.R == 1 and walletLabel.TextColor3.G < 0.7,
+		"a component that just re-rendered is orange"
+	)
+	assertTrue(wallet:FindFirstChild("Dot") ~= nil, "with a dot")
 	assertEquals(find(find(widget, "coins"), "Value").Text, "11", "fields follow the state")
 	assertEquals(find(widget, "Cause").Text, "coins changed", "the cause follows too")
 
@@ -150,7 +178,7 @@ return function()
 	Rivue.testing.trigger(field, "onFocusLost", true)
 	waitRefresh()
 	assertEquals(coins.value, 50, "editing a field sets the ref in the game")
-	assertEquals(rows(widget)[2].Text, "<Wallet>  3", "which re-renders it")
+	assertEquals(rowText(rows(widget)[2]), "<Wallet>  3", "which re-renders it")
 	local owner = find(find(widget, "owner"), "Value")
 	assertEquals(owner.Text, '"Ana"', "strings keep their quotes in the field")
 	owner.Text = '"Bo"'
@@ -174,7 +202,7 @@ return function()
 	Rivue.testing.trigger(find(widget, "Sort"), "onClick")
 	Rivue.nextTick()
 	assertEquals(find(widget, "Sort").Text, "Sort: most renders", "the sort button cycles")
-	assertEquals(rows(widget)[1].Text, "<Wallet>  3", "most renders first")
+	assertEquals(rowText(rows(widget)[1]), "<Wallet>  3", "most renders first")
 	assertEquals(find(rows(widget)[2], "Toggle"), nil, "with no tree arrows")
 	Rivue.testing.trigger(find(widget, "Sort"), "onClick")
 	Rivue.testing.trigger(find(widget, "Sort"), "onClick")
@@ -185,24 +213,24 @@ return function()
 	Rivue.nextTick()
 	coins.value = 12
 	waitRefresh()
-	assertEquals(rows(widget)[2].Text, "<Wallet>  3", "paused, the list holds still")
+	assertEquals(rowText(rows(widget)[2]), "<Wallet>  3", "paused, the list holds still")
 	assertTrue(string.find(find(widget, "Header").Text, "paused", 1, true) ~= nil, "the header says so")
 	Rivue.testing.trigger(find(widget, "Pause"), "onClick")
 	Rivue.nextTick()
-	assertEquals(rows(widget)[2].Text, "<Wallet>  4", "resuming catches up")
+	assertEquals(rowText(rows(widget)[2]), "<Wallet>  4", "resuming catches up")
 
 	Rivue.testing.trigger(find(widget, "Reset"), "onClick")
 	Rivue.nextTick()
-	assertEquals(rows(widget)[2].Text, "<Wallet>  0", "reset counts from zero")
+	assertEquals(rowText(rows(widget)[2]), "<Wallet>  0", "reset counts from zero")
 	coins.value = 13
 	waitRefresh()
-	assertEquals(rows(widget)[2].Text, "<Wallet>  1", "and counts on from there")
+	assertEquals(rowText(rows(widget)[2]), "<Wallet>  1", "and counts on from there")
 
 	find(widget, "Filter").Text = "wal"
 	Rivue.nextTick()
 	local filtered = rows(widget)
 	assertEquals(#filtered, 2, "the filter keeps matching names and their parents")
-	assertEquals(filtered[2].Text, "<Wallet>  1", "in the tree")
+	assertEquals(rowText(filtered[2]), "<Wallet>  1", "in the tree")
 	find(widget, "Filter").Text = "nothing"
 	Rivue.nextTick()
 	assertEquals(#rows(widget), 0, "and hides the rest")
@@ -216,7 +244,7 @@ return function()
 	assertEquals(find(widget, "Tree"), nil, "the Events tab replaces the component list")
 	local logged = rows(widget, "Events")
 	assertEquals(#logged, 2, "every emit is logged")
-	assertEquals(logged[1].Text, "<Wallet>  spend(5)", "with its component and arguments")
+	assertEquals(rowText(logged[1]), "<Wallet>  spend(5)", "with its component and arguments")
 	Rivue.testing.trigger(find(widget, "Clear"), "onClick")
 	Rivue.nextTick()
 	assertEquals(#rows(widget, "Events"), 0, "Clear empties the log")
@@ -226,7 +254,7 @@ return function()
 	local timelineRows = rows(widget, "Timeline")
 	local joined = {}
 	for _, row in timelineRows do
-		table.insert(joined, row.Text)
+		table.insert(joined, rowText(row))
 	end
 	local timelineText = table.concat(joined, "\n")
 	assertTrue(
@@ -237,9 +265,28 @@ return function()
 	Rivue._devtools.event("request", "shop:buy", "ok", 12)
 	waitRefresh()
 	assertTrue(
-		string.find(rows(widget, "Timeline")[1].Text, "request  shop:buy  ok  12 ms", 1, true) ~= nil,
+		string.find(rowText(rows(widget, "Timeline")[1]), "request  shop:buy  ok  12 ms", 1, true) ~= nil,
 		"newest first, with other packages' events"
 	)
+	Rivue.testing.trigger(find(widget, "Chip_render"), "onClick")
+	Rivue.nextTick()
+	for _, row in rows(widget, "Timeline") do
+		assertTrue(row:FindFirstChild("Kind").Text ~= "render", "a chip hides its kind")
+	end
+	Rivue.testing.trigger(find(widget, "Chip_render"), "onClick")
+	Rivue.nextTick()
+	local emitRow
+	for _, row in rows(widget, "Timeline") do
+		if row:FindFirstChild("Kind").Text == "emit" then
+			emitRow = row
+		end
+	end
+	Rivue.testing.trigger(emitRow, "onClick")
+	Rivue.nextTick()
+	assertEquals(find(widget, "Title").Text, "<Wallet>", "clicking an emit opens its component")
+	Rivue.testing.trigger(find(widget, "TimelineTab"), "onClick")
+	Rivue.nextTick()
+	assertTrue(find(rows(widget, "Timeline")[1], "Bar") ~= nil, "timed entries get a duration bar")
 	Rivue.testing.trigger(find(widget, "Clear"), "onClick")
 	Rivue.nextTick()
 	assertEquals(#rows(widget, "Timeline"), 0, "Clear empties the timeline")
@@ -250,13 +297,12 @@ return function()
 		string.find(find(widget, "Route").Text, "No router", 1, true) ~= nil,
 		"no route until a router posts one"
 	)
-	Rivue._devtools.route("name = shop\nhistory = lobby, [shop]")
+	Rivue._devtools.route('name = shop\nparams = { id = "sword" }\nquery = {  }\nmeta = {  }\nhistory = lobby, [shop]')
 	waitRefresh()
-	assertEquals(
-		find(widget, "Route").Text,
-		"name = shop\nhistory = lobby, [shop]",
-		"the Router tab shows the current route"
-	)
+	assertEquals(find(widget, "RouteName").Text, "shop", "the Router tab shows the current route")
+	assertEquals(find(find(widget, "paramsCard"), "id"):FindFirstChild("Value").Text, '"sword"', "its params as rows")
+	assertEquals(find(find(widget, "Entry2"), "Label").Text, "2. shop", "and the history")
+	assertTrue(find(widget, "Entry2"):FindFirstChild("Marker") ~= nil, "with the current entry marked")
 	Rivue.testing.trigger(find(widget, "ComponentsTab"), "onClick")
 	Rivue.nextTick()
 
@@ -270,17 +316,52 @@ return function()
 	slowApp.config.devtools = true
 	slowApp:mount(game)
 	-- os.clock is virtual offline, so every render takes 0 ms; the plugin only reads the attribute
-	find(game, "Slow"):SetAttribute("RivueRenderMs", DevTools.SLOW_MS + 1)
+	find(game, "Slow"):SetAttribute("RivueRenderMs", DevTools.settings.slowMs + 1)
 	waitRefresh()
 	local slowRow
 	for _, row in rows(widget) do
-		if string.find(row.Text, "<Slow>", 1, true) then
+		if string.find(rowText(row), "<Slow>", 1, true) then
 			slowRow = row
 		end
 	end
-	assertTrue(slowRow ~= nil and string.find(slowRow.Text, " ms", 1, true) ~= nil, "slow renders show their time")
-	assertTrue(slowRow.TextColor3.R == 1 and slowRow.TextColor3.G < 0.5, "in red")
+	assertTrue(slowRow ~= nil and string.find(rowText(slowRow), " ms", 1, true) ~= nil, "slow renders show their time")
+	local slowLabel = slowRow:FindFirstChild("Label")
+	assertTrue(slowLabel.TextColor3.R == 1 and slowLabel.TextColor3.G < 0.5, "in red")
 	slowApp:unmount()
+
+	local saved = {}
+	DevTools.setSettingsStore({
+		get = function(key)
+			return if key == "slowMs" then 50 else nil
+		end,
+		set = function(key, value)
+			saved[key] = value
+		end,
+	})
+	assertEquals(DevTools.settings.slowMs, 50, "settings load from the plugin")
+	Rivue.testing.trigger(find(widget, "SettingsTab"), "onClick")
+	Rivue.nextTick()
+	local slowField = find(find(widget, "SlowMs"), "Value")
+	slowField.Text = "3"
+	Rivue.testing.trigger(slowField, "onFocusLost", true)
+	Rivue.nextTick()
+	assertEquals(DevTools.settings.slowMs, 3, "the slow threshold can be changed")
+	assertEquals(saved.slowMs, 3, "and is saved")
+	Rivue.testing.trigger(find(widget, "ComponentsTab"), "onClick")
+	Rivue.nextTick()
+
+	Rivue.testing.trigger(find(widget, "Highlight"), "onClick")
+	Rivue.nextTick()
+	assertEquals(saved.highlightUpdates, true, "Highlight updates is a saved setting")
+	coins.value += 1
+	Rivue.nextTick()
+	local updates = overlayParent:FindFirstChild("RivueDevToolsUpdates")
+	assertTrue(updates ~= nil and updates:FindFirstChild("Flash") ~= nil, "a re-render flashes an outline")
+	task.wait(0.7)
+	assertEquals(updates:FindFirstChild("Flash"), nil, "that fades away")
+	Rivue.testing.trigger(find(widget, "Highlight"), "onClick")
+	Rivue.nextTick()
+	DevTools.setSettingsStore(nil)
 
 	local light = table.clone(DevTools.palette.value)
 	light.background = Color3.fromRGB(255, 255, 255)
@@ -293,10 +374,7 @@ return function()
 	gameApp:unmount()
 	waitRefresh()
 	assertEquals(#rows(widget), 0, "unmounted components disappear")
-	assertTrue(
-		string.find(find(widget, "Summary").Text, "No components yet", 1, true) ~= nil,
-		"and the selection clears"
-	)
+	assertTrue(string.find(find(widget, "Empty").Text, "No components yet", 1, true) ~= nil, "and the selection clears")
 
 	devApp:unmount()
 	stop()
