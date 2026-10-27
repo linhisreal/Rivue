@@ -65,6 +65,10 @@ local Shop = Rivue.defineComponent({
 -- The saved setting. A real game would keep it in a store and send it to the server
 local musicOn = Rivue.ref(true)
 
+local function dialogButton(text: string, onActivated: () -> ())
+	return h("TextButton", { Name = text, Text = text, Size = UDim2.fromOffset(100, 36), onActivated = onActivated })
+end
+
 local Settings = Rivue.defineComponent({
 	name = "Settings",
 	setup = function()
@@ -122,14 +126,8 @@ local Settings = Rivue.defineComponent({
 						{ Name = "Question", Text = "Leave without saving?", Size = UDim2.fromOffset(240, 30) }
 					),
 					h(Rivue.Row, { gap = 8 }, {
-						h(
-							"TextButton",
-							{ Name = "Stay", Text = "Stay", Size = UDim2.fromOffset(100, 36), onActivated = ctx.stay }
-						),
-						h(
-							"TextButton",
-							{ Name = "Leave", Text = "Leave", Size = UDim2.fromOffset(100, 36), onActivated = ctx.leave }
-						),
+						dialogButton("Stay", ctx.stay),
+						dialogButton("Leave", ctx.leave),
 					}),
 				}),
 			}),
