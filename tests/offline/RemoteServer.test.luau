@@ -62,6 +62,25 @@ local function runTests()
 		end)
 	end)
 
+	print("Test 0: requests reach the DevTools timeline")
+	do
+		local Rivue = require(game:GetService("ReplicatedStorage"):WaitForChild("RivueUI"))
+		local App = Rivue.defineComponent({
+			name = "TimelineProbe",
+			render = function()
+				return Rivue.h("Frame")
+			end,
+		})
+		local folder = Instance.new("Folder")
+		local app = Rivue.createApp(App)
+		app.config.devtools = true
+		app:mount(folder)
+		Remote.request("double", { n = 3 }, 1)
+		local timeline = folder:FindFirstChild("RivueDevTools"):GetAttribute("RivueTimeline")
+		assertEquals(string.find(timeline, "\trequest\t", 1, true) ~= nil, true, "a plain request is on the timeline")
+		app:unmount()
+	end
+
 	print("Test 1: Handler result is returned to the client")
 	do
 		local data, err = Remote.request("double", { n = 21 }, 2)

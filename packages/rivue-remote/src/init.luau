@@ -255,7 +255,8 @@ function Remote.request(actionName: string, payload: unknown, timeout: number?):
 		coroutine.yield()
 	end
 
-	local devtools = if rivue then rivue._devtools else nil
+	local found = findRivue()
+	local devtools = if found then found._devtools else nil
 	if devtools then
 		local outcome = if result == nil then "timeout" elseif result.ok then "ok" else result.error or "error"
 		devtools.event("request", actionName, outcome, (os.clock() - started) * 1000)
