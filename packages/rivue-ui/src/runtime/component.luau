@@ -580,6 +580,10 @@ function ComponentInstance.handleError(self: ComponentInstance, err: string, inf
 	warn(`[Rivue] Error in {info} of {formatComponentTrace(self)}: {err}`)
 end
 
+_reactivity._setErrorHandling(getCurrentInstance, function(owner: any, err: string, info: string)
+	(owner :: ComponentInstance):handleError(err, info)
+end)
+
 local function toChildList(result: unknown): { Child }
 	if result == nil then
 		return {}
@@ -595,6 +599,10 @@ local devtoolsHooks: { emit: ((instance: ComponentInstance, eventName: string, a
 local function createSetupContext(instance: ComponentInstance): SetupContext
 	return {
 		emit = function(eventName: string, ...: any): ()
+			-- Like Vue: a component that's gone has no parent to tell
+			if instance.isUnmounted then
+				return
+			end
 			local handlerName = toHandlerKey(eventName)
 			local def = instance.type
 			local emits = def.emits

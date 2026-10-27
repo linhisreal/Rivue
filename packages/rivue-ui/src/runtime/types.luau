@@ -11,7 +11,7 @@ export type ComputedRef<T> = {
 }
 
 export type WritableComputedOptions<T> = {
-	get: () -> T,
+	get: (previous: T?) -> T,
 	set: (value: T) -> (),
 }
 

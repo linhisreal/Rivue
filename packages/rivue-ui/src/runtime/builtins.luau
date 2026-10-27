@@ -455,21 +455,27 @@ local virtualList: ComponentDef = {
 			local variable = offsets.value
 
 			local first, last, total
+			-- The engine clamps CanvasPosition only after the shorter canvas is applied, so a list that
+			-- shrank while scrolled down would otherwise render nothing until then
+			local function clampScroll(contentSize: number): number
+				return math.clamp(scroll.value, 0, math.max(0, contentSize - viewport.value))
+			end
 			if variable then
 				if columns > 1 then
 					error("[Rivue] VirtualList: itemSize as a function needs columns = 1", 0)
 				end
-				first = math.max(1, indexAt(variable, count, scroll.value) - overscan)
-				last = math.min(count, indexAt(variable, count, scroll.value + viewport.value) + overscan)
 				total = math.max(0, variable[count + 1] - gap)
+				local offset = clampScroll(total)
+				first = math.max(1, indexAt(variable, count, offset) - overscan)
+				last = math.min(count, indexAt(variable, count, offset + viewport.value) + overscan)
 			else
 				local stride = (props.itemSize :: number) + gap
 				local rowCount = math.ceil(count / columns)
-				local firstRow = math.max(0, math.floor(scroll.value / stride) - overscan)
+				total = math.max(0, rowCount * stride - gap)
+				local firstRow = math.max(0, math.floor(clampScroll(total) / stride) - overscan)
 				local lastRow = math.min(rowCount - 1, firstRow + math.ceil(viewport.value / stride) + overscan * 2)
 				first = firstRow * columns + 1
 				last = math.min(count, (lastRow + 1) * columns)
-				total = math.max(0, rowCount * stride - gap)
 			end
 
 			local rows: { Child } = table.create(math.max(last - first + 1, 0))

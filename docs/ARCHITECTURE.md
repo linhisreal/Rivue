@@ -100,6 +100,9 @@ value, as in Vue.
 `watch` is an effect whose scheduler refreshes the watched value and then queues the callback
 according to `flush`: `"pre"` on the micro queue, `"post"` on Heartbeat, `"sync"` inline. A sync
 callback that errors is caught and reported, so it can't break the write that triggered it.
+A watcher remembers the component whose `setup` created it, and its errors go to that component's
+`handleError`, the same path render errors take to `onErrorCaptured` and `app.config.errorHandler`.
+The renderer does the same for event handlers, using the component that patched the element.
 Pausing a watcher only remembers that something changed. On resume it replays once.
 
 `effectScope` collects the effects created while it runs. Every component runs `setup` inside a

@@ -194,7 +194,17 @@ local function clearDeps(eff: Effect)
 	table.clear(eff.deps)
 end
 
-local function createEffect(fn: () -> (), opts: EffectOptions?): Effect
+-- component.luau fills these in, so errors in a component's watchers reach its onErrorCaptured
+local errorOwner: () -> any = function()
+	return nil
+end
+local reportError: (owner: any, err: string, info: string) -> () = function() end
+
+local function setErrorHandling(getOwner: () -> any, report: (owner: any, err: string, info: string) -> ())
+	errorOwner, reportError = getOwner, report
+end
+
+local function createEffect(fn: () -> (), opts: EffectOptions?, onError: ((err: string) -> ())?): Effect
 	local options: EffectOptions = opts or {}
 	local effect = {
 		fn = fn,
@@ -234,7 +244,11 @@ local function createEffect(fn: () -> (), opts: EffectOptions?): Effect
 		end
 
 		if not ok then
-			warn(`[Rivue] Error in effect: {err}`)
+			if onError then
+				onError(tostring(err))
+			else
+				warn(`[Rivue] Error in effect: {err}`)
+			end
 		end
 	end
 
@@ -568,8 +582,8 @@ end
 const PROTECTED_COMPUTED_DEPTH = 16
 local computedDepth = 0
 
-local function computed<T>(getterOrOptions: (() -> T) | WritableComputedOptions<T>): ComputedRef<T>
-	local getter: () -> T
+local function computed<T>(getterOrOptions: ((previous: T?) -> T) | WritableComputedOptions<T>): ComputedRef<T>
+	local getter: (previous: T?) -> T
 	local setter: ((T) -> ())? = nil
 	if type(getterOrOptions) == "function" then
 		getter = getterOrOptions
@@ -584,7 +598,7 @@ local function computed<T>(getterOrOptions: (() -> T) | WritableComputedOptions<
 	local value: T
 	local runner: Effect
 	runner = createEffect(function()
-		value = getter()
+		value = getter(value)
 	end, {
 		lazy = true,
 		scheduler = function()
@@ -597,7 +611,7 @@ local function computed<T>(getterOrOptions: (() -> T) | WritableComputedOptions<
 
 	local function evaluate()
 		if not runner.active then
-			value = getter()
+			value = getter(value)
 			return
 		end
 		clearDeps(runner)
@@ -607,13 +621,13 @@ local function computed<T>(getterOrOptions: (() -> T) | WritableComputedOptions<
 		-- Past this depth a pcall per level would hit Luau's limit of about 200 nested C calls. A
 		-- level without one relies on the protected level below it to restore the effect stack
 		if computedDepth >= PROTECTED_COMPUTED_DEPTH then
-			value = getter()
+			value = getter(value)
 			effectStack[depth + 1] = nil
 			activeEffect = effectStack[depth]
 			return
 		end
 		computedDepth += 1
-		local ok, result = pcall(getter :: () -> ...unknown)
+		local ok, result = pcall(getter :: (T?) -> ...unknown, value)
 		computedDepth -= 1
 		for i = #effectStack, depth + 1, -1 do
 			effectStack[i] = nil
@@ -858,6 +872,7 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 	end
 
 	local stopped = false
+	local owner = errorOwner()
 
 	local function job()
 		if stopped then
@@ -878,7 +893,11 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 			local ok, err = pcall(cb :: (T, T?, OnCleanup) -> ...unknown, new, old, onCleanup)
 			activeWatcherCleanup = prevCleanup
 			if not ok then
-				error(err, 0)
+				if owner then
+					reportError(owner, tostring(err), "watcher callback")
+				else
+					error(err, 0)
+				end
 			end
 			if options.once then
 				stop()
@@ -906,15 +925,23 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 		end
 	end
 
-	local eff = createEffect(function()
-		currentValue = getter()
-		if deep then
-			_traverse(currentValue, nil, deepLevels)
-		end
-	end, {
-		lazy = true,
-		scheduler = onTrigger,
-	})
+	local eff = createEffect(
+		function()
+			currentValue = getter()
+			if deep then
+				_traverse(currentValue, nil, deepLevels)
+			end
+		end,
+		{
+			lazy = true,
+			scheduler = onTrigger,
+		},
+		if owner
+			then function(err: string)
+				reportError(owner, err, "watcher getter")
+			end
+			else nil
+	)
 	stop = function()
 		stopped = true
 		eff:stop()
@@ -955,6 +982,7 @@ local function watchEffect(fn: (onCleanup: OnCleanup) -> (), opts: WatchOptions?
 	local eff: Effect
 	local paused = false
 	local dirty = false
+	local owner = errorOwner()
 	local function onTrigger(run: () -> ())
 		if paused then
 			dirty = true
@@ -966,16 +994,24 @@ local function watchEffect(fn: (onCleanup: OnCleanup) -> (), opts: WatchOptions?
 			scheduler.queueEffect(eff.job)
 		end
 	end
-	eff = createEffect(function()
-		runCleanups()
-		local prevCleanup = activeWatcherCleanup
-		activeWatcherCleanup = onCleanup
-		local ok, err = pcall(fn :: (OnCleanup) -> ...unknown, onCleanup)
-		activeWatcherCleanup = prevCleanup
-		if not ok then
-			error(err, 0)
-		end
-	end, { lazy = true, scheduler = onTrigger })
+	eff = createEffect(
+		function()
+			runCleanups()
+			local prevCleanup = activeWatcherCleanup
+			activeWatcherCleanup = onCleanup
+			local ok, err = pcall(fn :: (OnCleanup) -> ...unknown, onCleanup)
+			activeWatcherCleanup = prevCleanup
+			if not ok then
+				error(err, 0)
+			end
+		end,
+		{ lazy = true, scheduler = onTrigger },
+		if owner
+			then function(err: string)
+				reportError(owner, err, "watcher callback")
+			end
+			else nil
+	)
 	eff.run()
 	return createWatchHandle(function()
 		eff:stop()
@@ -1197,6 +1233,7 @@ local function triggerListChange(raw: RawTable, first: number, last: number, len
 end
 
 return {
+	_setErrorHandling = setErrorHandling,
 	_triggerListChange = triggerListChange,
 	_untracked = untracked,
 

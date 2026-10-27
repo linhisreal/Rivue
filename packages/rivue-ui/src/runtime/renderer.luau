@@ -115,6 +115,19 @@ end
 -- Instance -> its current event handlers, for Rivue.testing.trigger. The table is shared by every
 -- vnode of the element, so it's set once
 local elementHandlers: { [Instance]: { [string]: any } } = setmetatable({}, { __mode = "k" }) :: any
+-- Instance -> the component that patched it, so a failing handler reaches its onErrorCaptured
+local elementOwners: { [Instance]: any } = setmetatable({}, { __mode = "k" }) :: any
+
+local function callHandler(owner: any, handler: (...any) -> ...any, ...: any)
+	local ok, err = pcall(handler, ...)
+	if not ok then
+		if owner then
+			owner:handleError(tostring(err), "component event handler")
+		else
+			warn(`[Rivue] Error in event handler: {err}`)
+		end
+	end
+end
 
 type StateRecord = {
 	vnode: RenderVNode,
@@ -632,6 +645,7 @@ function applyProp(inst: Instance, key: string, value: any, vnode: RenderVNode)
 		if not handlers then
 			handlers = {}
 			elementHandlers[inst] = handlers
+			elementOwners[inst] = currentRenderingInstance
 		end
 		vnode._conns, vnode._handlers = conns, handlers
 		handlers[key] = value
@@ -642,7 +656,7 @@ function applyProp(inst: Instance, key: string, value: any, vnode: RenderVNode)
 		local function invoke(...: any)
 			local handler = handlers[key]
 			if handler then
-				handler(...)
+				callHandler(elementOwners[inst], handler, ...)
 			end
 		end
 
@@ -719,6 +733,7 @@ local function clearVNodeConns(vnode: RenderVNode?)
 		vnode._handlers = nil
 		if vnode.el then
 			elementHandlers[vnode.el] = nil
+			elementOwners[vnode.el] = nil
 		end
 	end
 
@@ -2683,7 +2698,7 @@ local function trigger(inst: Instance, key: string, ...: any)
 	if not handler then
 		error(`[Rivue] {inst:GetFullName()} has no {key} handler`, 2)
 	end
-	handler(...)
+	callHandler(elementOwners[inst], handler, ...)
 end
 
 local function hasHandler(inst: Instance, key: string): boolean

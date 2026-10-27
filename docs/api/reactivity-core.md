@@ -115,14 +115,40 @@ recalculated when something it used changes.
   The getter runs lazily: only when `.value` is read, and only again after something it read has
   changed. Keep getters free of side effects.
 
+  The getter gets the value it returned last time (`nil` on the first run), as in Vue 3.4.
+  Returning that same table when nothing you care about changed means a `watch` on the computed
+  doesn't fire, and a child that gets it as a prop doesn't update. Components that read
+  `.value` in their render still re-render, because they're told before the getter runs again.
+
+  ```lua
+  local items = Rivue.reactive({ 1, 2, 3 })
+  local evens = Rivue.computed(function(previous)
+  	local out = {}
+  	for i = 1, #items do
+  		if items[i] % 2 == 0 then
+  			table.insert(out, items[i])
+  		end
+  	end
+  	if previous and #previous == #out then
+  		for i, v in out do
+  			if previous[i] ~= v then
+  				return out
+  			end
+  		end
+  		return previous
+  	end
+  	return out
+  end)
+  ```
+
 - **Type**
 
   ```lua
   -- Readonly
-  function computed<T>(getter: () -> T): ComputedRef<T>
+  function computed<T>(getter: (previous: T?) -> T): ComputedRef<T>
 
   -- Writable
-  function computed<T>(options: { get: () -> T, set: (value: T) -> () }): ComputedRef<T>
+  function computed<T>(options: { get: (previous: T?) -> T, set: (value: T) -> () }): ComputedRef<T>
   ```
 
 ---

@@ -846,6 +846,47 @@ local function runTests()
 		app:unmount()
 	end
 
+	print("VirtualList that shrinks while scrolled down shows its rows")
+	do
+		local items = Rivue.shallowRef({})
+		local long = {}
+		for i = 1, 200 do
+			long[i] = i
+		end
+		items.value = long
+		local container = Instance.new("Frame")
+		local app = Rivue.createApp(Rivue.defineComponent({
+			name = "ShrinkHost",
+			render = function()
+				return h(Rivue.VirtualList, {
+					Name = "Shrink",
+					items = items.value,
+					itemSize = 20,
+					overscan = 0,
+					render = function(item: number)
+						return h("TextLabel", { Name = `Item{item}` })
+					end,
+				})
+			end,
+		}))
+		app:mount(container)
+		local list = container:FindFirstChild("Shrink", true) :: ScrollingFrame
+		task.wait()
+		if list.AbsoluteSize.Y == 0 then
+			print("  skipped: needs a rendered viewport")
+		else
+			list.CanvasPosition = Vector2.new(0, 3600)
+			task.wait()
+			items.value = { 1, 2, 3 }
+			Rivue.nextTick()
+			assertTrue(
+				list:FindFirstChild("Item1") ~= nil,
+				"the rows of the shorter list show without waiting for the scroll to clamp"
+			)
+		end
+		app:unmount()
+	end
+
 	print("\n========== UI FEATURES TESTS COMPLETE ==========\n")
 end
 
