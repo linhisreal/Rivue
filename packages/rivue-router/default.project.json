@@ -1,6 +1,9 @@
 {
   "name": "RivueRouter",
   "tree": {
-    "$path": "src"
+    "$path": "src",
+    "LICENSE": {
+      "$path": "LICENSE.txt"
+    }
   }
 }

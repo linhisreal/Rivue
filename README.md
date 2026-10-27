@@ -154,6 +154,7 @@ lune run test                     # all suites, without Studio
 lune run check-docs               # links resolve and every API example runs
 lune run build                    # the packages and the dev place, into build/
 lune run version rivue-ui 0.9.0-rc.3 # bump one package
+lune run license                  # copy LICENSE.md into every package after editing it
 rojo serve                        # the dev place in Studio
 ```
 
@@ -182,15 +183,15 @@ pesde.toml                 the pesde workspace
 
 [PolyForm Noncommercial 1.0.0](LICENSE.md), with an extra permission for games. You can use, fork,
 port and change Rivue for noncommercial purposes, in closed or open source, as long as you keep the
-credit notice and the license. Games built with Rivue may make money from their players, and you
-can be paid to build one. What you can't do is make money from Rivue itself: selling it or a fork,
-a framework or UI kit made from it, copies of a game's project files, or paid services around it
-outside game work. Apps that only borrow game features don't count as games. Forks stay under the
-same license. [LICENSE](LICENSE.md) has the exact terms.
+credit notice and the license. Games built with Rivue may make money from their players, you can be
+paid to build one, and you can sell a whole game to a new owner. What you can't do is make money
+from Rivue itself: selling it or a fork, a framework or UI kit made from it, copies of a game's
+project files, or paid services around it outside game work. Apps that only borrow game features
+don't count as games. Forks stay under the same license. [LICENSE](LICENSE.md) has the exact terms.
 
 Credit Rivue in the game's public description, or in an in-game credits screen any player can open
 for free from the main menu or settings, for example:
 
 ```
-UI built with Rivue (github.com/linhisreal/Rivue)
+UI built with Rivue by linhisreal
 ```

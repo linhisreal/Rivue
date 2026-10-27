@@ -1,7 +1,7 @@
 name = "linhisreal/rivue_ui"
 version = "0.10.0-rc.1"
 description = "Vue 3's component model for Roblox UI, in Luau"
-license = "PolyForm-Noncommercial-1.0.0"
+license = "LicenseRef-Rivue"
 authors = ["linhisreal"]
 repository = "https://github.com/linhisreal/Rivue"
 includes = ["pesde.toml", "README.md", "LICENSE.md", "src/**/*.luau"]

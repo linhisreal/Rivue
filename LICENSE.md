@@ -6,7 +6,7 @@
 
 Copyright (c) 2025-2026 linhisreal (ThisisLinh)
 
-Required Notice: Copyright (c) 2025-2026 linhisreal (https://github.com/linhisreal/Rivue)
+Required Notice: Copyright (c) 2025-2026 linhisreal (ThisisLinh). Rivue, a UI framework for Roblox.
 
 Rivue is licensed under the PolyForm Noncommercial License 1.0.0, with one additional
 permission for games and the clarifications below. All of it is below.
@@ -15,8 +15,8 @@ permission for games and the clarifications below. All of it is below.
 
 - You may use, copy, fork, port and change Rivue for noncommercial purposes, closed source or
   open.
-- You may make money from a game you build with Rivue, and be paid to build one for someone
-  else, if the game credits Rivue as described below.
+- You may make money from a game you build with Rivue, be paid to build one for someone else,
+  and sell a whole game to a new owner, if the game credits Rivue as described below.
 - You must keep the "Required Notice" line above and this license (or its URL) with every copy,
   changed or not.
 - You may not make money from Rivue itself: not by selling it, a fork, port or translation of
@@ -44,22 +44,33 @@ something else does not become a game by adding game-like features such as level
 avatars or minigames. That includes shopping, payments, fitness, productivity, education,
 social networking, dating and business tools, and any development tool.
 
-**Where the money comes from.** The money must come from players playing the game. This
-permission does not cover selling or charging for copies of a game's place file, model,
-source code or project, including copyable or uncopylocked versions of the game, or selling
-the game as a template, kit or starting point for other projects.
+**Where the money comes from.** The money must come from players playing the game, or from
+selling the whole game as described below. This permission does not cover selling or charging
+for copies of a game's place file, model, source code or project, including copyable or
+uncopylocked versions of the game, or selling the game as a template, kit or starting point for
+other projects.
 
-**Credit.** The game must credit Rivue, for example "UI built with Rivue
-(github.com/linhisreal/Rivue)", in at least one of these places:
+**Credit.** The game must credit Rivue, for example "UI built with Rivue by linhisreal", in at
+least one of these places:
 
 - the game's public description, in text that's shown without extra purchases; or
 - an in-game credits screen that any player can open for free from the main menu or the
   settings, in text that's as easy to read as the rest of that screen.
 
-**Changes of ownership.** These licenses are not transferred. When a game that uses Rivue is
-sold, given or otherwise passed to a new owner, the new owner gets their own license directly
-from the licensor by agreeing to these terms, and may use this permission for that game while
-they meet its conditions.
+**Selling or handing over a game.** You may sell or give a whole game that uses Rivue to a new
+owner who takes it over, including its place files and source, for example when a studio or a
+Roblox group changes hands. This counts as earning money from the game, not from Rivue, as long
+as:
+
+- the game goes to one new owner at a time, who takes it over and runs it as their game;
+- it isn't sold to several buyers, or offered as a template, kit or starting point for other
+  projects; and
+- the new owner keeps the credit and the Required Notice, and gets these terms with the game.
+
+These licenses are not transferred. The new owner gets their own license directly from the
+licensor by agreeing to these terms, and may use this permission for that game while they meet
+its conditions. Any other use they make of the Rivue code that came with the game is covered by
+these terms like any other copy.
 
 ## What stays noncommercial
 
