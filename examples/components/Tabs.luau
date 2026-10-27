@@ -1,6 +1,7 @@
 --!nonstrict
 -- Tabs that keep their state: each tab is a named slot, and KeepAlive caches the hidden ones, so
--- scroll positions, typed text and component state survive switching.
+-- scroll positions, typed text and component state survive switching. When tabs need a back
+-- button or links from other screens, make them child routes instead (see GameMenu).
 --
 --   h(Tabs, { tabs = { "Shop", "Inventory" } }, {
 --       Shop = function() return h(Shop) end,

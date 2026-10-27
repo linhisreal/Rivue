@@ -11,7 +11,7 @@
 | | |
 |---|---|
 | [Guide](GUIDE.md) | Chapters 1–11 cover the framework, 12–16 the advanced topics |
-| [Examples](../examples) | Todo list, inventory, modal, tabs, shop and HUD, all tested |
+| [Examples](../examples) | Todo list, inventory, modal, tabs, shop, HUD and a routed game menu, all tested |
 | [API reference](API.md) | Every function, prop and component, with an example each |
 | [Coming from Vue](VUE.md) | Template-to-Luau cheat sheet |
 | [Coming from React-lua or Fusion](COMING-FROM-REACT.md) | API map and what works differently |
@@ -44,6 +44,6 @@
 | check my code follows the conventions | [Guide 11](guide/11-style-rules.md) | | |
 | reuse logic between components | [Guide 12](guide/12-writing-composables.md) | [toValue()](api/reactivity-utilities.md#tovalue), [onScopeDispose()](api/reactivity-advanced.md#onscopedispose) | |
 | build tabs, menus or modals that fit together | [Guide 13](guide/13-advanced-components.md) | [provide()](api/component.md#provide), [Teleport](api/builtins.md#teleport) | [Tabs](../examples/components/Tabs.luau) |
-| move between screens with a back button | [Guide 17](guide/17-screens-and-navigation.md) | [RivueRouter](api/router.md) | |
+| move between screens with a back button | [Guide 17](guide/17-screens-and-navigation.md) | [RivueRouter](api/router.md) | [GameMenu](../examples/components/GameMenu.luau) |
 | test my UI | [Guide 16](guide/16-testing-ui.md) | [testing.trigger()](api/utilities.md#testingtrigger) | |
 | find out why something broke | [Guide 9](guide/09-performance-and-debugging.md#debugging) | [Utilities and debugging](api/utilities.md) | |

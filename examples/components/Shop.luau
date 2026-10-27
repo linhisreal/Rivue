@@ -1,5 +1,5 @@
 --!nonstrict
--- Loading data from the server with loading/error states, and buying with a pending state.
+-- Loading data from the server with useAsync (loading, error, retry), and buying with a pending state.
 -- The server side is two RivueRemote handlers:
 --
 --   Remote.setupServer()
@@ -43,50 +43,54 @@ return Rivue.defineComponent({
 
 	setup = function(props)
 		local api = (props.api or remoteApi) :: ShopApi
-		local products = Rivue.shallowRef(nil :: { Product }?)
-		local errorText = Rivue.ref(nil :: string?)
+		-- useAsync turns a thrown error into `error`, so a nil list with a reason becomes one
+		local listing = Rivue.useAsync(function()
+			local list, err = api.list()
+			if not list then
+				error(err or "no response", 0)
+			end
+			return list
+		end)
 		local buying = Rivue.ref(nil :: string?)
-
-		local function load()
-			errorText.value = nil
-			-- Remote.request yields, so run it off the render path
-			task.spawn(function()
-				local list, err = api.list()
-				if list then
-					products.value = list
-				else
-					errorText.value = `Couldn't load the shop ({err})`
-				end
-			end)
-		end
+		local buyError = Rivue.ref(nil :: string?)
 
 		local function buy(product: Product)
 			if buying.value then
 				return
 			end
 			buying.value = product.id
+			buyError.value = nil
 			task.spawn(function()
 				local ok, err = api.buy(product.id)
 				buying.value = nil
 				if not ok then
-					errorText.value = `Purchase failed ({err})`
+					buyError.value = `Purchase failed ({err})`
 				end
 			end)
 		end
 
-		Rivue.onMounted(load)
-
-		return { products = products, errorText = errorText, buying = buying, load = load, buy = buy }
+		return {
+			products = listing.data,
+			loading = listing.loading,
+			errorText = Rivue.computed(function()
+				if listing.error.value then
+					return `Couldn't load the shop ({listing.error.value})`
+				end
+				return buyError.value
+			end),
+			retry = listing.refresh,
+			buying = buying,
+			buy = buy,
+		}
 	end,
 
 	render = function(ctx)
-		local loading = ctx.products == nil and ctx.errorText == nil
 		return h("Frame", { class = "panel", layout = { gap = 6 } }, {
 			Rivue.hIf(
 				ctx.errorText ~= nil,
-				h("TextButton", { Name = "Error", Text = `{ctx.errorText} - tap to retry`, onClick = ctx.load })
+				h("TextButton", { Name = "Error", Text = `{ctx.errorText} - tap to retry`, onClick = ctx.retry })
 			),
-			Rivue.hIf(loading, h("TextLabel", { Name = "Loading", Text = "Loading..." })),
+			Rivue.hIf(ctx.loading, h("TextLabel", { Name = "Loading", Text = "Loading..." })),
 			Rivue.hFor(ctx.products or {}, function(product)
 				local pending = ctx.buying == product.id
 				return h("TextButton", {

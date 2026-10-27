@@ -100,7 +100,7 @@ end,
 
 ---
 
-**Try it:** [Shop example](../../examples/components/Shop.luau) (loading, errors, pending buys)
+**Try it:** [Shop example](../../examples/components/Shop.luau) (useAsync, errors and retry, pending buys)
 **Reference:** [provide()](../api/component.md#provide) · [inject()](../api/component.md#inject) ·
 [readonly()](../api/reactivity-core.md#readonly) · [RivueRemote](../api/remote.md)
 

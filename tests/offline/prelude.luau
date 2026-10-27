@@ -30,6 +30,16 @@ local function makeSignal()
 		end)
 		return c
 	end
+	function sig:Wait()
+		local co = coroutine.running()
+		sig:Once(function(...)
+			local ok, err = coroutine.resume(co, ...)
+			if not ok then
+				print("THREAD ERROR:", err)
+			end
+		end)
+		return coroutine.yield()
+	end
 	function sig:Fire(...)
 		local list = table.clone(sig._conns)
 		for _, c in list do
