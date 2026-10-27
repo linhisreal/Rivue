@@ -272,6 +272,32 @@ local function getEmitKeys(def: ComponentDef): { [string]: string }?
 	return keys
 end
 
+-- Like Vue's shouldUpdateComponent. Declared listeners are read from the vnode when emitted, so a
+-- fresh closure for one doesn't count as a change
+local function propsUnchanged(def: ComponentDef, oldProps: Props?, newProps: Props?): boolean
+	if oldProps == newProps then
+		return true
+	end
+	local old: Props = oldProps or {}
+	local new: Props = newProps or {}
+	local emitKeys = getEmitKeys(def)
+	local count = 0
+	for key, value in new do
+		count += 1
+		local previous = old[key]
+		if
+			previous ~= value
+			and not (emitKeys and emitKeys[key] and type(previous) == "function" and type(value) == "function")
+		then
+			return false
+		end
+	end
+	for _ in old do
+		count -= 1
+	end
+	return count == 0
+end
+
 local function separatePropsAndAttrs(def: ComponentDef, allProps: Props): (Props, Props)
 	local schema = def.props
 	local emitKeys = getEmitKeys(def)
@@ -790,6 +816,7 @@ return {
 	devtoolsHooks = devtoolsHooks,
 	createComponentInstance = createComponentInstance,
 	updateComponentProps = updateComponentProps,
+	propsUnchanged = propsUnchanged,
 	updateComponentSlots = updateComponentSlots,
 	onBeforeMount = onBeforeMount,
 	onMounted = onMounted,

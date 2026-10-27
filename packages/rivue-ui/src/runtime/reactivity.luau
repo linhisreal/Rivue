@@ -25,6 +25,7 @@ type RefInternal = {
 	_is_ref: true,
 	_value: unknown,
 	_shallow: boolean?,
+	_dep: Dep | false,
 }
 
 local scheduler = require("./scheduler")
@@ -186,6 +187,13 @@ local function shouldWrap(value: unknown): boolean
 	return type(value) == "table" and not rawMarker[value]
 end
 
+local function clearDeps(eff: Effect)
+	for _, dep in eff.deps do
+		dep[eff] = nil
+	end
+	table.clear(eff.deps)
+end
+
 local function createEffect(fn: () -> (), opts: EffectOptions?): Effect
 	local options: EffectOptions = opts or {}
 	local effect = {
@@ -210,16 +218,16 @@ local function createEffect(fn: () -> (), opts: EffectOptions?): Effect
 			utils.profiler:start(effectName)
 		end
 
-		for _, dep in effect.deps do
-			dep[typedEffect] = nil
-		end
-		table.clear(effect.deps)
-
-		table.insert(effectStack, typedEffect)
+		clearDeps(typedEffect)
+		local depth = #effectStack
+		effectStack[depth + 1] = typedEffect
 		activeEffect = typedEffect
 		local ok, err = pcall(fn :: () -> ...unknown)
-		table.remove(effectStack)
-		activeEffect = effectStack[#effectStack]
+		-- Computeds inside run without a pcall of their own, so one that threw left its entry here
+		for i = #effectStack, depth + 1, -1 do
+			effectStack[i] = nil
+		end
+		activeEffect = effectStack[depth]
 
 		if effectName then
 			utils.profiler:stop(effectName)
@@ -264,6 +272,18 @@ local function createEffect(fn: () -> (), opts: EffectOptions?): Effect
 	return typedEffect
 end
 
+local function trackDep(dep: Dep, current: Effect, target: unknown, key: unknown)
+	if not dep[current] then
+		dep[current] = true
+		local deps = current.deps
+		deps[#deps + 1] = dep
+		local onTrack = current.onTrack
+		if onTrack then
+			onTrack({ target = target, key = key })
+		end
+	end
+end
+
 local function track(target: unknown, key: unknown)
 	local current = activeEffect
 	if not current then
@@ -281,7 +301,8 @@ local function track(target: unknown, key: unknown)
 	end
 	if not dep[current] then
 		dep[current] = true
-		table.insert(current.deps, dep)
+		local effectDeps = current.deps
+		effectDeps[#effectDeps + 1] = dep
 		local onTrack = current.onTrack
 		if onTrack then
 			onTrack({ target = target, key = key })
@@ -321,15 +342,7 @@ local function dispatch(eff: Effect, target: unknown, key: unknown)
 	end
 end
 
-local function trigger(target: unknown, key: unknown)
-	local deps = depMap[target]
-	if not deps then
-		return
-	end
-	local dep = deps[key]
-	if not dep then
-		return
-	end
+local function triggerDep(dep: Dep, target: unknown, key: unknown)
 	-- Copy first, sync effects change dep during the loop. Scratch arrays are reused per
 	-- nesting depth so a write doesn't allocate.
 	triggerDepth += 1
@@ -349,6 +362,17 @@ local function trigger(target: unknown, key: unknown)
 		dispatch(eff, target, key)
 	end
 	triggerDepth -= 1
+end
+
+local function trigger(target: unknown, key: unknown)
+	local deps = depMap[target]
+	if not deps then
+		return
+	end
+	local dep = deps[key]
+	if dep then
+		triggerDep(dep, target, key)
+	end
 end
 
 local function triggerSet(target: RawTable, key: unknown, old: unknown, new: unknown)
@@ -483,9 +507,20 @@ end
 
 local RefMT = {}
 
+-- Like Vue's RefImpl, a ref keeps its own dep instead of going through depMap
 function RefMT.__index(self: RefInternal, k: unknown): unknown
 	if k == REF_VALUE_KEY then
-		track(self, REF_VALUE_KEY)
+		local current = activeEffect
+		if current then
+			local dep = self._dep
+			if dep == false then
+				local created: Dep = {}
+				self._dep = created
+				trackDep(created, current, self, REF_VALUE_KEY)
+			else
+				trackDep(dep :: Dep, current, self, REF_VALUE_KEY)
+			end
+		end
 		return self._value
 	end
 	return nil
@@ -499,8 +534,9 @@ function RefMT.__newindex(self: RefInternal, k: unknown, v: unknown)
 	local old = self._value
 	local newValue = if not self._shallow and shouldWrap(v) then reactive(v) else v
 	self._value = newValue
-	if hasChanged(old, newValue) then
-		trigger(self, REF_VALUE_KEY)
+	local dep = self._dep
+	if dep ~= false and hasChanged(old, newValue) then
+		triggerDep(dep :: Dep, self, REF_VALUE_KEY)
 	end
 end
 
@@ -512,12 +548,12 @@ table.freeze(RefMT)
 
 local function ref<T>(initial: T): Ref<T>
 	local wrapped: unknown = if shouldWrap(initial) then reactive(initial) else initial
-	local r: RefInternal = { _is_ref = true, _value = wrapped }
+	local r: RefInternal = { _is_ref = true, _value = wrapped, _dep = false }
 	return setmetatable(r :: any, RefMT)
 end
 
 local function shallowRef<T>(initial: T): Ref<T>
-	local r: RefInternal = { _is_ref = true, _value = initial, _shallow = true }
+	local r: RefInternal = { _is_ref = true, _value = initial, _shallow = true, _dep = false }
 	return setmetatable(r :: any, RefMT)
 end
 
@@ -528,6 +564,9 @@ end
 local function unref<T>(r: MaybeRef<T>): T
 	return if isRef(r) then (r :: Ref<T>).value else r :: T
 end
+
+const PROTECTED_COMPUTED_DEPTH = 16
+local computedDepth = 0
 
 local function computed<T>(getterOrOptions: (() -> T) | WritableComputedOptions<T>): ComputedRef<T>
 	local getter: () -> T
@@ -556,9 +595,40 @@ local function computed<T>(getterOrOptions: (() -> T) | WritableComputedOptions<
 		end,
 	})
 
+	local function evaluate()
+		if not runner.active then
+			value = getter()
+			return
+		end
+		clearDeps(runner)
+		local depth = #effectStack
+		effectStack[depth + 1] = runner
+		activeEffect = runner
+		-- Past this depth a pcall per level would hit Luau's limit of about 200 nested C calls. A
+		-- level without one relies on the protected level below it to restore the effect stack
+		if computedDepth >= PROTECTED_COMPUTED_DEPTH then
+			value = getter()
+			effectStack[depth + 1] = nil
+			activeEffect = effectStack[depth]
+			return
+		end
+		computedDepth += 1
+		local ok, result = pcall(getter :: () -> ...unknown)
+		computedDepth -= 1
+		for i = #effectStack, depth + 1, -1 do
+			effectStack[i] = nil
+		end
+		activeEffect = effectStack[depth]
+		-- Like Vue, a getter's error reaches whoever read the value
+		if not ok then
+			error(result, 0)
+		end
+		value = result :: T
+	end
+
 	local function get(): T
 		if dirty then
-			runner.run()
+			evaluate()
 			dirty = false
 		end
 		if activeEffect then
@@ -1024,7 +1094,14 @@ local function triggerRef<T>(refObj: Ref<T>)
 		return
 	end
 
-	trigger(refObj, REF_VALUE_KEY)
+	if getmetatable(refObj :: any) == RefMT then
+		local dep = (refObj :: any)._dep
+		if dep then
+			triggerDep(dep, refObj, REF_VALUE_KEY)
+		end
+	else
+		trigger(refObj, REF_VALUE_KEY)
+	end
 end
 
 local function customRef<T>(factory: CustomRefFactory<T>): Ref<T>
