@@ -22,7 +22,7 @@ local Players = game:GetService("Players")
 local Remote = {}
 
 -- Set by `lune run version rivue-remote <version>`
-Remote.version = "0.5.0-beta.1"
+Remote.version = "0.6.0-beta.1"
 Remote.__index = Remote
 
 const CLIENT_WAIT_TIMEOUT = 5

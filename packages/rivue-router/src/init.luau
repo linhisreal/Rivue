@@ -918,7 +918,7 @@ local RouterLink = table.freeze({
 
 return table.freeze({
 	-- Set by `lune run version rivue-router <version>`
-	version = "0.1.0-beta.1",
+	version = "0.2.0-beta.1",
 	createRouter = createRouter,
 	useRouter = useRouter,
 	useRoute = useRoute,
