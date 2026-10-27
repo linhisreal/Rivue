@@ -27,6 +27,48 @@ local Remote = {}
 Remote.version = "0.7.0-beta.1"
 Remote.__index = Remote
 
+-- RivueRemote works without RivueUI. When the game has it, Remote finds the same copy the router
+-- does, so listeners stop with their component and requests show in the DevTools
+local rivue: any = nil
+local rivueSearched = false
+
+local function findRivue(): any
+	if rivueSearched then
+		return rivue
+	end
+	rivueSearched = true
+	local node: Instance? = script.Parent
+	while node do
+		local candidate = node:FindFirstChild("RivueUI")
+		if not candidate then
+			local pesdePackages = node:FindFirstChild("roblox_packages")
+			candidate = if pesdePackages then pesdePackages:FindFirstChild("RivueUI") else nil
+		end
+		if candidate then
+			local ok, loaded = pcall(require, candidate :: any)
+			if ok and type(loaded) == "table" and loaded.createApp then
+				rivue = loaded
+				return rivue
+			end
+		end
+		node = node.Parent
+	end
+	return nil
+end
+
+local function requireRivue(fnName: string): any
+	return findRivue() or error(`[RivueRemote] {fnName}() needs RivueUI: install it next to RivueRemote`, 0)
+end
+
+local function stopWithScope(connection: { Disconnect: (any) -> () })
+	local found = findRivue()
+	if found and found.getCurrentScope() then
+		found.onScopeDispose(function()
+			connection:Disconnect()
+		end)
+	end
+end
+
 const CLIENT_WAIT_TIMEOUT = 5
 
 local function findOrCreate(parent: Instance, className: string, name: string): Instance
@@ -208,11 +250,18 @@ function Remote.request(actionName: string, payload: unknown, timeout: number?):
 	end
 	timeoutThread = task.delay(timeoutValue, settle, nil, true)
 
+	local started = os.clock()
 	reqEv:FireServer({ action = actionName, payload = payload, id = reqId })
 
 	if not done then
 		waiting = true
 		coroutine.yield()
+	end
+
+	local devtools = if rivue then rivue._devtools else nil
+	if devtools then
+		local outcome = if result == nil then "timeout" elseif result.ok then "ok" else result.error or "error"
+		devtools.event("request", actionName, outcome, (os.clock() - started) * 1000)
 	end
 
 	if result == nil then
@@ -303,6 +352,7 @@ function Remote.on(name: string, fn: (payload: any) -> ()): Connection
 			end
 		end,
 	}
+	stopWithScope(connection)
 	return connection
 end
 
@@ -614,6 +664,205 @@ function Remote.action<Req, Res>(name: string): Action<Req, Res>
 		handle = function(handler: (player: Player, payload: Req) -> Res, opts: HandleOptions?)
 			Remote.handle(name, handler :: any, opts)
 		end,
+	})
+end
+
+const STATE_EVENT = "__rivueState"
+const STATE_SYNC = "__rivueStateSync"
+
+export type State<T> = {
+	set: (value: T) -> string?,
+	setFor: (player: Player, value: T?) -> string?,
+	get: (player: Player?) -> T,
+}
+
+type ServerState = { value: any, perPlayer: { [Player]: any }, version: number }
+
+local serverStates: { [string]: ServerState } = {}
+
+local function effectiveValue(state: ServerState, player: Player): any
+	local own = state.perPlayer[player]
+	return if own ~= nil then own else state.value
+end
+
+--- Server: a value every client can read and watch. setFor() gives one player their own value
+function Remote.state<T>(name: string, initial: T): State<T>
+	assert(RunService:IsServer(), "[RivueRemote] Remote.state() runs on the server")
+	assert(serverStates[name] == nil, `[RivueRemote] There's already a state named '{name}'`)
+	local valid, validErr = validatePayload(initial)
+	assert(valid, `[RivueRemote] Remote.state('{name}'): {validErr}`)
+	local state: ServerState = { value = initial, perPlayer = {}, version = 0 }
+	serverStates[name] = state
+
+	if not handlers[STATE_SYNC] then
+		Remote.handle(STATE_SYNC, function(player)
+			local snapshot = {}
+			for stateName, entry in serverStates do
+				snapshot[stateName] = { effectiveValue(entry, player), entry.version }
+			end
+			return snapshot
+		end, { maxPerSecond = 2 })
+		Players.PlayerRemoving:Connect(function(player)
+			for _, entry in serverStates do
+				entry.perPlayer[player] = nil
+			end
+		end)
+	end
+
+	local function publish(player: Player)
+		enqueue(player, STATE_EVENT, { name :: unknown, effectiveValue(state, player), state.version })
+	end
+
+	return table.freeze({
+		set = function(value: T): string?
+			local ok, err = validatePayload(value)
+			if not ok then
+				warn(`[RivueRemote] state '{name}' wasn't set: {err}`)
+				return err
+			end
+			state.value = value
+			state.version += 1
+			for _, player in Players:GetPlayers() do
+				if state.perPlayer[player] == nil then
+					publish(player)
+				end
+			end
+			return nil
+		end,
+		setFor = function(player: Player, value: T?): string?
+			local ok, err = validatePayload(value)
+			if not ok then
+				warn(`[RivueRemote] state '{name}' wasn't set: {err}`)
+				return err
+			end
+			state.perPlayer[player] = value
+			state.version += 1
+			publish(player)
+			return nil
+		end,
+		get = function(player: Player?): T
+			return if player then effectiveValue(state, player) else state.value
+		end,
+	})
+end
+
+local clientStates: { [string]: { value: any, version: number } } = {}
+local stateListeners: { [string]: { (value: any) -> () } } = {}
+local stateSynced = false
+
+local function applyState(name: unknown, value: unknown, version: unknown)
+	if type(name) ~= "string" or type(version) ~= "number" then
+		return
+	end
+	local current = clientStates[name]
+	if current and current.version >= version then
+		return
+	end
+	clientStates[name] = { value = value, version = version }
+	local list = stateListeners[name]
+	if list then
+		for _, fn in table.clone(list) do
+			task.spawn(fn, value)
+		end
+	end
+end
+
+local function syncStates()
+	if stateSynced then
+		return
+	end
+	stateSynced = true
+	Remote.on(STATE_EVENT, function(entry: any)
+		if type(entry) == "table" then
+			applyState(entry[1], entry[2], entry[3])
+		end
+	end)
+	local snapshot, err = Remote.request(STATE_SYNC, nil)
+	if type(snapshot) ~= "table" then
+		stateSynced = false
+		warn(`[RivueRemote] Couldn't load state from the server: {err}`)
+		return
+	end
+	for name, entry in snapshot :: { [unknown]: any } do
+		if type(entry) == "table" then
+			applyState(name, entry[1], entry[2])
+		end
+	end
+end
+
+--- Client: the current value of a server state. The first call yields until it has loaded
+function Remote.getState(name: string): any
+	syncStates()
+	local entry = clientStates[name]
+	return if entry then entry.value else nil
+end
+
+function Remote.onState(name: string, fn: (value: any) -> ()): Connection
+	local list = stateListeners[name]
+	if not list then
+		list = {}
+		stateListeners[name] = list
+	end
+	table.insert(list, fn)
+	local connection: Connection
+	connection = {
+		Connected = true,
+		Disconnect = function(self: Connection)
+			if not connection.Connected then
+				return
+			end
+			connection.Connected = false
+			local at = table.find(list :: { (value: any) -> () }, fn)
+			if at then
+				table.remove(list :: { (value: any) -> () }, at)
+			end
+		end,
+	}
+	stopWithScope(connection)
+	task.spawn(syncStates)
+	return connection
+end
+
+--- Client: a read-only ref that follows a server state. Starts at `default` until the value
+--- has loaded. Needs RivueUI
+function Remote.useState<T>(name: string, default: T?): { value: T }
+	local Rivue = requireRivue("useState")
+	-- No yield here: setup() and render can't wait for the server
+	local entry = clientStates[name]
+	local current = if entry then entry.value else nil
+	local source = Rivue.shallowRef(if current == nil then default else current)
+	Remote.onState(name, function(value)
+		source.value = if value == nil then default else value
+	end)
+	return Rivue.computed(function()
+		return source.value
+	end)
+end
+
+export type RequestOptions = {
+	payload: unknown?,
+	immediate: boolean?,
+	timeout: number?,
+	initial: unknown?,
+	suspense: boolean?,
+}
+
+--- Client: Rivue.useAsync around Remote.request, so { data, loading, error, run, refresh }.
+--- Needs RivueUI
+function Remote.useRequest(name: string, options: RequestOptions?): any
+	local Rivue = requireRivue("useRequest")
+	local opts: RequestOptions = options or {}
+	return Rivue.useAsync(function(payload: unknown)
+		local data, err = Remote.request(name, payload, opts.timeout)
+		if err then
+			error(err, 0)
+		end
+		return data
+	end, {
+		immediate = opts.immediate,
+		args = if opts.payload ~= nil then { opts.payload } else nil,
+		initial = opts.initial,
+		suspense = opts.suspense,
 	})
 end
 

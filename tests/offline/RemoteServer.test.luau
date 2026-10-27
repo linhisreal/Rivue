@@ -299,6 +299,130 @@ local function runTests()
 		assertEquals(next(Remote.stats()), nil, "resetStats clears them")
 	end
 
+	print("Test 15: replicated state")
+	do
+		local Rivue = require(game:GetService("ReplicatedStorage"):WaitForChild("RivueUI"))
+		local me = game:GetService("Players").LocalPlayer
+		local round: any, coins: any
+		asServer(function()
+			round = Remote.state("round", { phase = "lobby" })
+			coins = Remote.state("coins", 0)
+			coins.setFor(me, 25)
+		end)
+		assertEquals(Remote.getState("round").phase, "lobby", "a late joiner gets the current value")
+		assertEquals(Remote.getState("coins"), 25, "and its own per-player value")
+		local heard = {}
+		local conn = Remote.onState("round", function(value)
+			table.insert(heard, value.phase)
+		end)
+		asServer(function()
+			round.set({ phase = "playing" })
+		end)
+		task.wait()
+		assertEquals(Remote.getState("round").phase, "playing", "changes arrive with the frame's other sends")
+		assertEquals(heard[1], "playing", "onState hears them")
+		conn:Disconnect()
+		asServer(function()
+			coins.set(5)
+		end)
+		task.wait()
+		assertEquals(Remote.getState("coins"), 25, "a per-player value wins over the shared one")
+		asServer(function()
+			coins.setFor(me, nil)
+		end)
+		task.wait()
+		assertEquals(Remote.getState("coins"), 5, "until it's cleared")
+		asServer(function()
+			assertEquals(coins.get(me), 5, "get() on the server")
+			assertEquals(round.set({ bad = print }), "payload_unsafe_type", "values are checked like payloads")
+		end)
+
+		local shown = nil
+		local Hud = Rivue.defineComponent({
+			name = "CoinsHud",
+			setup = function()
+				local value = Remote.useState("coins", 0)
+				return { value = value }
+			end,
+			render = function(ctx)
+				shown = ctx.value
+				return Rivue.h("TextLabel")
+			end,
+		})
+		local app = Rivue.createApp(Hud)
+		app:mount(Instance.new("Folder"))
+		assertEquals(shown, 5, "useState starts from the loaded value")
+		asServer(function()
+			coins.set(9)
+		end)
+		task.wait()
+		Rivue.nextTick()
+		assertEquals(shown, 9, "and re-renders when it changes")
+		app:unmount()
+	end
+
+	print("Test 16: Remote.on inside setup disconnects on unmount")
+	do
+		local Rivue = require(game:GetService("ReplicatedStorage"):WaitForChild("RivueUI"))
+		local heard = 0
+		local Toast = Rivue.defineComponent({
+			name = "Toast",
+			setup = function()
+				Remote.on("toast", function()
+					heard += 1
+				end)
+				return {}
+			end,
+			render = function()
+				return Rivue.h("Frame")
+			end,
+		})
+		local app = Rivue.createApp(Toast)
+		app:mount(Instance.new("Folder"))
+		asServer(function()
+			Remote.sendAll("toast", "hi")
+			Remote.flush()
+		end)
+		assertEquals(heard, 1, "it listens while mounted")
+		app:unmount()
+		asServer(function()
+			Remote.sendAll("toast", "hi")
+			Remote.flush()
+		end)
+		assertEquals(heard, 1, "and stops when the component unmounts")
+	end
+
+	print("Test 17: useRequest")
+	do
+		local Rivue = require(game:GetService("ReplicatedStorage"):WaitForChild("RivueUI"))
+		local state: any = nil
+		local Page = Rivue.defineComponent({
+			name = "DoublePage",
+			setup = function()
+				state = Remote.useRequest("double", { payload = { n = 4 } })
+				return {}
+			end,
+			render = function()
+				return Rivue.h("Frame")
+			end,
+		})
+		local app = Rivue.createApp(Page)
+		app:mount(Instance.new("Folder"))
+		task.wait()
+		assertEquals(state.data.value, 8, "it runs straight away and keeps the result")
+		assertEquals(state.loading.value, false, "loading is done")
+		state.run({ n = 10 })
+		task.wait()
+		assertEquals(state.data.value, 20, "run() sends a new payload")
+		local failing = nil
+		Rivue.effectScope():run(function()
+			failing = Remote.useRequest("boom")
+		end)
+		task.wait()
+		assertEquals(failing.error.value, "handler_error", "errors land in error")
+		app:unmount()
+	end
+
 	print("\n========== REMOTE SERVER TESTS COMPLETE ==========\n")
 end
 
