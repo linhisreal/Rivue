@@ -22,7 +22,7 @@ local Players = game:GetService("Players")
 local Remote = {}
 
 -- Set by `lune run version rivue-remote <version>`
-Remote.version = "0.6.0-beta.1"
+Remote.version = "0.7.0-beta.1"
 Remote.__index = Remote
 
 const CLIENT_WAIT_TIMEOUT = 5
@@ -62,8 +62,32 @@ local function getResponseEvent(): RemoteEvent
 	return findOrCreate(getFolder(), "RemoteEvent", "Response") :: RemoteEvent
 end
 
-const MAX_PAYLOAD_SIZE = 20000
-const MAX_PAYLOAD_DEPTH = 10
+export type Config = {
+	-- Largest payload, in bytes, roughly as the network sends it (default 20000)
+	maxPayloadSize: number?,
+	maxPayloadDepth: number?,
+	-- Requests one player may send per second across all actions (default 60, 0 disables)
+	maxRequestsPerSecond: number?,
+	-- Payload bytes one player may send per second across all actions (default 50000, 0 disables)
+	maxBytesPerSecond: number?,
+}
+
+local settings = {
+	maxPayloadSize = 20000,
+	maxPayloadDepth = 10,
+	maxRequestsPerSecond = 60,
+	maxBytesPerSecond = 50000,
+}
+
+--- Call it with the same values on the server and the client, from a shared module
+function Remote.configure(config: Config)
+	local known = settings :: { [string]: number }
+	for key, value in config :: any do
+		assert(known[key] ~= nil, `[RivueRemote] Unknown setting '{key}'`)
+		assert(type(value) == "number" and value >= 0, `[RivueRemote] {key} must be a number of 0 or more`)
+		known[key] = value
+	end
+end
 
 const SAFE_DATATYPES = table.freeze({
 	Vector2 = true,
@@ -80,12 +104,14 @@ const SAFE_DATATYPES = table.freeze({
 	DateTime = true,
 })
 
-local function validatePayload(payload: unknown): (boolean, string?)
+local function validatePayload(payload: unknown): (boolean, string?, number)
 	local size = 0
 	local reason: string? = nil
+	local maxSize = settings.maxPayloadSize
+	local maxDepth = settings.maxPayloadDepth
 
 	local function visit(val: unknown, depth: number): boolean
-		if depth > MAX_PAYLOAD_DEPTH then
+		if depth > maxDepth then
 			reason = "payload_too_deep"
 			return false
 		end
@@ -107,7 +133,7 @@ local function validatePayload(payload: unknown): (boolean, string?)
 			reason = "payload_unsafe_type"
 			return false
 		end
-		if size > MAX_PAYLOAD_SIZE then
+		if size > maxSize then
 			reason = "payload_too_large"
 			return false
 		end
@@ -115,9 +141,9 @@ local function validatePayload(payload: unknown): (boolean, string?)
 	end
 
 	if not visit(payload, 0) then
-		return false, reason
+		return false, reason, size
 	end
-	return true, nil
+	return true, nil, size
 end
 
 local function checkOutgoing(actionName: unknown, payload: unknown): string?
@@ -216,9 +242,75 @@ function Remote.fire(actionName: string, payload: unknown): string?
 	return nil
 end
 
-function Remote.on(name: string, fn: (payload: any) -> ()): RBXScriptConnection
-	local ev = findOrCreate(getFolder(), "RemoteEvent", name) :: RemoteEvent
-	return ev.OnClientEvent:Connect(fn)
+local function getEventsEvent(): RemoteEvent
+	return findOrCreate(getFolder(), "RemoteEvent", "Events") :: RemoteEvent
+end
+
+local function getUnreliableEvent(): UnreliableRemoteEvent
+	return findOrCreate(getFolder(), "UnreliableRemoteEvent", "UnreliableEvents") :: UnreliableRemoteEvent
+end
+
+export type Connection = {
+	Connected: boolean,
+	Disconnect: (self: Connection) -> (),
+}
+
+local listeners: { [string]: { (payload: any) -> () } } = {}
+local eventsConnected = false
+
+local function dispatch(name: unknown, payload: unknown)
+	local list = if type(name) == "string" then listeners[name] else nil
+	if list then
+		for _, fn in table.clone(list) do
+			task.spawn(fn, payload)
+		end
+	end
+end
+
+-- Every event the server sends arrives on two shared events, so a game with many event names
+-- still holds two RemoteEvents, and a frame's sends to a player travel as one message
+local function connectEvents()
+	if eventsConnected then
+		return
+	end
+	eventsConnected = true
+	getEventsEvent().OnClientEvent:Connect(function(batch: unknown)
+		if type(batch) ~= "table" then
+			return
+		end
+		for _, entry in batch :: { { unknown } } do
+			if type(entry) == "table" then
+				dispatch(entry[1], entry[2])
+			end
+		end
+	end)
+	getUnreliableEvent().OnClientEvent:Connect(dispatch)
+end
+
+function Remote.on(name: string, fn: (payload: any) -> ()): Connection
+	connectEvents()
+	local list = listeners[name]
+	if not list then
+		list = {}
+		listeners[name] = list
+	end
+	table.insert(list, fn)
+	local connection: Connection
+	connection = {
+		Connected = true,
+		Disconnect = function(self: Connection)
+			if not connection.Connected then
+				return
+			end
+			connection.Connected = false
+			local current = listeners[name]
+			local at = if current then table.find(current, fn) else nil
+			if current and at then
+				table.remove(current, at)
+			end
+		end,
+	}
+	return connection
 end
 
 export type SendOptions = {
@@ -226,44 +318,79 @@ export type SendOptions = {
 	unreliable: boolean?,
 }
 
-local RESERVED_NAMES = table.freeze({ Request = true, Response = true })
+local outbox: { [Player]: { { unknown } } } = {}
+local flushConn: RBXScriptConnection? = nil
 
-local function serverEvent(name: string, options: SendOptions?): RemoteEvent
-	assert(RunService:IsServer(), "[RivueRemote] send() and sendAll() run on the server")
-	assert(
-		type(name) == "string" and not RESERVED_NAMES[name],
-		`[RivueRemote] '{tostring(name)}' can't be used as an event name`
-	)
-	local className = if options and options.unreliable then "UnreliableRemoteEvent" else "RemoteEvent"
-	local existing = getFolder():FindFirstChild(name)
-	if existing and existing.ClassName ~= className then
-		error(`[RivueRemote] '{name}' is already a {existing.ClassName}, so it can't be sent as a {className}`, 3)
+local function flush()
+	if next(outbox) == nil then
+		return
 	end
-	return findOrCreate(getFolder(), className, name) :: RemoteEvent
+	local pending = outbox
+	outbox = {}
+	local event = getEventsEvent()
+	for player, batch in pending do
+		-- A player can leave between the send and the end of the frame
+		pcall(event.FireClient, event, player, batch)
+	end
 end
 
---- Returns the reason when the payload can't be sent
-function Remote.send(player: Player, name: string, payload: unknown, options: SendOptions?): string?
-	local event = serverEvent(name, options)
+local function enqueue(player: Player, name: string, payload: unknown)
+	local batch = outbox[player]
+	if not batch then
+		batch = {}
+		outbox[player] = batch
+	end
+	table.insert(batch, { name :: unknown, payload })
+	if not flushConn then
+		flushConn = RunService.Heartbeat:Connect(flush)
+		Players.PlayerRemoving:Connect(function(leaving)
+			outbox[leaving] = nil
+		end)
+	end
+end
+
+local function checkSend(fnName: string, name: unknown, payload: unknown): string?
+	assert(RunService:IsServer(), `[RivueRemote] {fnName}() runs on the server`)
+	assert(type(name) == "string" and #name > 0, `[RivueRemote] {fnName}() needs an event name`)
 	local valid, validErr = validatePayload(payload)
 	if not valid then
-		warn(`[RivueRemote] send("{name}") wasn't sent: {validErr}`)
+		warn(`[RivueRemote] {fnName}("{name}") wasn't sent: {validErr}`)
 		return validErr
 	end
-	event:FireClient(player, payload)
+	return nil
+end
+
+--- Sent at the end of the frame, with the frame's other sends. Returns the reason when the payload
+--- can't be sent
+function Remote.send(player: Player, name: string, payload: unknown, options: SendOptions?): string?
+	local err = checkSend("send", name, payload)
+	if err then
+		return err
+	end
+	if options and options.unreliable then
+		getUnreliableEvent():FireClient(player, name, payload)
+	else
+		enqueue(player, name, payload)
+	end
 	return nil
 end
 
 function Remote.sendAll(name: string, payload: unknown, options: SendOptions?): string?
-	local event = serverEvent(name, options)
-	local valid, validErr = validatePayload(payload)
-	if not valid then
-		warn(`[RivueRemote] sendAll("{name}") wasn't sent: {validErr}`)
-		return validErr
+	local err = checkSend("sendAll", name, payload)
+	if err then
+		return err
 	end
-	event:FireAllClients(payload)
+	if options and options.unreliable then
+		getUnreliableEvent():FireAllClients(name, payload)
+	else
+		for _, player in Players:GetPlayers() do
+			enqueue(player, name, payload)
+		end
+	end
 	return nil
 end
+
+Remote.flush = flush
 
 export type RequestHandler = (player: Player, payload: unknown) -> unknown
 
@@ -281,31 +408,54 @@ const DEFAULT_MAX_PER_SECOND = 30
 
 type Bucket = { tokens: number, last: number }
 
+export type ActionStats = {
+	calls: number,
+	failed: number,
+	rejected: number,
+	totalTime: number,
+	maxTime: number,
+}
+
 local handlers: { [string]: RequestHandler } = {}
 local limits: { [string]: number } = {}
 local checks: { [string]: ((payload: unknown) -> boolean)? } = {}
 local middlewares: { Middleware } = {}
-local buckets: { [Player]: { [string]: Bucket } } = {}
+local buckets: { [Player]: { [unknown]: Bucket } } = {}
+local stats: { [string]: ActionStats } = {}
 
-local function takeToken(player: Player, action: string, rate: number): boolean
+-- Keys no action name can collide with
+local UNKNOWN_ACTIONS = newproxy(false)
+local ALL_REQUESTS = newproxy(false)
+local ALL_BYTES = newproxy(false)
+
+local function take(player: Player, key: unknown, rate: number, amount: number): boolean
 	local playerBuckets = buckets[player]
 	if not playerBuckets then
 		playerBuckets = {}
 		buckets[player] = playerBuckets
 	end
 	local now = os.clock()
-	local bucket = playerBuckets[action]
+	local bucket = playerBuckets[key]
 	if not bucket then
 		bucket = { tokens = rate, last = now }
-		playerBuckets[action] = bucket
+		playerBuckets[key] = bucket
 	end
 	bucket.tokens = math.min(rate, bucket.tokens + (now - bucket.last) * rate)
 	bucket.last = now
-	if bucket.tokens < 1 then
+	if bucket.tokens < amount then
 		return false
 	end
-	bucket.tokens -= 1
+	bucket.tokens -= amount
 	return true
+end
+
+local function statsFor(action: string): ActionStats
+	local entry = stats[action]
+	if not entry then
+		entry = { calls = 0, failed = 0, rejected = 0, totalTime = 0, maxTime = 0 }
+		stats[action] = entry
+	end
+	return entry
 end
 local serverConn: RBXScriptConnection? = nil
 
@@ -329,32 +479,47 @@ local function processRequest(player: Player, req: unknown): RemoteResponse?
 
 	local actionHandler = handlers[action]
 	if not actionHandler then
-		-- Limited too, or a client could make the server reply as fast as it sends. Real action
-		-- names are never empty, so "" can't clash with one
-		if takeToken(player, "", DEFAULT_MAX_PER_SECOND) then
+		-- Limited too, or a client could make the server reply as fast as it sends
+		if take(player, UNKNOWN_ACTIONS, DEFAULT_MAX_PER_SECOND, 1) then
 			return reply(false, nil, "unknown_action")
 		end
 		return nil
 	end
 
+	local entry = statsFor(action)
+	local function refuse(err: string): RemoteResponse?
+		entry.rejected += 1
+		return reply(false, nil, err)
+	end
+
+	-- Per action limits alone would let a client spread its spam over every action
+	local total = settings.maxRequestsPerSecond
+	if total > 0 and not take(player, ALL_REQUESTS, total, 1) then
+		return refuse("rate_limited")
+	end
 	local rate = limits[action]
-	if rate > 0 and not takeToken(player, action, rate) then
-		return reply(false, nil, "rate_limited")
+	if rate > 0 and not take(player, action, rate, 1) then
+		return refuse("rate_limited")
 	end
 
 	local payload = request.payload
-	local valid, validErr = validatePayload(payload)
+	local valid, validErr, size = validatePayload(payload)
 	if not valid then
-		return reply(false, nil, validErr)
+		return refuse(validErr :: string)
+	end
+	local bytes = settings.maxBytesPerSecond
+	if bytes > 0 and not take(player, ALL_BYTES, bytes, size) then
+		return refuse("rate_limited")
 	end
 
 	for _, middleware in table.clone(middlewares) do
 		local ran, allowed = pcall(middleware, player, action, payload)
 		if not ran then
 			warn(`[RivueRemote] Middleware failed on '{action}': {allowed}`)
+			entry.failed += 1
 			return reply(false, nil, "handler_error")
 		elseif allowed == false then
-			return reply(false, nil, "rejected")
+			return refuse("rejected")
 		end
 	end
 
@@ -362,17 +527,38 @@ local function processRequest(player: Player, req: unknown): RemoteResponse?
 	if check then
 		local ran, passed = pcall(check, payload)
 		if not ran or passed ~= true then
-			return reply(false, nil, "invalid_payload")
+			return refuse("invalid_payload")
 		end
 	end
 
+	local started = os.clock()
 	local ok, result = pcall(actionHandler, player, payload)
+	local elapsed = os.clock() - started
+	entry.calls += 1
+	entry.totalTime += elapsed
+	if elapsed > entry.maxTime then
+		entry.maxTime = elapsed
+	end
 	if not ok then
 		-- The error stays in the server log, the client only learns that it failed
 		warn(`[RivueRemote] Remote handler '{action}' failed: {result}`)
+		entry.failed += 1
 		return reply(false, nil, "handler_error")
 	end
 	return reply(true, result)
+end
+
+--- Handler time includes any yields, such as DataStore calls
+function Remote.stats(): { [string]: ActionStats }
+	local copy = {}
+	for action, entry in stats do
+		copy[action] = table.clone(entry)
+	end
+	return copy
+end
+
+function Remote.resetStats()
+	table.clear(stats)
 end
 
 -- A server can't fire its own OnServerEvent, so the tests call this directly
@@ -383,6 +569,8 @@ function Remote.setupServer(): ()
 	assert(RunService:IsServer(), "Remote.setupServer() must be called on the server")
 	getRequestEvent()
 	getResponseEvent()
+	getEventsEvent()
+	getUnreliableEvent()
 end
 
 function Remote.handle(actionName: string, handler: RequestHandler, opts: HandleOptions?): ()

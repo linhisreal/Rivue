@@ -17,6 +17,8 @@ and per-player rate limits. It's a separate package from Rivue, which only does 
 - [Remote.send() and Remote.sendAll()](#remotesend-and-remotesendall)
 - [Remote.use()](#remoteuse)
 - [Remote.action()](#remoteaction)
+- [Remote.configure()](#remoteconfigure)
+- [Remote.stats()](#remotestats)
 - [Payloads and errors](#payloads-and-errors)
 
 ---
@@ -36,8 +38,9 @@ never wait for them.
 
 - **Details**
 
-  The events live in `ReplicatedStorage.RemoteEvents`. Clients wait up to 5 seconds for them, and
-  warn if the server never created them.
+  The events live in `ReplicatedStorage.RemoteEvents`: two for requests and replies, and two that
+  carry everything `send()` and `sendAll()` push, however many event names the game uses. Clients
+  wait up to 5 seconds for them, and warn if the server never created them.
 
 - **Type**
 
@@ -82,7 +85,8 @@ returns is sent back as the response.
   - **Errors.** If the handler errors, the error is logged on the server and the client gets
     `"handler_error"`, so internal details never leak to clients.
   - **Rate limits.** Each player can call each action `maxPerSecond` times per second (default
-    30, `0` disables it). Extra calls get `"rate_limited"`.
+    30, `0` disables it). On top of that, each player has a budget across all actions, set with
+    [`configure()`](#remoteconfigure). Calls over either limit get `"rate_limited"`.
   - **Payloads come from the client.** Never trust them. `check` gets the payload before the
     handler does; if it returns anything but `true` (or errors), the client gets
     `"invalid_payload"` and the handler doesn't run.
@@ -214,14 +218,16 @@ Listens on the client for events the server sends, like a new message or a price
 
 - **Details**
 
-  The server sends with [`send()` or `sendAll()`](#remotesend-and-remotesendall), which create
-  the event in `ReplicatedStorage.RemoteEvents`. Disconnect the connection when you're done, for
+  The server sends with [`send()` or `sendAll()`](#remotesend-and-remotesendall). Each callback
+  runs in its own thread, as with a RemoteEvent. Disconnect the connection when you're done, for
   example in `onUnmounted`.
 
 - **Type**
 
   ```lua
-  function Remote.on(name: string, callback: (payload: any) -> ()): RBXScriptConnection
+  type Connection = { Connected: boolean, Disconnect: (self: Connection) -> () }
+
+  function Remote.on(name: string, callback: (payload: any) -> ()): Connection
   ```
 
 ---
@@ -253,19 +259,19 @@ Clients receive it with [`Remote.on()`](#remoteon).
 
 - **Details**
 
-  - The first send creates the event in `ReplicatedStorage.RemoteEvents`, so the client's
-    `Remote.on()` finds it. Call it once at startup for events clients listen to straight away.
+  - Sends wait until the end of the frame, and everything one player is sent in a frame goes as
+    one network message, in the order it was sent. `Remote.flush()` sends the queue straight away.
   - The payload is checked like a request's. If it can't be sent, it warns and returns the reason.
-  - `unreliable = true` uses an `UnreliableRemoteEvent`. Updates can be dropped or arrive out of
-    order, and Roblox drops unreliable payloads over about 900 bytes, but they cost less. Use it
-    for values that change many times a second. A name is either reliable or unreliable, not both.
-  - `"Request"` and `"Response"` are RivueRemote's own events and can't be used as names.
+  - `unreliable = true` sends at once through an `UnreliableRemoteEvent`, outside the batch.
+    Updates can be dropped or arrive out of order, and Roblox drops unreliable payloads over about
+    900 bytes, but they cost less. Use it for values that change many times a second.
 
 - **Type**
 
   ```lua
   function Remote.send(player: Player, name: string, payload: unknown, options: { unreliable: boolean? }?): string?
   function Remote.sendAll(name: string, payload: unknown, options: { unreliable: boolean? }?): string?
+  function Remote.flush()
   ```
 
 ---
@@ -347,6 +353,89 @@ name and its types. Put it in a ModuleScript in ReplicatedStorage and require it
 
 ---
 
+## Remote.configure()
+
+Changes RivueRemote's limits. Call it from a ModuleScript both sides require, so the client checks
+payloads against the same limits the server does.
+
+- **Example**
+
+  ```lua
+  -- ReplicatedStorage/RemoteConfig.luau, required by a server script and a client script
+  Remote.configure({
+  	maxPayloadSize = 4000, -- this game never sends more
+  	maxRequestsPerSecond = 40,
+  })
+  ```
+
+- **Details**
+
+  | Setting | Default | |
+  |---|---|---|
+  | `maxPayloadSize` | 20000 | largest payload, in bytes, roughly as the network sends it |
+  | `maxPayloadDepth` | 10 | how deep tables can nest |
+  | `maxRequestsPerSecond` | 60 | requests one player can send per second, all actions together |
+  | `maxBytesPerSecond` | 50000 | payload bytes one player can send per second, all actions together |
+
+  `0` turns off `maxRequestsPerSecond` or `maxBytesPerSecond`. Without the totals, a client could
+  spread its spam across every action and stay under each action's own `maxPerSecond`. An unknown
+  setting errors.
+
+- **Type**
+
+  ```lua
+  function Remote.configure(config: {
+  	maxPayloadSize: number?,
+  	maxPayloadDepth: number?,
+  	maxRequestsPerSecond: number?,
+  	maxBytesPerSecond: number?,
+  })
+  ```
+
+---
+
+## Remote.stats()
+
+Counts per action on the server, for finding slow or failing handlers in a live game.
+
+- **Example**
+
+  <!-- server -->
+  ```lua
+  task.spawn(function()
+  	while task.wait(60) do
+  		for action, s in Remote.stats() do
+  			if s.calls > 0 then
+  				print(action, s.calls, "calls,", s.failed, "failed,", s.rejected, "refused,",
+  					math.round(s.totalTime / s.calls * 1000), "ms on average")
+  			end
+  		end
+  		Remote.resetStats()
+  	end
+  end)
+  ```
+
+- **Details**
+
+  - `calls` counts handler runs, and `failed` the ones that errored (a `use()` function that
+    errored counts too).
+  - `rejected` counts requests refused before the handler: rate limits, payload checks, `check`
+    and `use()`.
+  - `totalTime` and `maxTime` are the handler's time in seconds, including any time it spent
+    yielding, for example on a DataStore call.
+  - The counts add up until `resetStats()`. `stats()` returns a copy.
+
+- **Type**
+
+  ```lua
+  type ActionStats = { calls: number, failed: number, rejected: number, totalTime: number, maxTime: number }
+
+  function Remote.stats(): { [string]: ActionStats }
+  function Remote.resetStats()
+  ```
+
+---
+
 ## Payloads and errors
 
 - **Example**
@@ -364,7 +453,8 @@ name and its types. Put it in a ModuleScript in ReplicatedStorage and require it
 
 - **Payloads** can contain:
   - strings, numbers and booleans,
-  - tables up to 10 levels deep, and about 20 KB in total,
+  - tables up to 10 levels deep, and about 20 KB in total (both can be changed with
+    [`configure()`](#remoteconfigure)),
   - Instances,
   - Roblox datatypes such as Vector3, CFrame, Color3, UDim2 and EnumItem.
 
@@ -376,7 +466,7 @@ name and its types. Put it in a ModuleScript in ReplicatedStorage and require it
   |-------|---------|
   | `"timeout"` | No response in time |
   | `"unknown_action"` | No `handle()` for that action on the server (at most 30 of these replies a second per player) |
-  | `"rate_limited"` | Over the action's `maxPerSecond` |
+  | `"rate_limited"` | Over the action's `maxPerSecond`, or the player's total request or byte budget |
   | `"rejected"` | A [`use()`](#remoteuse) function returned `false` |
   | `"invalid_payload"` | The action's `check` didn't return `true` |
   | `"handler_error"` | The server handler errored |

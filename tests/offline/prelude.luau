@@ -944,7 +944,14 @@ do
 	local pg = Instance.new("Folder")
 	pg.Name = "PlayerGui"
 	pg.Parent = player
-	services.Players = { LocalPlayer = player, PlayerRemoving = makeSignal(), PlayerAdded = makeSignal() }
+	services.Players = {
+		LocalPlayer = player,
+		PlayerRemoving = makeSignal(),
+		PlayerAdded = makeSignal(),
+		GetPlayers = function()
+			return { player }
+		end,
+	}
 	services.LogService = { MessageOut = makeSignal() }
 	local selection = {}
 	services.Selection = {

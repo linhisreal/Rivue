@@ -115,7 +115,7 @@ With Wally, add it to `wally.toml` and run `wally install`:
 ```toml
 [dependencies]
 RivueUI = "linhisreal/rivue-ui@0.9.0-rc.2"
-RivueRemote = "linhisreal/rivue-remote@0.6.0-beta.1" # optional, for client/server calls
+RivueRemote = "linhisreal/rivue-remote@0.7.0-beta.1" # optional, for client/server calls
 RivueRouter = "linhisreal/rivue-router@0.2.0-beta.1" # optional, for screens and back/forward
 ```
 
