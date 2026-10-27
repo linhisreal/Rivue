@@ -2,7 +2,7 @@
 
 # RivueRouter
 
-Screen navigation for [Rivue](https://github.com/linhisreal/Rivue), modelled on Vue Router 4:
+Screen navigation for [Rivue](../../README.md), modelled on Vue Router 4:
 named and nested routes, named views, `RouterView` and `RouterLink`, navigation guards that can
 wait for the player, `redirect`, `alias`, `meta`, dynamic routes and `scrollBehavior`. Routes have
 names instead of paths, since Roblox UI has no URLs.
@@ -20,4 +20,4 @@ local router = Router.createRouter({
 app:use(router)
 ```
 
-Docs: https://linhisreal.github.io/Rivue/api/router
+Docs: [RivueRouter API](../../docs/api/router.md)

@@ -14,11 +14,7 @@
   <a href="https://pesde.dev/packages/linhisreal/rivue_ui"><img src="docs/assets/badges/pesde.webp" height="32" alt="Install with pesde"></a>
   <a href="rokit.toml"><img src="docs/assets/badges/rokit.webp" height="32" alt="Tools pinned with Rokit"></a>
   <a href="https://luau.org"><img src="docs/assets/badges/luau.webp" height="32" alt="Written in Luau"></a>
-  <a href="https://linhisreal.github.io/Rivue/"><img src="docs/assets/badges/docs.webp" height="32" alt="Read the docs"></a>
-</p>
-
-<p align="center">
-  <a href="https://github.com/linhisreal/Rivue/actions/workflows/build.yml"><img src="https://github.com/linhisreal/Rivue/actions/workflows/build.yml/badge.svg" alt="CI"></a>
+  <a href="docs/README.md"><img src="docs/assets/badges/docs.webp" height="32" alt="Read the docs"></a>
 </p>
 
 Stop writing `label.Text = ...` by hand. Write what the screen should look like for the current
@@ -143,16 +139,14 @@ RivueRouter = "linhisreal/rivue-router@0.1.0-beta.1" # optional, for screens and
 }
 ```
 
-**Without Rojo**, download `RivueUI.rbxm` from the latest
-[release](https://github.com/linhisreal/Rivue/releases) and drag it into `ReplicatedStorage`.
+**Without Rojo**, download `RivueUI.rbxm` from the latest release on the repo's Releases page and
+drag it into `ReplicatedStorage`.
 There's also `RivueUI.min.rbxm` (same code, comments stripped), and the optional `RivueRemote.rbxm`
 and `RivueRouter.rbxm`, which go next to it.
 
 ## Docs
 
-They're at [linhisreal.github.io/Rivue](https://linhisreal.github.io/Rivue/). If you'd rather read
-them on GitHub, the [docs home](docs/README.md) has an "I want to…" table that points you at the
-right page.
+Start at the [docs home](docs/README.md). Its "I want to…" table points you at the right page.
 
 [Guide](docs/GUIDE.md) · [Examples](examples) · [API reference](docs/API.md) ·
 [Coming from Vue](docs/VUE.md) ·

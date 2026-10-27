@@ -9,8 +9,8 @@ long it took and why, with props and state you can edit live.
 
 ## Install
 
-Grab `RivueDevTools.rbxm` from the latest [release](https://github.com/linhisreal/Rivue/releases)
-and drop it in your Plugins folder (**Plugins → Plugins Folder** in Studio). If you'd rather build
+Grab `RivueDevTools.rbxm` from the latest release on the repo's Releases page and drop it in
+your Plugins folder (**Plugins → Plugins Folder** in Studio). If you'd rather build
 it yourself, run `rojo build packages/rivue-devtools -o RivueDevTools.rbxm`.
 
 ## Use

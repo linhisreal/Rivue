@@ -9,4 +9,4 @@ slots, style classes and layout props, transitions and virtual lists.
 local Rivue = require(ReplicatedStorage.Packages.RivueUI)
 ```
 
-Docs: https://linhisreal.github.io/Rivue/ · Source: https://github.com/linhisreal/Rivue
+Docs: [docs home](../../docs/README.md)

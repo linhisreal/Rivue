@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://polyformproject.org/licenses/noncommercial/1.0.0"><img src="https://raw.githubusercontent.com/linhisreal/Rivue/main/docs/assets/polyform-logo.png" height="72" alt="PolyForm"></a>
+  <a href="https://polyformproject.org/licenses/noncommercial/1.0.0"><img src="../../docs/assets/polyform-logo.png" height="72" alt="PolyForm"></a>
 </p>
 
 # Rivue license
