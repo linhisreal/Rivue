@@ -177,7 +177,7 @@ pesde.toml                 the pesde workspace
 ## License
 
 <a href="LICENSE.md">
-<img src="docs/assets/license-lockup.webp" height="60" alt="Rivue License: PolyForm Noncommercial 1.0.0 + games permission">
+<img src="docs/assets/license-lockup.webp" height="110" alt="Rivue License: PolyForm Noncommercial 1.0.0 + games permission">
 </a>
 
 [PolyForm Noncommercial 1.0.0](LICENSE.md), with an extra permission for games. You can use, fork,
