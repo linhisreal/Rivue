@@ -229,6 +229,25 @@ return function()
 	waitRefresh()
 	assertEquals(rowText(rows(widget)[2]), "<Wallet>  1", "and counts on from there")
 
+	local body = find(widget, "Body")
+	pcall(function()
+		body.AbsoluteSize = Vector2.new(300, 400)
+		body.AbsolutePosition = Vector2.new(0, 0)
+	end)
+	local function mouse(kind, y)
+		return { UserInputType = kind, Position = Vector3.new(10, y, 0) }
+	end
+	local treeHeight = find(widget, "Tree").Size.Y.Scale
+	Rivue.testing.trigger(find(widget, "Divider"), "onInputBegan", mouse(Enum.UserInputType.MouseButton1, 0))
+	Rivue.testing.trigger(body, "onInputChanged", mouse(Enum.UserInputType.MouseMovement, 120))
+	Rivue.nextTick()
+	assertEquals(find(widget, "Tree").Size.Y.Scale, 0.3, "dragging the divider resizes the tree")
+	Rivue.testing.trigger(body, "onMouseLeave")
+	Rivue.testing.trigger(body, "onInputChanged", mouse(Enum.UserInputType.MouseMovement, 300))
+	Rivue.nextTick()
+	assertEquals(find(widget, "Tree").Size.Y.Scale, 0.3, "leaving the panel ends the drag")
+	assertTrue(treeHeight ~= 0.3, "it started somewhere else")
+
 	find(widget, "Filter").Text = "wal"
 	Rivue.nextTick()
 	local filtered = rows(widget)
