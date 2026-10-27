@@ -2,7 +2,7 @@
 <img src="docs/assets/license-lockup.webp" height="140" alt="Rivue License, based on PolyForm Noncommercial 1.0.0, with the games permission">
 </p>
 
-# Rivue license
+# Rivue License
 
 Copyright (c) 2025-2026 linhisreal (ThisisLinh)
 
@@ -101,10 +101,9 @@ long as they keep the "Required Notice" line and this license.
 
 ## Violations
 
-Coming back into compliance under the Violations section of the PolyForm Noncommercial License
-keeps your licenses going. It does not make the earlier use permitted. Practical steps to correct
-a commercial use that wasn't allowed include stopping all sales, taking down copies offered for
-sale, and no longer providing paid services that weren't allowed.
+Under the Violations section of the PolyForm Noncommercial License, practical steps to correct a
+past commercial use that wasn't allowed include stopping all sales, taking down copies offered
+for sale, and no longer providing paid services that weren't allowed.
 
 ---
 
