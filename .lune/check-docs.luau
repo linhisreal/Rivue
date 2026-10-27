@@ -55,7 +55,6 @@ local function isFence(line: string): boolean
 	return string.sub(trimStart(line), 1, 3) == "```"
 end
 
--- Resolves "a/b/../c" style paths
 local function normalize(path: string): string
 	local parts = {}
 	for _, part in string.split(path, "/") do

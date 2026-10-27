@@ -125,7 +125,6 @@ type StateRecord = {
 	conns: { RBXScriptConnection },
 }
 
--- Interaction state of elements whose classes have hover/pressed/selected variants
 local stateRecords: { [Instance]: StateRecord } = setmetatable({}, { __mode = "k" }) :: any
 
 local function clearStates(el: Instance)
@@ -153,7 +152,6 @@ const DEVTOOLS_ATTRIBUTES = {
 	"RivueEdit",
 }
 
--- Each root listens for state edits sent by the DevTools plugin
 local devtoolsEditConns: { [Instance]: RBXScriptConnection } = setmetatable({}, { __mode = "k" }) :: any
 
 -- Unmounted roots leave the DevTools list, and pooled Instances don't carry old data
@@ -936,7 +934,6 @@ local function collectClassNames(value: unknown, out: { string })
 	end
 end
 
--- Keys inside a style class that hold variants rather than properties
 const STYLE_VARIANTS = table.freeze({
 	hover = true,
 	pressed = true,
@@ -1344,7 +1341,6 @@ local function mountElement(vnode: RenderVNode, container: Instance, poolOpt: Po
 		local from = if fromIn then resolveGoals(inst, fromIn) else nil
 		if from then
 			if not enterGoals then
-				-- Tween back to the values the props just set
 				local back = {}
 				for k in from do
 					local ok, v = pcall(function()

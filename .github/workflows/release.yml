@@ -1,8 +1,5 @@
 name: Release
 
-# Publish a release with every package's .rbxm attached, either by pushing a tag
-# (v2.58.4, or pre-v2.58.4a for a pre-release) or by running this workflow from the Actions tab,
-# which creates the tag on the current main. Notes come from .github/release-notes/<tag>.md.
 on:
   push:
     tags: ["v*", "pre-v*"]

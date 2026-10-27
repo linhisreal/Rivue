@@ -228,7 +228,6 @@ local function inject<T>(key: unknown, default: T?): T?
 	return if provided ~= nil then provided :: T else default
 end
 
---- Return true from fn to stop the error going further up
 local function onErrorCaptured(fn: ErrorCapturedHook): ()
 	local inst = currentInstance
 	if not inst then

@@ -185,9 +185,7 @@ local function layoutComponent(name: string, direction: string): ComponentDef
 	}) :: any
 end
 
---- Children side by side, left to right
 ui.Row = layoutComponent("Row", "horizontal")
---- Children stacked, top to bottom
 ui.Column = layoutComponent("Column", "vertical")
 
 --- Takes up the leftover space in a Row or Column, pushing what comes after it to the far end

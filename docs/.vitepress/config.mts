@@ -5,7 +5,6 @@ import { withMermaid } from "vitepress-plugin-mermaid"
 const REPO = "https://github.com/linhisreal/Rivue"
 const DOCS = path.resolve(__dirname, "..")
 
-// Links to files outside docs/ (examples, source) point at GitHub instead of a missing page
 function githubLinks(md: any) {
 	const render = md.renderer.rules.link_open ?? ((tokens, idx, options, _env, self) => self.renderToken(tokens, idx, options))
 	md.renderer.rules.link_open = (tokens, idx, options, env, self) => {
@@ -14,7 +13,6 @@ function githubLinks(md: any) {
 			const [file, hash] = href.split("#")
 			const target = path.resolve(DOCS, path.dirname(env.relativePath), file)
 			if (target === path.join(DOCS, "README.md")) {
-				// README.md is the site's home page (see rewrites)
 				const up = path.relative(path.dirname(path.resolve(DOCS, env.relativePath)), DOCS)
 				tokens[idx].attrSet("href", `${up ? up + "/" : "./"}index.md${hash ? `#${hash}` : ""}`)
 			} else if (!target.startsWith(DOCS + path.sep)) {
@@ -27,7 +25,6 @@ function githubLinks(md: any) {
 	}
 }
 
-// Heading ids made the way GitHub makes them, so the same #links work on GitHub and on the site
 function githubSlug(text: string): string {
 	return text
 		.trim()

@@ -486,7 +486,6 @@ local virtualList: ComponentDef = {
 					else
 						local column = (i - 1) % columns
 						offset = ((i - 1) // columns) * ((props.itemSize :: number) + gap)
-						-- Each cell is 1/columns of the width, minus its share of the gaps
 						cross = UDim.new(column / columns, column * gap / columns)
 						crossSize = UDim.new(1 / columns, -gap * (columns - 1) / columns)
 					end

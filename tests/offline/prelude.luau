@@ -314,7 +314,6 @@ game = setmetatable({
 		return services[n] or {}
 	end,
 }, {
-	-- game.ReplicatedStorage, game.Players, ...
 	__index = function(_, k)
 		return services[k]
 	end,
