@@ -29,6 +29,9 @@ end
 
 function array.insert<T>(list: { T }, index: number, value: T)
 	local raw = rawOf(list)
+	if index < 1 or index > #raw + 1 then
+		error(`[Rivue] array.insert: position {index} is outside 1..{#raw + 1}`, 2)
+	end
 	table.insert(raw, index, toRaw(value))
 	triggerListChange(raw, index, #raw, true)
 end
@@ -84,6 +87,9 @@ end
 function array.splice<T>(list: { T }, start: number, deleteCount: number?, ...: T): { T }
 	local raw = rawOf(list)
 	local count = #raw
+	if start < 0 then
+		start = count + start + 1
+	end
 	start = math.clamp(start, 1, count + 1)
 	local removeCount = math.clamp(deleteCount or (count - start + 1), 0, math.max(count - start + 1, 0))
 	local removed = table.move(raw, start, start + removeCount - 1, 1, {})
@@ -105,7 +111,11 @@ function array.move<T>(list: { T }, from: number, to: number)
 		return
 	end
 	local raw = rawOf(list)
+	if from < 1 or from > #raw then
+		return
+	end
 	local item = table.remove(raw, from)
+	to = math.clamp(to, 1, #raw + 1)
 	table.insert(raw, to, item :: T)
 	triggerListChange(raw, math.min(from, to), math.max(from, to), false)
 end

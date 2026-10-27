@@ -63,6 +63,11 @@ Adds an item at a position and moves the rest down, like `table.insert(list, ind
   array.insert(queue, 1, "a") -- { "a", "b", "c" }
   ```
 
+- **Details**
+
+  The position must be between 1 and one past the end. Anything else errors, so an item is never
+  dropped without a word.
+
 - **Type**
 
   ```lua
@@ -157,7 +162,8 @@ Returns what was removed.
 
 - **Details**
 
-  Without `deleteCount`, everything from `start` to the end is removed.
+  Without `deleteCount`, everything from `start` to the end is removed. A negative `start` counts
+  from the end, as in JavaScript: `-1` is the last item.
 
 - **Type**
 
@@ -177,6 +183,10 @@ Moves an item to a new position, for reordering things like hotbar slots or a qu
   local hotbar = Rivue.reactive({ "Sword", "Bow", "Potion" })
   array.move(hotbar, 3, 1) -- Potion, Sword, Bow
   ```
+
+- **Details**
+
+  A `to` past either end moves the item to that end. A `from` that isn't in the list does nothing.
 
 - **Type**
 
