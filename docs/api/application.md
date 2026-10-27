@@ -30,6 +30,7 @@ local Players = game:GetService("Players")
 - [app.config.warnHandler](#appconfigwarnhandler)
 - [app.config.globalProperties](#appconfigglobalproperties)
 - [app.config.devtools](#appconfigdevtools)
+- [app.config.performance](#appconfigperformance)
 - [Pooling options](#pooling-options)
 
 ---
@@ -610,6 +611,13 @@ Lets the [Rivue DevTools plugin](../DEVTOOLS.md) show this app's components whil
   | `RivueTrigger` | what caused the last render: `mount`, `parent`, or the state that changed, like `count` or `props.title` |
   | `RivueSource` | where `defineComponent` was called, like `ReplicatedStorage.UI.Shop:12` |
   | `RivueEmit` | the latest `emit`: a counter, the event name and its arguments |
+  | `RivueProvides` | the keys it provides, one per line |
+  | `RivueInjects` | the keys it injected, one per line |
+
+  The app also gets a `Configuration` named `RivueDevTools`, tagged `RivueDevToolsChannel`, inside
+  the container it was mounted in. Its `RivueTimeline` attribute holds the last 50 renders, emits,
+  navigations and remote requests, and `RivueRoute` holds RivueRouter's current route and history.
+  It's removed when the app unmounts.
 
   The plugin can also set `RivueEdit` to `"key=value"`. Rivue sets the ref `setup` returned as
   `key`, if the value parses as the ref's current type (number, string or boolean), and clears the
@@ -623,6 +631,35 @@ Lets the [Rivue DevTools plugin](../DEVTOOLS.md) show this app's components whil
 
   ```lua
   app.config.devtools: boolean?
+  ```
+
+---
+
+## app.config.performance
+
+Marks each component's `setup`, render and patch in Roblox's MicroProfiler, like Vue's
+`app.config.performance` does for the browser's performance tools.
+
+- **Example**
+
+  ```lua
+  local App = Rivue.defineComponent({ name = "App", render = function() return h("Frame") end })
+
+  local app = Rivue.createApp(App)
+  app.config.performance = game:GetService("RunService"):IsStudio()
+  app:mountToPlayerGui(Players.LocalPlayer)
+  ```
+
+- **Details**
+
+  The labels are `Rivue <Name> setup`, `Rivue <Name> render` and `Rivue <Name> patch`. Open the
+  MicroProfiler with Ctrl+F6 and look for them in the frame where the UI updates. Set it before
+  `app:mount()`.
+
+- **Type**
+
+  ```lua
+  app.config.performance: boolean?
   ```
 
 ---

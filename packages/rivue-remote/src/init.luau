@@ -24,7 +24,7 @@ local Players = game:GetService("Players")
 
 local Remote = {}
 
-Remote.version = "0.7.0-beta.1"
+Remote.version = "0.8.0-beta.1"
 Remote.__index = Remote
 
 -- RivueRemote works without RivueUI. When the game has it, Remote finds the same copy the router
