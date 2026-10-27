@@ -100,7 +100,8 @@ updated Instances.
 
 - **Details**
 
-  Don't change component state here, or it can loop. To react to a specific value, use
+  Children's `onUpdated` run before their parents', so a parent sees its children's updated
+  Instances. Don't change component state here, or it can loop. To react to a specific value, use
   [`watch()`](reactivity-core.md#watch) with `flush = "post"`.
 
 - **Type**

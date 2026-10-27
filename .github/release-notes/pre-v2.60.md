@@ -53,6 +53,8 @@ Pre-release.
 - RivueRouter: a router used by two apps went back two screens per press of a back key.
 - RivueRemote: requests only showed on the DevTools timeline after something else had called `Remote.on`.
 - RivueUI: `onEffectCleanup` inside a computed never ran, and `emit()` inside `onBeforeUnmount` or `onUnmounted` was dropped.
+- RivueUI: a keyed list with duplicate keys left an extra Instance behind that was never removed.
+- RivueUI: `onUpdated` ran on a parent before its children. Children now run first, as in Vue.
 - RivueDevTools: releasing the mouse outside the window while dragging the divider kept the drag going.
 
 ## Install
