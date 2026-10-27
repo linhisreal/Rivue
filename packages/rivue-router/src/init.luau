@@ -340,7 +340,6 @@ local function createRouter(options: RouterOptions): Router
 		return to
 	end
 
-	-- Builds the route object without following redirects
 	local function build(location: RouteLocation, redirectedFrom: Route?): Route
 		local record = findRecord(location.name)
 		local matched = {}

@@ -194,7 +194,6 @@ local function onStepped(callback: (time: number, deltaTime: number) -> ()): ()
 	end)
 end
 
--- Shared refs for engine state, created on first use and kept for the session
 local viewportSize: Ref<Vector2>? = nil
 local inputType: Ref<InputType>? = nil
 local safeArea: Ref<SafeArea>? = nil
@@ -675,7 +674,6 @@ local function useTween<T>(source: Ref<T> | () -> T, info: TweenInfo): Ref<T>
 	return out
 end
 
--- A spring moves numbers, so each supported type is split into its numbers and built back after
 local function toNumbers(v: unknown): { number }
 	local t = typeof(v)
 	if t == "number" then

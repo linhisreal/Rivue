@@ -599,7 +599,6 @@ local devtoolsHooks: { emit: ((instance: ComponentInstance, eventName: string, a
 local function createSetupContext(instance: ComponentInstance): SetupContext
 	return {
 		emit = function(eventName: string, ...: any): ()
-			-- Like Vue: a component that's gone has no parent to tell
 			if instance.isUnmounted then
 				return
 			end

@@ -1,5 +1,4 @@
 --!nonstrict
--- The window's colours, taken from Studio's theme so the panel matches the docks around it
 
 export type Palette = {
 	background: Color3,
@@ -12,9 +11,7 @@ export type Palette = {
 	accent: Color3,
 	accentText: Color3,
 	border: Color3,
-	-- Re-rendered since the last refresh
 	changed: Color3,
-	-- Over the slow-render threshold
 	slow: Color3,
 }
 

@@ -44,7 +44,6 @@ local depMap: { [unknown]: { [unknown]: Dep } } = weakKeyed()
 local effectStack: { Effect } = {}
 local activeEffect: Effect? = nil
 
--- Keys for structural changes (keys added/removed, length)
 const ITERATE_KEY = newproxy(false)
 const LENGTH_KEY = "__len"
 const REF_VALUE_KEY = "value"

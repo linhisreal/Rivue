@@ -160,7 +160,6 @@ function composables.useAsync<T>(fn: (...any) -> T, options: AsyncOptions<T>?): 
 		end, ...)
 	end
 
-	-- Results that arrive after the component is gone are dropped
 	reactivity.onScopeDispose(function()
 		disposed = true
 		releaseSuspense()

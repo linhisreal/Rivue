@@ -1,8 +1,6 @@
 --!strict
 --!optimize 2
 
--- Ready-made props for <Transition>: h(Rivue.Transition, Rivue.transitions.fade(), { ... })
-
 export type PresetOptions = {
 	duration: number?,
 	easing: Enum.EasingStyle?,

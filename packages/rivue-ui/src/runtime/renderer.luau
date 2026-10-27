@@ -150,7 +150,6 @@ local function clearStates(el: Instance)
 	end
 end
 
--- Off unless app.config.devtools is set
 const DEVTOOLS_TAG = "RivueComponent"
 
 const DEVTOOLS_ATTRIBUTES = {
@@ -199,7 +198,6 @@ local function isTextObject(el: Instance, className: string?): boolean
 	return TEXT_CLASSES[className or el.ClassName] == true
 end
 
--- classFor picks the class from the value when it varies (layout = "grid" makes a UIGridLayout)
 type SugarSpec = {
 	className: string,
 	classFor: ((value: any) -> string)?,
@@ -559,7 +557,6 @@ local function writeProp(inst: Instance, prop: string, value: unknown): (boolean
 	end)
 end
 
--- Rivue.bind(getter) wraps a getter in this, so a property can follow it without a re-render
 local BINDING_MARKER = "__rivueBinding"
 
 local function bindingGetter(value: unknown): (() -> unknown)?
@@ -2183,7 +2180,6 @@ local function trySetOnlyText(el: Instance, className: string, children: { Child
 		(el :: TextLabel).Text = text
 		return true
 	end
-	-- The text child went away, don't leave its text behind
 	if onlyText(oldChildren) then
 		(el :: TextLabel).Text = ""
 	end

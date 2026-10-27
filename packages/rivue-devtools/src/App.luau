@@ -25,7 +25,6 @@ export type Entry = {
 	trigger: string,
 	source: string,
 	hasChildren: boolean,
-	-- Rendered again since the last refresh
 	changed: boolean,
 }
 
