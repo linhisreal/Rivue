@@ -573,4 +573,116 @@ return function()
 		removeGuard()
 		app:unmount()
 	end
+
+	print("Route query")
+	do
+		local router = Router.createRouter({
+			routes = { lobby = label("Lobby"), shop = label("Shop"), store = { redirect = "shop" } },
+			initial = "lobby",
+		})
+		local _, app = mount(router)
+		router.isReady()
+		assertEquals(next(router.currentRoute.value.query), nil, "query starts empty")
+		router.push({ name = "shop", query = { tab = "weapons" } })
+		assertEquals(router.currentRoute.value.query.tab, "weapons", "push takes a query")
+		assertTrue(table.isfrozen(router.currentRoute.value.query), "and it's read-only")
+		local again = router.push({ name = "shop", query = { tab = "armor" } })
+		assertEquals(again, nil, "a different query is a new navigation, like Vue Router")
+		local same = router.push({ name = "shop", query = { tab = "armor" } })
+		assertTrue(Router.isNavigationFailure(same, Failure.duplicated), "the same query is duplicated")
+		router.push({ name = "store", query = { tab = "pets" } })
+		assertEquals(router.currentRoute.value.name, "shop", "redirects still apply")
+		assertEquals(router.currentRoute.value.query.tab, "pets", "and keep the query")
+		router.back()
+		assertEquals(router.currentRoute.value.query.tab, "armor", "history keeps each entry's query")
+		assertEquals(router.resolve({ name = "shop", query = { tab = "x" } }).query.tab, "x", "resolve too")
+		app:unmount()
+	end
+
+	print("Back keys")
+	do
+		local router = Router.createRouter({
+			routes = { lobby = label("Lobby"), shop = label("Shop") },
+			initial = "lobby",
+			backKeys = { Enum.KeyCode.ButtonB },
+		})
+		local _, app = mount(router)
+		router.isReady()
+		__pressKey(Enum.KeyCode.ButtonB)
+		assertEquals(router.currentRoute.value.name, "lobby", "nothing to go back to")
+		router.push("shop")
+		__pressKey(Enum.KeyCode.ButtonB)
+		assertEquals(router.currentRoute.value.name, "lobby", "the key goes back")
+		app:unmount()
+		router.push("shop")
+		__pressKey(Enum.KeyCode.ButtonB)
+		assertEquals(router.currentRoute.value.name, "shop", "unbound when the app unmounts")
+	end
+
+	print("Lazy route components")
+	do
+		local loads = 0
+		local router = Router.createRouter({
+			routes = {
+				lobby = label("Lobby"),
+				shop = Router.lazy(function()
+					loads += 1
+					return label("Shop")
+				end),
+				broken = Router.lazy(function()
+					error("missing module")
+				end),
+			},
+			initial = "lobby",
+		})
+		local errors = {}
+		router.onError(function(err)
+			table.insert(errors, tostring(err))
+		end)
+		local folder, app = mount(router)
+		router.isReady()
+		assertEquals(loads, 0, "not loaded until it's visited")
+		local order = {}
+		router.beforeResolve(function(to)
+			if to.name == "shop" then
+				table.insert(order, `beforeResolve after {loads} load`)
+			end
+			return true
+		end)
+		router.push("shop")
+		Rivue.nextTick()
+		assertTrue(find(folder, "Shop") ~= nil, "then it shows")
+		assertEquals(order[1], "beforeResolve after 1 load", "loaded before beforeResolve, like Vue Router")
+		router.push("lobby")
+		router.push("shop")
+		assertEquals(loads, 1, "and only loaded once")
+		local result = router.push("broken")
+		assertTrue(Router.isNavigationFailure(result, Failure.aborted), "a loader error aborts")
+		assertTrue(errors[1] and errors[1]:find("missing module") ~= nil, "and goes to onError")
+		app:unmount()
+	end
+
+	print("Navigations reach the DevTools")
+	do
+		local router =
+			Router.createRouter({ routes = { lobby = label("Lobby"), shop = label("Shop") }, initial = "lobby" })
+		local folder = Instance.new("Folder")
+		local app = Rivue.createApp(Shell)
+		app.config.devtools = true
+		app:use(router)
+		app:mount(folder)
+		router.isReady()
+		router.push({ name = "shop", params = { id = 2 }, query = { tab = "x" } })
+		local channel = folder:FindFirstChild("RivueDevTools")
+		local route = channel:GetAttribute("RivueRoute")
+		assertTrue(route:find("name = shop", 1, true) ~= nil, `the current route: {route}`)
+		assertTrue(
+			route:find("id = 2", 1, true) ~= nil and route:find('tab = "x"', 1, true) ~= nil,
+			"with params and query"
+		)
+		assertTrue(route:find("history = lobby, [shop]", 1, true) ~= nil, "and the history")
+		local timeline = channel:GetAttribute("RivueTimeline")
+		assertTrue(timeline:find("\tnavigation\t\tlobby -> shop", 1, true) ~= nil, "navigations are on the timeline")
+		app:unmount()
+	end
 end

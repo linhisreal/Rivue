@@ -35,6 +35,8 @@ end
 
 local Rivue = findRivue()
 local h = Rivue.h
+local ContextActionService = game:GetService("ContextActionService")
+local RunService = game:GetService("RunService")
 
 export type Params = { [string]: any }
 
@@ -50,9 +52,12 @@ export type RouteRecord = {
 	beforeEnter: (Guard | { Guard })?,
 }
 
+export type Query = { [string]: any }
+
 export type RouteLocation = {
 	name: string,
 	params: Params?,
+	query: Query?,
 	replace: boolean?,
 	force: boolean?,
 }
@@ -60,6 +65,7 @@ export type RouteLocation = {
 export type Route = {
 	name: string?,
 	params: Params,
+	query: Query,
 	meta: { [string]: any },
 	matched: { RouteRecord },
 	redirectedFrom: Route?,
@@ -83,6 +89,7 @@ export type RouterOptions = {
 	initial: string,
 	initialParams: Params?,
 	scrollBehavior: ScrollBehavior?,
+	backKeys: { Enum.KeyCode }?,
 }
 
 local NavigationFailureType = table.freeze({
@@ -94,17 +101,46 @@ local NavigationFailureType = table.freeze({
 local START_LOCATION: Route = table.freeze({
 	name = nil,
 	params = table.freeze({}),
+	query = table.freeze({}),
 	meta = table.freeze({}),
 	matched = table.freeze({}),
 	redirectedFrom = nil,
 }) :: any
 
 local ROUTER_KEY = "router"
+local backActions = 0
 local VIEW_KEY = "routerView"
 local MAX_REDIRECTS = 10
 
 local function isComponent(value: any): boolean
 	return type(value) == "table" and value.__is_component == true
+end
+
+export type LazyComponent = { __rivueLazy: true, loader: () -> any }
+
+--- A route component that's required the first time its route is visited, like Vue Router's
+--- `() => import()`. Rivue already treats plain functions as function components, hence the marker
+local function lazy(loader: () -> any): LazyComponent
+	assert(type(loader) == "function", "[RivueRouter] lazy() expects a function that returns a component")
+	return table.freeze({ __rivueLazy = true :: true, loader = loader })
+end
+
+local function isLazy(value: any): boolean
+	return type(value) == "table" and value.__rivueLazy == true
+end
+
+local function describe(value: any): string
+	if type(value) == "string" then
+		return string.format("%q", value)
+	elseif type(value) ~= "table" then
+		return tostring(value)
+	end
+	local parts = {}
+	for key, item in value do
+		table.insert(parts, `{key} = {describe(item)}`)
+	end
+	table.sort(parts)
+	return "{ " .. table.concat(parts, ", ") .. " }"
 end
 
 local function failure(kind: number, to: Route, from: Route): NavigationFailure
@@ -225,7 +261,7 @@ local function createRouter(options: RouterOptions): Router
 	local removeRecord: (record: any) -> ()
 
 	local function addRecord(raw: any, nameHint: string?, parent: any?): any
-		local def: any = if isComponent(raw) then { component = raw } else raw
+		local def: any = if isComponent(raw) or isLazy(raw) then { component = raw } else raw
 		assert(type(def) == "table", `[RivueRouter] Route '{nameHint}' must be a component or a route record`)
 		local name = def.name or nameHint
 		assert(type(name) == "string", "[RivueRouter] Every route needs a name")
@@ -352,6 +388,7 @@ local function createRouter(options: RouterOptions): Router
 		return table.freeze({
 			name = record.name,
 			params = table.freeze(table.clone(location.params or {})),
+			query = table.freeze(table.clone(location.query or {})),
 			meta = table.freeze(meta),
 			matched = table.freeze(matched),
 			redirectedFrom = redirectedFrom,
@@ -368,9 +405,12 @@ local function createRouter(options: RouterOptions): Router
 			end
 			local target = if type(redirect) == "function" then redirect(route) else redirect
 			local nextLocation = toLocation(target, nil)
-			if nextLocation.params == nil then
-				nextLocation = { name = nextLocation.name, params = route.params }
-			end
+			-- Like Vue Router, a redirect keeps the query unless it names its own
+			nextLocation = {
+				name = nextLocation.name,
+				params = nextLocation.params or route.params,
+				query = nextLocation.query or route.query,
+			}
 			route = build(nextLocation, first)
 		end
 		error(`[RivueRouter] Too many redirects from '{first.name}'`, 0)
@@ -407,6 +447,21 @@ local function createRouter(options: RouterOptions): Router
 		currentRoute.value = history[index].route
 		canGoBack.value = index > 1
 		canGoForward.value = index < #history
+		local devtools = Rivue._devtools
+		if devtools then
+			local route = history[index].route
+			local names = {}
+			for i, entry in history do
+				names[i] = if i == index then `[{entry.route.name}]` else entry.route.name :: string
+			end
+			devtools.route(table.concat({
+				`name = {route.name}`,
+				`params = {describe(route.params)}`,
+				`query = {describe(route.query)}`,
+				`meta = {describe(route.meta)}`,
+				`history = {table.concat(names, ", ")}`,
+			}, "\n"))
+		end
 	end
 
 	local function saveScroll()
@@ -457,6 +512,18 @@ local function createRouter(options: RouterOptions): Router
 	end
 
 	local function runHooks(to: Route, from: Route, result: NavigationFailure?)
+		local devtools = Rivue._devtools
+		if devtools then
+			local outcome = "ok"
+			if result then
+				for kind, value in NavigationFailureType do
+					if value == result.type then
+						outcome = kind :: string
+					end
+				end
+			end
+			devtools.event("navigation", `{from.name or "start"} -> {to.name}`, outcome)
+		end
 		for _, hook in table.clone(afterHooks) do
 			local ok, err = pcall(hook :: (...any) -> ...any, to, from, result)
 			if not ok then
@@ -498,42 +565,79 @@ local function createRouter(options: RouterOptions): Router
 				end
 			end
 		end
-		for _, guard in resolveGuards do
-			table.insert(queue, guard)
+		local function runGuards(list: { Guard }): (boolean, NavigationFailure?)
+			for _, guard in list do
+				local ok, result = pcall(guard, to, from)
+				if pending ~= id then
+					local cancelled = failure(NavigationFailureType.cancelled, to, from)
+					runHooks(to, from, cancelled)
+					return true, cancelled
+				end
+				if not ok then
+					reportError(result, to, from, "A navigation guard")
+					local aborted = failure(NavigationFailureType.aborted, to, from)
+					runHooks(to, from, aborted)
+					return true, aborted
+				elseif result == false then
+					local aborted = failure(NavigationFailureType.aborted, to, from)
+					runHooks(to, from, aborted)
+					return true, aborted
+				elseif type(result) == "string" or type(result) == "table" then
+					if depth >= MAX_REDIRECTS then
+						error(`[RivueRouter] Navigation guards redirected more than {MAX_REDIRECTS} times`, 0)
+					end
+					local location = toLocation(result, nil)
+					local redirected = resolveRedirects(location)
+					redirected = table.freeze({
+						name = redirected.name,
+						params = redirected.params,
+						query = redirected.query,
+						meta = redirected.meta,
+						matched = redirected.matched,
+						redirectedFrom = to,
+					}) :: any
+					local nextKind = if location.replace then "replace" elseif kind == "pop" then "push" else kind
+					return true, navigate(nextKind, redirected, nil, depth + 1)
+				end
+			end
+			return false, nil
 		end
 
-		for _, guard in queue do
-			local ok, result = pcall(guard, to, from)
-			if pending ~= id then
-				local cancelled = failure(NavigationFailureType.cancelled, to, from)
-				runHooks(to, from, cancelled)
-				return cancelled
+		local stopped, outcome = runGuards(queue)
+		if stopped then
+			return outcome
+		end
+
+		-- Vue Router loads lazy components after beforeEnter and before beforeResolve
+		for _, record in toMatched do
+			local components = record.components
+			if not components then
+				continue
 			end
-			if not ok then
-				reportError(result, to, from, "A navigation guard")
-				local aborted = failure(NavigationFailureType.aborted, to, from)
-				runHooks(to, from, aborted)
-				return aborted
-			elseif result == false then
-				local aborted = failure(NavigationFailureType.aborted, to, from)
-				runHooks(to, from, aborted)
-				return aborted
-			elseif type(result) == "string" or type(result) == "table" then
-				if depth >= MAX_REDIRECTS then
-					error(`[RivueRouter] Navigation guards redirected more than {MAX_REDIRECTS} times`, 0)
+			for view, component in components do
+				if not isLazy(component) then
+					continue
 				end
-				local location = toLocation(result, nil)
-				local redirected = resolveRedirects(location)
-				redirected = table.freeze({
-					name = redirected.name,
-					params = redirected.params,
-					meta = redirected.meta,
-					matched = redirected.matched,
-					redirectedFrom = to,
-				}) :: any
-				local nextKind = if location.replace then "replace" elseif kind == "pop" then "push" else kind
-				return navigate(nextKind, redirected, nil, depth + 1)
+				local ok, loaded = pcall(component.loader)
+				if pending ~= id then
+					local cancelled = failure(NavigationFailureType.cancelled, to, from)
+					runHooks(to, from, cancelled)
+					return cancelled
+				end
+				if not ok or not isComponent(loaded) then
+					local err = if ok then `lazy component of '{record.name}' didn't return a component` else loaded
+					reportError(err, to, from, "A lazy route component")
+					local aborted = failure(NavigationFailureType.aborted, to, from)
+					runHooks(to, from, aborted)
+					return aborted
+				end
+				components[view] = loaded
 			end
+		end
+
+		stopped, outcome = runGuards(resolveGuards)
+		if stopped then
+			return outcome
 		end
 
 		saveScroll()
@@ -562,7 +666,12 @@ local function createRouter(options: RouterOptions): Router
 		local location = toLocation(to, params)
 		local route = resolveRedirects(location)
 		local from = currentRoute.value
-		if not location.force and route.name == from.name and sameParams(route.params, from.params) then
+		if
+			not location.force
+			and route.name == from.name
+			and sameParams(route.params, from.params)
+			and sameParams(route.query, from.query)
+		then
 			local duplicated = failure(NavigationFailureType.duplicated, route, from)
 			runHooks(route, from, duplicated)
 			return duplicated
@@ -598,7 +707,11 @@ local function createRouter(options: RouterOptions): Router
 				return failure(NavigationFailureType.aborted, from, from)
 			end
 			local entry = history[target].route
-			local ok, route = pcall(build, { name = entry.name :: string, params = entry.params }, entry.redirectedFrom)
+			local ok, route = pcall(
+				build,
+				{ name = entry.name :: string, params = entry.params, query = entry.query },
+				entry.redirectedFrom
+			)
 			if not ok then
 				warn(`[RivueRouter] {route}`)
 				return failure(NavigationFailureType.aborted, from, from)
@@ -670,6 +783,21 @@ local function createRouter(options: RouterOptions): Router
 		end,
 		install = function(app: any)
 			app:provide(ROUTER_KEY, router)
+			local backKeys = options.backKeys
+			if backKeys and #backKeys > 0 and RunService:IsClient() then
+				backActions += 1
+				local action = `RivueRouterBack{backActions}`
+				ContextActionService:BindActionAtPriority(action, function(_, state)
+					if state ~= Enum.UserInputState.Begin or not canGoBack.value then
+						return Enum.ContextActionResult.Pass
+					end
+					router.back()
+					return Enum.ContextActionResult.Sink
+				end, false, Enum.ContextActionPriority.High.Value, table.unpack(backKeys))
+				app:onUnmount(function()
+					ContextActionService:UnbindAction(action)
+				end)
+			end
 			if index ~= 0 then
 				return
 			end
@@ -909,6 +1037,7 @@ return table.freeze({
 	isNavigationFailure = isNavigationFailure,
 	NavigationFailureType = NavigationFailureType,
 	START_LOCATION = START_LOCATION,
+	lazy = lazy,
 	RouterView = RouterView,
 	RouterLink = RouterLink,
 })
