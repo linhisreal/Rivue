@@ -383,6 +383,103 @@ local function runTests()
 		stop()
 	end
 
+	print("Suspense emits pending, fallback and resolve, like Vue")
+	do
+		local events: { string } = {}
+		local Slow = Rivue.defineComponent({
+			name = "SlowShop",
+			setup = function()
+				local items = Rivue.useAsync(function()
+					task.wait(0.1)
+					return { "Sword" }
+				end, { initial = {} })
+				return { items = items.data }
+			end,
+			render = function()
+				return Rivue.h("Frame")
+			end,
+		})
+		local App = Rivue.defineComponent({
+			name = "SuspenseEvents",
+			render = function()
+				return Rivue.h(Rivue.Suspense, {
+					onPending = function()
+						table.insert(events, "pending")
+					end,
+					onFallback = function()
+						table.insert(events, "fallback")
+					end,
+					onResolve = function()
+						table.insert(events, "resolve")
+					end,
+				}, { Rivue.h(Slow) })
+			end,
+		})
+		local app = Rivue.createApp(App)
+		app:mount(Instance.new("Folder"))
+		Rivue.nextTick()
+		assertEquals(table.concat(events, ","), "pending,fallback", "pending, then fallback while it loads")
+		task.wait(0.2)
+		Rivue.nextTick()
+		assertEquals(table.concat(events, ","), "pending,fallback,resolve", "resolve once it has loaded")
+		app:unmount()
+	end
+
+	print("onEffectCleanup runs before the next run and on stop, like Vue 3.5")
+	do
+		local count = Rivue.ref(0)
+		local log: { string } = {}
+		local stop = Rivue.watchEffect(function()
+			local seen = count.value
+			Rivue.onEffectCleanup(function()
+				table.insert(log, "clean " .. seen)
+			end)
+		end, { flush = "sync" })
+		count.value = 1
+		assertEquals(table.concat(log, ","), "clean 0", "the last run's cleanup runs before the next run")
+		stop()
+		assertEquals(table.concat(log, ","), "clean 0,clean 1", "and the last one runs on stop")
+
+		local runner = Rivue.effect(function()
+			local seen = count.value
+			Rivue.onEffectCleanup(function()
+				table.insert(log, "effect " .. seen)
+			end)
+		end)
+		Rivue.nextTick()
+		count.value = 2
+		Rivue.nextTick()
+		runner:stop()
+		assertEquals(log[#log - 1] .. "|" .. log[#log], "effect 1|effect 2", "plain effects too")
+	end
+
+	print("app.config.performance marks setup and render in the MicroProfiler")
+	do
+		local marks: { string }? = __profileMarks
+		local before = if marks then #marks else 0
+		local Panel = Rivue.defineComponent({
+			name = "PerfPanel",
+			setup = function()
+				return {}
+			end,
+			render = function()
+				return Rivue.h("Frame")
+			end,
+		})
+		local app = Rivue.createApp(Panel)
+		app.config.performance = true
+		app:mount(Instance.new("Folder"))
+		Rivue.nextTick()
+		if marks then
+			local joined = table.concat(marks, ",", before + 1)
+			assertTrue(string.find(joined, "Rivue PerfPanel setup", 1, true) ~= nil, "setup is marked")
+			assertTrue(string.find(joined, "Rivue PerfPanel render", 1, true) ~= nil, "render is marked")
+			assertTrue(string.find(joined, "Rivue PerfPanel patch", 1, true) ~= nil, "patch is marked")
+			assertEquals((debug :: any).profileDepth(), 0, "every mark is closed")
+		end
+		app:unmount()
+	end
+
 	print("\n========== VUE FEATURES TESTS COMPLETE ==========\n")
 end
 

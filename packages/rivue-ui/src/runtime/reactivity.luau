@@ -203,6 +203,15 @@ local function setErrorHandling(getOwner: () -> any, report: (owner: any, err: s
 	errorOwner, reportError = getOwner, report
 end
 
+local function runEffectCleanups(cleanups: { () -> () })
+	for _, cleanup in cleanups do
+		local ok, err = pcall(cleanup :: () -> ...unknown)
+		if not ok then
+			warn(`[Rivue] Error in effect cleanup: {err}`)
+		end
+	end
+end
+
 local function createEffect(fn: () -> (), opts: EffectOptions?, onError: ((err: string) -> ())?): Effect
 	local options: EffectOptions = opts or {}
 	local effect = {
@@ -213,6 +222,7 @@ local function createEffect(fn: () -> (), opts: EffectOptions?, onError: ((err: 
 		onTrack = options.onTrack,
 		onTrigger = options.onTrigger,
 		allowRecurse = options.allowRecurse,
+		cleanups = nil :: { () -> () }?,
 	}
 	local typedEffect: Effect = effect :: any
 
@@ -227,6 +237,11 @@ local function createEffect(fn: () -> (), opts: EffectOptions?, onError: ((err: 
 			utils.profiler:start(effectName)
 		end
 
+		local cleanups = effect.cleanups
+		if cleanups then
+			effect.cleanups = nil
+			runEffectCleanups(cleanups)
+		end
 		clearDeps(typedEffect)
 		local depth = #effectStack
 		effectStack[depth + 1] = typedEffect
@@ -266,6 +281,11 @@ local function createEffect(fn: () -> (), opts: EffectOptions?, onError: ((err: 
 			dep[self] = nil
 		end
 		table.clear(self.deps)
+		local cleanups = self.cleanups
+		if cleanups then
+			self.cleanups = nil
+			runEffectCleanups(cleanups)
+		end
 	end
 
 	if activeScope then
@@ -781,6 +801,23 @@ local function onWatcherCleanup(fn: () -> (), failSilently: boolean?)
 	end
 end
 
+local function onEffectCleanup(fn: () -> (), failSilently: boolean?)
+	-- A sync watcher can fire while some other effect is running, so the watcher comes first
+	local register = activeWatcherCleanup
+	if register then
+		register(fn)
+		return
+	end
+	local eff = activeEffect
+	if eff then
+		local cleanups: { () -> () } = eff.cleanups or {}
+		eff.cleanups = cleanups
+		table.insert(cleanups, fn)
+	elseif not failSilently then
+		warn("[Rivue] onEffectCleanup() was called outside an effect")
+	end
+end
+
 local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: WatchOptions?): WatchHandle
 	local options: WatchOptions = opts or {}
 	local deepOption = options.deep
@@ -1229,6 +1266,7 @@ return {
 	watchPostEffect = watchPostEffect,
 	watchSyncEffect = watchSyncEffect,
 	onWatcherCleanup = onWatcherCleanup,
+	onEffectCleanup = onEffectCleanup,
 	effect = effect,
 
 	isRef = isRef,

@@ -37,6 +37,7 @@ local function createSuspense(): ComponentDef
 			fallback = { type = "table" :: "table" },
 			timeout = { type = "number" :: "number", default = 5000 },
 		},
+		emits = { "pending", "fallback", "resolve" },
 		setup = function(props: Props, context: SetupContext)
 			local isLoading = ref(false)
 			local error = ref(nil :: string?)
@@ -54,6 +55,11 @@ local function createSuspense(): ComponentDef
 				register = function()
 					pendingCount += 1
 					isLoading.value = true
+					if pendingCount == 1 then
+						context.emit("pending")
+						-- Rivue shows the fallback straight away, so it's also when Vue would emit this
+						context.emit("fallback")
+					end
 					local timeout = props.timeout
 					if not timeoutThread and type(timeout) == "number" and timeout > 0 then
 						timeoutThread = task.delay(timeout / 1000, function()
@@ -66,9 +72,10 @@ local function createSuspense(): ComponentDef
 				end,
 				resolve = function()
 					pendingCount = math.max(0, pendingCount - 1)
-					if pendingCount == 0 then
+					if pendingCount == 0 and isLoading.value then
 						isLoading.value = false
 						clearTimeout()
+						context.emit("resolve")
 					end
 				end,
 				reject = function(err: string)

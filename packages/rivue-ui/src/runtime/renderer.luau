@@ -159,7 +159,67 @@ const DEVTOOLS_ATTRIBUTES = {
 	"RivueSource",
 	"RivueEmit",
 	"RivueEdit",
+	"RivueProvides",
+	"RivueInjects",
 }
+
+const DEVTOOLS_CHANNEL_TAG = "RivueDevToolsChannel"
+const TIMELINE_LIMIT = 50
+
+-- One Configuration per app with devtools on. The plugin reads the timeline and route from it,
+-- and the router and RivueRemote write to it through Rivue._devtools
+local devtoolsChannels: { [Instance]: boolean } = {}
+local timeline: { string } = {}
+local timelineSeq = 0
+local lastRoute: string? = nil
+
+local function oneLine(text: string): string
+	return (string.gsub(text, "[\t\n]", " "))
+end
+
+local function devtoolsEvent(kind: string, label: string, detail: string?, ms: number?)
+	if next(devtoolsChannels) == nil then
+		return
+	end
+	timelineSeq += 1
+	local msText = if ms then tostring(math.round(ms * 100) / 100) else ""
+	table.insert(
+		timeline,
+		`{timelineSeq}\t{math.round(os.clock() * 1000)}\t{kind}\t{msText}\t{oneLine(label)}\t{oneLine(detail or "")}`
+	)
+	if #timeline > TIMELINE_LIMIT then
+		table.remove(timeline, 1)
+	end
+	local text = table.concat(timeline, "\n")
+	for channel in devtoolsChannels do
+		channel:SetAttribute("RivueTimeline", text)
+	end
+end
+
+local function devtoolsRoute(text: string)
+	lastRoute = text
+	for channel in devtoolsChannels do
+		channel:SetAttribute("RivueRoute", text)
+	end
+end
+
+local function openDevtoolsChannel(container: Instance): Instance
+	local channel = Instance.new("Configuration")
+	channel.Name = "RivueDevTools"
+	channel:SetAttribute("RivueTimeline", table.concat(timeline, "\n"))
+	if lastRoute then
+		channel:SetAttribute("RivueRoute", lastRoute)
+	end
+	CollectionService:AddTag(channel, DEVTOOLS_CHANNEL_TAG)
+	channel.Parent = container
+	devtoolsChannels[channel] = true
+	return channel
+end
+
+local function closeDevtoolsChannel(channel: Instance)
+	devtoolsChannels[channel] = nil
+	channel:Destroy()
+end
 
 local devtoolsEditConns: { [Instance]: RBXScriptConnection } = setmetatable({}, { __mode = "k" }) :: any
 
@@ -1902,6 +1962,7 @@ componentAPI.devtoolsHooks.emit = function(inst: ComponentInstance, eventName: s
 	_reactivity._untracked(function()
 		(el :: Instance):SetAttribute("RivueEmit", text)
 	end)
+	devtoolsEvent("emit", `{inst.type.__name or "Anonymous"}: {eventName}`, table.concat(parts, ", "))
 end
 
 --- Mirrors a component's name, props and state onto its root Instance for the DevTools plugin.
@@ -1928,10 +1989,23 @@ local function writeDevtools(inst: ComponentInstance, el: Instance, renderMs: nu
 	el:SetAttribute("RivueRenderMs", math.round(renderMs * 100) / 100)
 	local triggers = inst._devtoolsTriggers
 	inst._devtoolsTriggers = nil
-	el:SetAttribute(
-		"RivueTrigger",
-		if renders == 1 then "mount" elseif triggers then table.concat(triggers, ", ") else "parent"
-	)
+	local trigger = if renders == 1 then "mount" elseif triggers then table.concat(triggers, ", ") else "parent"
+	el:SetAttribute("RivueTrigger", trigger)
+
+	local provided: { string } = {}
+	if not inst.parent or inst.provides ~= inst.parent.provides then
+		for key in next, inst.provides do
+			table.insert(provided, tostring(key))
+		end
+	end
+	el:SetAttribute("RivueProvides", devtoolsText(provided))
+	local injected: { string } = {}
+	for key in (inst._injected or {}) :: { [unknown]: boolean } do
+		table.insert(injected, tostring(key))
+	end
+	el:SetAttribute("RivueInjects", devtoolsText(injected))
+
+	devtoolsEvent("render", inst.type.__name or "Anonymous", trigger, renderMs)
 end
 
 local function applyFallthroughAttrs(props: Props?, attrs: Props): Props?
@@ -2030,10 +2104,18 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 			renderStart = os.clock()
 		end
 		local render = inst.render
+		local profiled = inst.appContext.config.performance == true
+		local label = if profiled then `Rivue {inst.type.__name or "Anonymous"}` else ""
 		local prevRendering = componentAPI.setRenderingInstance(inst)
+		if profiled then
+			debug.profilebegin(label .. " render")
+		end
 		local ok, sub = pcall(function(): unknown
 			return if render then render() else nil
 		end)
+		if profiled then
+			debug.profileend()
+		end
 		componentAPI.setRenderingInstance(prevRendering)
 
 		if not ok then
@@ -2048,7 +2130,13 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 		if inst.isMounted then
 			local prevTree = inst.subTree
 			inst:runBeforeUpdate()
+			if profiled then
+				debug.profilebegin(label .. " patch")
+			end
 			local patched, err = pcall(commit :: (VNode?) -> ...unknown, nextTree)
+			if profiled then
+				debug.profileend()
+			end
 			if not patched then
 				inst.subTree = prevTree
 				inst:handleError(tostring(err), "patch")
@@ -2056,7 +2144,16 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 			end
 			inst:runUpdated()
 		else
-			commit(nextTree)
+			if profiled then
+				debug.profilebegin(label .. " patch")
+				local mounted, err = pcall(commit :: (VNode?) -> ...unknown, nextTree)
+				debug.profileend()
+				if not mounted then
+					error(err, 0)
+				end
+			else
+				commit(nextTree)
+			end
 			inst.isMounted = true
 			queuePost(function()
 				if inst.isUnmounted then
@@ -2493,6 +2590,7 @@ local function createApp(root: VNode | ComponentDef, opts: AppOptions?): App
 	end
 
 	local mounted: MountedState = { vnode = nil, container = nil, poolOpt = poolOpt }
+	local devtoolsChannel: Instance? = nil
 	local appContext: AppContext = { provides = {}, config = { globalProperties = {} }, components = {}, styles = {} }
 
 	local api = { config = appContext.config } :: App
@@ -2543,6 +2641,9 @@ local function createApp(root: VNode | ComponentDef, opts: AppOptions?): App
 		end
 
 		mounted.container = container
+		if appContext.config.devtools and not devtoolsChannel then
+			devtoolsChannel = openDevtoolsChannel(container)
+		end
 		local prevContext = currentAppContext
 		currentAppContext = appContext
 		local ok, err = pcall(patch :: (...any) -> ...unknown, nil, rootVNode, container, poolOpt)
@@ -2585,6 +2686,10 @@ local function createApp(root: VNode | ComponentDef, opts: AppOptions?): App
 			end
 		end
 		mounted.container = nil
+		if devtoolsChannel then
+			closeDevtoolsChannel(devtoolsChannel)
+			devtoolsChannel = nil
+		end
 		if ownedGui then
 			ownedGui:Destroy()
 			ownedGui = nil
@@ -2662,4 +2767,6 @@ return {
 	patch = patch,
 	formatTree = formatTree,
 	unmountVNode = unmountVNode,
+	devtoolsEvent = devtoolsEvent,
+	devtoolsRoute = devtoolsRoute,
 }

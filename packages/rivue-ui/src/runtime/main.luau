@@ -100,6 +100,7 @@ Rivue.effectScope = reactivity.effectScope
 Rivue.getCurrentScope = reactivity.getCurrentScope
 Rivue.onScopeDispose = reactivity.onScopeDispose
 Rivue.onWatcherCleanup = reactivity.onWatcherCleanup
+Rivue.onEffectCleanup = reactivity.onEffectCleanup
 
 local function trackForCleanup(handle: WatchHandle | Effect)
 	local currentInstance = componentAPI.getCurrentInstance()
@@ -346,6 +347,7 @@ function Rivue.bind<T>(getter: () -> T): T
 end
 
 Rivue.createApp = renderer.createApp
+Rivue._devtools = table.freeze({ event = renderer.devtoolsEvent, route = renderer.devtoolsRoute })
 Rivue.testing = table.freeze({
 	trigger = renderer.trigger,
 	setInteraction = renderer.setInteraction,

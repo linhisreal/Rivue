@@ -83,6 +83,8 @@ type InstanceData = {
 	_idCount: number,
 	_keepAliveRenderer: { unmount: (vnode: VNode) -> () }?,
 	_devtoolsTriggers: { string }?,
+	-- Keys this component injected, kept only while app.config.devtools is on
+	_injected: { [unknown]: boolean }?,
 }
 
 export type ComponentInstance = typeof(setmetatable({} :: InstanceData, ComponentInstance))
@@ -211,6 +213,11 @@ end
 
 --- Like Vue, inject() looks above the component, so it can read a key and provide a new value for it
 local function providedAbove(inst: ComponentInstance, key: unknown): unknown
+	if inst.appContext.config.devtools then
+		local injected = inst._injected or {}
+		inst._injected = injected
+		injected[key] = true
+	end
 	local parent = inst.parent
 	return if parent then parent.provides[key] else inst.appContext.provides[key]
 end
@@ -433,6 +440,10 @@ function ComponentInstance.setupComponent(self: ComponentInstance)
 	local setup = def.setup
 	if setup then
 		local setupErr: unknown = nil
+		local profiled = self.appContext.config.performance == true
+		if profiled then
+			debug.profilebegin(`Rivue {def.__name or "Anonymous"} setup`)
+		end
 		setupResult = scope:run(function()
 			local ok, result = pcall(setup, self.props, self.ctx)
 			if not ok then
@@ -441,6 +452,9 @@ function ComponentInstance.setupComponent(self: ComponentInstance)
 			end
 			return result
 		end)
+		if profiled then
+			debug.profileend()
+		end
 		if setupErr ~= nil then
 			setCurrentInstance(prevInstance)
 			scope:stop()
@@ -722,6 +736,7 @@ local function createComponentInstance(
 		_idCount = 0,
 		_keepAliveRenderer = nil,
 		_devtoolsTriggers = nil,
+		_injected = nil,
 	}
 	local instance = setmetatable(data, ComponentInstance)
 	instance.ctx = createSetupContext(instance)
