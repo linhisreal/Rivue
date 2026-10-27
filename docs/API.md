@@ -186,6 +186,9 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [request()](api/remote.md#remoterequest) ·
 [fire()](api/remote.md#remotefire) ·
 [on()](api/remote.md#remoteon) ·
+[send() / sendAll()](api/remote.md#remotesend-and-remotesendall) ·
+[use()](api/remote.md#remoteuse) ·
+[action()](api/remote.md#remoteaction) ·
 [Payloads and errors](api/remote.md#payloads-and-errors)
 
 **[RivueRouter](api/router.md)** (separate package)
@@ -201,6 +204,7 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [RouterLink](api/router.md#routerrouterlink) ·
 [useRouter() / useRoute()](api/router.md#routeruserouter-and-routeruseroute) ·
 [useLink()](api/router.md#routeruselink) ·
+[isReady() / onError()](api/router.md#routerisready-and-routeronerror) ·
 [navigation failures](api/router.md#navigation-failures)
 
 **[Instance pool](api/pool.md)**

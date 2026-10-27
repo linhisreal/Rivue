@@ -76,6 +76,7 @@ export type GuardResult = boolean | string | RouteLocation | nil
 export type Guard = (to: Route, from: Route) -> GuardResult
 export type AfterHook = (to: Route, from: Route, failure: NavigationFailure?) -> ()
 export type ScrollPositions = { [string]: Vector2 }
+export type ErrorHandler = (err: unknown, to: Route, from: Route) -> ()
 export type ScrollBehavior = (to: Route, from: Route, savedPosition: ScrollPositions?) -> any
 
 export type RouterOptions = {
@@ -207,6 +208,8 @@ export type Router = {
 	beforeEach: (guard: Guard) -> () -> (),
 	beforeResolve: (guard: Guard) -> () -> (),
 	afterEach: (hook: AfterHook) -> () -> (),
+	onError: (handler: ErrorHandler) -> () -> (),
+	isReady: () -> (),
 	addRoute: (parentOrRecord: string | RouteRecord, record: RouteRecord?) -> () -> (),
 	removeRoute: (name: string) -> (),
 	hasRoute: (name: string) -> boolean,
@@ -388,6 +391,22 @@ local function createRouter(options: RouterOptions): Router
 	local beforeGuards: { Guard } = {}
 	local resolveGuards: { Guard } = {}
 	local afterHooks: { AfterHook } = {}
+	local errorHandlers: { ErrorHandler } = {}
+	local ready = false
+	local readyWaiters: { thread } = {}
+
+	local function reportError(err: unknown, to: Route, from: Route, where: string)
+		if #errorHandlers == 0 then
+			warn(`[RivueRouter] {where} failed: {err}`)
+			return
+		end
+		for _, handler in table.clone(errorHandlers) do
+			local ok, handlerErr = pcall(handler :: (...any) -> ...any, err, to, from)
+			if not ok then
+				warn(`[RivueRouter] An onError handler failed: {handlerErr}`)
+			end
+		end
+	end
 	local pending = 0
 	local router: Router
 
@@ -419,7 +438,7 @@ local function createRouter(options: RouterOptions): Router
 		Rivue.nextTick(function()
 			local ok, position = pcall(behavior, to, from, saved)
 			if not ok then
-				warn(`[RivueRouter] scrollBehavior failed: {position}`)
+				reportError(position, to, from, "scrollBehavior")
 				return
 			end
 			local getRoot = router._scrollRoot
@@ -427,7 +446,11 @@ local function createRouter(options: RouterOptions): Router
 			if type(position) ~= "table" or not root then
 				return
 			end
+			local only = position.el
 			for _, frame in scrollingFrames(root) do
+				if type(only) == "string" and frame.Name ~= only and scrollKey(frame, root) ~= only then
+					continue
+				end
 				if position == saved then
 					local at = (saved :: ScrollPositions)[scrollKey(frame, root)]
 					if at then
@@ -496,7 +519,7 @@ local function createRouter(options: RouterOptions): Router
 				return cancelled
 			end
 			if not ok then
-				warn(`[RivueRouter] A navigation guard failed: {result}`)
+				reportError(result, to, from, "A navigation guard")
 				local aborted = failure(NavigationFailureType.aborted, to, from)
 				runHooks(to, from, aborted)
 				return aborted
@@ -649,13 +672,32 @@ local function createRouter(options: RouterOptions): Router
 			end)
 			return list
 		end,
+		onError = function(handler: ErrorHandler): () -> ()
+			return guardList(errorHandlers, handler)
+		end,
+		isReady = function()
+			if not ready then
+				table.insert(readyWaiters, coroutine.running())
+				coroutine.yield()
+			end
+		end,
 		install = function(app: any)
 			app:provide(ROUTER_KEY, router)
-			-- The first screen goes through the guards too, as in Vue Router
-			if index == 0 then
+			if index ~= 0 then
+				return
+			end
+			-- The first screen goes through the guards too, as in Vue Router. A guard that waits
+			-- doesn't hold up mounting; isReady() waits for it instead
+			task.spawn(function()
 				local route = resolveRedirects({ name = options.initial, params = options.initialParams })
 				navigate("replace", route, nil, 0)
-			end
+				ready = true
+				local waiters = readyWaiters
+				readyWaiters = {}
+				for _, waiter in waiters do
+					task.spawn(waiter)
+				end
+			end)
 		end,
 	}
 	assert(records[options.initial] or aliases[options.initial], `createRouter: no route named '{options.initial}'`)
