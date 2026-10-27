@@ -178,7 +178,6 @@ local function scrollingFrames(root: Instance?): { ScrollingFrame }
 	return frames
 end
 
--- The screen's top Instance, under any components (KeepAlive, Transition) wrapping it
 local function rootElement(vnode: any): Instance?
 	while vnode do
 		if type(vnode.type) == "string" and vnode.el then
@@ -240,7 +239,6 @@ local function createRouter(options: RouterOptions): Router
 		local record = {
 			name = name,
 			components = components,
-			-- Named views take props per view, like Vue Router
 			props = if def.components
 				then def.props or {}
 				else { default = if def.props == nil then true else def.props },

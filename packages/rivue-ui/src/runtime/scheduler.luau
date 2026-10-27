@@ -25,10 +25,8 @@ const MAX_REENTRANCY_DEPTH = 100
 
 local NOOP_HANDLE: JobHandle = table.freeze({ cancel = function() end })
 
--- Roblox drops a task.defer more than 80 deferred levels deep (a loop of nextTick() calls gets
--- there), and it only logs, so pcall can't see it. The flush would never run and updateScheduled
--- would stay true forever, so the depth is counted here and anything past 60 waits for the next
--- Heartbeat.
+-- Roblox silently drops a task.defer nested over 80 deep (a nextTick() loop gets there), and the
+-- flush would never run. Past 60, work waits for the next Heartbeat
 const MAX_DEFER_DEPTH = 60
 local deferDepth = 0
 local overflow: { thread | () -> () } = {}

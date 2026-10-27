@@ -39,8 +39,7 @@ local function findOrCreate(parent: Instance, className: string, name: string): 
 		if replicated then
 			return replicated
 		end
-		-- Server never set up remotes (e.g. no Remote.handle/setupServer call); create locally so
-		-- the client doesn't error, but nothing will reach the server
+		-- So the client doesn't error. Nothing sent through it reaches the server
 		warn(`[RivueRemote] {name} not found in {parent:GetFullName()}, call Remote.setupServer() on the server`)
 	end
 
@@ -459,7 +458,6 @@ local function statsFor(action: string): ActionStats
 end
 local serverConn: RBXScriptConnection? = nil
 
---- The reply to one request, or nil when none is sent. fire() sends no id and gets no reply
 local function processRequest(player: Player, req: unknown): RemoteResponse?
 	if type(req) ~= "table" then
 		return nil
