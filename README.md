@@ -55,10 +55,7 @@ Rivue.createApp(Counter):mountToPlayerGui(game.Players.LocalPlayer)
 Want something bigger? [TodoList](examples/components/TodoList.luau) has a text box, a keyed list
 and styles, and there are more in [examples](examples).
 
-Rivue is still young, so the API can change between releases. It runs in LocalScripts. When you
-need the server, there's a separate package for that, [RivueRemote](docs/api/remote.md), with
-requests, events and rate limits. For moving between screens there's
-[RivueRouter](docs/api/router.md), which works like Vue Router.
+Rivue is still young, so the API can change between releases. It runs in LocalScripts.
 
 ## Why Rivue
 
@@ -84,6 +81,42 @@ and `flex` replace the usual UIListLayout boilerplate, and tweens, springs, `Tra
 | Roblox | tweens, springs, viewport and input-type composables, gamepad selection, attribute refs, tags |
 | Studio | warnings that name the component chain, roots named after components, `app:printTree()`, a DevTools plugin, `testing.render` for tests |
 | Types | strict Luau with exported types like `Rivue.Ref<T>` and `Rivue.VNode` |
+
+## Packages
+
+RivueUI is the framework. The others are optional, the way Vue Router is optional next to Vue, and
+each has its own version.
+
+<table>
+<tr>
+<td width="72"><img src="docs/assets/packages/rivue-ui.webp" width="56" height="56" alt="RivueUI"></td>
+<td><b>RivueUI</b>: components, reactive state, style classes, layout, transitions and the
+built-in components. Everything above is RivueUI.</td>
+</tr>
+<tr>
+<td><img src="docs/assets/packages/rivue-remote.webp" width="56" height="56" alt="RivueRemote"></td>
+<td><b><a href="docs/api/remote.md">RivueRemote</a></b>: calls between client and server over
+RemoteEvents. The server answers actions with <code>Remote.handle</code>, and the client calls
+<code>Remote.request</code> and gets the result back, or the reason it failed (a timeout, a rate
+limit, an error in the handler). <code>fire</code> and <code>on</code> send events that need no
+answer. Payloads are checked for size, depth and types before they're sent, and every action has a
+per-player rate limit. It doesn't depend on RivueUI, so the server can use it alone.</td>
+</tr>
+<tr>
+<td><img src="docs/assets/packages/rivue-router.webp" width="56" height="56" alt="RivueRouter"></td>
+<td><b><a href="docs/api/router.md">RivueRouter</a></b>: screens with a history, following Vue
+Router 4. Named and nested routes, <code>RouterView</code> and <code>RouterLink</code>, guards that
+run before every move and can wait for the player to answer a dialog, redirects, aliases,
+<code>meta</code>, routes added while the game runs, and scroll positions put back on Back. Routes
+have names where Vue Router has URLs.</td>
+</tr>
+<tr>
+<td><img src="docs/assets/packages/rivue-devtools.webp" width="56" height="56" alt="RivueDevTools"></td>
+<td><b><a href="docs/DEVTOOLS.md">RivueDevTools</a></b>: a Studio plugin that lists the components
+on screen during a playtest, with their props and state, how often and why they rendered, and the
+events they emitted. You can edit state while the game runs.</td>
+</tr>
+</table>
 
 ## Installation
 

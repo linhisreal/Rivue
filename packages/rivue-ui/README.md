@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/linhisreal/Rivue/main/docs/assets/packages/rivue-ui.webp" width="96" height="96" alt="RivueUI">
+
 # RivueUI
 
 Vue 3's component model for Roblox UI, in Luau: reactive state, components with props, events and

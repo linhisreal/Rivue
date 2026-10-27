@@ -1,3 +1,5 @@
+<img src="https://raw.githubusercontent.com/linhisreal/Rivue/main/docs/assets/packages/rivue-router.webp" width="96" height="96" alt="RivueRouter">
+
 # RivueRouter
 
 Screen navigation for [Rivue](https://github.com/linhisreal/Rivue), modelled on Vue Router 4:
