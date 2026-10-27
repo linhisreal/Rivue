@@ -11,10 +11,9 @@ type PrettyPrintOptions = {
 	unwrapProxies: boolean?,
 }
 
--- Set by main (requiring reactivity here would be circular)
+-- Set by main, requiring reactivity here would be circular
 debug._toRaw = nil :: ((unknown) -> unknown)?
 
--- Studio warnings (unknown props, bad keys, ...) don't depend on it.
 debug.enabled = false
 
 const IS_STUDIO = RunService:IsStudio()

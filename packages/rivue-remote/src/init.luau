@@ -21,13 +21,11 @@ local Players = game:GetService("Players")
 
 local Remote = {}
 
--- Set by `lune run version rivue-remote <version>`
 Remote.version = "0.7.0-beta.1"
 Remote.__index = Remote
 
 const CLIENT_WAIT_TIMEOUT = 5
 
--- Clients wait for the server's copy: instances created on the client never replicate
 local function findOrCreate(parent: Instance, className: string, name: string): Instance
 	local existing = parent:FindFirstChild(name)
 	if existing then
@@ -39,7 +37,6 @@ local function findOrCreate(parent: Instance, className: string, name: string): 
 		if replicated then
 			return replicated
 		end
-		-- So the client doesn't error. Nothing sent through it reaches the server
 		warn(`[RivueRemote] {name} not found in {parent:GetFullName()}, call Remote.setupServer() on the server`)
 	end
 
@@ -62,12 +59,9 @@ local function getResponseEvent(): RemoteEvent
 end
 
 export type Config = {
-	-- Largest payload, in bytes, roughly as the network sends it (default 20000)
 	maxPayloadSize: number?,
 	maxPayloadDepth: number?,
-	-- Requests one player may send per second across all actions (default 60, 0 disables)
 	maxRequestsPerSecond: number?,
-	-- Payload bytes one player may send per second across all actions (default 50000, 0 disables)
 	maxBytesPerSecond: number?,
 }
 
@@ -154,7 +148,6 @@ local function checkOutgoing(actionName: unknown, payload: unknown): string?
 end
 
 local pendingRequests: { [number]: (resp: RemoteResponse) -> () } = {}
--- The server answers only the player who asked, so ids need to be unique per client, not globally
 local nextRequestId = 0
 local responseConn: RBXScriptConnection? = nil
 
@@ -266,8 +259,6 @@ local function dispatch(name: unknown, payload: unknown)
 	end
 end
 
--- Every event the server sends arrives on two shared events, so a game with many event names
--- still holds two RemoteEvents, and a frame's sends to a player travel as one message
 local function connectEvents()
 	if eventsConnected then
 		return
@@ -313,7 +304,6 @@ function Remote.on(name: string, fn: (payload: any) -> ()): Connection
 end
 
 export type SendOptions = {
-	-- UnreliableRemoteEvent: may drop or reorder, but costs less. For values sent many times a second
 	unreliable: boolean?,
 }
 
@@ -328,7 +318,6 @@ local function flush()
 	outbox = {}
 	local event = getEventsEvent()
 	for player, batch in pending do
-		-- A player can leave between the send and the end of the frame
 		pcall(event.FireClient, event, player, batch)
 	end
 end
@@ -394,9 +383,7 @@ Remote.flush = flush
 export type RequestHandler = (player: Player, payload: unknown) -> unknown
 
 export type HandleOptions = {
-	-- Requests per second per player (default 30, 0 disables)
 	maxPerSecond: number?,
-	-- Return false to reject the payload with "invalid_payload" before the handler runs
 	check: ((payload: unknown) -> boolean)?,
 }
 
@@ -422,7 +409,6 @@ local middlewares: { Middleware } = {}
 local buckets: { [Player]: { [unknown]: Bucket } } = {}
 local stats: { [string]: ActionStats } = {}
 
--- Keys no action name can collide with
 local UNKNOWN_ACTIONS = newproxy(false)
 local ALL_REQUESTS = newproxy(false)
 local ALL_BYTES = newproxy(false)
@@ -477,7 +463,7 @@ local function processRequest(player: Player, req: unknown): RemoteResponse?
 
 	local actionHandler = handlers[action]
 	if not actionHandler then
-		-- Limited too, or a client could make the server reply as fast as it sends
+		-- Replies are limited too, or a client could make the server reply as fast as it sends
 		if take(player, UNKNOWN_ACTIONS, DEFAULT_MAX_PER_SECOND, 1) then
 			return reply(false, nil, "unknown_action")
 		end
@@ -490,7 +476,7 @@ local function processRequest(player: Player, req: unknown): RemoteResponse?
 		return reply(false, nil, err)
 	end
 
-	-- Per action limits alone would let a client spread its spam over every action
+	-- Totalled across actions, or spam could be spread over all of them
 	local total = settings.maxRequestsPerSecond
 	if total > 0 and not take(player, ALL_REQUESTS, total, 1) then
 		return refuse("rate_limited")
@@ -538,7 +524,7 @@ local function processRequest(player: Player, req: unknown): RemoteResponse?
 		entry.maxTime = elapsed
 	end
 	if not ok then
-		-- The error stays in the server log, the client only learns that it failed
+		-- The client only learns that it failed, the error stays in the server log
 		warn(`[RivueRemote] Remote handler '{action}' failed: {result}`)
 		entry.failed += 1
 		return reply(false, nil, "handler_error")
@@ -559,10 +545,8 @@ function Remote.resetStats()
 	table.clear(stats)
 end
 
--- A server can't fire its own OnServerEvent, so the tests call this directly
 Remote._processRequest = processRequest
 
--- Call it once at server startup, so clients don't wait for the events
 function Remote.setupServer(): ()
 	assert(RunService:IsServer(), "Remote.setupServer() must be called on the server")
 	getRequestEvent()

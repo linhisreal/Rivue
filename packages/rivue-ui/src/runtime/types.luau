@@ -30,7 +30,6 @@ export type EffectOptions = {
 	lazy: boolean?,
 	onTrack: ((event: DebuggerEvent) -> ())?,
 	onTrigger: ((event: DebuggerEvent) -> ())?,
-	-- Let the effect re-trigger itself while running (component renders: state set during patch)
 	allowRecurse: boolean?,
 }
 
@@ -55,7 +54,6 @@ export type EffectScope = {
 	cleanups: { () -> () },
 	scopes: { EffectScope },
 	parent: EffectScope?,
-	-- Returns unknown, the type checker can't handle a generic method here
 	run: (self: EffectScope, fn: () -> unknown) -> unknown,
 	stop: (self: EffectScope) -> (),
 }
@@ -64,7 +62,6 @@ export type FlushMode = "pre" | "post" | "sync"
 
 export type WatchOptions = {
 	immediate: boolean?,
-	-- true, or how many levels to traverse
 	deep: (boolean | number)?,
 	flush: FlushMode?,
 	once: boolean?,
@@ -113,8 +110,6 @@ export type Slots = { [string]: SlotFunction }
 
 export type ChildInput = (Child | { ChildInput } | boolean)?
 
--- A list of ChildInput (default slot), a single child, or for components a table of named slot
--- functions. Typed as any table so mixed list literals type-check under the old solver.
 export type Children = { [unknown]: unknown } | string | number | () -> VNode?
 
 export type FunctionalComponent = (props: Props) -> VNode?
@@ -133,11 +128,9 @@ export type VNode = {
 	el: Instance?,
 	_instance: unknown?,
 	_conns: { [string]: RBXScriptConnection }?,
-	-- Current handler per event, the connection calls whatever is here
 	_handlers: { [string]: (...any) -> () }?,
 	_dirs: { [string]: unknown }?,
 	_touched: { [string]: boolean }?,
-	-- Properties bound to a ref or Rivue.bind(), each with its own effect
 	_bindings: { [any]: any }?,
 	_fnTree: VNode?,
 	_owner: unknown?,
@@ -157,7 +150,6 @@ export type TransitionConfig = {
 	info: TweenInfo?,
 	enterInfo: TweenInfo?,
 	leaveInfo: TweenInfo?,
-	-- Applied before enter and tweened to on leave (the "hidden" state)
 	from: { [string]: any }?,
 	enterFrom: { [string]: any }?,
 	enterGoals: { [string]: any }?,
@@ -171,13 +163,11 @@ export type TransitionConfig = {
 	onAfterLeave: ((el: Instance) -> ())?,
 }
 
--- type() or typeof() name: "string", "number", "table", "UDim2", "Color3", "Instance", ...
 export type PropTypeName = string
 
 export type PropSpec = {
 	type: (PropTypeName | { PropTypeName })?,
 	required: boolean?,
-	-- Use a function for table defaults
 	default: unknown?,
 	validator: ((value: any) -> boolean)?,
 }
@@ -219,7 +209,6 @@ export type ComponentOptions = {
 export type ComponentDef = {
 	__is_component: true,
 	__name: string?,
-	-- Where defineComponent was called, "Script.Path:line", for the DevTools' Open source
 	__source: string?,
 	props: PropSchema?,
 	emits: EmitsOptions?,
@@ -234,11 +223,8 @@ export type ComponentDef = {
 export type AsyncComponentOptions = {
 	loadingComponent: VNode?,
 	errorComponent: VNode?,
-	-- ms
 	delay: number?,
-	-- ms
 	timeout: number?,
-	-- Called when a load fails or times out: call retry() to load again, or fail() to give up
 	onError: ((err: string, retry: () -> (), fail: () -> (), attempts: number) -> ())?,
 }
 
@@ -248,7 +234,6 @@ export type SuspenseContext = {
 	reject: (err: string) -> (),
 }
 
--- Whatever mounted/updated return is passed back to later hooks
 export type Directive = {
 	mounted: ((el: Instance, value: any) -> any)?,
 	updated: ((el: Instance, value: any, state: any) -> any)?,
@@ -263,7 +248,6 @@ export type AppConfig = {
 	errorHandler: ((err: string, instance: unknown, info: string) -> ())?,
 	globalProperties: { [string]: unknown }?,
 	warnHandler: ((message: string, instance: unknown, trace: string) -> ())?,
-	-- Mirror components onto their root Instances for the DevTools plugin
 	devtools: boolean?,
 }
 
@@ -279,7 +263,6 @@ export type PoolConfig = {
 	maxTotalSize: number?,
 	enableMetrics: boolean?,
 	enableDebug: boolean?,
-	-- seconds
 	defaultTTL: number?,
 	enableAutoWarmup: boolean?,
 }

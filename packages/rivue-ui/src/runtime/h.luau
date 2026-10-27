@@ -29,7 +29,6 @@ end
 --- Copies a children list. A nested list ({ header, hFor(...), footer }) becomes a Fragment,
 --- so its keyed diff stays separate and its siblings keep their positions.
 local function copyChildren(list: { [number]: unknown }): { Child }
-	-- Copy so a reused array (like ctx.slots) can't change an already-rendered vnode
 	local out = table.clone(list) :: { [number]: unknown }
 	for i = 1, table.maxn(out) do
 		local child = out[i]
@@ -99,13 +98,11 @@ local function directiveName(key: string): string?
 	return if directives.get(name) then name else nil
 end
 
--- A component with its own `model` prop (ViewportModel) gets the value as is, not v-model sugar
 local function declaresModel(component: unknown): boolean
 	local declared = if type(component) == "table" then (component :: any).props else nil
 	return type(declared) == "table" and (declared.model ~= nil or table.find(declared, "model") ~= nil)
 end
 
--- model = "name" looks the ref up in the setup() of the component that's rendering
 local function resolveModelRef(model: unknown, label: string): Types.Ref<any>
 	if type(model) == "string" then
 		local owner = componentModule.getRenderingInstance()
@@ -145,7 +142,6 @@ local function expandProps(isElement: boolean, props: Props, ownModel: boolean):
 	if props.vOnce ~= nil then
 		local target: Props = out or table.clone(props)
 		out = target
-		-- An empty memo list always equals the last one, so the subtree is never patched again
 		if target.vOnce then
 			target.memo = {}
 		end
@@ -172,12 +168,10 @@ local function expandProps(isElement: boolean, props: Props, ownModel: boolean):
 			end
 			target.Text = if r.value == nil then "" else tostring(r.value)
 			if type(modifiers) == "table" and modifiers.lazy == true then
-				-- Lazy leaves Text uncontrolled while typing and commits on FocusLost
 				local list = if type(target.__directives) == "table" then target.__directives else {}
 				table.insert(list, { name = "model-lazy", value = commit })
 				target.__directives = list
 			else
-				-- Two-way Text binding, keeps any onTextChanged of its own
 				local own = target.onTextChanged
 				target.onTextChanged = function(text: string)
 					commit(text)
@@ -194,8 +188,6 @@ local function expandProps(isElement: boolean, props: Props, ownModel: boolean):
 		end
 	end
 
-	-- Several named models on one component, like Vue's v-model:title and v-model:body. Each pairs
-	-- with a defineModel({ name = ... }) in the child
 	local models = props.models
 	if type(models) == "table" and not isElement then
 		local target: Props = out or table.clone(props)
@@ -361,7 +353,6 @@ local function hFor<T>(list: { T }, mapper: (item: T, index: number) -> VNode?):
 		utils.profiler:start(profileName)
 	end
 
-	-- Numeric loop so reactive arrays work (ipairs skips proxies)
 	local out: { VNode } = table.create(count)
 	for i = 1, count do
 		local node = mapper(list[i], i)

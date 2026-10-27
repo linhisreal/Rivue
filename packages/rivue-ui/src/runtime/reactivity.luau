@@ -39,7 +39,6 @@ local function weakKeyed<K, V>(): { [K]: V }
 	return setmetatable({}, { __mode = "k" }) :: any
 end
 
--- Weak keys: a target nobody references can't be triggered anymore
 local depMap: { [unknown]: { [unknown]: Dep } } = weakKeyed()
 local effectStack: { Effect } = {}
 local activeEffect: Effect? = nil
@@ -49,7 +48,7 @@ const LENGTH_KEY = "__len"
 const REF_VALUE_KEY = "value"
 const COMPUTED_KEY = "computed"
 
--- NaN ~= NaN in Luau, so a plain ~= would re-trigger on every NaN write. Same rule as Vue's Object.is
+-- NaN ~= NaN in Luau, so compare like Object.is
 local function hasChanged(a: unknown, b: unknown): boolean
 	return a ~= b and (a == a or b == b)
 end
@@ -167,7 +166,6 @@ local function isReactive(value: unknown): boolean
 	if target == nil then
 		return false
 	end
-	-- A readonly view is only reactive when what it wraps is
 	if readonlyMarker[value] then
 		return isReactive(target)
 	end
@@ -193,7 +191,6 @@ local function clearDeps(eff: Effect)
 	table.clear(eff.deps)
 end
 
--- component.luau fills these in, so errors in a component's watchers reach its onErrorCaptured
 local errorOwner: () -> any = function()
 	return nil
 end
@@ -232,7 +229,6 @@ local function createEffect(fn: () -> (), opts: EffectOptions?, onError: ((err: 
 		effectStack[depth + 1] = typedEffect
 		activeEffect = typedEffect
 		local ok, err = pcall(fn :: () -> ...unknown)
-		-- Computeds inside run without a pcall of their own, so one that threw left its entry here
 		for i = #effectStack, depth + 1, -1 do
 			effectStack[i] = nil
 		end
@@ -251,7 +247,6 @@ local function createEffect(fn: () -> (), opts: EffectOptions?, onError: ((err: 
 		end
 	end
 
-	-- Queued runs skip stopped effects (run() itself still works for manual calls)
 	local function job()
 		if effect.active then
 			effect.run()
@@ -323,8 +318,7 @@ local function track(target: unknown, key: unknown)
 	end
 end
 
--- For engine calls made mid-render: in Immediate signal mode their handlers run right away, and
--- whatever state those handlers read would otherwise become a dependency of the render
+-- In Immediate signal mode, handlers fired by engine calls here would become render deps
 local function untracked(fn: () -> ())
 	local prev = activeEffect
 	activeEffect = nil
@@ -339,7 +333,6 @@ local triggerScratch: { { Effect } } = {}
 local triggerDepth = 0
 
 local function dispatch(eff: Effect, target: unknown, key: unknown)
-	-- An effect writing state it reads doesn't re-trigger itself (same as Vue)
 	if not eff.active or (eff == activeEffect and not eff.allowRecurse) then
 		return
 	end
@@ -356,8 +349,6 @@ local function dispatch(eff: Effect, target: unknown, key: unknown)
 end
 
 local function triggerDep(dep: Dep, target: unknown, key: unknown)
-	-- Copy first, sync effects change dep during the loop. Scratch arrays are reused per
-	-- nesting depth so a write doesn't allocate.
 	triggerDepth += 1
 	local effects = triggerScratch[triggerDepth]
 	if not effects then
@@ -429,7 +420,6 @@ local function reactive<T>(target: T): T
 		return v
 	end
 	function mt.__newindex(_: RawTable, k: unknown, v: unknown)
-		-- Keep proxies out of the raw table
 		v = toRaw(v)
 		local old = tbl[k]
 		tbl[k] = v
@@ -437,12 +427,11 @@ local function reactive<T>(target: T): T
 			triggerSet(tbl, k, old, v)
 		end
 	end
-	-- Luau ignores __pairs/__ipairs, use `for k, v in proxy do` or `for i = 1, #proxy do`
+	-- Luau has no __pairs: loop with `for k, v in proxy do`
 	function mt.__iter(_: RawTable)
 		track(tbl, ITERATE_KEY)
 		return function(_: RawTable, k: unknown): (unknown, unknown)
 			local nk, nv = next(tbl, k)
-			-- Each value read by a loop is a read, so changing it re-runs the loop like it does in Vue
 			if nk ~= nil then
 				track(tbl, nk)
 			end
@@ -520,7 +509,6 @@ end
 
 local RefMT = {}
 
--- Like Vue's RefImpl, a ref keeps its own dep instead of going through depMap
 function RefMT.__index(self: RefInternal, k: unknown): unknown
 	if k == REF_VALUE_KEY then
 		local current = activeEffect
@@ -617,8 +605,7 @@ local function computed<T>(getterOrOptions: ((previous: T?) -> T) | WritableComp
 		local depth = #effectStack
 		effectStack[depth + 1] = runner
 		activeEffect = runner
-		-- Past this depth a pcall per level would hit Luau's limit of about 200 nested C calls. A
-		-- level without one relies on the protected level below it to restore the effect stack
+		-- Luau allows about 200 nested C calls, so deeper levels skip the pcall
 		if computedDepth >= PROTECTED_COMPUTED_DEPTH then
 			value = getter(value)
 			effectStack[depth + 1] = nil
@@ -632,7 +619,6 @@ local function computed<T>(getterOrOptions: ((previous: T?) -> T) | WritableComp
 			effectStack[i] = nil
 		end
 		activeEffect = effectStack[depth]
-		-- Like Vue, a getter's error reaches whoever read the value
 		if not ok then
 			error(result, 0)
 		end
@@ -717,10 +703,8 @@ local function _traverse<T>(value: T, seen: { [unknown]: true }?, depth: number?
 	local proxyOrRaw: RawTable = value :: any
 	local raw = toRaw(proxyOrRaw)
 	if raw ~= proxyOrRaw then
-		-- Added and removed keys only trigger iteration, so a deep watcher has to track it too
 		track(raw, ITERATE_KEY)
 	end
-	-- Read through the proxy so nested keys get tracked
 	for k in raw do
 		_traverse(proxyOrRaw[k], seenTables, remaining - 1)
 	end
@@ -800,7 +784,6 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 	local deep = deepOption == true or (type(deepOption) == "number" and deepOption > 0)
 	local deepLevels: number? = if type(deepOption) == "number" then deepOption else nil
 	local isMultiSource = false
-	-- A reactive item in a source list is the same table after a change, so any trigger counts
 	local forceTrigger = false
 	local getter: () -> T
 	if type(source) == "function" then
@@ -811,7 +794,6 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 			return sourceRef.value
 		end
 	elseif isReactive(source) then
-		-- Same as Vue: watching a reactive object is deep, otherwise it never looks changed
 		deep = deepOption ~= false and deepOption ~= 0
 		getter = function(): T
 			return source :: T
@@ -854,7 +836,6 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 		table.clear(cleanups)
 	end
 
-	-- Set by the effect so the getter only runs once per change
 	local currentValue: T
 
 	local stop: () -> ()
@@ -912,7 +893,6 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 		run()
 
 		if flushMode == "sync" then
-			-- Thrown from here it would reach the code that wrote the value and skip the other effects
 			local ok, err = pcall(job :: () -> ...unknown)
 			if not ok then
 				warn(`[Rivue] Error in sync watcher: {err}`)
@@ -1045,8 +1025,6 @@ local function createReadonly<T>(target: T, shallow: boolean): T
 	if cached then
 		return cached :: any
 	end
-	-- A view of a reactive table reads its raw table: deps are keyed by raw tables, and next() on
-	-- the proxy itself would find nothing
 	local tbl: RawTable = reactiveMarker[source] or source
 
 	local proxy: RawTable = {}
@@ -1058,7 +1036,6 @@ local function createReadonly<T>(target: T, shallow: boolean): T
 	end
 	cache[source] = proxy
 
-	-- Nested tables of a deep reactive source stay reactive under the readonly view, as in Vue
 	local deepReactive = tbl ~= source and not shallowMarker[source]
 	local function wrap(v: unknown): unknown
 		if shallow or not shouldWrap(v) then
@@ -1205,7 +1182,6 @@ local function triggerListChange(raw: RawTable, first: number, last: number, len
 	if not deps then
 		return
 	end
-	-- One array operation is one change: an effect that read several of these keys runs once
 	local firstKey: { [Effect]: unknown } = {}
 	local order: { Effect } = {}
 	local function collect(key: unknown)

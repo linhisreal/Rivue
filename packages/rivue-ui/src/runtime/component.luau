@@ -37,7 +37,6 @@ local ComponentInstance = {}
 ComponentInstance.__index = ComponentInstance
 
 type InstanceData = {
-	-- Creation order, used to update parents before children
 	uid: number,
 	vnode: VNode,
 	type: ComponentDef,
@@ -80,7 +79,6 @@ type InstanceData = {
 	_pendingUpdate: boolean,
 	_idCount: number,
 	_keepAliveRenderer: { unmount: (vnode: VNode) -> () }?,
-	-- What made the next render happen, for app.config.devtools
 	_devtoolsTriggers: { string }?,
 }
 
@@ -93,7 +91,6 @@ local createRenderContext: (self: ComponentInstance) -> { [string]: any }
 local currentRenderingInstance: ComponentInstance? = nil
 local uidCounter = 0
 
--- Used when a component is mounted outside createApp (e.g. renderer.patch directly)
 const EMPTY_APP_CONTEXT: AppContext =
 	{ provides = {}, config = { globalProperties = {} }, components = {}, styles = {} }
 
@@ -272,8 +269,6 @@ local function getEmitKeys(def: ComponentDef): { [string]: string }?
 	return keys
 end
 
--- Like Vue's shouldUpdateComponent. Declared listeners are read from the vnode when emitted, so a
--- fresh closure for one doesn't count as a change
 local function propsUnchanged(def: ComponentDef, oldProps: Props?, newProps: Props?): boolean
 	if oldProps == newProps then
 		return true
@@ -312,10 +307,8 @@ local function separatePropsAndAttrs(def: ComponentDef, allProps: Props): (Props
 		if emitKeys and emitKeys[key] then
 			continue
 		end
-		-- Like Vue, class goes to the root element unless the component declares it
 		if key == "class" and not (schema and schema.class) then
 			attrs[key] = value
-		-- Without a schema every other prop is declared
 		elseif not schema or schema[key] then
 			props[key] = value
 		else
@@ -348,7 +341,6 @@ local function validateProps(schema: PropSchema?, props: Props): (boolean, strin
 				else { expected :: string }
 			local matches = false
 			for _, t in allowed do
-				-- type() names ("table") and typeof() names ("UDim2", "Instance") both work
 				if t == actual or t == type(val) then
 					matches = true
 					break
@@ -392,7 +384,6 @@ function createRenderContext(self: ComponentInstance): { [string]: any }
 	local ctx = self.ctx :: any
 	return setmetatable({}, {
 		__index = function(_: unknown, key: string): any
-			-- A key setup() returned belongs to setup state, even while its ref holds nil
 			if stateView and (state :: any)[key] ~= nil then
 				return stateView[key]
 			end
@@ -449,7 +440,6 @@ function ComponentInstance.setupComponent(self: ComponentInstance)
 		end)
 		if setupErr ~= nil then
 			setCurrentInstance(prevInstance)
-			-- The component never mounts, so nothing else would stop what setup() started
 			scope:stop()
 			self._scope = nil
 			error(`[Rivue] setup() of {formatComponentTrace(self)} failed: {setupErr}`, 0)
@@ -561,7 +551,6 @@ function ComponentInstance.handleError(self: ComponentInstance, err: string, inf
 	local cur = self.parent
 	while cur do
 		for _, handler in cur.errorCapturedCbs do
-			-- Like Vue: returning false means handled, so it goes no further up
 			local ok, result = pcall(handler, err, self, info)
 			if ok and result == false then
 				return
@@ -593,7 +582,6 @@ local function toChildList(result: unknown): { Child }
 	return { result :: Child }
 end
 
--- The renderer fills this in: it owns the root Instance the DevTools read
 local devtoolsHooks: { emit: ((instance: ComponentInstance, eventName: string, args: { unknown }) -> ())? } = {}
 
 local function createSetupContext(instance: ComponentInstance): SetupContext
@@ -618,7 +606,6 @@ local function createSetupContext(instance: ComponentInstance): SetupContext
 			if emitHook and instance.appContext.config.devtools then
 				emitHook(instance, eventName, { ... })
 			end
-			-- Declared listeners only live on the vnode
 			local vnodeProps = instance.vnode.props
 			local handler = if vnodeProps then vnodeProps[handlerName] else nil
 			if handler == nil then
@@ -678,7 +665,6 @@ local function createComponentInstance(
 	end
 
 	local context: AppContext = if parent then parent.appContext else appContext or EMPTY_APP_CONTEXT
-	-- Own table so siblings don't share provides, parent values come through __index
 	local provides: { [unknown]: unknown } = setmetatable(
 		{},
 		{ __index = if parent then parent.provides else context.provides }
@@ -751,7 +737,6 @@ local function updateComponentProps(instance: ComponentInstance, rawProps: Props
 			local spec = if schema then schema[key] else nil
 			local default = if spec then spec.default else nil
 			if default ~= nil then
-				-- Factory defaults keep their current value
 				if type(default) ~= "function" then
 					props[key] = default
 				end
@@ -765,7 +750,6 @@ local function updateComponentProps(instance: ComponentInstance, rawProps: Props
 		props[key] = value
 	end
 
-	-- Write through the proxy so only effects that read a changed attr re-run
 	local attrs = instance.attrs
 	for key in _reactivity.toRaw(attrs) do
 		if nextAttrs[key] == nil then
@@ -784,7 +768,7 @@ local function updateComponentSlots(instance: ComponentInstance, children: { Chi
 	if #defaultSlots == 0 and #children == 0 and next(namedSlots) == nil and slots == nil then
 		return false
 	end
-	-- A vnode patched against itself passes the instance's own slot table, which clearing would empty
+	-- Patched against itself, this is our own slot table, so don't clear it
 	if children ~= defaultSlots then
 		table.clear(defaultSlots)
 		table.move(children, 1, #children, 1, defaultSlots)
@@ -813,7 +797,6 @@ local function onTransition(name: string, fn: (el: Instance) -> ()): ()
 	table.insert(list, fn)
 end
 
--- Only a marker: the renderer implements Teleport
 local Teleport: ComponentDef = table.freeze({
 	__is_component = true :: true,
 	__name = "Teleport",

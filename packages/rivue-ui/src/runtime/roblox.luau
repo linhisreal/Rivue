@@ -23,9 +23,7 @@ export type InputType = "keyboard" | "gamepad" | "touch"
 export type SafeArea = { top: number, left: number, bottom: number, right: number }
 
 export type SpringOptions = {
-	-- Angular frequency, higher is snappier (default 12)
 	speed: number?,
-	-- 1 = no overshoot, below 1 bounces (default 1)
 	damping: number?,
 }
 
@@ -234,7 +232,6 @@ end
 export type KeybindOptions = {
 	enabled: Types.MaybeRefOrGetter<boolean>?,
 	priority: number?,
-	-- Let the input reach other bindings and the game too
 	passThrough: boolean?,
 }
 
@@ -353,7 +350,6 @@ local function useTranslator(): (key: string, args: { [string]: any }?) -> strin
 end
 
 export type ScrollOptions = {
-	-- Called when the player scrolls within threshold pixels of the end, to load more
 	onReachEnd: (() -> ())?,
 	threshold: number?,
 }
@@ -441,7 +437,6 @@ end
 
 export type Device = "phone" | "tablet" | "desktop" | "console"
 
--- Short side of a touch screen below which it counts as a phone, so landscape phones still do
 const PHONE_SHORT_SIDE = 500
 
 local device: Ref<Device>? = nil
@@ -529,7 +524,6 @@ local function useSafeArea(): Ref<SafeArea>
 	end
 	local created = reactivity.ref(read())
 	safeArea = created
-	-- Insets change with orientation, which also resizes the viewport
 	bindViewport(function()
 		local nextArea = read()
 		local prev = created.value
@@ -561,9 +555,7 @@ local function useSelection(): (Ref<GuiObject?>, (target: GuiObject?) -> ())
 end
 
 export type GamepadFocusOptions = {
-	-- Focus even when the player is using a mouse or touch (default false)
 	always: boolean?,
-	-- Give the selection back to what had it before, when this component goes (default true)
 	restore: boolean?,
 }
 
@@ -584,7 +576,6 @@ local function useGamepadFocus(target: Ref<any>, options: GamepadFocusOptions?)
 			return
 		end
 		local current = GuiService.SelectedObject
-		-- Something the player already moved to inside the game stays selected
 		if current and current ~= object and current:IsDescendantOf(game) and not opts.always then
 			return
 		end
@@ -606,7 +597,6 @@ local function useGamepadFocus(target: Ref<any>, options: GamepadFocusOptions?)
 			return
 		end
 		local current = GuiService.SelectedObject
-		-- By now this component's Instances are gone, so a selection inside it is out of the game
 		if current == nil or not current:IsDescendantOf(game) then
 			GuiService.SelectedObject = if previous and previous:IsDescendantOf(game) then previous else nil
 		end
@@ -709,7 +699,6 @@ local function fromNumbers(kind: string, n: { number }): any
 	elseif kind == "UDim2" then
 		return UDim2.new(n[1], n[2], n[3], n[4])
 	end
-	-- Overshoot can push a channel past 0..1, which Color3 doesn't allow
 	return Color3.new(math.clamp(n[1], 0, 1), math.clamp(n[2], 0, 1), math.clamp(n[3], 0, 1))
 end
 

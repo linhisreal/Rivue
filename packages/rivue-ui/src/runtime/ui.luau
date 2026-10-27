@@ -78,7 +78,6 @@ ui.Dialog = table.freeze({
 		backdropColor = { default = Color3.new(0, 0, 0) },
 		backdropTransparency = { type = "number" :: "number", default = 0.4 },
 		zIndex = { type = "number" :: "number", default = 100 },
-		-- Transition props for the panel, such as Rivue.transitions.pop()
 		transition = { type = "table" :: "table" },
 	},
 	setup = function(props: Props, context: SetupContext)
@@ -98,7 +97,6 @@ ui.Dialog = table.freeze({
 			end,
 		})
 
-		-- Once the panel is on screen, its first button is what a gamepad starts on
 		reactivity.watch(function()
 			return { props.open, panel.value }
 		end, function(values: { any })
@@ -120,7 +118,6 @@ ui.Dialog = table.freeze({
 				AutomaticSize = Enum.AutomaticSize.XY,
 				BackgroundTransparency = 1,
 				ZIndex = (props.zIndex :: number) + 1,
-				-- Keeps gamepad navigation inside the dialog
 				SelectionGroup = true,
 				SelectionBehaviorUp = Enum.SelectionBehavior.Stop,
 				SelectionBehaviorDown = Enum.SelectionBehavior.Stop,
@@ -163,7 +160,6 @@ local function layoutComponent(name: string, direction: string): ComponentDef
 		},
 		setup = function(props: Props, context: SetupContext)
 			return function(): VNode
-				-- Anything not declared above (Size, Position, Name, ...) falls through to the Frame
 				return h("Frame", {
 					BackgroundTransparency = 1,
 					Size = if direction == "horizontal" then UDim2.fromScale(1, 0) else UDim2.fromScale(0, 1),

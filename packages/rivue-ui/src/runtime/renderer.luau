@@ -69,8 +69,6 @@ local patch: (oldVNode: RenderVNode?, newVNode: RenderVNode?, container: Instanc
 local currentRenderingInstance: ComponentInstance? = nil
 local currentAppContext: AppContext? = nil
 
--- Work that needs the finished tree parented (mounted hooks, directives, enter tweens).
--- Runs once the outermost patch is done.
 local postQueue: { () -> () } = {}
 local patching = false
 
@@ -80,7 +78,6 @@ end
 
 local function flushPostQueue()
 	while #postQueue > 0 do
-		-- Swapped so callbacks that patch can queue more
 		local queue = postQueue
 		postQueue = {}
 		for _, fn in queue do
@@ -112,10 +109,7 @@ local function toUDim(v: unknown): UDim
 	return if type(v) == "number" then UDim.new(0, v) else v :: UDim
 end
 
--- Instance -> its current event handlers, for Rivue.testing.trigger. The table is shared by every
--- vnode of the element, so it's set once
 local elementHandlers: { [Instance]: { [string]: any } } = setmetatable({}, { __mode = "k" }) :: any
--- Instance -> the component that patched it, so a failing handler reaches its onErrorCaptured
 local elementOwners: { [Instance]: any } = setmetatable({}, { __mode = "k" }) :: any
 
 local function callHandler(owner: any, handler: (...any) -> ...any, ...: any)
@@ -166,7 +160,6 @@ const DEVTOOLS_ATTRIBUTES = {
 
 local devtoolsEditConns: { [Instance]: RBXScriptConnection } = setmetatable({}, { __mode = "k" }) :: any
 
--- Unmounted roots leave the DevTools list, and pooled Instances don't carry old data
 local function clearDevtools(el: Instance)
 	local conn = devtoolsEditConns[el]
 	if conn then
@@ -179,7 +172,6 @@ local function clearDevtools(el: Instance)
 	end
 end
 
--- IsA is an engine call. Element vnodes carry their ClassName, so these answer from it
 local guiObjectClasses: { [string]: boolean } = {}
 
 local function isGuiObject(el: Instance, className: string?): boolean
@@ -254,8 +246,6 @@ local function applyLayout(layout: Instance, options: LayoutOptions)
 	local gap = options.gap
 	local gapUDim = if type(gap) == "number" then UDim.new(0, gap) else (gap :: UDim?) or UDim.new(0, 0)
 
-	-- align is the cross axis, justify the main axis, like CSS flexbox. Unset options go back to
-	-- their defaults, so switching layouts doesn't keep the old alignment
 	local alongX = if horizontal then options.justify else options.align
 	local alongY = if horizontal then options.align else options.justify
 	list.HorizontalAlignment = alongX and HORIZONTAL_ALIGN[alongX] or Enum.HorizontalAlignment.Left
@@ -359,7 +349,6 @@ local sugarSpecs: { [string]: SugarSpec } = {
 			elseif v.color ~= nil then
 				gradient.Color = if typeof(v.color) == "Color3" then ColorSequence.new(v.color) else v.color
 			end
-			-- Unset fields go back to their defaults, so removing one from the table takes effect
 			gradient.Rotation = v.rotation or 0
 			gradient.Offset = v.offset or Vector2.new(0, 0)
 			local transparency = v.transparency or 0
@@ -451,7 +440,6 @@ local function classHasProp(inst: Instance, prop: string, className: string?): b
 		return cached
 	end
 
-	-- Read can succeed with a nil value (e.g. NextSelectionUp)
 	local has = pcall(function()
 		return (inst :: any)[prop]
 	end)
@@ -485,7 +473,6 @@ local function connectTarget(inst: Instance, target: SignalTarget, handler: (...
 		return nil
 	end
 	if target.isProperty then
-		-- Property changed signals pass nothing, hand the new value over
 		local name = target.name
 		return signal:Connect(function()
 			handler((inst :: any)[name])
@@ -575,7 +562,6 @@ local function bindingGetter(value: unknown): (() -> unknown)?
 	return nil
 end
 
--- Bindings outlive a patch, so they look the element's current vnode up under this key
 local BINDING_VNODE = newproxy(false)
 
 local function stopBinding(vnode: RenderVNode, key: string)
@@ -596,7 +582,7 @@ local function bindProp(inst: Instance, key: string, getter: () -> unknown, vnod
 	bindings[BINDING_VNODE] = vnode
 	local eff = _reactivity.effect(function()
 		local value = getter()
-		-- Written untracked: in Immediate signal mode, handlers that run here mustn't become dependencies
+		-- Untracked: in Immediate signal mode handlers run here and would become deps
 		_reactivity._untracked(function()
 			applyProp(inst, key, value, bindings[BINDING_VNODE])
 		end)
@@ -628,7 +614,6 @@ function applyProp(inst: Instance, key: string, value: any, vnode: RenderVNode)
 		for _, d in value do
 			local hook = directives.get(d.name)
 			if hook and hook.mounted then
-				-- false keeps the name bound so unmounted still runs
 				local state = hook.mounted(inst, d.value)
 				dirs[d.name] = if state == nil then false else state
 			end
@@ -680,7 +665,6 @@ function applyProp(inst: Instance, key: string, value: any, vnode: RenderVNode)
 	if classHasProp(inst, key, className) then
 		local ok, err = writeProp(inst, key, value)
 		if ok then
-			-- Tracked so the pool can reset it
 			local touched = vnode._touched or {}
 			vnode._touched = touched
 			touched[key] = true
@@ -934,7 +918,6 @@ local function collectClassNames(value: unknown, out: { string })
 		for i = 1, table.maxn(list :: { unknown }) do
 			collectClassNames(list[i], out)
 		end
-		-- Map entries: sorted so the result doesn't depend on table order
 		local keyed: { string } = {}
 		for key, enabled in list do
 			if type(key) == "string" and enabled then
@@ -956,7 +939,6 @@ const STYLE_VARIANTS = table.freeze({
 	desktop = true,
 	console = true,
 })
--- Later states win: a pressed button is also hovered
 const INTERACTION_STATES = table.freeze({ "selected", "hover", "pressed" })
 
 local function mergeInto(into: Props, from: unknown)
@@ -990,7 +972,6 @@ local function applyClasses(props: Props, owner: ComponentInstance?, appContext:
 				end
 			end
 			if style.phone or style.tablet or style.desktop or style.console then
-				-- Reading the device during render re-renders this component when it changes
 				device = device or robloxModule.useDevice().value
 				mergeInto(fromClasses, style[device :: string])
 			end
@@ -1021,7 +1002,6 @@ local function applyClasses(props: Props, owner: ComponentInstance?, appContext:
 		merged.Interactable = not disabled
 	end
 	if states then
-		-- Props written on the element win over its classes, interaction states included
 		for _, variant in states do
 			for k in variant do
 				if props[k] ~= nil then
@@ -1112,7 +1092,6 @@ local function syncStates(vnode: RenderVNode, el: Instance)
 	local record = stateRecords[el]
 	if type(variants) ~= "table" then
 		if record then
-			-- Keep listening, so a hover that started while disabled shows once enabled again
 			record.vnode = vnode
 			record.variants = {}
 			applyStates(el, record)
@@ -1188,10 +1167,8 @@ local function hasLayoutChild(children: { Child }): boolean
 	return false
 end
 
--- LayoutOrder Rivue last wrote per Instance, so unchanged positions skip the engine calls
 local appliedLayoutOrder: { [Instance]: number } = setmetatable({}, { __mode = "k" }) :: any
 
--- Room between neighbours, so an insert usually fits without renumbering anything
 const LAYOUT_STEP = 64
 
 local function collectLayoutTargets(children: { Child }, out: { GuiObject })
@@ -1243,7 +1220,6 @@ local function syncLayoutOrder(children: { Child })
 		return
 	end
 
-	-- Longest strictly increasing run of the values already written (patience sorting)
 	local tails: { number } = {}
 	local tailAt: { number } = {}
 	local before: { number } = table.create(n, 0)
@@ -1397,7 +1373,6 @@ local function mountElement(vnode: RenderVNode, container: Instance, poolOpt: Po
 		syncLayoutOrder(children)
 	end
 
-	-- Parent last so the engine lays out the finished subtree once
 	inst.Parent = container
 
 	local vnodeDirectives = if props then props.__directives else nil
@@ -1490,7 +1465,6 @@ local function unmountVNode(vnode: RenderVNode?, poolOpt: PoolOptions?, doRemove
 	if def then
 		if def == componentAPI.Teleport then
 			vnode._deferred = nil
-			-- Teleported children live elsewhere, always remove them
 			for _, child in vnode.children do
 				if type(child) == "table" then
 					unmountVNode(child, poolOpt)
@@ -1523,7 +1497,6 @@ local function unmountVNode(vnode: RenderVNode?, poolOpt: PoolOptions?, doRemove
 				clearDevtools(root)
 			end
 			unmountVNode(inst.subTree, poolOpt, doRemove)
-			-- After the children, like Vue: a parent can tear down what its children clean up into
 			inst:runUnmounted()
 			vnode._instance = nil
 		end
@@ -1559,7 +1532,6 @@ local function unmountVNode(vnode: RenderVNode?, poolOpt: PoolOptions?, doRemove
 	local transition = getTransition(vnode)
 	local leaving = el ~= nil and doRemove ~= false and transition ~= nil and transition.leave == true
 
-	-- Without the pool, destroying this element takes its descendants with it
 	local removeChildren = pooled and not leaving
 	for _, c in vnode.children do
 		if type(c) == "table" then
@@ -1625,12 +1597,10 @@ local function patchKeyedChildren(
 				patch(oc, nc, parent, poolOpt)
 				oldMap[k] = nil
 			else
-				-- New key. The old vnodes are the only source of truth: looking Instances up by
-				-- key in the parent could take a row owned by another list in the same parent.
+				-- Don't look rows up by key in the parent, another list there may own one
 				patch(nil, nc, parent, poolOpt)
 			end
 		else
-			-- Unkeyed children match by position, never a keyed old child (the key map owns those)
 			local oc = oldList[i]
 			if type(oc) == "table" and oc.key == nil then
 				reusedUnkeyed[i] = true
@@ -1667,7 +1637,6 @@ local function patchDirectives(
 	local newList: { DirectiveBinding } = newBindings or {}
 	local oldList: { DirectiveBinding } = oldBindings or {}
 
-	-- Hooks can return nil, so check old bindings instead
 	local wasBound: { [string]: true } = {}
 	for _, d in oldList do
 		wasBound[d.name] = true
@@ -1730,7 +1699,6 @@ local function patchProps(el: Instance, oldPropsIn: Props?, newPropsIn: Props?, 
 		elseif SUGAR_PROPS[k] and vnode._sugar then
 			setSugarProp(el, k, nil, vnode)
 		elseif classHasProp(el, k, if type(vnode.type) == "string" then vnode.type else nil) then
-			-- Most properties can't be nil, reset to default instead
 			local removed = removedProps or {}
 			removedProps = removed
 			removed[k] = true
@@ -1781,7 +1749,6 @@ end
 local function mountTeleport(vnode: RenderVNode, container: Instance, poolOpt: PoolOptions?, now: boolean?)
 	local props = vnode.props
 	if props and props.defer and not now then
-		-- defer: wait until the rest of the tree is mounted, so the target can be part of it
 		vnode._deferred = true
 		queuePost(function()
 			if vnode._deferred then
@@ -1833,7 +1800,6 @@ local function describeValue(value: unknown): string
 	return t
 end
 
--- These are engine calls on every render, which is why devtools is opt-in
 const DEVTOOLS_TEXT_LIMIT = 1000
 
 local function devtoolsText(lines: { string }): string
@@ -1846,8 +1812,6 @@ local function describeKey(key: unknown): string
 	return if type(key) == "string" then `.{key}` elseif type(key) == "number" then `[{key}]` else " (items)"
 end
 
--- Names the state behind a re-render: "count", "props.title", "items[2]". A computed's target is
--- its internal effect, which nothing in setupState points at, so it falls through to the last line
 local function describeTrigger(inst: ComponentInstance, target: unknown, key: unknown): string
 	if target == _reactivity.toRaw(inst.props) then
 		return `props{describeKey(key)}`
@@ -1915,12 +1879,10 @@ local function applyDevtoolsEdit(inst: ComponentInstance, el: Instance)
 	end
 	if value ~= nil then
 		(target :: any).value = value
-		-- A ref the render doesn't read won't re-render, so its new value is written here
 		writeDevtoolsState(inst, el)
 	end
 end
 
--- Changes on every emit, so the plugin hears two identical events in a row
 local devtoolsEmitCount = 0
 
 componentAPI.devtoolsHooks.emit = function(inst: ComponentInstance, eventName: string, args: { unknown })
@@ -1963,8 +1925,6 @@ local function writeDevtools(inst: ComponentInstance, el: Instance, renderMs: nu
 	el:SetAttribute("RivueRenderMs", math.round(renderMs * 100) / 100)
 	local triggers = inst._devtoolsTriggers
 	inst._devtoolsTriggers = nil
-	-- No trigger means nothing this component reads changed: its parent passed new slots, or
-	-- something called forceUpdate
 	el:SetAttribute(
 		"RivueTrigger",
 		if renders == 1 then "mount" elseif triggers then table.concat(triggers, ", ") else "parent"
@@ -1973,7 +1933,6 @@ end
 
 local function applyFallthroughAttrs(props: Props?, attrs: Props): Props?
 	local merged: Props? = nil
-	-- Iterates the reactive attrs inside the render effect, so changes are tracked
 	for key, value in attrs do
 		if not RESERVED_PROPS[key] and (props == nil or props[key] == nil) then
 			if not merged then
@@ -2032,7 +1991,6 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 
 		local el = if nextTree then nextTree.el else nil
 		local name = inst.type.__name
-		-- Name the root after the component so the Explorer reads like the component tree
 		if el and el ~= inst.el and name and nextTree and type(nextTree.type) == "string" then
 			local rootProps = nextTree.props
 			if rootProps == nil or rootProps.Name == nil then
@@ -2076,7 +2034,6 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 		componentAPI.setRenderingInstance(prevRendering)
 
 		if not ok then
-			-- The last good tree stays on screen
 			inst:handleError(tostring(sub), "render")
 			return
 		end
@@ -2114,7 +2071,6 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 		scheduler = function()
 			scheduler.queueUpdate(updateJob)
 		end,
-		-- Children can change state this component reads while it patches (Suspense, refs)
 		allowRecurse = true,
 		onTrack = if #inst.renderTrackedCbs > 0
 			then function(event: Types.DebuggerEvent)
@@ -2227,7 +2183,6 @@ local function patchElement(oldVNode: RenderVNode, newVNode: RenderVNode, poolOp
 		return
 	end
 
-	-- Transfer state so old handlers can still be disconnected
 	newVNode._conns = oldVNode._conns or {}
 	newVNode._handlers = oldVNode._handlers
 	newVNode._dirs = oldVNode._dirs or {}
@@ -2261,10 +2216,8 @@ local function patchElement(oldVNode: RenderVNode, newVNode: RenderVNode, poolOp
 
 	local propsChanged = not propsEqualSwappingHandlers(oldProps, newProps, newVNode)
 	local oldChildren, newChildren = oldVNode.children, newVNode.children
-	-- h() makes a new table every render, two empty lists are still the same
 	local childrenChanged = oldChildren ~= newChildren and (next(oldChildren) ~= nil or next(newChildren) ~= nil)
 	if not propsChanged and not childrenChanged then
-		-- A controlled TextBox still follows its Text prop if the player typed over it
 		if newProps and newProps.onTextChanged ~= nil and newProps.Text ~= nil and className == "TextBox" then
 			local box = el :: TextBox
 			if box.Text ~= newProps.Text then
@@ -2292,7 +2245,6 @@ local function patchElement(oldVNode: RenderVNode, newVNode: RenderVNode, poolOp
 		local oldText = if oldVNode.props then oldVNode.props.Text else nil
 		local textProps = newVNode.props
 		local newText = if textProps then textProps.Text else nil
-		-- With onTextChanged (or model) the state owns Text, otherwise only a new Text prop wins
 		local controlled = textProps ~= nil and textProps.onTextChanged ~= nil and newText ~= nil
 		withPreservedTextState(el, update, controlled or newText ~= oldText)
 		if controlled and (el :: TextBox).Text ~= newText then
@@ -2414,7 +2366,6 @@ local function patchInner(oldVNode: RenderVNode?, newVNode: RenderVNode?, contai
 			if not componentAPI.propsUnchanged(def, oldProps, newProps) then
 				componentAPI.updateComponentProps(inst, newProps)
 			end
-			-- Slots aren't reactive, so queue the child's re-render ourselves
 			local renderEffect = inst._renderEffect
 			if
 				componentAPI.updateComponentSlots(inst, newVNode.children, newVNode.slots)
@@ -2638,9 +2589,7 @@ local function createApp(root: VNode | ComponentDef, opts: AppOptions?): App
 	end
 
 	function api.rerender(self: App, newRoot: VNode?): MountedState
-		-- unmount() clears mounted.container
 		local container = mounted.container or error("no previous container", 2)
-		-- Same container again, so keep a ScreenGui made by mountToPlayerGui
 		local keep = ownedGui
 		ownedGui = nil
 		self:unmount()

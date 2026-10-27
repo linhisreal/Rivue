@@ -8,7 +8,6 @@ local Theme = require(script.Parent:WaitForChild("Theme"))
 local h = Rivue.h
 
 local TAG = "RivueComponent"
--- An eighth of a frame at 60 fps. A render this slow is worth a look even if it's rare
 local SLOW_MS = 2
 local MAX_EVENTS = 100
 local INDENT = 14
@@ -19,7 +18,6 @@ export type Entry = {
 	name: string,
 	props: string,
 	state: string,
-	-- Since the last Reset
 	renders: number,
 	renderMs: number,
 	trigger: string,
@@ -94,7 +92,6 @@ local function collect()
 			})
 		end
 	end
-	-- Full names put children right after their parents
 	table.sort(list, function(a, b)
 		return fullName(a.instance) < fullName(b.instance)
 	end)
@@ -108,7 +105,6 @@ local function collect()
 	entries.value = list
 end
 
--- Many renders in one frame become one refresh
 local pending = false
 local function refreshSoon()
 	if pending or paused.value then
@@ -194,7 +190,6 @@ local function start(): () -> ()
 				conn:Disconnect()
 				watched[instance] = nil
 			end
-			-- A pooled Instance can come back as another component, which starts counting at 1
 			baselines[instance] = nil
 			refreshSoon()
 		end),
@@ -223,7 +218,6 @@ local function resolveSource(source: string, root: Instance?): (LuaSourceContain
 	if not path then
 		return nil, nil
 	end
-	-- A source that isn't a script path ("[string ...]" from loadstring) must not break the render
 	local ok, found = pcall(function(): Instance?
 		local node: Instance? = root or game
 		for name in string.gmatch(path, "[^%.]+") do
@@ -268,7 +262,6 @@ local function causeText(trigger: string): string
 		else `{trigger} changed`
 end
 
--- Numbers, booleans and strings can be typed back in; tables and Roblox types can't
 local function isEditable(value: string): boolean
 	return value == "true"
 		or value == "false"
@@ -399,7 +392,6 @@ local function buildStyles(p: Theme.Palette): { [string]: any }
 	}
 end
 
--- Class styles are read on every render, so a theme change swaps their contents in place
 local styles = buildStyles(palette.value)
 
 function setPalette(next: Theme.Palette)

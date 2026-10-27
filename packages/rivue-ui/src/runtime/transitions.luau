@@ -7,8 +7,6 @@ export type PresetOptions = {
 	[string]: any,
 }
 
--- Every transparency a GUI element can have. The renderer keeps only the ones the element has,
--- so the same preset fades a Frame, a TextLabel, an ImageButton or a whole CanvasGroup
 local HIDDEN = {
 	BackgroundTransparency = 1,
 	TextTransparency = 1,
@@ -29,7 +27,6 @@ local function build(options: PresetOptions?, defaultDuration: number, from: { [
 		),
 		from = from,
 	}
-	-- Anything else (mode, appear, onAfterLeave, ...) goes straight to the Transition
 	for k, v in opts do
 		if not OWN_OPTIONS[k] then
 			props[k] = v

@@ -42,7 +42,6 @@ function composables.defineModel<T>(options: ModelOptions?): (props: Props, cont
 	local eventName = opts.event or `update:{propName}`
 
 	return function(props: Props, context: SetupContext): Ref<T>
-		-- Like Vue 3.4: with no model from the parent, the ref keeps its own value
 		local localValue: T? = nil
 		return reactivity.customRef(function(track, trigger)
 			return {
@@ -87,7 +86,6 @@ function composables.useStyles<Theme, Styles>(styleFactory: (theme: Theme) -> St
 	local provided = composables.useTheme() :: unknown
 
 	return reactivity.computed(function(): Styles
-		-- A theme provided as a ref is read here, so swapping its value rebuilds the styles
 		local theme = reactivity.unref(provided :: any) :: Theme?
 		return styleFactory(theme or ({} :: any))
 	end)
@@ -111,7 +109,6 @@ export type AsyncState<T> = {
 	refresh: () -> (),
 }
 
--- Only the latest run's result lands, so a slow answer to an old request never overwrites a newer one
 function composables.useAsync<T>(fn: (...any) -> T, options: AsyncOptions<T>?): AsyncState<T>
 	local opts: AsyncOptions<T> = options or {}
 	local data = reactivity.shallowRef(opts.initial :: T?)
@@ -121,7 +118,6 @@ function composables.useAsync<T>(fn: (...any) -> T, options: AsyncOptions<T>?): 
 	local lastArgs = table.pack(table.unpack(opts.args or {}))
 	local disposed = false
 
-	-- A Suspense above waits for every run in flight, the same way it waits for async components
 	local suspense: Types.SuspenseContext? = nil
 	if opts.suspense ~= false and componentModule.getCurrentInstance() then
 		suspense = componentModule.inject("suspense") :: Types.SuspenseContext?
@@ -152,7 +148,6 @@ function composables.useAsync<T>(fn: (...any) -> T, options: AsyncOptions<T>?): 
 			if ok then
 				data.value = result
 			else
-				-- Kept here rather than failing the Suspense, so the component can offer a retry
 				err.value = tostring(result)
 			end
 			loading.value = false

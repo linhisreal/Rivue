@@ -35,8 +35,6 @@ local function createSuspense(): ComponentDef
 			timeout = { type = "number" :: "number", default = 5000 },
 		},
 		setup = function(props: Props, context: SetupContext)
-			-- Children render (hidden) from the start, async components inside register
-			-- themselves while they mount and flip this on
 			local isLoading = ref(false)
 			local error = ref(nil :: string?)
 			local pendingCount = 0
@@ -104,7 +102,6 @@ local function createSuspense(): ComponentDef
 				end
 
 				local children: { VNode } = {
-					-- Kept mounted while hidden, so loading continues and state survives
 					h("Frame", {
 						Name = "SuspenseContent",
 						Size = UDim2.fromScale(1, 1),
@@ -125,7 +122,6 @@ builtins.Suspense = createSuspense()
 
 builtins.KeepAlive = nil :: ComponentDef?
 
--- Indexed reads, so a list from a ref (a reactive proxy) works too; table.find sees an empty table
 local function listContains(list: unknown, name: string): boolean
 	if type(list) ~= "table" then
 		return false
@@ -161,9 +157,7 @@ local function createKeepAlive(): ComponentDef
 		setup = function(props: Props, context: SetupContext)
 			local self = componentModule.getCurrentInstance()
 			local renderer = if self then self._keepAliveRenderer else nil
-			-- Shared by every cached vnode, the renderer detaches them instead of unmounting
 			local marker = { disposed = false }
-			-- Plain tables: render writes these, and as refs that would re-run the render
 			local cache: { [unknown]: VNode } = {}
 			local keys: { unknown } = {}
 			local current: VNode? = nil
@@ -175,7 +169,6 @@ local function createKeepAlive(): ComponentDef
 				return not listContains(props.exclude, name)
 			end
 
-			-- The cache can hold an older vnode of the component on screen, so compare instances
 			local function isCurrent(cached: VNode): boolean
 				return cached == current
 					or (cached._instance ~= nil and current ~= nil and cached._instance == current._instance)
@@ -191,12 +184,10 @@ local function createKeepAlive(): ComponentDef
 				if cached and not isCurrent(cached) and renderer then
 					renderer.unmount(cached)
 				elseif cached then
-					-- Still on screen: unmount it for real when it's switched away
 					cached._keepAlive = nil
 				end
 			end
 
-			-- Before the subtree goes, so the child on screen is unmounted for real instead of cached
 			componentModule.onBeforeUnmount(function()
 				marker.disposed = true
 			end)
@@ -210,7 +201,6 @@ local function createKeepAlive(): ComponentDef
 				table.clear(keys)
 			end)
 
-			-- Like Vue, a component that no longer matches include/exclude leaves the cache
 			reactivity.watch(function()
 				return { props.include, props.exclude }
 			end, function()
@@ -411,7 +401,6 @@ local virtualList: ComponentDef = {
 			table.clear(conns)
 		end)
 
-		-- Start offset of each item when sizes vary, recomputed when the items change, not on scroll
 		local offsets = computed(function(): { number }?
 			local sizeOf = props.itemSize
 			if type(sizeOf) ~= "function" then
@@ -455,8 +444,7 @@ local virtualList: ComponentDef = {
 			local variable = offsets.value
 
 			local first, last, total
-			-- The engine clamps CanvasPosition only after the shorter canvas is applied, so a list that
-			-- shrank while scrolled down would otherwise render nothing until then
+			-- CanvasPosition isn't clamped until the shorter canvas applies
 			local function clampScroll(contentSize: number): number
 				return math.clamp(scroll.value, 0, math.max(0, contentSize - viewport.value))
 			end
@@ -679,7 +667,6 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, opts: AsyncCo
 
 			local attempt: () -> ()
 
-			-- Like Vue: with onError, the app decides whether a failed load tries again
 			local function failed(message: string)
 				local onError = options.onError
 				if not onError then
@@ -715,7 +702,6 @@ function builtins.defineAsyncComponent(loader: () -> ComponentDef, opts: AsyncCo
 				end
 				task.spawn(function()
 					local success, result = pcall(loader)
-					-- A retry or a timeout already moved on from this attempt
 					if finished or this ~= attempts then
 						return
 					end

@@ -34,7 +34,6 @@ function directives.get(name: string): DirectiveHooks?
 	return registry[name]
 end
 
--- focus and select only act when the value turns on, so re-renders don't steal focus back
 directives.register("focus", {
 	mounted = function(el, val)
 		if val and el:IsA("TextBox") then
@@ -86,7 +85,6 @@ directives.register("click-outside", {
 		end
 
 		local state: ClickOutsideState
-		-- Ignores gameProcessed on purpose: clicking another button is still "outside"
 		local conn = UserInputService.InputBegan:Connect(function(input)
 			local inputType = input.UserInputType
 			if inputType ~= Enum.UserInputType.MouseButton1 and inputType ~= Enum.UserInputType.Touch then
@@ -102,7 +100,6 @@ directives.register("click-outside", {
 				end
 			end
 
-			-- The latest handler, inline closures change every render
 			local ok, err = pcall(state.fn :: () -> ...unknown)
 			if not ok then
 				warn(`[Rivue] click-outside handler failed: {err}`)
@@ -149,7 +146,6 @@ local function startDrag(el: GuiObject): DragState
 				startPos = el.Position
 			end
 		end),
-		-- One shared connection instead of connecting to every input's Changed signal
 		UserInputService.InputEnded:Connect(function(input)
 			if
 				input.UserInputType == Enum.UserInputType.MouseButton1
@@ -205,7 +201,6 @@ directives.register("drag", {
 	end,
 })
 
--- Used by model with modelModifiers = { lazy = true }: the value is the commit function
 directives.register("model-lazy", {
 	mounted = function(el, commit)
 		local state = { commit = commit, conn = nil :: RBXScriptConnection? }
@@ -392,13 +387,11 @@ directives.register("fade-in", {
 
 		local allTweens: { Tween } = {}
 
-		-- Cancelled on unmount, a pooled element may belong to another vnode by the time it runs
 		local thread = task.spawn(function()
 			if waitForLoad and not game:IsLoaded() then
 				game.Loaded:Wait()
 			end
 
-			-- Give child components time to mount before hiding everything
 			task.wait(renderWait)
 
 			storeAndHide(el)

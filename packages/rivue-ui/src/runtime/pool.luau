@@ -68,7 +68,7 @@ local DEFAULT_CONFIG: PoolConfig = {
 	maxTotalSize = 500,
 	enableMetrics = true,
 	enableDebug = false,
-	defaultTTL = nil, -- Time-to-live in seconds (nil = infinite)
+	defaultTTL = nil,
 	enableAutoWarmup = false,
 }
 
@@ -95,7 +95,6 @@ Pool.metrics = {
 }
 Pool.customResetHandlers = {}
 Pool.eventHooks = {}
--- Weak keys: an Instance destroyed without being released (a leave transition) mustn't stay here
 Pool.instanceMetadata = setmetatable({}, { __mode = "k" }) :: any
 Pool._debugMode = false
 Pool._typeCheckCache = {}
@@ -177,7 +176,6 @@ local function evictStaleInstances(className: string): ()
 	end
 end
 
--- One untouched instance per class, used for default property values
 local defaultTemplates: { [string]: Instance | false } = {}
 
 local function restoreTouchedProps(inst: Instance, touched: { [string]: boolean }): ()
@@ -245,7 +243,6 @@ local function resetInstance(inst: Instance, touched: { [string]: boolean }?): (
 			end)
 		end
 
-		-- Class defaults, so a pooled element looks like a new one
 		if typeInfo.isGuiObject then
 			restoreTouchedProps(
 				inst,
@@ -508,7 +505,6 @@ function Pool.clear(className: string?): ()
 	end
 end
 
--- defaultTTL starts as nil, so known keys can't be found by reading the current config
 const CONFIG_KEYS = table.freeze({
 	maxPoolSize = true,
 	maxTotalSize = true,
