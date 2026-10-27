@@ -17,9 +17,10 @@
   <a href="docs/README.md"><img src="docs/assets/badges/docs.webp" height="32" alt="Read the docs"></a>
 </p>
 
-Stop writing `label.Text = ...` by hand. Write what the screen should look like for the current
-state, and Rivue keeps the Instances in sync: when a value changes, only the components that read
-it re-render, and only the properties that changed get written.
+Rivue lets you describe a Roblox UI as components, the way Vue does on the web. You write what the
+screen should show for the current state, and Rivue updates the Instances when that state changes.
+Only the components that read a changed value re-render, and only the properties that changed are
+written.
 
 ```lua
 local Rivue = require(game.ReplicatedStorage.RivueUI)
@@ -48,22 +49,21 @@ local Counter = Rivue.defineComponent({
 Rivue.createApp(Counter):mountToPlayerGui(game.Players.LocalPlayer)
 ```
 
-Want something bigger? [TodoList](examples/components/TodoList.luau) has a text box, a keyed list
-and styles, and there are more in [examples](examples).
+[TodoList](examples/components/TodoList.luau) is a bigger example, with a text box, a keyed list
+and styles. The rest are in [examples](examples).
 
-Rivue is still young, so the API can change between releases. It runs in LocalScripts.
+Rivue runs in LocalScripts. It's still young, so the API can change between releases.
 
 ## Why Rivue
 
-Know Vue? Then you know most of Rivue already: `ref`, `computed`, `watch`, and components with
-props, emits, slots and provide/inject. The [cheat sheet](docs/VUE.md) covers the differences.
+Most of it will look familiar if you know Vue: `ref`, `computed`, `watch`, and components with
+props, emits, slots and provide/inject. The [cheat sheet](docs/VUE.md) lists where Rivue differs.
 
-Updates are tracked per value. A parent re-rendering doesn't drag its children along unless their
-props changed, and you don't need `memo` to get that.
+Updates are tracked per value. When a parent re-renders, a child only re-renders if its props
+changed, and you get that without `memo`.
 
-And it was made for Roblox UI from the start. Colours and fonts live in style classes, `layout`
-and `flex` replace the usual UIListLayout boilerplate, and tweens, springs, `Transition` and
-`VirtualList` come built in.
+It's built around Roblox UI. Colours and fonts go in style classes, the `layout` and `flex` props
+replace most UIListLayout setup, and tweens, springs, `Transition` and `VirtualList` are included.
 
 ## Features
 
@@ -80,46 +80,47 @@ and `flex` replace the usual UIListLayout boilerplate, and tweens, springs, `Tra
 
 ## Packages
 
-RivueUI is the framework. The others are optional, the way Vue Router is optional next to Vue, and
-each has its own version.
+RivueUI is the framework, and everything above is part of it. The other packages are optional and
+have their own versions, like Vue Router next to Vue.
 
 <table>
 <tr>
 <td width="72"><img src="docs/assets/packages/rivue-ui.webp" width="56" height="56" alt="RivueUI"></td>
-<td><b>RivueUI</b>: components, reactive state, style classes, layout, transitions and the
-built-in components. Everything above is RivueUI.</td>
+<td>RivueUI: components, state, styling, layout and the built-in components.</td>
 </tr>
 <tr>
 <td><img src="docs/assets/packages/rivue-remote.webp" width="56" height="56" alt="RivueRemote"></td>
-<td><b><a href="docs/api/remote.md">RivueRemote</a></b>: calls between client and server over
-RemoteEvents. The server answers actions with <code>Remote.handle</code>, and the client calls
-<code>Remote.request</code> and gets the result back, or the reason it failed (a timeout, a rate
-limit, an error in the handler). <code>fire</code> and <code>on</code> send events that need no
-answer. Payloads are checked for size, depth and types before they're sent, and every action has a
-per-player rate limit. It doesn't depend on RivueUI, so the server can use it alone.</td>
+<td><a href="docs/api/remote.md">RivueRemote</a> sends calls between client and server over
+RemoteEvents. The server registers handlers with <code>Remote.handle</code>. The client calls
+<code>Remote.request</code> and gets the handler's result, or an error such as
+<code>"timeout"</code> or <code>"rate_limited"</code>. <code>fire</code> and <code>on</code> are
+for events that need no reply. Payloads are checked for size, nesting and types before they're
+sent, and each action has a per-player rate limit. It doesn't need RivueUI, so server scripts can
+use it on its own.</td>
 </tr>
 <tr>
 <td><img src="docs/assets/packages/rivue-router.webp" width="56" height="56" alt="RivueRouter"></td>
-<td><b><a href="docs/api/router.md">RivueRouter</a></b>: screens with a history, following Vue
-Router 4. Named and nested routes, <code>RouterView</code> and <code>RouterLink</code>, guards that
-run before every move and can wait for the player to answer a dialog, redirects, aliases,
-<code>meta</code>, routes added while the game runs, and scroll positions put back on Back. Routes
-have names where Vue Router has URLs.</td>
+<td><a href="docs/api/router.md">RivueRouter</a> moves between screens and keeps a history, and
+follows Vue Router 4. It has named and nested routes, <code>RouterView</code>,
+<code>RouterLink</code>, redirects, aliases and <code>meta</code>. Guards run before each move and
+can wait for the player, for example to confirm leaving with unsaved changes. Routes can be added
+while the game runs, and Back can restore scroll positions. Routes are found by name, since
+Roblox has no URLs.</td>
 </tr>
 <tr>
 <td><img src="docs/assets/packages/rivue-devtools.webp" width="56" height="56" alt="RivueDevTools"></td>
-<td><b><a href="docs/DEVTOOLS.md">RivueDevTools</a></b>: a Studio plugin that lists the components
-on screen during a playtest, with their props and state, how often and why they rendered, and the
-events they emitted. You can edit state while the game runs.</td>
+<td><a href="docs/DEVTOOLS.md">RivueDevTools</a> is a Studio plugin. During a playtest it lists
+the components on screen with their props and state, how often they rendered and what caused it,
+and the events they emitted. You can change state from the plugin while the game runs.</td>
 </tr>
 </table>
 
 ## Installation
 
-Rivue is a single ModuleScript with a `runtime` folder inside, and it goes in `ReplicatedStorage`.
-Use whichever install you already use for other packages.
+Rivue is a ModuleScript with a `runtime` folder inside, and it goes in `ReplicatedStorage`. Install
+it the same way as your other packages.
 
-**With Wally**, add it to your `wally.toml` and run `wally install`:
+With Wally, add it to `wally.toml` and run `wally install`:
 
 ```toml
 [dependencies]
@@ -128,10 +129,10 @@ RivueRemote = "linhisreal/rivue-remote@0.5.0-beta.1" # optional, for client/serv
 RivueRouter = "linhisreal/rivue-router@0.1.0-beta.1" # optional, for screens and back/forward
 ```
 
-**With pesde**, run `pesde add linhisreal/rivue_ui` (and `linhisreal/rivue_remote` or
-`linhisreal/rivue_router` if you want them).
+With pesde, run `pesde add linhisreal/rivue_ui`, plus `linhisreal/rivue_remote` or
+`linhisreal/rivue_router` if you want them.
 
-**With Rojo**, add this repo as a git submodule and point your project at the package:
+With Rojo, add this repo as a git submodule and point your project at the package:
 
 ```json
 "ReplicatedStorage": {
@@ -139,14 +140,13 @@ RivueRouter = "linhisreal/rivue-router@0.1.0-beta.1" # optional, for screens and
 }
 ```
 
-**Without Rojo**, download `RivueUI.rbxm` from the latest release on the repo's Releases page and
-drag it into `ReplicatedStorage`.
-There's also `RivueUI.min.rbxm` (same code, comments stripped), and the optional `RivueRemote.rbxm`
-and `RivueRouter.rbxm`, which go next to it.
+Without Rojo, download `RivueUI.rbxm` from the latest release on the repo's Releases page and drag
+it into `ReplicatedStorage`. The release also has `RivueUI.min.rbxm` (the same code without
+comments), and `RivueRemote.rbxm` and `RivueRouter.rbxm`, which go next to it.
 
 ## Docs
 
-Start at the [docs home](docs/README.md). Its "I want to…" table points you at the right page.
+The [docs home](docs/README.md) has an "I want to…" table that points to the right page.
 
 [Guide](docs/GUIDE.md) · [Examples](examples) · [API reference](docs/API.md) ·
 [Coming from Vue](docs/VUE.md) ·
@@ -189,12 +189,11 @@ pesde.toml                 the pesde workspace
 <a href="https://polyformproject.org/licenses/noncommercial/1.0.0"><img src="docs/assets/polyform-logo.png" height="48" alt="PolyForm"></a>
 
 [PolyForm Noncommercial 1.0.0](LICENSE.md), with an extra permission for games. You can use, fork,
-port and change Rivue, closed source or open, as long as you keep the credit notice. You can't
-sell Rivue's code or use it commercially. Games built with Rivue may make money, if they credit
-it. See [LICENSE](LICENSE.md) for the exact terms.
+port and change Rivue, in closed or open source, as long as you keep the credit notice. You can't
+sell Rivue's code or use it commercially, but games built with Rivue may make money if they credit
+it. [LICENSE](LICENSE.md) has the exact terms.
 
-Games that use Rivue need a credit in the description or an in-game credits screen, for
-example:
+Credit Rivue in the game's description or an in-game credits screen, for example:
 
 ```
 UI built with Rivue (github.com/linhisreal/Rivue)
