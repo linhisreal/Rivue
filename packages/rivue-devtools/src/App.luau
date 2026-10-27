@@ -462,77 +462,113 @@ local function findComponent(name: string): Instance?
 	return nil
 end
 
+local ROW = 24
+local KEY_WIDTH = 104
+local MS_WIDTH = 64
+local COUNT_WIDTH = 34
+
 local function buildStyles(p: Theme.Palette): { [string]: any }
-	local mono = { Font = Enum.Font.Code, TextSize = 13, TextColor3 = p.text, BackgroundTransparency = 1 }
-	local text = {
-		BackgroundTransparency = 1,
-		TextXAlignment = Enum.TextXAlignment.Left,
+	local function label(size: number, color: Color3, mono: boolean?): { [string]: any }
+		return {
+			BackgroundTransparency = 1,
+			TextXAlignment = Enum.TextXAlignment.Left,
+			TextColor3 = color,
+			TextSize = size,
+			Font = if mono then Enum.Font.Code else Enum.Font.SourceSans,
+			TextTruncate = Enum.TextTruncate.AtEnd,
+		}
+	end
+	local cell = function(width: number, align: Enum.TextXAlignment?, mono: boolean?)
+		local style = label(13, p.text, mono)
+		style.Size = UDim2.new(0, width, 1, 0)
+		style.TextXAlignment = align or Enum.TextXAlignment.Left
+		return style
+	end
+	local fill = function(mono: boolean?)
+		local style = label(13, p.text, mono)
+		style.Size = UDim2.fromScale(0, 1)
+		style.flex = "fill"
+		return style
+	end
+	local auto = function(mono: boolean?)
+		local style = label(13, p.text, mono)
+		style.Size = UDim2.fromScale(0, 1)
+		style.AutomaticSize = Enum.AutomaticSize.X
+		return style
+	end
+	local button = {
+		Size = UDim2.new(0, 0, 0, ROW),
+		AutomaticSize = Enum.AutomaticSize.X,
+		BackgroundColor3 = p.button,
+		BorderSizePixel = 0,
 		TextColor3 = p.text,
 		TextSize = 13,
-		AutomaticSize = Enum.AutomaticSize.XY,
+		Font = Enum.Font.SourceSans,
+		AutoButtonColor = false,
+		padding = { x = 10 },
+		cornerRadius = 4,
+		hover = { BackgroundColor3 = p.buttonHover },
 	}
 	return {
 		panel = {
 			Size = UDim2.fromScale(1, 1),
 			BackgroundColor3 = p.background,
 			BorderSizePixel = 0,
-			padding = 6,
+			padding = 8,
 		},
-		tabBar = { Size = UDim2.new(1, 0, 0, 26), BackgroundTransparency = 1 },
+		tabBar = {
+			Size = UDim2.new(1, 0, 0, ROW + 4),
+			BackgroundColor3 = p.input,
+			BorderSizePixel = 0,
+			cornerRadius = 6,
+			padding = 2,
+		},
 		tab = {
 			Size = UDim2.fromScale(0, 1),
 			AutomaticSize = Enum.AutomaticSize.X,
-			BackgroundColor3 = p.button,
+			BackgroundTransparency = 1,
+			BackgroundColor3 = p.accent,
 			BorderSizePixel = 0,
 			Text = "",
+			AutoButtonColor = false,
 			cornerRadius = 4,
-			padding = { x = 8 },
-			layout = { direction = "horizontal", gap = 5, align = "center" },
-			hover = { BackgroundColor3 = p.buttonHover },
+			padding = { x = 10 },
+			layout = { direction = "horizontal", gap = 6, align = "center" },
+			hover = { BackgroundTransparency = 0.85 },
 		},
-		activeTab = { BackgroundColor3 = p.accent, hover = { BackgroundColor3 = p.accent } },
-		tabLabel = {
-			BackgroundTransparency = 1,
-			TextColor3 = p.text,
-			TextSize = 13,
-			AutomaticSize = Enum.AutomaticSize.XY,
-		},
-		activeTabLabel = { TextColor3 = p.accentText },
+		activeTab = { BackgroundTransparency = 0, hover = { BackgroundTransparency = 0 } },
+		tabLabel = auto(),
+		tabCount = (function()
+			local style = auto(true)
+			style.TextSize = 12
+			style.TextColor3 = p.dimText
+			return style
+		end)(),
+		activeTabText = { TextColor3 = p.accentText },
 		pill = {
+			Size = UDim2.fromOffset(COUNT_WIDTH, 18),
 			BackgroundColor3 = p.pill,
 			BorderSizePixel = 0,
 			TextColor3 = p.dimText,
 			Font = Enum.Font.Code,
-			TextSize = 11,
-			AutomaticSize = Enum.AutomaticSize.XY,
-			cornerRadius = 8,
-			padding = { x = 6, y = 1 },
+			TextSize = 12,
+			cornerRadius = 9,
 		},
 		hotPill = { BackgroundColor3 = p.changed, TextColor3 = p.accentText },
-		slowPill = { BackgroundColor3 = p.slow, TextColor3 = p.accentText },
-		toolbar = { Size = UDim2.new(1, 0, 0, 24), BackgroundTransparency = 1 },
-		tool = {
-			Size = UDim2.fromScale(0, 1),
-			AutomaticSize = Enum.AutomaticSize.X,
-			BackgroundColor3 = p.button,
-			BorderSizePixel = 0,
-			TextColor3 = p.text,
-			TextSize = 13,
-			padding = { x = 8 },
-			cornerRadius = 4,
-			hover = { BackgroundColor3 = p.buttonHover },
-		},
+		toolbar = { Size = UDim2.new(1, 0, 0, ROW), BackgroundTransparency = 1 },
+		tool = button,
 		activeTool = { BackgroundColor3 = p.accent, TextColor3 = p.accentText, hover = { BackgroundColor3 = p.accent } },
 		filter = {
-			Size = UDim2.fromScale(0, 1),
+			Size = UDim2.new(0, 0, 0, ROW),
 			BackgroundColor3 = p.input,
 			BorderSizePixel = 0,
 			TextColor3 = p.text,
 			PlaceholderColor3 = p.dimText,
 			TextXAlignment = Enum.TextXAlignment.Left,
 			TextSize = 13,
+			Font = Enum.Font.SourceSans,
 			ClearTextOnFocus = false,
-			padding = { x = 6 },
+			padding = { x = 8 },
 			cornerRadius = 4,
 			flex = "fill",
 		},
@@ -541,39 +577,67 @@ local function buildStyles(p: Theme.Palette): { [string]: any }
 			BorderSizePixel = 0,
 			AutomaticCanvasSize = Enum.AutomaticSize.Y,
 			CanvasSize = UDim2.new(),
-			ScrollBarThickness = 5,
+			ScrollBarThickness = 4,
 			ScrollBarImageColor3 = p.dimText,
-			layout = { gap = 1 },
+			layout = { gap = 2 },
+			padding = { right = 6 },
 		},
 		row = {
-			Size = UDim2.new(1, -6, 0, 24),
-			BackgroundColor3 = p.background,
-			BackgroundTransparency = 0,
+			Size = UDim2.new(1, 0, 0, ROW),
+			BackgroundColor3 = p.rowHover,
+			BackgroundTransparency = 1,
 			BorderSizePixel = 0,
 			Text = "",
 			AutoButtonColor = false,
 			cornerRadius = 4,
+			padding = { x = 6 },
 			layout = { direction = "horizontal", gap = 6, align = "center" },
-			hover = { BackgroundColor3 = p.rowHover },
+			hover = { BackgroundTransparency = 0 },
 		},
-		selectedRow = { BackgroundColor3 = p.card, hover = { BackgroundColor3 = p.card } },
-		marker = { Size = UDim2.new(0, 3, 1, -6), BorderSizePixel = 0, BackgroundColor3 = p.accent, cornerRadius = 2 },
+		selectedRow = {
+			BackgroundColor3 = p.accent,
+			BackgroundTransparency = 0.7,
+			hover = { BackgroundTransparency = 0.6 },
+		},
 		toggle = {
-			Size = UDim2.fromOffset(14, 20),
+			Size = UDim2.new(0, 12, 1, 0),
 			BackgroundTransparency = 1,
 			TextColor3 = p.dimText,
-			TextSize = 11,
+			TextSize = 10,
 		},
 		dot = { Size = UDim2.fromOffset(6, 6), BorderSizePixel = 0, BackgroundColor3 = p.changed, cornerRadius = 3 },
-		name = table.clone(mono),
+		name = auto(true),
 		changedName = { TextColor3 = p.changed },
 		slowName = { TextColor3 = p.slow },
-		text = text,
+		ms = (function()
+			local style = cell(MS_WIDTH, Enum.TextXAlignment.Right, true)
+			style.TextSize = 12
+			style.TextColor3 = p.dimText
+			return style
+		end)(),
+		slowMs = { TextColor3 = p.slow },
+		time = (function()
+			local style = cell(52, Enum.TextXAlignment.Left, true)
+			style.TextSize = 12
+			style.TextColor3 = p.dimText
+			return style
+		end)(),
+		kind = cell(80, Enum.TextXAlignment.Left, true),
+		label = auto(true),
+		detail = (function()
+			local style = fill(true)
+			style.TextColor3 = p.dimText
+			return style
+		end)(),
+		text = (function()
+			local style = label(13, p.text)
+			style.AutomaticSize = Enum.AutomaticSize.XY
+			return style
+		end)(),
 		dim = { TextColor3 = p.dimText },
-		strong = { Font = Enum.Font.GothamBold, TextSize = 14 },
-		mono = mono,
+		strong = { Font = Enum.Font.SourceSansBold, TextSize = 15 },
 		divider = {
-			Size = UDim2.new(1, 0, 0, 6),
+			Size = UDim2.new(1, 0, 0, 8),
 			BackgroundTransparency = 1,
 			Text = "",
 			AutoButtonColor = false,
@@ -585,45 +649,47 @@ local function buildStyles(p: Theme.Palette): { [string]: any }
 			BackgroundColor3 = p.border,
 		},
 		card = {
-			Size = UDim2.new(1, -6, 0, 0),
+			Size = UDim2.new(1, 0, 0, 0),
 			AutomaticSize = Enum.AutomaticSize.Y,
 			BackgroundColor3 = p.card,
 			BorderSizePixel = 0,
 			cornerRadius = 6,
-			padding = 6,
-			layout = { gap = 3 },
+			padding = 8,
+			layout = { gap = 2 },
 		},
 		cardTitle = {
-			Size = UDim2.new(1, 0, 0, 18),
+			Size = UDim2.new(1, 0, 0, 20),
 			BackgroundTransparency = 1,
 			Text = "",
-			layout = { direction = "horizontal", gap = 4, align = "center" },
-		},
-		kv = {
-			Size = UDim2.new(1, 0, 0, 18),
-			BackgroundTransparency = 1,
+			AutoButtonColor = false,
 			layout = { direction = "horizontal", gap = 6, align = "center" },
 		},
-		kvKey = {
-			Size = UDim2.new(0.4, 0, 1, 0),
+		heading = (function()
+			local style = auto()
+			style.TextColor3 = p.dimText
+			style.TextSize = 12
+			style.Font = Enum.Font.SourceSansSemibold
+			return style
+		end)(),
+		kv = {
+			Size = UDim2.new(1, 0, 0, 20),
 			BackgroundTransparency = 1,
-			TextColor3 = p.dimText,
-			Font = Enum.Font.Code,
-			TextSize = 12,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			TextTruncate = Enum.TextTruncate.AtEnd,
+			layout = { direction = "horizontal", gap = 8, align = "center" },
 		},
-		kvValue = {
-			Size = UDim2.new(0.6, -6, 1, 0),
-			BackgroundTransparency = 1,
-			TextColor3 = p.text,
-			Font = Enum.Font.Code,
-			TextSize = 12,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			TextTruncate = Enum.TextTruncate.AtEnd,
-		},
+		kvKey = (function()
+			local style = cell(KEY_WIDTH, Enum.TextXAlignment.Left, true)
+			style.TextSize = 12
+			style.TextColor3 = p.dimText
+			return style
+		end)(),
+		kvValue = (function()
+			local style = fill(true)
+			style.TextSize = 12
+			return style
+		end)(),
 		field = {
-			Size = UDim2.new(0.6, -6, 1, 0),
+			Size = UDim2.new(0, 0, 1, 0),
+			flex = "fill",
 			BackgroundColor3 = p.input,
 			BorderSizePixel = 0,
 			TextColor3 = p.text,
@@ -631,32 +697,31 @@ local function buildStyles(p: Theme.Palette): { [string]: any }
 			Font = Enum.Font.Code,
 			TextSize = 12,
 			ClearTextOnFocus = false,
-			padding = { x = 4 },
+			padding = { x = 6 },
 			cornerRadius = 3,
-			focused = { BackgroundColor3 = p.background },
 		},
 		chip = {
-			Size = UDim2.fromScale(0, 1),
+			Size = UDim2.new(0, 0, 0, ROW - 4),
 			AutomaticSize = Enum.AutomaticSize.X,
 			BackgroundColor3 = p.button,
 			BorderSizePixel = 0,
 			TextColor3 = p.dimText,
 			TextSize = 12,
+			Font = Enum.Font.SourceSans,
+			AutoButtonColor = false,
 			cornerRadius = 10,
-			padding = { x = 9 },
+			padding = { x = 10 },
 		},
-		bar = { Size = UDim2.fromOffset(48, 4), BackgroundColor3 = p.pill, BorderSizePixel = 0, cornerRadius = 2 },
+		bar = { Size = UDim2.fromOffset(40, 4), BackgroundColor3 = p.pill, BorderSizePixel = 0, cornerRadius = 2 },
 		barFill = { Size = UDim2.fromScale(0, 1), BorderSizePixel = 0, cornerRadius = 2 },
-		statusBar = { Size = UDim2.new(1, 0, 0, 18), BackgroundTransparency = 1 },
-		statusText = {
-			BackgroundTransparency = 1,
-			TextColor3 = p.dimText,
-			TextSize = 12,
-			TextXAlignment = Enum.TextXAlignment.Left,
-			TextTruncate = Enum.TextTruncate.AtEnd,
-			Size = UDim2.fromScale(0, 1),
-			AutomaticSize = Enum.AutomaticSize.X,
-		},
+		statusBar = { Size = UDim2.new(1, 0, 0, 20), BackgroundTransparency = 1 },
+		statusText = (function()
+			local style = auto()
+			style.TextColor3 = p.dimText
+			style.TextSize = 12
+			return style
+		end)(),
+		smallTool = { Size = UDim2.new(0, 0, 0, 20), TextSize = 12, padding = { x = 8 } },
 		render = { TextColor3 = p.render, BackgroundColor3 = p.render },
 		emit = { TextColor3 = p.emit, BackgroundColor3 = p.emit },
 		navigation = { TextColor3 = p.navigation, BackgroundColor3 = p.navigation },
@@ -701,9 +766,12 @@ local Card = Rivue.defineComponent({
 	render = function(ctx)
 		return h("Frame", { Name = `{ctx.title}Card`, class = "card" }, {
 			h("TextButton", { Name = "Title", class = "cardTitle", onClick = ctx.toggle }, {
-				h("TextLabel", { class = { "text", "dim" }, Text = if ctx.open then "▾" else "▸", TextSize = 11 }),
-				h("TextLabel", { Name = "Heading", class = { "text", "dim" }, Text = ctx.title }),
-				if ctx.count then h(Pill, { text = tostring(ctx.count) }) else nil,
+				h("TextLabel", { class = "toggle", Text = if ctx.open then "▾" else "▸" }),
+				h("TextLabel", { Name = "Heading", class = "heading", Text = string.upper(ctx.title) }),
+				h(Rivue.Spacer),
+				if ctx.count
+					then h("TextLabel", { Name = "Count", class = "tabCount", Text = tostring(ctx.count) })
+					else nil,
 			}),
 			if ctx.open then h(Rivue.Fragment, nil, ctx.renderSlot("default")) else nil,
 		})
@@ -772,10 +840,16 @@ local TabButton = Rivue.defineComponent({
 		}, {
 			h("TextLabel", {
 				Name = "Label",
-				class = { "tabLabel", if ctx.active then "activeTabLabel" else nil },
+				class = { "tabLabel", if ctx.active then "activeTabText" else nil },
 				Text = ctx.label,
 			}),
-			if ctx.count and ctx.count > 0 then h(Pill, { text = tostring(ctx.count) }) else nil,
+			if ctx.count and ctx.count > 0
+				then h("TextLabel", {
+					Name = "Count",
+					class = { "tabCount", if ctx.active then "activeTabText" else nil },
+					Text = tostring(ctx.count),
+				})
+				else nil,
 		})
 	end,
 })
@@ -784,7 +858,7 @@ local function emptyNote(name: string, text: string): any
 	return h("TextLabel", {
 		Name = name,
 		class = { "text", "dim" },
-		Size = UDim2.new(1, -12, 0, 0),
+		Size = UDim2.new(1, -16, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		TextWrapped = true,
 		Text = text,
@@ -807,6 +881,22 @@ local function fieldRows(text: string, target: Instance?): { any }
 	return rows
 end
 
+local function keyList(name: string, keys: { string }): { any }
+	if #keys == 0 then
+		return { h("TextLabel", { Name = name, class = { "text", "dim" }, Text = "(none)" }) }
+	end
+	return {
+		h("TextLabel", {
+			Name = name,
+			class = { "text" },
+			Font = Enum.Font.Code,
+			TextSize = 12,
+			LineHeight = 1.4,
+			Text = table.concat(keys, "\n"),
+		}),
+	}
+end
+
 local Details = Rivue.defineComponent({
 	name = "Details",
 	styles = styles,
@@ -816,47 +906,42 @@ local Details = Rivue.defineComponent({
 		local script, line = resolveSource(current.source)
 		local provides = lines(current.provides)
 		local injects = lines(current.injects)
+		local slow = current.renderMs >= settings.slowMs
 		return h(Rivue.Fragment, nil, {
 			h("Frame", { Name = "Overview", class = "card" }, {
-				h("TextLabel", { Name = "Title", class = { "text", "strong" }, Text = `<{current.name}>` }),
-				h(Rivue.Row, { gap = 4, align = "center" }, {
-					h(Pill, { text = `{current.renders}×` }),
-					h(Pill, {
-						text = formatMs(current.renderMs),
-						tone = if current.renderMs >= settings.slowMs then "slow" else nil,
+				h(Rivue.Row, { gap = 8, align = "center", Size = UDim2.new(1, 0, 0, ROW) }, {
+					h("TextLabel", { Name = "Title", class = { "text", "strong" }, Text = `<{current.name}>` }),
+					h(Rivue.Spacer),
+					if script
+						then h("TextButton", {
+							Name = "OpenSource",
+							class = "tool",
+							Text = "Open source",
+							onClick = function()
+								if openScript then
+									openScript(script, line or 1)
+								end
+							end,
+						})
+						else nil,
+				}),
+				h(Rivue.Row, { gap = 6, align = "center", Size = UDim2.new(1, 0, 0, 18) }, {
+					h("TextLabel", { Name = "Renders", class = { "text", "dim" }, Text = `{current.renders} renders` }),
+					h("TextLabel", { class = { "text", "dim" }, Text = "·" }),
+					h("TextLabel", {
+						Name = "Time",
+						class = { "text", "dim" },
+						TextColor3 = if slow then palette.value.slow else nil,
+						Text = formatMs(current.renderMs),
 					}),
+					h("TextLabel", { class = { "text", "dim" }, Text = "·" }),
 					h("TextLabel", { Name = "Cause", class = { "text", "dim" }, Text = causeText(current.trigger) }),
 				}),
-				if script
-					then h("TextButton", {
-						Name = "OpenSource",
-						class = "tool",
-						Size = UDim2.new(0, 0, 0, 22),
-						Text = "Open source",
-						onClick = function()
-							if openScript then
-								openScript(script, line or 1)
-							end
-						end,
-					})
-					else nil,
 			}),
 			h(Card, { key = "props", title = "Props" }, fieldRows(current.props, nil)),
 			h(Card, { key = "state", title = "State" }, fieldRows(current.state, current.instance)),
-			h(Card, { key = "provides", title = "Provides", count = #provides }, {
-				h("TextLabel", {
-					Name = "Provides",
-					class = { "text", "mono" },
-					Text = if #provides == 0 then "(none)" else table.concat(provides, "\n"),
-				}),
-			}),
-			h(Card, { key = "injects", title = "Injects", count = #injects }, {
-				h("TextLabel", {
-					Name = "Injects",
-					class = { "text", "mono" },
-					Text = if #injects == 0 then "(none)" else table.concat(injects, "\n"),
-				}),
-			}),
+			h(Card, { key = "provides", title = "Provides", count = #provides }, keyList("Provides", provides)),
+			h(Card, { key = "injects", title = "Injects", count = #injects }, keyList("Injects", injects)),
 		})
 	end,
 })
@@ -867,7 +952,7 @@ local function componentRow(ctx, entry: Entry, tree: boolean): any
 	return h("TextButton", {
 		key = entry.instance,
 		class = { "row", if isSelected then "selectedRow" else nil },
-		padding = { left = if tree then 4 + INDENT * entry.depth else 4, right = 6 },
+		padding = { left = 6 + (if tree then INDENT * entry.depth else 0), right = 6 },
 		onClick = function()
 			ctx.pick(entry.instance)
 		end,
@@ -876,7 +961,6 @@ local function componentRow(ctx, entry: Entry, tree: boolean): any
 		end,
 		onMouseLeave = Highlight.hide,
 	}, {
-		if isSelected then h("Frame", { Name = "Marker", class = "marker" }) else nil,
 		if tree and entry.hasChildren
 			then h("TextButton", {
 				Name = "Toggle",
@@ -886,10 +970,7 @@ local function componentRow(ctx, entry: Entry, tree: boolean): any
 					toggleCollapsed(entry.instance)
 				end,
 			})
-			elseif tree then h(
-				"Frame",
-				{ Name = "Gap", Size = UDim2.fromOffset(14, 1), BackgroundTransparency = 1 }
-			)
+			elseif tree then h("Frame", { Name = "Gap", class = "toggle" })
 			else nil,
 		h("TextLabel", {
 			Name = "Label",
@@ -898,13 +979,19 @@ local function componentRow(ctx, entry: Entry, tree: boolean): any
 				if entry.changed then "changedName" else nil,
 				if slow then "slowName" else nil,
 			},
-			AutomaticSize = Enum.AutomaticSize.X,
-			Size = UDim2.fromScale(0, 1),
 			Text = `<{entry.name}>`,
 		}),
-		if entry.changed then h("Frame", { Name = "Dot", class = "dot" }) else nil,
+		h("Frame", {
+			Name = "Dot",
+			class = "dot",
+			BackgroundTransparency = if entry.changed then 0 else 1,
+		}),
 		h(Rivue.Spacer),
-		if slow then h(Pill, { key = "ms", text = formatMs(entry.renderMs), tone = "slow" }) else nil,
+		h("TextLabel", {
+			Name = "Ms",
+			class = { "ms", if slow then "slowMs" else nil },
+			Text = if slow then formatMs(entry.renderMs) else "",
+		}),
 		h(Pill, { key = "renders", text = tostring(entry.renders), tone = if entry.changed then "hot" else nil }),
 	})
 end
@@ -1081,8 +1168,8 @@ local App = Rivue.defineComponent({
 		local viewName = ctx.view
 		local content: any
 		if viewName == "components" then
-			content = h(Rivue.Column, { Name = "ComponentsView", gap = 4, Size = UDim2.fromScale(1, 1) }, {
-				h(Rivue.Row, { Name = "Toolbar", class = "toolbar", gap = 4, align = "center" }, {
+			content = h(Rivue.Column, { Name = "ComponentsView", gap = 6, Size = UDim2.fromScale(1, 1) }, {
+				h(Rivue.Row, { Name = "Toolbar", class = "toolbar", gap = 6, align = "center" }, {
 					h(
 						"TextBox",
 						{ Name = "Filter", class = "filter", model = "filter", PlaceholderText = "Filter by name" }
@@ -1099,14 +1186,14 @@ local App = Rivue.defineComponent({
 					Name = "Body",
 					ref = "body",
 					BackgroundTransparency = 1,
-					Size = UDim2.new(1, 0, 1, -28),
+					Size = UDim2.new(1, 0, 1, -30),
 					onInputChanged = ctx.drag,
 					onInputEnded = ctx.stopDrag,
 				}, {
 					h("ScrollingFrame", {
 						Name = "Tree",
 						class = "list",
-						Size = UDim2.new(1, 0, ctx.split, -3),
+						Size = UDim2.new(1, 0, ctx.split, -4),
 					}, {
 						Rivue.hFor(shown, function(entry: Entry)
 							return componentRow(ctx, entry, tree)
@@ -1115,16 +1202,15 @@ local App = Rivue.defineComponent({
 					h("TextButton", {
 						Name = "Divider",
 						class = "divider",
-						Position = UDim2.new(0, 0, ctx.split, -3),
+						Position = UDim2.new(0, 0, ctx.split, -4),
 						onInputBegan = ctx.startDrag,
 					}, { h("Frame", { class = "dividerLine" }) }),
 					h("ScrollingFrame", {
 						Name = "Details",
 						class = "list",
-						Position = UDim2.new(0, 0, ctx.split, 3),
-						Size = UDim2.new(1, 0, 1 - ctx.split, -3),
+						Position = UDim2.new(0, 0, ctx.split, 4),
+						Size = UDim2.new(1, 0, 1 - ctx.split, -4),
 						layout = { gap = 6 },
-						padding = { y = 4 },
 					}, {
 						if current
 							then h(Details, { entry = current })
@@ -1138,16 +1224,17 @@ local App = Rivue.defineComponent({
 				}),
 			})
 		elseif viewName == "events" then
-			content = h(Rivue.Column, { Name = "EventsView", gap = 4, Size = UDim2.fromScale(1, 1) }, {
-				h(Rivue.Row, { class = "toolbar", gap = 4 }, {
+			content = h(Rivue.Column, { Name = "EventsView", gap = 6, Size = UDim2.fromScale(1, 1) }, {
+				h(Rivue.Row, { class = "toolbar", gap = 6, align = "center" }, {
+					h("TextLabel", { class = "statusText", Text = "Newest first" }),
+					h(Rivue.Spacer),
 					h("TextButton", { Name = "Clear", class = "tool", Text = "Clear", onClick = ctx.clearEvents }),
 				}),
-				h("ScrollingFrame", { Name = "Events", class = "list", Size = UDim2.new(1, 0, 1, -28) }, {
+				h("ScrollingFrame", { Name = "Events", class = "list", Size = UDim2.new(1, 0, 1, -30) }, {
 					Rivue.hFor(ctx.events, function(event: EmitEvent)
 						return h("TextButton", {
 							key = event.id,
 							class = "row",
-							padding = { left = 6, right = 6 },
 							onClick = function()
 								ctx.pick(event.instance)
 							end,
@@ -1156,21 +1243,11 @@ local App = Rivue.defineComponent({
 							end,
 							onMouseLeave = Highlight.hide,
 						}, {
-							h("TextLabel", {
-								Name = "Label",
-								class = "name",
-								AutomaticSize = Enum.AutomaticSize.X,
-								Size = UDim2.fromScale(0, 1),
-								Text = `<{event.name}>`,
-							}),
-							h("TextLabel", {
-								Name = "Detail",
-								class = { "name", "emit" },
-								BackgroundTransparency = 1,
-								AutomaticSize = Enum.AutomaticSize.X,
-								Size = UDim2.fromScale(0, 1),
-								Text = `{event.event}({event.args})`,
-							}),
+							h("TextLabel", { Name = "Label", class = "label", Text = `<{event.name}>` }),
+							h(
+								"TextLabel",
+								{ Name = "Detail", class = { "detail", "emit" }, Text = `{event.event}({event.args})` }
+							),
 						})
 					end),
 				}),
@@ -1184,73 +1261,53 @@ local App = Rivue.defineComponent({
 					key = kind,
 					Name = `Chip_{kind}`,
 					class = { "chip", if on then kind else nil },
-					BackgroundTransparency = if on then 0.75 else 0,
+					BackgroundTransparency = if on then 0.8 else 0,
 					Text = kind,
 					onClick = function()
 						ctx.toggleKind(kind)
 					end,
 				})
 			end
-			content = h(Rivue.Column, { Name = "TimelineView", gap = 4, Size = UDim2.fromScale(1, 1) }, {
-				h(Rivue.Row, { class = "toolbar", gap = 4, align = "center" }, {
+			content = h(Rivue.Column, { Name = "TimelineView", gap = 6, Size = UDim2.fromScale(1, 1) }, {
+				h(Rivue.Row, { class = "toolbar", gap = 6, align = "center" }, {
 					h(Rivue.Fragment, nil, chips),
 					h(Rivue.Spacer),
 					h("TextButton", { Name = "Clear", class = "tool", Text = "Clear", onClick = ctx.clearTimeline }),
 				}),
-				h("ScrollingFrame", { Name = "Timeline", class = "list", Size = UDim2.new(1, 0, 1, -28) }, {
+				h("ScrollingFrame", { Name = "Timeline", class = "list", Size = UDim2.new(1, 0, 1, -30) }, {
 					Rivue.hFor(ctx.timeline, function(entry: TimelineEntry)
 						local ms = tonumber(entry.ms)
 						return h("TextButton", {
 							key = entry.seq,
 							class = "row",
-							padding = { left = 6, right = 6 },
 							onClick = function()
 								ctx.openTimelineEntry(entry)
 							end,
 						}, {
-							h("TextLabel", {
-								Name = "Time",
-								class = { "name", "dim" },
-								TextSize = 12,
-								AutomaticSize = Enum.AutomaticSize.X,
-								Size = UDim2.fromScale(0, 1),
-								Text = string.format("%.2fs", entry.at / 1000),
-							}),
+							h(
+								"TextLabel",
+								{ Name = "Time", class = "time", Text = string.format("%.2fs", entry.at / 1000) }
+							),
 							h("TextLabel", {
 								Name = "Kind",
-								class = { "name", entry.kind },
+								class = { "kind", entry.kind },
 								BackgroundTransparency = 1,
-								AutomaticSize = Enum.AutomaticSize.X,
-								Size = UDim2.fromScale(0, 1),
 								Text = entry.kind,
 							}),
-							h("TextLabel", {
-								Name = "Label",
-								class = "name",
-								AutomaticSize = Enum.AutomaticSize.X,
-								Size = UDim2.fromScale(0, 1),
-								Text = entry.label,
-							}),
-							h("TextLabel", {
-								Name = "Detail",
-								class = { "name", "dim" },
-								AutomaticSize = Enum.AutomaticSize.X,
-								Size = UDim2.fromScale(0, 1),
-								Text = entry.detail,
-							}),
-							h(Rivue.Spacer),
-							if ms
-								then h("Frame", { Name = "Bar", class = "bar" }, {
-									h("Frame", {
+							h("TextLabel", { Name = "Label", class = "label", Text = entry.label }),
+							h("TextLabel", { Name = "Detail", class = "detail", Text = entry.detail }),
+							h("Frame", { Name = "Bar", class = "bar", BackgroundTransparency = if ms then 0 else 1 }, {
+								if ms
+									then h("Frame", {
 										class = { "barFill", entry.kind },
 										Size = UDim2.fromScale(
 											if slowest > 0 then math.clamp(ms / slowest, 0.04, 1) else 0,
 											1
 										),
-									}),
-								})
-								else nil,
-							if ms then h(Pill, { key = "ms", text = `{entry.ms} ms` }) else nil,
+									})
+									else nil,
+							}),
+							h("TextLabel", { Name = "Ms", class = "ms", Text = if ms then `{entry.ms} ms` else "" }),
 						})
 					end),
 				}),
@@ -1285,7 +1342,7 @@ local App = Rivue.defineComponent({
 					{ Name = "RouterView", class = "list", Size = UDim2.fromScale(1, 1), layout = { gap = 6 } },
 					{
 						h("Frame", { Name = "Current", class = "card" }, {
-							h("TextLabel", { class = { "text", "dim" }, Text = "Current route" }),
+							h("TextLabel", { class = "heading", Text = "CURRENT ROUTE" }),
 							h("TextLabel", { Name = "RouteName", class = { "text", "strong" }, Text = info.name }),
 						}),
 						h(Rivue.Fragment, nil, sections),
@@ -1295,18 +1352,18 @@ local App = Rivue.defineComponent({
 									key = i,
 									Name = `Entry{i}`,
 									class = { "row", if item.current then "selectedRow" else nil },
-									Size = UDim2.new(1, 0, 0, 22),
-									padding = { left = 6 },
 								}, {
-									if item.current then h("Frame", { Name = "Marker", class = "marker" }) else nil,
 									h("TextLabel", {
-										Name = "Label",
-										class = "name",
-										AutomaticSize = Enum.AutomaticSize.X,
-										Size = UDim2.fromScale(0, 1),
-										Text = `{i}. {item.name}`,
+										Name = "Index",
+										class = "kvKey",
+										Size = UDim2.new(0, 20, 1, 0),
+										Text = tostring(i),
 									}),
-									if item.current then h(Pill, { text = "current" }) else nil,
+									h("TextLabel", { Name = "Label", class = "label", Text = item.name }),
+									h(Rivue.Spacer),
+									if item.current
+										then h("TextLabel", { Name = "Current", class = "tabCount", Text = "current" })
+										else nil,
 								})
 							end),
 						}),
@@ -1314,10 +1371,10 @@ local App = Rivue.defineComponent({
 				)
 			end
 		else
-			content = h(Rivue.Column, { Name = "SettingsView", gap = 6, Size = UDim2.fromScale(1, 1) }, {
+			content = h("ScrollingFrame", { Name = "SettingsView", class = "list", Size = UDim2.fromScale(1, 1) }, {
 				h(Card, { key = "settings", title = "Settings" }, {
 					h("Frame", { Name = "SlowMs", class = "kv" }, {
-						h("TextLabel", { class = "kvKey", Text = "slow render (ms)" }),
+						h("TextLabel", { class = "kvKey", Text = "slow render, ms" }),
 						h(
 							"TextBox",
 							{ Name = "Value", class = "field", model = "slowDraft", onFocusLost = ctx.commitSlow }
@@ -1385,9 +1442,9 @@ local App = Rivue.defineComponent({
 			}),
 		}
 
-		return h("Frame", { class = "panel", layout = { gap = 6 } }, {
-			h(Rivue.Row, { Name = "TabBar", class = "tabBar", gap = 4, align = "center" }, tabs),
-			h("Frame", { Name = "View", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 1, -60) }, { content }),
+		return h("Frame", { class = "panel", layout = { gap = 8 } }, {
+			h(Rivue.Row, { Name = "TabBar", class = "tabBar", gap = 2, align = "center" }, tabs),
+			h("Frame", { Name = "View", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 1, -64) }, { content }),
 			h(Rivue.Row, { Name = "StatusBar", class = "statusBar", gap = 6, align = "center" }, {
 				h("TextLabel", {
 					Name = "Header",
@@ -1397,9 +1454,7 @@ local App = Rivue.defineComponent({
 				h(Rivue.Spacer),
 				h("TextButton", {
 					Name = "Highlight",
-					class = { "tool", if ctx.settings.highlightUpdates then "activeTool" else nil },
-					Size = UDim2.fromOffset(0, 18),
-					TextSize = 12,
+					class = { "tool", "smallTool", if ctx.settings.highlightUpdates then "activeTool" else nil },
 					Text = "Highlight updates",
 					onClick = function()
 						ctx.setSetting("highlightUpdates", not ctx.settings.highlightUpdates)
@@ -1407,9 +1462,7 @@ local App = Rivue.defineComponent({
 				}),
 				h("TextButton", {
 					Name = "Pause",
-					class = { "tool", if ctx.paused then "activeTool" else nil },
-					Size = UDim2.fromOffset(0, 18),
-					TextSize = 12,
+					class = { "tool", "smallTool", if ctx.paused then "activeTool" else nil },
 					Text = if ctx.paused then "Resume" else "Pause",
 					onClick = ctx.togglePause,
 				}),

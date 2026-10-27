@@ -69,6 +69,10 @@ local function rowText(row: Instance): string
 	for _, pill in pills do
 		table.insert(parts, pill.Text)
 	end
+	local ms = row:FindFirstChild("Ms")
+	if ms and ms.Text ~= "" then
+		table.insert(parts, ms.Text)
+	end
 	return table.concat(parts, "  ")
 end
 
@@ -169,7 +173,7 @@ return function()
 		walletLabel.TextColor3.R == 1 and walletLabel.TextColor3.G < 0.7,
 		"a component that just re-rendered is orange"
 	)
-	assertTrue(wallet:FindFirstChild("Dot") ~= nil, "with a dot")
+	assertEquals(wallet:FindFirstChild("Dot").BackgroundTransparency, 0, "with a dot")
 	assertEquals(find(find(widget, "coins"), "Value").Text, "11", "fields follow the state")
 	assertEquals(find(widget, "Cause").Text, "coins changed", "the cause follows too")
 
@@ -301,8 +305,8 @@ return function()
 	waitRefresh()
 	assertEquals(find(widget, "RouteName").Text, "shop", "the Router tab shows the current route")
 	assertEquals(find(find(widget, "paramsCard"), "id"):FindFirstChild("Value").Text, '"sword"', "its params as rows")
-	assertEquals(find(find(widget, "Entry2"), "Label").Text, "2. shop", "and the history")
-	assertTrue(find(widget, "Entry2"):FindFirstChild("Marker") ~= nil, "with the current entry marked")
+	assertEquals(find(find(widget, "Entry2"), "Label").Text, "shop", "and the history")
+	assertTrue(find(widget, "Entry2"):FindFirstChild("Current") ~= nil, "with the current entry marked")
 	Rivue.testing.trigger(find(widget, "ComponentsTab"), "onClick")
 	Rivue.nextTick()
 
@@ -367,7 +371,11 @@ return function()
 	light.background = Color3.fromRGB(255, 255, 255)
 	DevTools.setPalette(light)
 	Rivue.nextTick()
-	assertEquals(rows(widget)[1].BackgroundColor3, light.background, "a theme change recolours the window")
+	assertEquals(
+		widget:FindFirstChild("RivueDevTools").BackgroundColor3,
+		light.background,
+		"a theme change recolours the window"
+	)
 	DevTools.setPalette(Theme.DARK)
 	Rivue.nextTick()
 
