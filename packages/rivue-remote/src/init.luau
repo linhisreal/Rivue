@@ -27,8 +27,6 @@ local Remote = {}
 Remote.version = "0.8.0-beta.1"
 Remote.__index = Remote
 
--- RivueRemote works without RivueUI. When the game has it, Remote finds the same copy the router
--- does, so listeners stop with their component and requests show in the DevTools
 local rivue: any = nil
 local rivueSearched = false
 
@@ -685,7 +683,6 @@ local function effectiveValue(state: ServerState, player: Player): any
 	return if own ~= nil then own else state.value
 end
 
---- Server: a value every client can read and watch. setFor() gives one player their own value
 function Remote.state<T>(name: string, initial: T): State<T>
 	assert(RunService:IsServer(), "[RivueRemote] Remote.state() runs on the server")
 	assert(serverStates[name] == nil, `[RivueRemote] There's already a state named '{name}'`)
@@ -790,7 +787,6 @@ local function syncStates()
 	end
 end
 
---- Client: the current value of a server state. The first call yields until it has loaded
 function Remote.getState(name: string): any
 	syncStates()
 	local entry = clientStates[name]
@@ -823,11 +819,8 @@ function Remote.onState(name: string, fn: (value: any) -> ()): Connection
 	return connection
 end
 
---- Client: a read-only ref that follows a server state. Starts at `default` until the value
---- has loaded. Needs RivueUI
 function Remote.useState<T>(name: string, default: T?): { value: T }
 	local Rivue = requireRivue("useState")
-	-- No yield here: setup() and render can't wait for the server
 	local entry = clientStates[name]
 	local current = if entry then entry.value else nil
 	local source = Rivue.shallowRef(if current == nil then default else current)
@@ -847,8 +840,6 @@ export type RequestOptions = {
 	suspense: boolean?,
 }
 
---- Client: Rivue.useAsync around Remote.request, so { data, loading, error, run, refresh }.
---- Needs RivueUI
 function Remote.useRequest(name: string, options: RequestOptions?): any
 	local Rivue = requireRivue("useRequest")
 	local opts: RequestOptions = options or {}

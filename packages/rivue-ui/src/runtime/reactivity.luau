@@ -802,7 +802,6 @@ local function onWatcherCleanup(fn: () -> (), failSilently: boolean?)
 end
 
 local function onEffectCleanup(fn: () -> (), failSilently: boolean?)
-	-- A sync watcher can fire while some other effect is running, so the watcher comes first
 	local register = activeWatcherCleanup
 	if register then
 		register(fn)

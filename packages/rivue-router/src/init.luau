@@ -118,8 +118,6 @@ end
 
 export type LazyComponent = { __rivueLazy: true, loader: () -> any }
 
---- A route component that's required the first time its route is visited, like Vue Router's
---- `() => import()`. Rivue already treats plain functions as function components, hence the marker
 local function lazy(loader: () -> any): LazyComponent
 	assert(type(loader) == "function", "[RivueRouter] lazy() expects a function that returns a component")
 	return table.freeze({ __rivueLazy = true :: true, loader = loader })
@@ -405,7 +403,6 @@ local function createRouter(options: RouterOptions): Router
 			end
 			local target = if type(redirect) == "function" then redirect(route) else redirect
 			local nextLocation = toLocation(target, nil)
-			-- Like Vue Router, a redirect keeps the query unless it names its own
 			nextLocation = {
 				name = nextLocation.name,
 				params = nextLocation.params or route.params,
@@ -608,7 +605,6 @@ local function createRouter(options: RouterOptions): Router
 			return outcome
 		end
 
-		-- Vue Router loads lazy components after beforeEnter and before beforeResolve
 		for _, record in toMatched do
 			local components = record.components
 			if not components then

@@ -57,7 +57,6 @@ local function createSuspense(): ComponentDef
 					isLoading.value = true
 					if pendingCount == 1 then
 						context.emit("pending")
-						-- Rivue shows the fallback straight away, so it's also when Vue would emit this
 						context.emit("fallback")
 					end
 					local timeout = props.timeout

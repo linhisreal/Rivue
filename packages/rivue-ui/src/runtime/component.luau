@@ -83,7 +83,6 @@ type InstanceData = {
 	_idCount: number,
 	_keepAliveRenderer: { unmount: (vnode: VNode) -> () }?,
 	_devtoolsTriggers: { string }?,
-	-- Keys this component injected, kept only while app.config.devtools is on
 	_injected: { [unknown]: boolean }?,
 }
 

@@ -166,8 +166,6 @@ const DEVTOOLS_ATTRIBUTES = {
 const DEVTOOLS_CHANNEL_TAG = "RivueDevToolsChannel"
 const TIMELINE_LIMIT = 50
 
--- One Configuration per app with devtools on. The plugin reads the timeline and route from it,
--- and the router and RivueRemote write to it through Rivue._devtools
 local devtoolsChannels: { [Instance]: boolean } = {}
 local timeline: { string } = {}
 local timelineSeq = 0

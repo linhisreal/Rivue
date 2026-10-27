@@ -165,8 +165,6 @@ local function logEmit(instance: Instance)
 	events.value = list
 end
 
--- The channel keeps the last 50 events, and several apps can share them, so lines are matched by
--- their sequence number
 local function readTimeline(channel: Instance)
 	if paused.value then
 		return
@@ -637,7 +635,6 @@ local App = Rivue.defineComponent({
 		local query = string.lower(ctx.filter)
 		local tree = ctx.sortMode == "tree"
 		local ordered = sorted(ctx.entries, ctx.sortMode)
-		-- A match keeps its parents, so it still shows where it sits in the tree
 		local keep: { [Entry]: boolean }? = nil
 		if query ~= "" then
 			local matches: { [Entry]: boolean } = {}
