@@ -883,6 +883,49 @@ local function runTests()
 		app:unmount()
 	end
 
+	print("array.move, insert and splice keep every item at the edges")
+	do
+		local list = Rivue.reactive({ "a", "b", "c" })
+		Rivue.array.move(list, 1, 10)
+		assertEquals(table.concat(Rivue.toRaw(list), ","), "b,c,a", "moving past the end moves to the end")
+		Rivue.array.move(list, 5, 1)
+		assertEquals(table.concat(Rivue.toRaw(list), ","), "b,c,a", "moving a missing index does nothing")
+		local ok = pcall(Rivue.array.insert, list, 0, "x")
+		assertTrue(not ok, "inserting outside the list errors instead of dropping the item")
+		assertEquals(#Rivue.toRaw(list), 3, "and leaves the list alone")
+		local letters = Rivue.reactive({ 1, 2, 3, 4 })
+		local removed = Rivue.array.splice(letters, -1, 1)
+		assertEquals(removed[1], 4, "a negative start counts from the end, like JavaScript")
+		assertEquals(table.concat(Rivue.toRaw(letters), ","), "1,2,3", "so -1 is the last item")
+		Rivue.array.splice(letters, -2, 0, 9)
+		assertEquals(table.concat(Rivue.toRaw(letters), ","), "1,9,2,3", "inserting before the second to last")
+	end
+
+	print("A router meta that refers to itself doesn't crash the DevTools")
+	do
+		-- Describing the route for the DevTools recursed forever and killed the navigation
+		local ok = pcall(function()
+			local meta = {}
+			meta.self = meta
+			local L = Rivue.defineComponent({
+				name = "MetaScreen",
+				render = function()
+					return h("Frame")
+				end,
+			})
+			local Router = require(game:GetService("ReplicatedStorage"):WaitForChild("RivueRouter"))
+			local router = Router.createRouter({ routes = { a = { component = L, meta = meta } }, initial = "a" })
+			local app = Rivue.createApp(Router.RouterView)
+			app.config.devtools = true
+			app:use(router)
+			app:mount(Instance.new("Folder"))
+			router.isReady()
+			assertEquals(router.currentRoute.value.name, "a", "the first navigation finishes")
+			app:unmount()
+		end)
+		assertTrue(ok, "no stack overflow")
+	end
+
 	print("\n========== REGRESSION TESTS COMPLETE ==========\n")
 end
 
