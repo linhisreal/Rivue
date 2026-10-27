@@ -1,7 +1,8 @@
 <p align="center">
-  <img src="docs/assets/license.webp" height="80" alt="Rivue license">
-  &nbsp;&nbsp;
-  <a href="https://polyformproject.org/licenses/noncommercial/1.0.0"><img src="docs/assets/polyform-logo.png" height="72" alt="PolyForm"></a>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/license-lockup-dark.webp">
+  <img src="docs/assets/license-lockup.webp" height="64" alt="Rivue License: PolyForm Noncommercial 1.0.0 + games permission">
+</picture>
 </p>
 
 # Rivue license
