@@ -52,7 +52,7 @@ Pre-release.
 - RivueRouter: a route `meta` that refers to itself crashed navigation when DevTools was on.
 - RivueRouter: a router used by two apps went back two screens per press of a back key.
 - RivueRemote: requests only showed on the DevTools timeline after something else had called `Remote.on`.
-- RivueUI: `onEffectCleanup` inside a computed never ran.
+- RivueUI: `onEffectCleanup` inside a computed never ran, and `emit()` inside `onBeforeUnmount` or `onUnmounted` was dropped.
 - RivueDevTools: releasing the mouse outside the window while dragging the divider kept the drag going.
 
 ## Install

@@ -695,7 +695,7 @@ function Remote.state<T>(name: string, initial: T): State<T>
 		Remote.handle(STATE_SYNC, function(player)
 			local snapshot = {}
 			for stateName, entry in serverStates do
-				snapshot[stateName] = { effectiveValue(entry, player), entry.version }
+				snapshot[stateName] = { value = effectiveValue(entry, player), version = entry.version }
 			end
 			return snapshot
 		end, { maxPerSecond = 2 })
@@ -707,7 +707,11 @@ function Remote.state<T>(name: string, initial: T): State<T>
 	end
 
 	local function publish(player: Player)
-		enqueue(player, STATE_EVENT, { name :: unknown, effectiveValue(state, player), state.version })
+		enqueue(player, STATE_EVENT, { name = name, value = effectiveValue(state, player), version = state.version })
+	end
+
+	for _, player in Players:GetPlayers() do
+		publish(player)
 	end
 
 	return table.freeze({
@@ -771,7 +775,7 @@ local function syncStates()
 	stateSynced = true
 	Remote.on(STATE_EVENT, function(entry: any)
 		if type(entry) == "table" then
-			applyState(entry[1], entry[2], entry[3])
+			applyState(entry.name, entry.value, entry.version)
 		end
 	end)
 	local snapshot, err = Remote.request(STATE_SYNC, nil)
@@ -782,7 +786,7 @@ local function syncStates()
 	end
 	for name, entry in snapshot :: { [unknown]: any } do
 		if type(entry) == "table" then
-			applyState(name, entry[1], entry[2])
+			applyState(name, entry.value, entry.version)
 		end
 	end
 end
