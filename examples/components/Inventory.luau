@@ -1,4 +1,8 @@
 --!nonstrict
+-- Copyright (c) 2025-2026 linhisreal (ThisisLinh)
+-- Licensed under the PolyForm Noncommercial License 1.0.0 with the Rivue games permission.
+-- See LICENSE.md for the terms.
+
 -- VirtualList creates only the rows on screen. Each row is a component, so selecting one
 -- re-renders the old and the new selection and nothing else.
 

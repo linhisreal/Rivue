@@ -1,3 +1,7 @@
+-- Copyright (c) 2025-2026 linhisreal (ThisisLinh)
+-- Licensed under the PolyForm Noncommercial License 1.0.0 with the Rivue games permission.
+-- See LICENSE.md for the terms.
+
 --[[
 	Builds one script out of the offline prelude, the runtime, the examples, the demo app and
 	the given test suites, so they run outside Studio. Replaces Instance-based requires with

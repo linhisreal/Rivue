@@ -1,4 +1,8 @@
 --!nonstrict
+-- Copyright (c) 2025-2026 linhisreal (ThisisLinh)
+-- Licensed under the PolyForm Noncommercial License 1.0.0 with the Rivue games permission.
+-- See LICENSE.md for the terms.
+
 -- A health bar. It reads the Health attribute the server sets, and a spring eases the bar towards
 -- it through a binding, so the HUD doesn't re-render every frame. On touch screens and small
 -- windows the bar is shorter and sits higher.
