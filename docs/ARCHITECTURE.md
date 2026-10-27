@@ -41,36 +41,12 @@ utils.luau          debounce, throttle and small helpers
 debug.luau          logging, inspect, invariants
 ```
 
-Requires only go one way. An arrow points from a module to the ones that require it, so the
-leaves are at the bottom. `debug` and `types` are left out because almost everything uses them,
-and an edge is left out when it already follows from others (`renderer` requires `reactivity`
-directly, but also through `h`).
+Requires only go one way. In the picture an arrow points from a module to the ones that require
+it, so the leaves are at the bottom. `debug` and `types` are left out because almost everything
+uses them, and an edge is left out when it already follows from others (`renderer` requires
+`reactivity` directly, but also through `h`).
 
-```mermaid
-flowchart BT
-    scheduler --> reactivity
-    utils --> reactivity
-    reactivity --> array
-    reactivity --> component
-    reactivity --> directives
-    component --> h
-    directives --> h
-    component --> composables
-    component --> roblox
-    component --> builtins
-    h --> builtins
-    h --> renderer
-    pool --> renderer
-    roblox --> renderer
-    builtins --> ui
-    roblox --> ui
-    renderer --> testing
-    testing --> main
-    ui --> main
-    array --> main
-    composables --> main
-    transitions --> main
-```
+![RivueUI's modules and which ones require which](assets/diagrams/module-graph.webp)
 
 `builtins` never requires `renderer`. When KeepAlive needs to unmount something, it calls a
 function the renderer stores on the component instance, `_keepAliveRenderer`.
@@ -126,15 +102,7 @@ Errors from components go to `handleError` on the component they belong to. It w
 parents, calling each `onErrorCaptured` hook until one returns `false`, then calls
 `app.config.errorHandler`, and warns if there's neither.
 
-```mermaid
-flowchart LR
-    R["render, patch,<br/>lifecycle hooks, emit"] --> HE["handleError on<br/>the component"]
-    EV["event handler"] -- "component that<br/>patched the element" --> HE
-    WA["watch / watchEffect"] -- "component whose<br/>setup created it" --> HE
-    HE --> C["parents' onErrorCaptured,<br/>nearest first"]
-    C -- "none returned false" --> A["app.config.errorHandler"]
-    A -- "not set" --> W["warn with the<br/>component chain"]
-```
+![Where render, event handler and watcher errors go](assets/diagrams/error-flow.webp)
 
 The renderer remembers which component patched each element with an event handler, and a
 watcher remembers the component that was running `setup` when it was created. `component.luau`
@@ -319,22 +287,7 @@ A client sends `{ action, id, payload }` on one RemoteEvent and the server answe
 only to that player. `fire()` sends no id and gets no reply. The server runs each request through
 these steps, and the first one that fails sends back its reason:
 
-```mermaid
-flowchart TD
-    Q["request from a player"] --> K{"action has a handler?"}
-    K -- no --> UA["unknown_action<br/>(replies are rate limited too)"]
-    K -- yes --> RL{"player under the total<br/>and per-action request limits?"}
-    RL -- no --> L["rate_limited"]
-    RL -- yes --> P{"payload valid,<br/>and under the byte limit?"}
-    P -- no --> PE["the reason, or rate_limited"]
-    P -- yes --> MW{"Remote.use middleware<br/>returns false?"}
-    MW -- yes --> RJ["rejected"]
-    MW -- no --> CH{"handle's check passes?"}
-    CH -- no --> IP["invalid_payload"]
-    CH -- yes --> H["handler runs"]
-    H -- errors --> HE["handler_error<br/>(details stay in the server log)"]
-    H -- returns --> OK["ok, with the result"]
-```
+![The checks a request goes through on the server, and the error each one returns](assets/diagrams/remote-request.webp)
 
 `Remote.stats()` counts calls, failures, rejections and handler time per action. Server-to-client events from
 `send` and `sendAll` all travel on two shared RemoteEvents, one reliable and one unreliable, and
