@@ -142,7 +142,7 @@ local Counter = Rivue.defineComponent({
 ### Proxies and Luau
 
 `.value` and reactive proxies work the same as in Vue. What's missing is `__pairs` and `__ipairs`:
-Luau doesn't have them, so `pairs()` and `ipairs()` see an empty table. Loop with
+Luau doesn't have them, so `pairs()`, `ipairs()` and `next()` see an empty table. Loop with
 `for k, v in state do` or a numeric loop instead. `table.insert` and `table.remove` go around the
 proxy too, so where you'd use JavaScript's array methods, use [`Rivue.array`](api/array.md)
 (`push`, `splice`, `removeWhere`, `sort` and the rest).
