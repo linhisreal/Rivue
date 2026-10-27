@@ -56,6 +56,7 @@ const advanced = [
 	["Organising state", "14-state-architecture"],
 	["Performance in depth", "15-performance-in-depth"],
 	["Testing UI", "16-testing-ui"],
+	["Screens and navigation", "17-screens-and-navigation"],
 ]
 const api = [
 	["Reactivity: core", "reactivity-core"],

@@ -2,7 +2,7 @@
 
 # Guide chapters
 
-Chapters 1–11 are meant to be read in order. Chapters 12–16 are advanced and stand alone.
+Chapters 1–11 are meant to be read in order. Chapters 12–17 are advanced and stand alone.
 
 | | Chapter | You'll learn |
 |---|---|---|
@@ -23,6 +23,7 @@ Chapters 1–11 are meant to be read in order. Chapters 12–16 are advanced and
 | 14 | [Organising state](guide/14-state-architecture.md) | where state should live, stores, server data, instant purchases |
 | 15 | [Performance in depth](guide/15-performance-in-depth.md) | what makes UI slow, finding the cause, which fix to try |
 | 16 | [Testing UI](guide/16-testing-ui.md) | testing logic, mounting components in tests, clicking from code |
+| 17 | [Screens and navigation](guide/17-screens-and-navigation.md) | RivueRouter: history, passing data, a back button, unsaved-changes guards |
 
 Know Vue already? Skim [Rivue for Vue developers](VUE.md) first, then jump to chapter 6, where
 Rivue differs most.

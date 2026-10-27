@@ -2,7 +2,7 @@
 
 # RivueRouter
 
-**Learn it:** [Guide 13: Component patterns](../guide/13-advanced-components.md#switching-screens)
+**Learn it:** [Guide 17: Screens and navigation](../guide/17-screens-and-navigation.md)
 
 Screens with history, like a small Vue Router. It's a separate package, the way Vue Router is
 separate from Vue: install `RivueRouter` next to `RivueUI`, in the same Packages folder or both in
@@ -70,6 +70,8 @@ Screens with history, like a small Vue Router: you name each screen, move betwee
   ```
 
 - **Details**
+
+  ![push, back, forward and replace on the history](../assets/diagrams/router-history.webp)
 
   - `push(name, params)` adds a screen to the history. `params` reach the screen's component as
     props. Pushing after going back drops the screens you could have gone forward to.
