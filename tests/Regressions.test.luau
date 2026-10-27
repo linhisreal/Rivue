@@ -682,6 +682,47 @@ local function runTests()
 		assertEquals(unmounted, 2, "nothing left over")
 	end
 
+	print("A Row keeps its children when a sibling with prop defaults mounts in an update")
+	do
+		-- The sibling's defaults made the Column patch the Row's vnode against itself, and slot
+		-- replacement cleared the table it was copying from
+		local Sibling = Rivue.defineComponent({
+			name = "Sibling",
+			props = { label = { type = "string", default = "x" } },
+			render = function()
+				return h("TextLabel", { Name = "Sibling" })
+			end,
+		})
+		local Screen = Rivue.defineComponent({
+			name = "Screen",
+			render = function()
+				return h(Rivue.Column, nil, {
+					h(Rivue.Row, nil, { h("TextButton", { Name = "InRow" }) }),
+					h(Sibling),
+				})
+			end,
+		})
+		local show = Rivue.ref(false)
+		local root = Instance.new("Folder")
+		local app = Rivue.createApp(Rivue.defineComponent({
+			name = "Host",
+			render = function()
+				return h("Frame", nil, { if show.value then h(Screen) else nil })
+			end,
+		}))
+		app:mount(root)
+		show.value = true
+		Rivue.nextTick()
+		local found = false
+		for _, d in root:GetDescendants() do
+			if d.Name == "InRow" then
+				found = true
+			end
+		end
+		assertTrue(found, "the Row's button is still there")
+		app:unmount()
+	end
+
 	print("\n========== REGRESSION TESTS COMPLETE ==========\n")
 end
 

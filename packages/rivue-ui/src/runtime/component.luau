@@ -752,8 +752,11 @@ local function updateComponentSlots(instance: ComponentInstance, children: { Chi
 	if #defaultSlots == 0 and #children == 0 and next(namedSlots) == nil and slots == nil then
 		return false
 	end
-	table.clear(defaultSlots)
-	table.move(children, 1, #children, 1, defaultSlots)
+	-- A vnode patched against itself passes the instance's own slot table, which clearing would empty
+	if children ~= defaultSlots then
+		table.clear(defaultSlots)
+		table.move(children, 1, #children, 1, defaultSlots)
+	end
 	table.clear(namedSlots)
 	if slots then
 		for name, fn in slots do
