@@ -5,7 +5,7 @@
 A Studio plugin that shows the Rivue components on screen while you playtest: what rendered, how
 long it took and why, with props and state you can edit live.
 
-![the DevTools window](assets/diagrams/devtools-window.webp)
+![The DevTools window: the component tree, the Timeline tab and the Router tab](assets/diagrams/devtools-window.webp)
 
 ## Install
 
