@@ -1093,6 +1093,8 @@ end
 local clientStates: { [string]: { value: any, version: number } } = {}
 local stateListeners: { [string]: { (value: any) -> () } } = {}
 local stateSynced = false
+local stateLoading: { thread }? = nil
+local stateListening = false
 
 local function applyState(name: unknown, value: unknown, version: unknown)
 	if type(name) ~= "string" or type(version) ~= "number" then
@@ -1119,22 +1121,35 @@ local function syncStates()
 	if stateSynced then
 		return
 	end
-	stateSynced = true
-	Remote.on(STATE_EVENT, function(entry: any)
-		if type(entry) == "table" then
-			applyState(entry.name, entry.value, entry.version)
-		end
-	end)
-	local snapshot, err = Remote.request(STATE_SYNC, nil)
-	if type(snapshot) ~= "table" then
-		stateSynced = false
-		warn(`[RivueRemote] Couldn't load state from the server: {err}`)
+	if stateLoading then
+		table.insert(stateLoading, coroutine.running())
+		coroutine.yield()
 		return
 	end
-	for name, entry in snapshot :: { [unknown]: any } do
-		if type(entry) == "table" then
-			applyState(name, entry.value, entry.version)
+	local waiting: { thread } = {}
+	stateLoading = waiting
+	if not stateListening then
+		stateListening = true
+		Remote.on(STATE_EVENT, function(entry: any)
+			if type(entry) == "table" then
+				applyState(entry.name, entry.value, entry.version)
+			end
+		end)
+	end
+	local snapshot, err = Remote.request(STATE_SYNC, nil)
+	if type(snapshot) == "table" then
+		stateSynced = true
+		for name, entry in snapshot :: { [unknown]: any } do
+			if type(entry) == "table" then
+				applyState(name, entry.value, entry.version)
+			end
 		end
+	else
+		warn(`[RivueRemote] Couldn't load state from the server: {err}`)
+	end
+	stateLoading = nil
+	for _, thread in waiting do
+		task.spawn(thread)
 	end
 end
 

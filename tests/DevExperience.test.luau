@@ -412,11 +412,12 @@ local function runTests()
 	do
 		local count = Rivue.ref(3)
 		local bag = Rivue.reactive({ gems = 1 })
+		local note = Rivue.ref("hidden")
 		local Counter = Rivue.defineComponent({
 			name = "DevtoolsCounter",
 			props = { label = { type = "string", default = "Coins" } },
 			setup = function()
-				return { count = count, unused = Rivue.ref("hidden"), bag = bag }
+				return { count = count, unused = note, bag = bag }
 			end,
 			render = function(ctx)
 				return Rivue.h("TextLabel", { Text = `{ctx.label}: {ctx.count} {ctx.bag.gems}` })
@@ -474,6 +475,15 @@ local function runTests()
 		assertEquals(root:GetAttribute("RivueState"), 'count = 42\nunused = "shown"', "strings lose their quotes")
 		root:SetAttribute("RivueEdit", "bag=1")
 		assertEquals(bag.gems, 2, "only refs can be edited")
+		root:SetAttribute("RivueEdit", 'unused="say \\"hi\\"\\nbye"')
+		Rivue.nextTick()
+		assertEquals(note.value, 'say "hi"\nbye', "an edit's escapes are turned back into the characters")
+		assertEquals(
+			root:GetAttribute("RivueState"),
+			'count = 42\nunused = "say \\"hi\\"\\nbye"',
+			"quotes and newlines in strings are escaped, so each ref stays on one line"
+		)
+		root:SetAttribute("RivueEdit", 'unused="shown"')
 		app:unmount()
 		assertTrue(not CollectionService:HasTag(root, "RivueComponent"), "unmounting removes the tag")
 		assertEquals(root:GetAttribute("RivueProps"), nil, "and the attributes")
