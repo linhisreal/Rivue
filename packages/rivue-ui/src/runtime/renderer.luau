@@ -655,23 +655,7 @@ local function writeProp(inst: Instance, prop: string, value: unknown): (boolean
 	end)
 end
 
-local BINDING_MARKER = "__rivueBinding"
-
-local function bindingGetter(value: unknown): (() -> unknown)?
-	if type(value) ~= "table" then
-		return nil
-	end
-	local getter = rawget(value :: any, BINDING_MARKER)
-	if type(getter) == "function" then
-		return getter
-	elseif reactivity.isRef(value) then
-		local r = value :: any
-		return function(): unknown
-			return r.value
-		end
-	end
-	return nil
-end
+local bindingGetter = componentModule.bindingGetter
 
 local BINDING_VNODE = newproxy(false)
 
@@ -1406,7 +1390,7 @@ local function cloneIfMounted(vnode: RenderVNode): RenderVNode
 	if (vnode.el == nil and vnode._instance == nil) or vnode._kept or vnode._keepAlive then
 		return vnode
 	end
-	local children: { Child } = table.create(#vnode.children)
+	local children: { Child } = table.create(#vnode.children) :: any
 	for i, child in vnode.children do
 		children[i] = if type(child) == "table" and (child :: any).type ~= nil
 			then cloneIfMounted(child :: RenderVNode) :: any
@@ -1422,6 +1406,7 @@ local function cloneIfMounted(vnode: RenderVNode): RenderVNode
 		_owner = vnode._owner,
 		_transition = vnode._transition,
 		_classApplied = vnode._classApplied,
+		_block = vnode._block,
 	} :: any
 end
 
@@ -1514,6 +1499,9 @@ local function mountElement(vnode: RenderVNode, container: Instance, poolOpt: Po
 		elseif type(child) == "table" then
 			child = cloneIfMounted(child :: RenderVNode) :: any
 			children[i] = child
+			if (child :: RenderVNode)._block then
+				(child :: RenderVNode)._siblings = children
+			end
 			patch(nil, child, inst, poolOpt)
 		end
 	end
@@ -1654,6 +1642,11 @@ local function unmountVNode(vnode: RenderVNode?, poolOpt: PoolOptions?, doRemove
 	end
 
 	if vnode.type == Fragment then
+		local blockState = vnode._blockState
+		if blockState then
+			blockState.effect:stop()
+			vnode._blockState = nil
+		end
 		for _, child in vnode.children do
 			if type(child) == "table" then
 				unmountVNode(child, poolOpt, doRemove)
@@ -1753,6 +1746,9 @@ local function patchKeyedChildren(
 				nc = cloneIfMounted(nc :: RenderVNode) :: any
 				newList[i] = nc
 			end
+			if nc._block then
+				nc._siblings = newList
+			end
 			if oc then
 				patch(oc, nc, parent, poolOpt)
 				oldMap[k] = nil
@@ -1765,6 +1761,9 @@ local function patchKeyedChildren(
 			if oc ~= nc then
 				nc = cloneIfMounted(nc :: RenderVNode) :: any
 				newList[i] = nc
+			end
+			if nc._block then
+				nc._siblings = newList
 			end
 			if type(oc) == "table" and oc.key == nil then
 				reusedUnkeyed[i] = true
@@ -2199,6 +2198,26 @@ local function applyFallthroughAttrs(props: Props?, attrs: Props): Props?
 	return merged or props
 end
 
+local warnedVaporFallback: { [unknown]: true } = setmetatable({}, { __mode = "k" }) :: any
+
+local function isVapor(inst: ComponentInstance): boolean
+	local def = inst.type
+	if not def.vapor then
+		return false
+	end
+	local experimental = inst.appContext.config.experimental
+	if experimental and experimental.vapor == true then
+		return true
+	end
+	if not warnedVaporFallback[def] then
+		warnedVaporFallback[def] = true
+		warn(
+			`[Rivue] {def.__name or "Anonymous"} sets vapor = true, but app.config.experimental.vapor is off, so it renders normally`
+		)
+	end
+	return false
+end
+
 local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: PoolOptions?)
 	local inst = componentModule.createComponentInstance(vnode, currentRenderingInstance, currentAppContext)
 	vnode._instance = inst
@@ -2213,6 +2232,7 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 	end
 	inst:setupComponent()
 	inst:runBeforeMount()
+	local vapor = isVapor(inst)
 
 	local devtools = inst.appContext.config.devtools == true
 	local renderStart = 0
@@ -2376,7 +2396,11 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 	})
 
 	renderEffect.run()
-	inst._renderEffect = renderEffect
+	if vapor then
+		renderEffect:stop()
+	else
+		inst._renderEffect = renderEffect
+	end
 end
 
 local function activateComponent(vnode: RenderVNode, container: Instance)
@@ -2568,6 +2592,131 @@ local function mountFragment(vnode: RenderVNode, container: Instance, poolOpt: P
 	vnode.el = firstChildEl(vnode.children)
 end
 
+local function blockChildren(state: { [string]: any }): { Child }?
+	local block = state.block
+	if block.kind == "if" then
+		local shown = if block.cond() then true else false
+		if shown == state.shown and not state.rebuild then
+			return nil
+		end
+		state.shown = shown
+		local branch = if shown then block.yes else block.no
+		local child: VNode? = nil
+		if branch then
+			reactivity._untracked(function()
+				child = branch()
+			end)
+		end
+		return if child then { child } else {}
+	elseif block.kind == "for" then
+		local list = block.source()
+		local previous: { [unknown]: VNode } = {}
+		if not state.rebuild then
+			for _, child in (state.vnode :: RenderVNode).children do
+				if type(child) == "table" and child.key ~= nil and previous[child.key] == nil then
+					previous[child.key] = child
+				end
+			end
+		end
+		local previousItems: { [unknown]: unknown } = state.items or {}
+		local nextItems: { [unknown]: unknown } = {}
+		local out: { Child } = table.create(#list) :: any
+		for index, item in list do
+			local node: VNode? = nil
+			reactivity._untracked(function()
+				local key = block.keyOf(item, index)
+				local kept = previous[key]
+				previous[key] = nil
+				if kept and previousItems[key] == item then
+					node = kept
+				else
+					node = block.row(item, index)
+					if node then
+						node.key = key
+					end
+				end
+				nextItems[key] = item
+			end)
+			if node then
+				table.insert(out, node)
+			end
+		end
+		state.items = nextItems
+		return out
+	end
+	return nil
+end
+
+local function runBlock(state: { [string]: any })
+	local nextChildren = blockChildren(state)
+	state.rebuild = false
+	if not nextChildren then
+		return
+	end
+	local vnode = state.vnode :: RenderVNode
+	local previous = vnode.children
+	local function apply()
+		patchKeyedChildren(previous, nextChildren, state.container, state.poolOpt)
+	end
+	reactivity._untracked(function()
+		local owner = state.owner :: ComponentInstance?
+		if owner then
+			withRenderingInstance(owner, apply)
+		else
+			apply()
+		end
+	end)
+	vnode.children = nextChildren
+	vnode.el = firstChildEl(nextChildren)
+	local siblings = vnode._siblings
+	if siblings and hasLayoutChild(siblings) then
+		syncLayoutOrder(siblings)
+	end
+end
+
+local function mountBlock(vnode: RenderVNode, container: Instance, poolOpt: PoolOptions?)
+	local state: { [string]: any } = {
+		vnode = vnode,
+		block = vnode._block,
+		container = container,
+		poolOpt = poolOpt,
+		owner = currentRenderingInstance,
+		rebuild = true,
+	}
+	vnode._blockState = state
+	local eff = reactivity.effect(function()
+		runBlock(state)
+	end, { lazy = true })
+	state.effect = eff
+	eff.run()
+end
+
+local function patchBlock(oldVNode: RenderVNode, newVNode: RenderVNode, container: Instance, poolOpt: PoolOptions?)
+	local state = oldVNode._blockState
+	local newBlock = newVNode._block
+	if not state or not newBlock or state.block.kind ~= newBlock.kind then
+		unmountVNode(oldVNode, poolOpt)
+		if newBlock then
+			mountBlock(newVNode, container, poolOpt)
+		else
+			mountFragment(newVNode, container, poolOpt)
+		end
+		return
+	end
+	oldVNode._blockState = nil
+	newVNode._blockState = state
+	newVNode.children = oldVNode.children
+	newVNode.el = oldVNode.el
+	state.vnode = newVNode
+	state.container = container
+	state.owner = currentRenderingInstance or state.owner
+	if newBlock ~= state.block then
+		state.block = newBlock
+		state.rebuild = true
+		state.effect.run()
+	end
+end
+
 local function patchInner(oldVNode: RenderVNode?, newVNode: RenderVNode?, container: Instance, poolOpt: PoolOptions?)
 	if newVNode == nil then
 		unmountVNode(oldVNode, poolOpt)
@@ -2607,7 +2756,11 @@ local function patchInner(oldVNode: RenderVNode?, newVNode: RenderVNode?, contai
 
 	if oldVNode == nil then
 		if newType == Fragment then
-			mountFragment(newVNode, container, poolOpt)
+			if newVNode._block then
+				mountBlock(newVNode, container, poolOpt)
+			else
+				mountFragment(newVNode, container, poolOpt)
+			end
 		elseif def == componentModule.Teleport then
 			mountTeleport(newVNode, container, poolOpt)
 		elseif def and newVNode._kept and newVNode._instance then
@@ -2634,8 +2787,12 @@ local function patchInner(oldVNode: RenderVNode?, newVNode: RenderVNode?, contai
 	end
 
 	if newType == Fragment then
-		patchKeyedChildren(oldVNode.children, newVNode.children, container, poolOpt)
-		newVNode.el = firstChildEl(newVNode.children)
+		if oldVNode._block or newVNode._block then
+			patchBlock(oldVNode, newVNode, container, poolOpt)
+		else
+			patchKeyedChildren(oldVNode.children, newVNode.children, container, poolOpt)
+			newVNode.el = firstChildEl(newVNode.children)
+		end
 	elseif def == componentModule.Teleport then
 		patchTeleport(oldVNode, newVNode, container, poolOpt)
 	elseif def then

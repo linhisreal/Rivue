@@ -167,5 +167,71 @@ return function()
 		end
 	end)
 
+	measure("vapor-binding-1000-updates", function()
+		local text = Rivue.ref("0")
+		local App = Rivue.defineComponent({
+			name = "BenchVaporBinding",
+			vapor = true,
+			setup = function()
+				return function()
+					return h("TextLabel", { Text = text })
+				end
+			end,
+		})
+		local app = Rivue.createApp(App)
+		app.config.experimental = { vapor = true }
+		app:mount(Instance.new("Frame"))
+		return function()
+			for i = 1, 1000 do
+				text.value = tostring(i)
+				Rivue.nextTick()
+			end
+		end, function()
+			app:unmount()
+		end
+	end)
+
+	measure("vapor-for-reorder-1000", function()
+		local items = Rivue.ref(makeRows(ROWS))
+		local App = Rivue.defineComponent({
+			name = "BenchVaporList",
+			vapor = true,
+			setup = function()
+				return function()
+					return h("Frame", nil, {
+						h("UIListLayout"),
+						Rivue.createFor(function()
+							return items.value
+						end, function(item)
+							return item.id
+						end, function(item)
+							return h("TextButton", {
+								Text = item.name,
+								Size = UDim2.new(1, 0, 0, 20),
+								onClick = function() end,
+							})
+						end),
+					})
+				end
+			end,
+		})
+		local app = Rivue.createApp(App)
+		app.config.experimental = { vapor = true }
+		app:mount(Instance.new("Frame"))
+		return function()
+			for _ = 1, 4 do
+				local list = items.value
+				local reversed = table.create(#list)
+				for i = #list, 1, -1 do
+					table.insert(reversed, list[i])
+				end
+				items.value = reversed
+				Rivue.nextTick()
+			end
+		end, function()
+			app:unmount()
+		end
+	end)
+
 	print("\n========== RENDER BENCHMARK COMPLETE ==========\n")
 end

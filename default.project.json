@@ -33,6 +33,9 @@
         "Scheduler": {
           "$path": "tests/Scheduler.test.luau"
         },
+        "Vapor": {
+          "$path": "tests/Vapor.test.luau"
+        },
         "Utils": {
           "$path": "tests/Utils.test.luau"
         },

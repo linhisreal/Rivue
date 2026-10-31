@@ -77,6 +77,8 @@ type InstanceData = {
 	_schedulerJobs: { JobHandle },
 	_scope: EffectScope?,
 	_renderEffect: Effect?,
+	_propSources: { [string]: unknown }?,
+	_propBindings: { [string]: { source: unknown, stop: () -> () } },
 	_transitionHooks: { [string]: { (el: Instance) -> () } }?,
 	_pendingUpdate: boolean,
 	_idCount: number,
@@ -305,6 +307,54 @@ local function propsUnchanged(def: ComponentDef, oldProps: Props?, newProps: Pro
 	return count == 0
 end
 
+local BINDING_MARKER = "__rivueBinding"
+
+local function bindingGetter(value: unknown): (() -> unknown)?
+	if type(value) ~= "table" then
+		return nil
+	end
+	local getter = rawget(value :: any, BINDING_MARKER)
+	if type(getter) == "function" then
+		return getter
+	elseif reactivity.isRef(value) then
+		local r = value :: any
+		return function(): unknown
+			return r.value
+		end
+	end
+	return nil
+end
+
+local function readUntracked(getter: () -> unknown): unknown
+	local value: unknown = nil
+	reactivity._untracked(function()
+		value = getter()
+	end)
+	return value
+end
+
+local function usesGetterProps(def: ComponentDef, parent: ComponentInstance?, appContext: AppContext): boolean
+	local experimental = appContext.config.experimental
+	if experimental == nil or experimental.vapor ~= true then
+		return false
+	end
+	return def.vapor == true or (parent ~= nil and parent.type.vapor == true)
+end
+
+local function startPropBinding(instance: ComponentInstance, key: string, source: unknown)
+	local getter = bindingGetter(source) :: () -> unknown
+	local props = instance.props
+	local stop = reactivity.watch(getter, function(value: unknown)
+		props[key] = value
+	end)
+	instance._propBindings[key] = {
+		source = source,
+		stop = function()
+			stop()
+		end,
+	}
+end
+
 local function separatePropsAndAttrs(def: ComponentDef, allProps: Props): (Props, Props)
 	local schema = def.props
 	local emitKeys = getEmitKeys(def)
@@ -437,6 +487,16 @@ function ComponentInstance.setupComponent(self: ComponentInstance)
 
 	local scope = reactivity.effectScope(true)
 	self._scope = scope
+	local propSources = self._propSources
+	if propSources then
+		self._propSources = nil
+		scope:run(function()
+			for key, source in propSources do
+				startPropBinding(self, key, source)
+			end
+			return nil
+		end)
+	end
 
 	local setupResult: unknown = nil
 	local setup = def.setup
@@ -703,7 +763,20 @@ local function createComponentInstance(
 	) :: any
 
 	local declaredProps, attrs = separatePropsAndAttrs(def, vnode.props or {})
-	local props = reactivity.shallowReactive(table.clone(declaredProps))
+	local initialProps = table.clone(declaredProps)
+	local propSources: { [string]: unknown }? = nil
+	if usesGetterProps(def, parent, context) then
+		for key, value in initialProps do
+			local getter = bindingGetter(value)
+			if getter then
+				local sources = propSources or {}
+				propSources = sources
+				sources[key] = value
+				initialProps[key] = readUntracked(getter)
+			end
+		end
+	end
+	local props = reactivity.shallowReactive(initialProps)
 	local reactiveAttrs = reactivity.shallowReactive(attrs)
 
 	uidCounter += 1
@@ -746,6 +819,8 @@ local function createComponentInstance(
 		_schedulerJobs = {},
 		_scope = nil,
 		_renderEffect = nil,
+		_propSources = propSources,
+		_propBindings = {},
 		_transitionHooks = nil,
 		_pendingUpdate = false,
 		_idCount = 0,
@@ -776,6 +851,40 @@ local function updateComponentProps(instance: ComponentInstance, rawProps: Props
 				end
 			else
 				props[key] = nil
+			end
+		end
+	end
+
+	if usesGetterProps(instance.type, instance.parent, instance.appContext) then
+		nextProps = table.clone(nextProps)
+		local bindings = instance._propBindings
+		local scope = instance._scope
+		for key, value in nextProps do
+			local getter = bindingGetter(value)
+			local existing = bindings[key]
+			if getter then
+				if not (existing and existing.source == value) then
+					if existing then
+						existing.stop()
+						bindings[key] = nil
+					end
+					if scope then
+						scope:run(function()
+							startPropBinding(instance, key, value)
+							return nil
+						end)
+					end
+				end
+				nextProps[key] = readUntracked(getter)
+			elseif existing then
+				existing.stop()
+				bindings[key] = nil
+			end
+		end
+		for key, existing in bindings do
+			if nextProps[key] == nil then
+				existing.stop()
+				bindings[key] = nil
 			end
 		end
 	end
@@ -837,6 +946,7 @@ local Teleport: ComponentDef = table.freeze({
 }) :: any
 
 return {
+	bindingGetter = bindingGetter,
 	devtoolsHooks = devtoolsHooks,
 	createComponentInstance = createComponentInstance,
 	updateComponentProps = updateComponentProps,

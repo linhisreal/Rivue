@@ -145,6 +145,8 @@ Rivue.h = hModule.h
 Rivue.Fragment = hModule.Fragment
 Rivue.hIf = hModule.hIf
 Rivue.hFor = hModule.hFor
+Rivue.createIf = hModule.createIf
+Rivue.createFor = hModule.createFor
 Rivue.mergeProps = hModule.mergeProps
 Rivue.cloneVNode = hModule.cloneVNode
 Rivue.isVNode = hModule.isVNode
@@ -198,6 +200,7 @@ function Rivue.defineComponent(opts: ComponentOptions | SetupFunction, extra: Co
 		components = options.components,
 		styles = options.styles,
 		inheritAttrs = options.inheritAttrs,
+		vapor = options.vapor,
 	}
 end
 

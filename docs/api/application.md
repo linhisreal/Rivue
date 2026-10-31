@@ -654,6 +654,30 @@ app:mount(Instance.new("Folder"))
 
 ---
 
+## app.config.experimental
+
+Turns on features that aren't stable yet. The only one today is
+[Vapor mode](vapor.md), for components that render once.
+
+```lua signature
+app.config.experimental: { vapor: boolean? }?
+```
+
+> [!WARNING]
+> Experimental features can change between releases. Set it before `app:mount()`.
+
+### Example
+
+```lua
+local App = Rivue.defineComponent({ name = "App", render = function() return h("Frame") end })
+
+local app = Rivue.createApp(App)
+app.config.experimental = { vapor = true }
+app:mount(Instance.new("Folder"))
+```
+
+---
+
 ## app.config.performance
 
 Marks each component's `setup`, render and patch in Roblox's MicroProfiler, as Vue's

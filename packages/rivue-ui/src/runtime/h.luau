@@ -380,7 +380,25 @@ local function hFor<T>(list: { T }, mapper: (item: T, index: number) -> VNode?):
 	return out
 end
 
+local function createIf(cond: () -> boolean, yes: () -> VNode?, no: (() -> VNode?)?): VNode
+	local node = h(Fragment, nil, nil)
+	node._block = { kind = "if", cond = cond, yes = yes, no = no }
+	return node
+end
+
+local function createFor<T>(
+	source: () -> { T },
+	keyOf: (item: T, index: number) -> unknown,
+	row: (item: T, index: number) -> VNode?
+): VNode
+	local node = h(Fragment, nil, nil)
+	node._block = { kind = "for", source = source, keyOf = keyOf, row = row }
+	return node
+end
+
 return {
+	createFor = createFor,
+	createIf = createIf,
 	h = h,
 	Fragment = Fragment,
 	mergeProps = mergeProps,

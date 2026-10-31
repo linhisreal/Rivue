@@ -163,6 +163,12 @@ it does something unexpected, and examples. To learn Rivue step by step, start w
 [queueJob()](api/scheduler.md#queuejob) ·
 [Update timing](api/scheduler.md#update-timing)
 
+**[Vapor mode](api/vapor.md)** (experimental)
+[Turning it on](api/vapor.md#turning-it-on) ·
+[createIf()](api/vapor.md#createif) ·
+[createFor()](api/vapor.md#createfor) ·
+[Getter props](api/vapor.md#getter-props)
+
 ## Roblox
 
 **[Roblox composables](api/roblox.md)**

@@ -158,6 +158,9 @@ export type VNode = {
 	_teleportTarget: Instance?,
 	_deferred: boolean?,
 	_classApplied: boolean?,
+	_block: { [string]: any }?,
+	_blockState: { [string]: any }?,
+	_siblings: { Child }?,
 }
 
 export type TransitionConfig = {
@@ -219,6 +222,7 @@ export type ComponentOptions = {
 	setup: ((props: Props, ctx: SetupContext) -> SetupResult)?,
 	render: ((ctx: RenderContext) -> VNode?)?,
 	inheritAttrs: boolean?,
+	vapor: boolean?,
 }
 
 export type ComponentDef = {
@@ -233,6 +237,7 @@ export type ComponentDef = {
 	setup: ((props: Props, ctx: SetupContext) -> SetupResult)?,
 	render: ((ctx: RenderContext) -> VNode?)?,
 	inheritAttrs: boolean?,
+	vapor: boolean?,
 }
 
 export type AsyncComponentOptions = {
@@ -266,6 +271,7 @@ export type AppConfig = {
 	devtools: boolean?,
 	performance: boolean?,
 	idPrefix: string?,
+	experimental: { vapor: boolean? }?,
 }
 
 export type AppContext = {

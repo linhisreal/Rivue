@@ -135,6 +135,14 @@ Vue's compiler hoists can be hoisted by hand: build them once outside `render`
 ([Hoisting static parts](api/render-function.md#hoisting-static-parts)). `memo` and keys cover
 the rest.
 
+### Vapor mode
+
+Vue 3.6 adds Vapor mode, where components render once and update the DOM directly. Rivue has an
+experimental version: a component with `vapor = true` renders once, state reaches Instances
+through bindings, and `Rivue.createIf` and `Rivue.createFor` stand in for `v-if` and `v-for`. Vue
+compiles templates into that form for you; in Rivue you write the bindings yourself. See
+[Vapor mode](api/vapor.md).
+
 ### Instances instead of the DOM
 
 Element types are Roblox ClassNames, and props are Instance properties and events. Styling is
