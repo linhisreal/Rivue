@@ -25,6 +25,7 @@ Pre-release.
 
 ## Fixed
 
+- RivueUI: classes, local components and template refs inside a `VirtualList` `render` callback or a scoped slot were looked up in the component that rendered them (VirtualList, or the slot's host) instead of the one that wrote them. They now use the author's, as Vue does with scoped slots.
 - RivueUI: `onBeforeUpdate` ran after the render instead of before it, so state it changed cost an extra render. It now runs first, untracked, as in Vue.
 - RivueUI: rows built with `Rivue.hFor` inside a `TransitionGroup`, as in its docs example, didn't animate when added or removed.
 - RivueUI: every copy of a `defineAsyncComponent` called the loader again, so a component shown a second time flashed its loading state. Copies now share one load, and later copies render straight away, as in Vue.

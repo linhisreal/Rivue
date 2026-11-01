@@ -1176,6 +1176,56 @@ local function runTests()
 		app:unmount()
 	end
 
+	print("classes in VirtualList rows and scoped slots come from the component that wrote them")
+	do
+		local Card = Rivue.defineComponent({
+			name = "SlotCard",
+			setup = function(_, ctx)
+				return function()
+					return h("Frame", nil, ctx.renderSlot("item", { label = "hi" }))
+				end
+			end,
+		})
+		local Screen = Rivue.defineComponent({
+			name = "StyledScreen",
+			styles = { tall = { Size = UDim2.new(1, 0, 0, 33) } },
+			render = function()
+				return h("Frame", nil, {
+					h(Rivue.VirtualList, {
+						Name = "Rows",
+						items = { 1, 2 },
+						itemSize = 33,
+						render = function(n: number)
+							return h("TextLabel", { Name = `Row{n}`, class = "tall" })
+						end,
+					}),
+					h(Card, nil, {
+						item = function(scope: any)
+							return h("TextLabel", { Name = "Slotted", class = "tall", Text = scope.label })
+						end,
+					}),
+				})
+			end,
+		})
+		local folder = Instance.new("Folder")
+		local app = Rivue.createApp(Screen)
+		app:mount(folder)
+		task.wait()
+		local function named(name: string): any
+			for _, d in folder:GetDescendants() do
+				if d.Name == name then
+					return d
+				end
+			end
+			return nil
+		end
+		local row = named("Row1") :: TextLabel
+		assertEquals(row.Size, UDim2.new(1, 0, 0, 33), "a VirtualList row uses its author's styles")
+		local slotted = named("Slotted") :: TextLabel
+		assertEquals(slotted.Size, UDim2.new(1, 0, 0, 33), "and so does scoped slot content")
+		app:unmount()
+	end
+
 	print("\n========== REGRESSION TESTS COMPLETE ==========\n")
 end
 
