@@ -2342,9 +2342,9 @@ local function patchElement(oldVNode: RenderVNode, newVNode: RenderVNode, poolOp
 		return
 	end
 
-	newVNode._conns = oldVNode._conns or {}
+	newVNode._conns = oldVNode._conns
 	newVNode._handlers = oldVNode._handlers
-	newVNode._dirs = oldVNode._dirs or {}
+	newVNode._dirs = oldVNode._dirs
 	newVNode._touched = oldVNode._touched
 	newVNode._sugar = oldVNode._sugar
 	newVNode._tween = oldVNode._tween
