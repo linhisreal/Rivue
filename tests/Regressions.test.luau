@@ -281,6 +281,25 @@ local function runTests()
 		assertEquals(table.concat(Rivue.toRaw(list), ","), "1,2,3,4", "nothing was removed or overwritten")
 	end
 
+	print("array.sort leaves the list intact when the comparator errors")
+	do
+		local values = {}
+		for i = 1, 50 do
+			values[i] = (i * 37) % 50
+		end
+		local list = Rivue.reactive(table.clone(values))
+		local calls = 0
+		local ok = pcall(Rivue.array.sort, list, function(a: number, b: number): boolean
+			calls += 1
+			if calls > 60 then
+				error("boom")
+			end
+			return a < b
+		end)
+		assertTrue(not ok, "the error propagates")
+		assertEquals(table.concat(Rivue.toRaw(list), ","), table.concat(values, ","), "the order is unchanged")
+	end
+
 	print("array.splice past the end appends instead of dropping values")
 	do
 		local list = Rivue.reactive({ 1, 2 })

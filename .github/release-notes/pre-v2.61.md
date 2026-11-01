@@ -11,6 +11,7 @@ Pre-release.
 - RivueUI: every copy of a `defineAsyncComponent` called the loader again, so a component shown a second time flashed its loading state. Copies now share one load, and later copies render straight away, as in Vue.
 - RivueUI: an async component that finished loading after its timeout kept showing the error. It now shows the component.
 - RivueUI: `vPreload` with a reactive list preloaded nothing.
+- RivueUI: `array.sort` with a comparator that errored left the list half sorted, without updating the UI. The list now stays as it was.
 - RivueUI: in strict mode, the old type solver rejected a `setup()` that returns a table, like `return { count = count }`.
 - RivueUI: Luau's new type solver, which Studio uses, rejected typed child lists like `{ VNode }`, `watch()` with a getter and an options table, and an `app:styles()` table from another module. Rivue's own source now type checks cleanly with both solvers.
 
