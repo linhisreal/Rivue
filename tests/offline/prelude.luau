@@ -457,6 +457,12 @@ VECTOR2_MT = {
 	__eq = function(a, b)
 		return a.X == b.X and a.Y == b.Y
 	end,
+	__add = function(a, b)
+		return Vector2.new(a.X + b.X, a.Y + b.Y)
+	end,
+	__sub = function(a, b)
+		return Vector2.new(a.X - b.X, a.Y - b.Y)
+	end,
 }
 Vector2 = {
 	new = function(x, y)
