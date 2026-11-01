@@ -10,6 +10,8 @@ Pre-release.
 
 - RivueUI: every copy of a `defineAsyncComponent` called the loader again, so a component shown a second time flashed its loading state. Copies now share one load, and later copies render straight away, as in Vue.
 - RivueUI: an async component that finished loading after its timeout kept showing the error. It now shows the component.
+- RivueUI: `vPreload` with a reactive list preloaded nothing.
+- RivueUI: in strict mode, the old type solver rejected a `setup()` that returns a table, like `return { count = count }`.
 
 ## Install
 

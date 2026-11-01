@@ -254,7 +254,7 @@ directives.register("preload", {
 		if type(assetIds) == "number" or type(assetIds) == "string" then
 			table.insert(assets, "rbxassetid://" .. tostring(assetIds))
 		elseif type(assetIds) == "table" then
-			for _, id in ipairs(assetIds) do
+			for _, id in assetIds do
 				table.insert(assets, "rbxassetid://" .. tostring(id))
 			end
 		end
@@ -315,7 +315,7 @@ directives.register("fade-in", {
 				obj.Transparency = 1
 			end
 
-			for _, child in ipairs(obj:GetChildren()) do
+			for _, child in obj:GetChildren() do
 				storeAndHide(child)
 			end
 		end
@@ -382,7 +382,7 @@ directives.register("fade-in", {
 				strokeTween:Play()
 			end
 
-			for _, child in ipairs(obj:GetChildren()) do
+			for _, child in obj:GetChildren() do
 				fadeIn(child, tweens)
 			end
 		end
