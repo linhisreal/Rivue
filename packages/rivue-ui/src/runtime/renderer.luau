@@ -238,6 +238,10 @@ local function devtoolsEvent(kind: string, label: string, detail: string?, ms: n
 	end
 end
 
+local function devtoolsEnabled(): boolean
+	return next(devtoolsChannels) ~= nil
+end
+
 local function devtoolsRoute(text: string)
 	lastRoute = text
 	for channel in devtoolsChannels do
@@ -1909,7 +1913,10 @@ local function patchTeleport(oldVNode: RenderVNode, newVNode: RenderVNode, conta
 	mountTeleport(newVNode, container, poolOpt)
 end
 
-local function describeValue(value: unknown): string
+const DESCRIBE_DEPTH = 2
+const DESCRIBE_FIELDS = 8
+
+local function describeValue(value: unknown, depth: number?): string
 	local t = typeof(value)
 	if t == "string" then
 		local text = value :: string
@@ -1918,6 +1925,29 @@ local function describeValue(value: unknown): string
 		return tostring(value)
 	elseif t == "Instance" then
 		return (value :: Instance).Name
+	elseif t == "table" and (depth or 0) < DESCRIBE_DEPTH then
+		local raw = _reactivity.toRaw(value) :: { [unknown]: unknown }
+		local keys: { unknown } = {}
+		for key in next, raw do
+			if type(key) == "string" or type(key) == "number" then
+				table.insert(keys, key)
+			end
+		end
+		table.sort(keys, function(a, b)
+			if type(a) ~= type(b) then
+				return type(a) == "number"
+			end
+			return (a :: any) < (b :: any)
+		end)
+		local parts: { string } = {}
+		for i, key in keys do
+			if i > DESCRIBE_FIELDS then
+				table.insert(parts, "...")
+				break
+			end
+			table.insert(parts, `{key} = {describeValue(raw[key], (depth or 0) + 1)}`)
+		end
+		return if #parts == 0 then "{}" else `\{ {table.concat(parts, ", ")} }`
 	end
 	return t
 end
@@ -1981,16 +2011,35 @@ local function applyDevtoolsEdit(inst: ComponentInstance, el: Instance)
 		return
 	end
 	el:SetAttribute("RivueEdit", nil)
-	local key, text = string.match(raw, "^([^=]+)=(.*)$")
+	local path, text = string.match(raw, "^([^=]+)=(.*)$")
 	local setupState = inst.setupState
-	if not key or not text or type(setupState) ~= "table" then
+	if not path or not text or type(setupState) ~= "table" then
 		return
 	end
-	local target = rawget(setupState :: any, key)
+	local segments = string.split(path, ".")
+	local target = rawget(setupState :: any, segments[1])
 	if type(target) ~= "table" or not rawget(target, "_is_ref") then
 		return
 	end
+	local holder: any = target
+	local field: unknown = "value"
 	local current = rawget(target, "_value")
+	for i = 2, #segments do
+		local raw: any = _reactivity.toRaw(current)
+		if type(raw) ~= "table" then
+			return
+		end
+		local segment: unknown = segments[i]
+		if raw[segment] == nil then
+			segment = tonumber(segments[i])
+		end
+		if segment == nil or raw[segment] == nil then
+			return
+		end
+		holder = if i == 2 then (target :: any).value else holder[field]
+		field = segment
+		current = raw[segment]
+	end
 	local value: unknown = nil
 	if type(current) == "number" then
 		value = tonumber(text)
@@ -2000,7 +2049,7 @@ local function applyDevtoolsEdit(inst: ComponentInstance, el: Instance)
 		value = string.match(text, '^"(.*)"$') or text
 	end
 	if value ~= nil then
-		(target :: any).value = value
+		holder[field] = value
 		writeDevtoolsState(inst, el)
 	end
 end
@@ -2834,4 +2883,5 @@ return {
 	unmountVNode = unmountVNode,
 	devtoolsEvent = devtoolsEvent,
 	devtoolsRoute = devtoolsRoute,
+	devtoolsEnabled = devtoolsEnabled,
 }
