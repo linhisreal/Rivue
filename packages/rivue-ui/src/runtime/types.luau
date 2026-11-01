@@ -192,7 +192,7 @@ export type SetupContext = {
 
 export type RenderFunction = () -> VNode?
 
-export type SetupResult = RenderFunction | { [string]: unknown }
+export type SetupResult = RenderFunction | { [string]: any }
 
 export type EmitsOptions = { string } | { [string]: (...any) -> boolean }
 
