@@ -119,7 +119,7 @@ export type LazyComponent = { __rivueLazy: true, loader: () -> any }
 
 local function lazy(loader: () -> any): LazyComponent
 	assert(type(loader) == "function", "[RivueRouter] lazy() expects a function that returns a component")
-	return table.freeze({ __rivueLazy = true :: true, loader = loader })
+	return table.freeze({ __rivueLazy = true :: true, loader = loader }) :: any
 end
 
 local function isLazy(value: any): boolean
@@ -143,7 +143,7 @@ local function describe(value: any, depth: number?): string
 end
 
 local function failure(kind: number, to: Route, from: Route): NavigationFailure
-	return table.freeze({ type = kind, to = to, from = from })
+	return table.freeze({ type = kind, to = to, from = from }) :: any
 end
 
 local function isNavigationFailure(value: any, kind: number?): boolean
@@ -302,9 +302,9 @@ local function createRouter(options: RouterOptions): Router
 					addRecord(child, nil, record)
 				end
 			else
-				local names = {}
+				local names: { string } = {}
 				for key in children do
-					table.insert(names, key)
+					table.insert(names, key :: string)
 				end
 				table.sort(names)
 				for _, key in names do
@@ -336,9 +336,9 @@ local function createRouter(options: RouterOptions): Router
 			addRecord(raw, nil, nil)
 		end
 	else
-		local names = {}
+		local names: { string } = {}
 		for key in routes do
-			table.insert(names, key)
+			table.insert(names, key :: string)
 		end
 		table.sort(names)
 		for _, key in names do
@@ -402,12 +402,12 @@ local function createRouter(options: RouterOptions): Router
 			if redirect == nil then
 				return route
 			end
-			local target = if type(redirect) == "function" then redirect(route) else redirect
-			local nextLocation = toLocation(target, nil)
-			nextLocation = {
-				name = nextLocation.name,
-				params = nextLocation.params or route.params,
-				query = nextLocation.query or route.query,
+			local target = if type(redirect) == "function" then (redirect :: (Route) -> any)(route) else redirect
+			local resolved = toLocation(target, nil)
+			local nextLocation: RouteLocation = {
+				name = resolved.name,
+				params = resolved.params or route.params,
+				query = resolved.query or route.query,
 			}
 			route = build(nextLocation, first)
 		end
@@ -467,7 +467,7 @@ local function createRouter(options: RouterOptions): Router
 
 	local function saveScroll()
 		local entry = history[index]
-		local getRoot = router._scrollRoot
+		local getRoot = (router :: Router)._scrollRoot
 		if not entry or not getRoot then
 			return
 		end
@@ -490,7 +490,7 @@ local function createRouter(options: RouterOptions): Router
 				reportError(position, to, from, "scrollBehavior")
 				return
 			end
-			local getRoot = router._scrollRoot
+			local getRoot = (router :: Router)._scrollRoot
 			local root = if getRoot then getRoot() else nil
 			if type(position) ~= "table" or not root then
 				return
@@ -517,7 +517,7 @@ local function createRouter(options: RouterOptions): Router
 		if devtools then
 			local outcome = "ok"
 			if result then
-				for kind, value in NavigationFailureType do
+				for kind, value in NavigationFailureType :: any do
 					if value == result.type then
 						outcome = kind :: string
 					end
@@ -533,9 +533,7 @@ local function createRouter(options: RouterOptions): Router
 		end
 	end
 
-	local navigate: (kind: string, to: Route, target: number?, depth: number) -> NavigationFailure?
-
-	navigate = function(kind: string, to: Route, target: number?, depth: number): NavigationFailure?
+	local function navigate(kind: string, to: Route, target: number?, depth: number): NavigationFailure?
 		local from = currentRoute.value
 		pending += 1
 		local id = pending
@@ -707,11 +705,8 @@ local function createRouter(options: RouterOptions): Router
 				return failure(NavigationFailureType.aborted, from, from)
 			end
 			local entry = history[target].route
-			local ok, route = pcall(
-				build,
-				{ name = entry.name :: string, params = entry.params, query = entry.query },
-				entry.redirectedFrom
-			)
+			local location: RouteLocation = { name = entry.name :: string, params = entry.params, query = entry.query }
+			local ok, route = pcall(build, location, entry.redirectedFrom)
 			if not ok then
 				warn(`[RivueRouter] {route}`)
 				return failure(NavigationFailureType.aborted, from, from)
@@ -763,11 +758,11 @@ local function createRouter(options: RouterOptions): Router
 			return records[name] ~= nil
 		end,
 		getRoutes = function(): { RouteRecord }
-			local list = {}
+			local list: { RouteRecord } = {}
 			for _, record in records do
 				table.insert(list, record)
 			end
-			table.sort(list, function(a, b)
+			table.sort(list, function(a: RouteRecord, b: RouteRecord): boolean
 				return a.name < b.name
 			end)
 			return list
@@ -872,7 +867,7 @@ local function propsFor(record: any, view: string, route: Route): { [string]: an
 	if option == true then
 		return table.clone(route.params)
 	elseif type(option) == "function" then
-		return option(route) or {}
+		return (option :: (Route) -> { [string]: any }?)(route) or {}
 	elseif type(option) == "table" then
 		return table.clone(option)
 	end
@@ -1018,7 +1013,7 @@ local RouterLink = table.freeze({
 				table.insert(classes, props.exactActiveClass)
 			end
 			attrs.class = if #classes > 0 then classes else nil
-			local onActivated = attrs.onActivated
+			local onActivated: ((...any) -> ())? = attrs.onActivated
 			attrs.onActivated = function(...)
 				if onActivated then
 					onActivated(...)

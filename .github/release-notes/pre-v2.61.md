@@ -12,6 +12,7 @@ Pre-release.
 - RivueUI: an async component that finished loading after its timeout kept showing the error. It now shows the component.
 - RivueUI: `vPreload` with a reactive list preloaded nothing.
 - RivueUI: in strict mode, the old type solver rejected a `setup()` that returns a table, like `return { count = count }`.
+- RivueUI: Luau's new type solver, which Studio uses, rejected typed child lists like `{ VNode }`, `watch()` with a getter and an options table, and an `app:styles()` table from another module. Rivue's own source now type checks cleanly with both solvers.
 
 ## Install
 

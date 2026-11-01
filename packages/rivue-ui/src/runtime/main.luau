@@ -173,8 +173,12 @@ type SetupFunction = (props: Props, ctx: SetupContext) -> Types.SetupResult
 function Rivue.defineComponent(opts: ComponentOptions | SetupFunction, extra: ComponentOptions?): ComponentDef
 	local options: ComponentOptions
 	if type(opts) == "function" then
-		options = if extra then table.clone(extra) else {}
-		options.setup = opts
+		local built: ComponentOptions = {}
+		if extra then
+			built = table.clone(extra)
+		end
+		built.setup = opts
+		options = built
 	else
 		options = (opts or {}) :: ComponentOptions
 	end

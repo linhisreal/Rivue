@@ -27,8 +27,10 @@ jobs:
           rojo sourcemap default.project.json -o sourcemap.json
           curl -sSfL -o globalTypes.d.luau https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/main/scripts/globalTypes.d.luau
           luau-lsp analyze --sourcemap=sourcemap.json --definitions=globalTypes.d.luau packages/ dev/ examples/
+          luau-lsp analyze --flag:LuauSolverV2=true --sourcemap=sourcemap.json --definitions=globalTypes.d.luau packages/ dev/ examples/
           lune setup
           luau-lsp analyze --platform=standard .lune
+          luau-lsp analyze --flag:LuauSolverV2=true --platform=standard .lune
 
       - name: Tests
         run: lune run test

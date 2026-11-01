@@ -616,10 +616,11 @@ local function toGetter<T>(source: Ref<T> | () -> T): () -> T
 end
 
 local function lerp<T>(a: T, b: T, t: number): T
-	if type(a) == "number" then
-		return (a + ((b :: any) - a) * t) :: any
+	local from: any = a
+	if type(from) == "number" then
+		return from + ((b :: any) - from) * t
 	end
-	return (a :: any):Lerp(b, t)
+	return from:Lerp(b, t)
 end
 
 --- Works for numbers and anything with :Lerp. Only info's time, style and direction are used
