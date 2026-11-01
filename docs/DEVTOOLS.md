@@ -20,30 +20,6 @@ app.config.devtools = game:GetService("RunService"):IsStudio()
 
 Then press Play and open Rivue → DevTools.
 
-## Tabs
-
-**Components.** The component tree with render counts and a 10-second render graph per row. A dot
-marks a recent re-render; a red pill marks a render slower than the threshold (2 ms by default).
-Filter by name, or narrow to Slow or Changed. The ⋯ menu has sort, reset counts, fold all, pick
-from the game (Explorer selection or a click on the game screen), and export to
-`ServerStorage.RivueSnapshot` (during Play it's kept until you stop, then export again). Pins and
-folds are saved.
-
-Selecting a component shows its parents, the cause of its last render (`count changed`,
-`props.title changed`, `parent update`), its last five renders, props, state, provides and
-injects. State is editable: text fields for numbers and strings, toggles for booleans, and
-nested fields for tables (two levels). Changed fields show their previous value.
-
-**Activity.** Renders, emits, navigations, network traffic and Rivue warnings in one list, newest
-first, filterable by kind. Click an entry to open its component. The current route shows on top
-when RivueRouter is used.
-
-**Perf.** Record, use the UI, stop. Lists what rendered by total time, with count, worst time and
-most common cause, plus the slowest single updates.
-
-**Network.** RivueRemote requests, sends, events and replicated state, with sizes, per-action
-totals and failures.
-
 ## Shortcuts
 
 | Key | Action |
