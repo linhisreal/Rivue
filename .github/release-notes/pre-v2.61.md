@@ -13,6 +13,13 @@ Pre-release.
 
 ## RivueDevTools
 
+- A redesigned window: four tabs (Components, Activity, Perf, Network), with search, Highlight, Pause and settings in the status bar. Events, the timeline, warnings and the route now share the Activity tab.
+- One toolbar: the filter holds the Slow and Changed chips, and Sort, Reset, Fold, Pick and Export live in the ⋯ menu.
+- Rows show a ten-second render sparkline; slow times are a red pill instead of red text, and drawn icons replace font glyphs.
+- The details have breadcrumbs to parent components and a Recent card with the last five renders and their causes.
+- Ctrl+K (or Search) finds components, state keys, network actions and warnings at once.
+- Wide windows put the details beside the tree, and a compact row density is in settings.
+- The tree and Activity list are virtualised, so long sessions and big trees stay fast.
 - A **Perf** tab: record a session and see which components rendered most, for how long, and why, plus the slowest single updates.
 - A **Network** tab for RivueRemote: requests, sends, events and replicated state, with payload sizes, totals per action and failures.
 - A **Warnings** tab that collects Rivue warnings and errors and opens the component they came from.

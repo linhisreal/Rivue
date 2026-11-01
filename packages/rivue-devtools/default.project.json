@@ -11,6 +11,18 @@
     "App": {
       "$path": "src/App.luau"
     },
+    "Store": {
+      "$path": "src/Store.luau"
+    },
+    "Styles": {
+      "$path": "src/Styles.luau"
+    },
+    "Widgets": {
+      "$path": "src/Widgets.luau"
+    },
+    "Views": {
+      "$path": "src/Views"
+    },
     "Highlight": {
       "$path": "src/Highlight.luau"
     },

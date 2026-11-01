@@ -533,6 +533,7 @@ local GUI_PROPS = {
 	Size = UDim2.new(),
 	Position = UDim2.new(),
 	AnchorPoint = Vector2.new(),
+	Rotation = 0,
 	BackgroundTransparency = 0,
 	BackgroundColor3 = Color3.new(1, 1, 1),
 	Visible = true,

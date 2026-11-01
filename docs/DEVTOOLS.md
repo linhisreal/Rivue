@@ -5,7 +5,7 @@
 A Studio plugin that shows the Rivue components on screen while you playtest: what rendered, how
 long it took and why, with props and state you can edit live.
 
-![The DevTools window: the component tree with its tools and details, the Perf tab and the Network tab](assets/diagrams/devtools-window.webp)
+![The DevTools window: the component tree with sparklines and details, the Activity tab and the Perf tab](assets/diagrams/devtools-window.webp)
 
 ## Install
 
@@ -23,90 +23,90 @@ app.config.devtools = game:GetService("RunService"):IsStudio()
 
 Then press Play and click **Rivue → DevTools** in the Plugins toolbar.
 
-Components show up as a tree, each with its render count on the right. Click an arrow to fold a
-branch away. Hover a row and the component is outlined on the game screen. What the rows show:
+The window has four tabs, **Components**, **Activity**, **Perf** and **Network**, and a status
+bar along the bottom with **Search**, **Highlight**, **Pause** and **⚙** (settings).
 
-- **orange, with a dot**: rendered again since the last refresh. One that keeps flashing
-  re-renders too often ([Guide 15](guide/15-performance-in-depth.md)).
-- **red, with its time**: the last render took longer than the slow threshold (2 ms unless you
-  change it in settings).
+### Components
 
-Click a row and it's selected in the Explorer. The panel below the tree shows:
+Components show up as a tree. Each row has a small graph of its renders over the last ten
+seconds, its render count, and a pin. A dot after the name means it rendered since the last
+refresh; one that keeps lighting up re-renders too often ([Guide
+15](guide/15-performance-in-depth.md)). When the last render took longer than the slow threshold
+(2 ms unless you change it), the time shows as a red pill. Click an arrow to fold a branch, and
+hover a row to outline the component on the game screen.
 
+Above the tree is the filter. Type to show only components whose name matches (their parents
+stay, so you can see where each match sits), and use the **Slow** and **Changed** chips in it to
+narrow the tree further. The **⋯** menu next to it has the rest:
+
+- **Sort** switches between the tree, most renders and slowest first.
+- **Reset counts** counts from zero, so you can do one thing in the game and see what it
+  re-rendered.
+- **Fold all** / **Open all**. Folded branches are remembered between sessions.
+- **Pick from the game**: select a GUI object in the Explorer, or click it on the game screen
+  while playing, and DevTools opens the component that rendered it.
+- **Export snapshot** saves the tree and the activity as a ModuleScript,
+  `ServerStorage.RivueSnapshot`. Changes made during Play are thrown away when you stop, so while
+  the game runs, Export keeps the snapshot with the plugin; export again after stopping to write
+  it.
+
+The pin at the end of a row keeps that component in a short list above the tree. Pins are
+remembered too.
+
+Click a row and it's selected in the Explorer. The details show:
+
+- breadcrumbs to its parent components, each one clickable;
 - its render count, how long its last render took, and what caused it: `count changed`,
   `props.title changed`, `first render` or `parent update` (new slots or `forceUpdate`). A
-  computed or a store shows as `a computed or outside state`.
+  computed or a store shows as `a computed or outside state`;
 - **Open source**, which opens the script that defined the component at the `defineComponent`
-  line.
-- cards for its props, its state, and the keys it provides and injects. Click a card's title to
-  fold it. In state, numbers and strings are text fields (type a new value and press Enter), a
-  boolean is a toggle, and a table opens into its fields, which you can edit the same way, two
-  levels deep. A field that changed shows what it was before, as `was 10`. Values you can't
-  edit can still be selected and copied with Ctrl+C.
+  line;
+- **Recent**: its last five renders, with the cause and time of each;
+- cards for its props, its state, and the keys it provides and injects. In state, numbers and
+  strings are text fields (type a new value and press Enter), a boolean is a toggle, and a table
+  opens into its fields, which you can edit the same way, two levels deep. A field that changed
+  shows what it was before, as `was 10`. Values you can't edit can still be selected and copied
+  with Ctrl+C.
 
-Drag the line between the tree and the details to give either more room.
+In a narrow window the details sit under the tree; drag the line between them to give either more
+room. Once the window is wider than 600 px, they move beside the tree.
 
-Type in the filter box to show only components whose name matches. Their parents stay in the
-list, so you can still see where each match sits. Next to it, **Sort** switches between the tree,
-most renders and slowest first, and **Reset counts** counts from zero, so you can do one thing in
-the game and see what it re-rendered.
+### Activity
 
-The row below has the tree tools:
+One list, newest first, of renders, emits, router navigations, RivueRemote traffic and Rivue's
+warnings and errors (unknown classes, duplicate keys, undeclared emits, render errors, and
+RivueRemote and RivueRouter warnings). Each entry has its time, and a bar and a duration when it
+has one, so the slow ones stand out. The chips at the top hide or show each kind, and the tab
+shows how many warnings arrived. Click a render, an emit or a warning to open its component, or
+a network entry to open the Network tab. When RivueRouter is in use, the current route, its
+params, query and meta, and the history sit above the list.
 
-- **Expand all** and **Collapse all** open or fold every branch. Folded branches are remembered
-  between sessions.
-- **Slow** and **Changed** narrow the tree to slow components, or ones that just rendered, and
-  can be combined with the filter.
-- **Pick** waits for you to select something: select a GUI object in the Explorer, or click on
-  the game screen while playing, and DevTools opens the component that rendered it.
-- **Export** saves the tree and the timeline as a ModuleScript, `ServerStorage.RivueSnapshot`,
-  to share or compare later. Changes made during Play are thrown away when you stop, so while
-  the game runs, Export keeps the snapshot with the plugin; press it again after stopping to
-  write it.
+### Perf
 
-The star at the end of a row pins the component to a short list above the tree, so the ones you
-care about stay in reach. Pins are remembered too.
+Answers "what renders too much, and why". Press **Record**, use the UI, then **Stop**. It lists
+each component that rendered with how many times, the total and the worst time, and the most
+common cause (`coins changed`, `parent update`), slowest first, plus the slowest single updates.
+Click a row to open the component.
 
-With the mouse over the window, **Ctrl+F** jumps to the filter, **Up** and **Down** move through
-the tree, **Enter** opens the selected component's source, and **Esc** clears the selection or
-stops picking.
+### Network
 
-The tabs show how many components, events, network messages, timeline entries and warnings there
-are; the tab bar scrolls sideways when the window is narrow. Along the bottom:
+RivueRemote traffic: requests, `fire` sends, events from the server and replicated state, with
+payload sizes. **By action** totals each one, with the average request time and how many failed;
+**Replicated state** shows each `Remote.state` value and its version; **Latest** is the raw list,
+newest first.
 
-- **Highlight updates** flashes an outline around every component that re-renders, on the game
-  screen, like Vue DevTools' option of the same name.
-- **Pause** freezes the lists while the UI keeps changing.
+### Search, shortcuts and settings
 
-The **Perf** tab answers "what renders too much, and why". Press **Record**, use the UI, then
-**Stop**. It lists each component that rendered with how many times, the total and the worst
-time, and the most common cause (`coins changed`, `parent update`), slowest first, plus the
-slowest single updates. Click a row to open the component.
+**Search** (or Ctrl+K) looks through components, state keys, network actions and warnings at
+once; pick a result to jump to it. With the mouse over the window, **Ctrl+F** jumps to the
+filter, **Up** and **Down** move through the tree, **Enter** opens the selected component's
+source, and **Esc** closes the search, stops picking or clears the selection.
 
-The **Network** tab shows RivueRemote traffic: requests, `fire` sends, events from the server and
-replicated state, with payload sizes. **By action** totals each one, with the average request
-time and how many failed; **Replicated state** shows each `Remote.state` value and its version;
-**Latest** is the raw list, newest first.
-
-The **Warnings** tab collects Rivue's warnings and errors from the Output (unknown classes,
-duplicate keys, undeclared emits, render errors, and RivueRemote and RivueRouter warnings),
-newest first. When a warning names a component, click it to open that component.
-
-The **Events** tab lists every `emit` as it happens, newest first, with its arguments. Click one
-to select the component that sent it.
-
-The **Timeline** tab puts renders, emits, router navigations and RivueRemote traffic in one list,
-newest first. Each entry has its time, and a bar and a duration when it has one, so the slow ones
-stand out. The chips at the top hide or show each kind. Click a render or an emit to open its
-component. It's the place to look when one click causes more work than you expected.
-
-The **Router** tab shows RivueRouter's current route, its params, query and meta, and the
-history, with the current entry marked.
-
-The **⚙** tab sets the slow-render threshold and how many timeline entries to keep. Settings and
-Highlight updates are saved with the plugin.
-
-The window follows Studio's light or dark theme.
+**Highlight** flashes an outline around every component that re-renders, on the game screen,
+like Vue DevTools' option of the same name. **Pause** freezes the lists while the UI keeps
+changing. **⚙** sets the slow-render threshold, how many activity entries to keep, and the row
+density (comfortable or compact). Settings are saved with the plugin, and the window follows
+Studio's light or dark theme.
 
 ## How it works
 
