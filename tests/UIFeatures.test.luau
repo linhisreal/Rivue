@@ -130,6 +130,44 @@ local function runTests()
 		app:unmount()
 	end
 
+	print("Test 3b: Transition mode in-out")
+	do
+		local tab = Rivue.ref("A")
+		local App = Rivue.defineComponent({
+			name = "InOutApp",
+			setup = function()
+				return function()
+					return h(Rivue.Transition, {
+						mode = "in-out",
+						tweenInfo = TweenInfo.new(0.1),
+						from = { BackgroundTransparency = 1 },
+					}, {
+						h("Frame", { key = tab.value, Name = tab.value }),
+					})
+				end
+			end,
+		})
+		local container = Instance.new("Frame")
+		local app = Rivue.createApp(h(App))
+		app:mount(container)
+		local first = container:FindFirstChild("A")
+		tab.value = "B"
+		task.wait()
+		assertTrue(container:FindFirstChild("B") ~= nil, "New child enters straight away")
+		assertTrue(container:FindFirstChild("A") == first, "Old child stays while the new one enters")
+		task.wait(0.15)
+		assertTrue(container:FindFirstChild("A") ~= nil, "Old child leaves once the enter is done")
+		task.wait(0.2)
+		assertTrue(container:FindFirstChild("A") == nil, "Old child gone after its leave")
+		assertTrue(container:FindFirstChild("B") ~= nil, "New child stays")
+		local left = {}
+		for _, c in container:GetChildren() do
+			table.insert(left, c.Name)
+		end
+		assertEquals(table.concat(left, ","), "B", "Only the new child is left")
+		app:unmount()
+	end
+
 	print("Test 4: TransitionGroup")
 	do
 		local items = Rivue.ref({ "a", "b", "c" })

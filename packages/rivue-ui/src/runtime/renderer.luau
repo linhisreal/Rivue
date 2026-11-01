@@ -2445,6 +2445,8 @@ local function patchInner(oldVNode: RenderVNode?, newVNode: RenderVNode?, contai
 	if newVNode == nil then
 		unmountVNode(oldVNode, poolOpt)
 		return
+	elseif oldVNode == newVNode then
+		return
 	end
 
 	local newType = newVNode.type

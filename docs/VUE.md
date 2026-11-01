@@ -135,7 +135,7 @@ local Counter = Rivue.defineComponent({
 | Components | `defineComponent`, `defineAsyncComponent`, `defineModel`, `useAttrs`, `useSlots`, `useTemplateRef`, `useId`, `getCurrentInstance`, `provide`, `inject`, `hasInjectionContext`, `resolveComponent` |
 | Render | `h`, `Fragment`, `mergeProps`, `cloneVNode`, `isVNode`, `nextTick` |
 | App | `createApp`, `app.mount/unmount/provide/component/directive/use/onUnmount/runWithContext`, `app.config.errorHandler/warnHandler/globalProperties/performance` |
-| Built-ins | `Transition`, `TransitionGroup`, `KeepAlive`, `Teleport` (with `to`, `disabled` and `defer`), `Suspense` (with `pending`, `fallback` and `resolve` events) |
+| Built-ins | `Transition` (with `mode` `"out-in"` and `"in-out"`), `TransitionGroup`, `KeepAlive`, `Teleport` (with `to`, `disabled` and `defer`), `Suspense` (with `pending`, `fallback` and `resolve` events) |
 
 ## Differences to know
 

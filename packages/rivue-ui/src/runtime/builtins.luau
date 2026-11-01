@@ -264,8 +264,14 @@ end
 
 builtins.KeepAlive = createKeepAlive()
 
-local function transitionConfig(props: Props, mounted: boolean, afterLeave: ((el: Instance) -> ())?): TransitionConfig
+local function transitionConfig(
+	props: Props,
+	mounted: boolean,
+	afterLeave: ((el: Instance) -> ())?,
+	afterEnter: ((el: Instance) -> ())?
+): TransitionConfig
 	local onAfterLeave: ((el: Instance) -> ())? = props.onAfterLeave
+	local onAfterEnter: ((el: Instance) -> ())? = props.onAfterEnter
 	return {
 		tweenInfo = props.tweenInfo,
 		info = props.info,
@@ -279,7 +285,14 @@ local function transitionConfig(props: Props, mounted: boolean, afterLeave: ((el
 		enter = mounted or props.appear == true,
 		leave = true,
 		onBeforeEnter = props.onBeforeEnter,
-		onAfterEnter = props.onAfterEnter,
+		onAfterEnter = if afterEnter
+			then function(el: Instance)
+				if onAfterEnter then
+					onAfterEnter(el)
+				end
+				afterEnter(el)
+			end
+			else onAfterEnter,
 		onBeforeLeave = props.onBeforeLeave,
 		onAfterLeave = if afterLeave
 			then function(el: Instance)
@@ -317,9 +330,42 @@ builtins.Transition = table.freeze({
 			end
 		end
 
+		local generation = 0
+		local currentKey: unknown = nil
+		local currentType: unknown = nil
+		local outgoing: VNode? = nil
+
+		local function onEntered()
+			if outgoing then
+				outgoing = nil
+				leaveDone.value += 1
+			end
+		end
+
+		local function renderInOut(child: VNode?): VNode
+			if not child then
+				shown, outgoing = nil, nil
+				return h(Fragment, nil, {})
+			end
+			local prev = shown
+			if prev and (child.type ~= currentType or child.key ~= currentKey) then
+				generation += 1
+				outgoing = if hasElement(prev) then prev else nil
+			end
+			currentType, currentKey = child.type, child.key
+			local keyed = hModule.cloneVNode(child)
+			keyed.key = `__transition{generation}`
+			keyed._transition = transitionConfig(props, mounted, nil, if outgoing then onEntered else nil)
+			shown = keyed
+			return h(Fragment, nil, if outgoing then { outgoing, keyed } else { keyed })
+		end
+
 		return function(): VNode?
 			local _ = leaveDone.value
 			local child = firstVNode(context.renderSlot("default"))
+			if props.mode == "in-out" then
+				return renderInOut(child)
+			end
 			if props.mode == "out-in" then
 				if leaving then
 					return nil

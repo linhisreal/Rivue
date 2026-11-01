@@ -6,6 +6,10 @@ Pre-release.
 | RivueRemote | 0.8.0-beta.1 | beta |
 | RivueRouter | 0.3.0-beta.1 | beta |
 
+## RivueUI
+
+- `Transition` takes `mode = "in-out"`, as in Vue: the new child enters first, then the old one leaves.
+
 ## Fixed
 
 - RivueUI: every copy of a `defineAsyncComponent` called the loader again, so a component shown a second time flashed its loading state. Copies now share one load, and later copies render straight away, as in Vue.
