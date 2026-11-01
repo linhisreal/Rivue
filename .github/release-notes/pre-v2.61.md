@@ -13,6 +13,7 @@ Pre-release.
 
 ## Fixed
 
+- RivueUI: `onBeforeUpdate` ran after the render instead of before it, so state it changed cost an extra render. It now runs first, untracked, as in Vue.
 - RivueUI: rows built with `Rivue.hFor` inside a `TransitionGroup`, as in its docs example, didn't animate when added or removed.
 - RivueUI: every copy of a `defineAsyncComponent` called the loader again, so a component shown a second time flashed its loading state. Copies now share one load, and later copies render straight away, as in Vue.
 - RivueUI: an async component that finished loading after its timeout kept showing the error. It now shows the component.

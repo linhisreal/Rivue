@@ -476,7 +476,6 @@ builtins.TransitionGroup = table.freeze({
 		end)
 
 		local rendered: { VNode } = {}
-		local previous: { VNode } = {}
 		local snapshot: MoveSnapshot? = nil
 		local active: ActiveMove? = nil
 		local sliding: { [GuiObject]: Tween } = {}
@@ -513,7 +512,7 @@ builtins.TransitionGroup = table.freeze({
 			if not props.moveInfo then
 				return
 			end
-			local order, elements = keyedElements(previous)
+			local order, elements = keyedElements(rendered)
 			local first = elements[order[1]]
 			local container = if first then first.Parent else nil
 			local positions: { [GuiObject]: Vector2 } = {}
@@ -617,7 +616,6 @@ builtins.TransitionGroup = table.freeze({
 		return function(): VNode
 			local config = transitionConfig(props, mounted, nil)
 			local children: { Child } = {}
-			previous = rendered
 			rendered = {}
 			local function add(list: { any })
 				for i = 1, table.maxn(list) do

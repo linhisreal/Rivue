@@ -2162,6 +2162,11 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 		if devtools then
 			renderStart = os.clock()
 		end
+		if inst.isMounted then
+			_reactivity._untracked(function()
+				inst:runBeforeUpdate()
+			end)
+		end
 		local render = inst.render
 		local profiled = inst.appContext.config.performance == true
 		local label = if profiled then `Rivue {inst.type.__name or "Anonymous"}` else ""
@@ -2188,7 +2193,6 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 		end
 		if inst.isMounted then
 			local prevTree = inst.subTree
-			inst:runBeforeUpdate()
 			if profiled then
 				debug.profilebegin(label .. " patch")
 			end

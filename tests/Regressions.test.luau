@@ -1144,6 +1144,38 @@ local function runTests()
 		app:unmount()
 	end
 
+	print("onBeforeUpdate runs before render, so its state changes don't cost another render")
+	do
+		local n = Rivue.ref(0)
+		local renders = 0
+		local App = Rivue.defineComponent({
+			name = "BeforeUpdateApp",
+			setup = function()
+				local stamp = Rivue.ref("")
+				Rivue.onBeforeUpdate(function()
+					stamp.value = "updated " .. n.value
+				end)
+				return function()
+					renders += 1
+					return h("TextLabel", { Name = "Stamp", Text = `{n.value}|{stamp.value}` })
+				end
+			end,
+		})
+		local folder = Instance.new("Folder")
+		local app = Rivue.createApp(App)
+		app:mount(folder)
+		n.value = 1
+		Rivue.nextTick()
+		task.wait()
+		assertEquals(
+			(folder:FindFirstChild("Stamp", true) :: TextLabel).Text,
+			"1|updated 1",
+			"the render saw the hook's change"
+		)
+		assertEquals(renders, 2, "one render to mount, one to update")
+		app:unmount()
+	end
+
 	print("\n========== REGRESSION TESTS COMPLETE ==========\n")
 end
 
