@@ -1054,6 +1054,77 @@ local function runTests()
 		app:unmount()
 	end
 
+	print("defineAsyncComponent loads once and shows straight away after that")
+	do
+		local loads = 0
+		local Real = Rivue.defineComponent({
+			name = "AsyncReal",
+			render = function()
+				return h("TextLabel", { Name = "Real" })
+			end,
+		})
+		local Async = Rivue.defineAsyncComponent(function()
+			loads += 1
+			task.wait(0.05)
+			return Real
+		end)
+		local show = Rivue.ref(true)
+		local App = Rivue.defineComponent({
+			name = "AsyncTwice",
+			render = function()
+				return h("Frame", nil, { h(Async), if show.value then h(Async) else nil })
+			end,
+		})
+		local folder = Instance.new("Folder")
+		local app = Rivue.createApp(App)
+		app:mount(folder)
+		task.wait(0.1)
+		assertEquals(loads, 1, "two copies share one load")
+		show.value = false
+		Rivue.nextTick()
+		show.value = true
+		Rivue.nextTick()
+		local reals = 0
+		for _, d in folder:GetDescendants() do
+			if d.Name == "Real" then
+				reals += 1
+			end
+		end
+		assertEquals(reals, 2, "a copy shown later renders without loading again")
+		assertEquals(loads, 1, "and doesn't call the loader")
+		app:unmount()
+	end
+
+	print("defineAsyncComponent shows the component if it loads after the timeout")
+	do
+		local Real = Rivue.defineComponent({
+			name = "LateReal",
+			render = function()
+				return h("TextLabel", { Name = "LateReal" })
+			end,
+		})
+		local Async = Rivue.defineAsyncComponent(function()
+			task.wait(0.05)
+			return Real
+		end, { timeout = 10, errorComponent = h("TextLabel", { Name = "LateErr" }) })
+		local App = Rivue.defineComponent({
+			name = "LateApp",
+			render = function()
+				return h(Async)
+			end,
+		})
+		local folder = Instance.new("Folder")
+		local app = Rivue.createApp(App)
+		app:mount(folder)
+		task.wait(0.03)
+		assertTrue(folder:FindFirstChild("LateErr", true) ~= nil, "the timeout shows the error first")
+		task.wait(0.06)
+		Rivue.nextTick()
+		assertTrue(folder:FindFirstChild("LateReal", true) ~= nil, "then the component once it loads")
+		assertEquals(folder:FindFirstChild("LateErr", true), nil, "replacing the error")
+		app:unmount()
+	end
+
 	print("\n========== REGRESSION TESTS COMPLETE ==========\n")
 end
 
