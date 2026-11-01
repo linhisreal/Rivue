@@ -5,7 +5,7 @@
 A Studio plugin that shows the Rivue components on screen while you playtest: what rendered, how
 long it took and why, with props and state you can edit live.
 
-![The DevTools window: the component tree, the Timeline tab and the Router tab](assets/diagrams/devtools-window.webp)
+![The DevTools window: the component tree with its tools and details, the Perf tab and the Network tab](assets/diagrams/devtools-window.webp)
 
 ## Install
 
@@ -39,8 +39,10 @@ Click a row and it's selected in the Explorer. The panel below the tree shows:
 - **Open source**, which opens the script that defined the component at the `defineComponent`
   line.
 - cards for its props, its state, and the keys it provides and injects. Click a card's title to
-  fold it. Numbers, strings and booleans in state are editable: type a new value, press Enter,
-  and the game updates.
+  fold it. In state, numbers and strings are text fields (type a new value and press Enter), a
+  boolean is a toggle, and a table opens into its fields, which you can edit the same way, two
+  levels deep. A field that changed shows what it was before, as `was 10`. Values you can't
+  edit can still be selected and copied with Ctrl+C.
 
 Drag the line between the tree and the details to give either more room.
 
@@ -49,16 +51,51 @@ list, so you can still see where each match sits. Next to it, **Sort** switches 
 most renders and slowest first, and **Reset counts** counts from zero, so you can do one thing in
 the game and see what it re-rendered.
 
-The tabs show how many components, events and timeline entries there are. Along the bottom:
+The row below has the tree tools:
+
+- **Expand all** and **Collapse all** open or fold every branch. Folded branches are remembered
+  between sessions.
+- **Slow** and **Changed** narrow the tree to slow components, or ones that just rendered, and
+  can be combined with the filter.
+- **Pick** waits for you to select something: select a GUI object in the Explorer, or click on
+  the game screen while playing, and DevTools opens the component that rendered it.
+- **Export** saves the tree and the timeline as a ModuleScript, `ServerStorage.RivueSnapshot`,
+  to share or compare later. Changes made during Play are thrown away when you stop, so while
+  the game runs, Export keeps the snapshot with the plugin; press it again after stopping to
+  write it.
+
+The star at the end of a row pins the component to a short list above the tree, so the ones you
+care about stay in reach. Pins are remembered too.
+
+With the mouse over the window, **Ctrl+F** jumps to the filter, **Up** and **Down** move through
+the tree, **Enter** opens the selected component's source, and **Esc** clears the selection or
+stops picking.
+
+The tabs show how many components, events, network messages, timeline entries and warnings there
+are; the tab bar scrolls sideways when the window is narrow. Along the bottom:
 
 - **Highlight updates** flashes an outline around every component that re-renders, on the game
   screen, like Vue DevTools' option of the same name.
 - **Pause** freezes the lists while the UI keeps changing.
 
+The **Perf** tab answers "what renders too much, and why". Press **Record**, use the UI, then
+**Stop**. It lists each component that rendered with how many times, the total and the worst
+time, and the most common cause (`coins changed`, `parent update`), slowest first, plus the
+slowest single updates. Click a row to open the component.
+
+The **Network** tab shows RivueRemote traffic: requests, `fire` sends, events from the server and
+replicated state, with payload sizes. **By action** totals each one, with the average request
+time and how many failed; **Replicated state** shows each `Remote.state` value and its version;
+**Latest** is the raw list, newest first.
+
+The **Warnings** tab collects Rivue's warnings and errors from the Output (unknown classes,
+duplicate keys, undeclared emits, render errors, and RivueRemote and RivueRouter warnings),
+newest first. When a warning names a component, click it to open that component.
+
 The **Events** tab lists every `emit` as it happens, newest first, with its arguments. Click one
 to select the component that sent it.
 
-The **Timeline** tab puts renders, emits, router navigations and RivueRemote requests in one list,
+The **Timeline** tab puts renders, emits, router navigations and RivueRemote traffic in one list,
 newest first. Each entry has its time, and a bar and a duration when it has one, so the slow ones
 stand out. The chips at the top hide or show each kind. Click a render or an emit to open its
 component. It's the place to look when one click causes more work than you expected.
@@ -77,7 +114,8 @@ A plugin can't read a game script's modules, so the data has to travel some othe
 `devtools` on, Rivue tags each component's root Instance `RivueComponent` and writes its name,
 props, state, render count, render time and the cause of the render to attributes after every
 render, plus the latest `emit`. Each app also gets a `RivueDevTools` Configuration that holds the
-timeline and the current route, which is how RivueRouter and RivueRemote reach the plugin. The
+timeline and the current route, which is how RivueRouter and RivueRemote reach the plugin.
+RivueRemote only measures payload sizes while DevTools is open. The
 plugin watches the tags and the attributes. Edits go
 the other way: the plugin sets a `RivueEdit` attribute, and Rivue applies it to the ref and
 clears it.
@@ -90,7 +128,8 @@ flowchart LR
 ```
 
 Values are summarised on the way. Strings, numbers, booleans and Instance names show as they are,
-and anything else shows as its type (`table`, `UDim2`). When a component unmounts, Rivue removes
+tables show their fields two levels deep (up to eight per table), and anything else shows as its
+type (`UDim2`). An edit to a nested field travels as a path, like `inventory.flags.vip=true`. When a component unmounts, Rivue removes
 the tag and attributes again. The list only ever shows what's on screen, and pooled Instances
 don't carry old data into their next life.
 

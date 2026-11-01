@@ -3,7 +3,12 @@
 -- Licensed under the Rivue License, based on PolyForm Noncommercial 1.0.0. See LICENSE.
 
 local CollectionService = game:GetService("CollectionService")
+local LogService = game:GetService("LogService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local Selection = game:GetService("Selection")
+local ServerStorage = game:GetService("ServerStorage")
+local UserInputService = game:GetService("UserInputService")
 local Rivue = require(script.Parent:WaitForChild("RivueUI"))
 local Highlight = require(script.Parent:WaitForChild("Highlight"))
 local Theme = require(script.Parent:WaitForChild("Theme"))
@@ -13,10 +18,15 @@ local TAG = "RivueComponent"
 local CHANNEL_TAG = "RivueDevToolsChannel"
 local MAX_EVENTS = 100
 local INDENT = 14
-local KINDS = { "render", "emit", "navigation", "request" }
+local KINDS = { "render", "emit", "navigation", "network" }
+local NETWORK_KINDS = { request = true, send = true, event = true, state = true }
+local MAX_NETWORK = 200
+local MAX_WARNINGS = 100
+local MAX_SLOWEST = 15
 
 export type Entry = {
 	instance: Instance,
+	path: string,
 	depth: number,
 	name: string,
 	props: string,
@@ -29,7 +39,34 @@ export type Entry = {
 	injects: string,
 	hasChildren: boolean,
 	changed: boolean,
+	previous: { [string]: string },
 }
+
+export type PerfRow = { name: string, renders: number, totalMs: number, maxMs: number, causes: { [string]: number } }
+export type SlowUpdate = { seq: number, name: string, ms: number, cause: string }
+
+export type NetEntry = {
+	seq: number,
+	at: number,
+	kind: string,
+	label: string,
+	detail: string,
+	ms: number?,
+	bytes: number?,
+	failed: boolean,
+}
+export type NetTotal = {
+	key: string,
+	kind: string,
+	label: string,
+	count: number,
+	totalMs: number,
+	failed: number,
+	bytes: number,
+}
+export type NetState = { name: string, value: string, version: number }
+
+export type Warning = { id: number, level: string, message: string, component: string? }
 
 export type EmitEvent = {
 	id: number,
@@ -49,7 +86,7 @@ export type TimelineEntry = {
 }
 
 export type SortMode = "tree" | "renders" | "slowest"
-export type View = "components" | "events" | "timeline" | "router" | "settings"
+export type View = "components" | "performance" | "network" | "events" | "timeline" | "router" | "warnings" | "settings"
 
 local SORT_LABELS: { [SortMode]: string } = { tree = "tree", renders = "most renders", slowest = "slowest" }
 local NEXT_SORT: { [SortMode]: SortMode } = { tree = "renders", renders = "slowest", slowest = "tree" }
@@ -57,7 +94,23 @@ local NEXT_SORT: { [SortMode]: SortMode } = { tree = "renders", renders = "slowe
 local entries = Rivue.shallowRef({} :: { Entry })
 local events = Rivue.shallowRef({} :: { EmitEvent })
 local selected = Rivue.shallowRef(nil :: Instance?)
-local collapsed = Rivue.shallowRef(setmetatable({}, { __mode = "k" }) :: any)
+local collapsed = Rivue.shallowRef({} :: { [string]: boolean })
+local pinned = Rivue.shallowRef({} :: { [string]: boolean })
+local onlySlow = Rivue.ref(false)
+local onlyChanged = Rivue.ref(false)
+local picking = Rivue.ref(false)
+local recording = Rivue.ref(false)
+local perfRows = Rivue.shallowRef({} :: { [string]: PerfRow })
+local perfSlowest = Rivue.shallowRef({} :: { SlowUpdate })
+local perfSpan = Rivue.shallowRef({ first = 0, last = 0 })
+local netEntries = Rivue.shallowRef({} :: { NetEntry })
+local netTotals = Rivue.shallowRef({} :: { [string]: NetTotal })
+local netState = Rivue.shallowRef({} :: { [string]: NetState })
+local warnings = Rivue.shallowRef({} :: { Warning })
+local statusMessage = Rivue.ref("")
+local warningCount = 0
+local previousState: { [Instance]: { [string]: string } } = setmetatable({}, { __mode = "k" }) :: any
+local lastState: { [Instance]: { [string]: string } } = setmetatable({}, { __mode = "k" }) :: any
 local paused = Rivue.ref(false)
 local sortMode = Rivue.ref("tree" :: SortMode)
 local view = Rivue.ref("components" :: View)
@@ -66,13 +119,27 @@ local routeText = Rivue.ref("")
 local lastSeq = 0
 local palette = Rivue.shallowRef(Theme.read())
 
-export type Settings = { slowMs: number, timelineLimit: number, highlightUpdates: boolean }
+export type Settings = {
+	slowMs: number,
+	timelineLimit: number,
+	highlightUpdates: boolean,
+	collapsed: { string },
+	pinned: { string },
+	lastSnapshot: string,
+}
 export type SettingsStore = { get: (key: string) -> any, set: (key: string, value: any) -> () }
 
-local DEFAULT_SETTINGS: Settings = { slowMs = 2, timelineLimit = 200, highlightUpdates = false }
+local DEFAULT_SETTINGS: Settings = {
+	slowMs = 2,
+	timelineLimit = 200,
+	highlightUpdates = false,
+	collapsed = {},
+	pinned = {},
+	lastSnapshot = "",
+}
 local settings = Rivue.reactive(table.clone(DEFAULT_SETTINGS)) :: Settings
 local settingsStore: SettingsStore? = nil
-local kindsShown = Rivue.reactive({ render = true, emit = true, navigation = true, request = true })
+local kindsShown = Rivue.reactive({ render = true, emit = true, navigation = true, network = true })
 local lastRenders: { [Instance]: number } = setmetatable({}, { __mode = "k" }) :: any
 local baselines: { [Instance]: number } = setmetatable({}, { __mode = "k" }) :: any
 local watched: { [Instance]: RBXScriptConnection } = {}
@@ -103,12 +170,33 @@ local function collect()
 			local renders = (instance:GetAttribute("RivueRenders") :: number?) or 0
 			local before = lastRenders[instance]
 			lastRenders[instance] = renders
+			local stateText = (instance:GetAttribute("RivueState") :: string?) or ""
+			local fields: { [string]: string } = {}
+			for line in string.gmatch(stateText, "[^\n]+") do
+				local key, value = string.match(line, "^(.-) = (.*)$")
+				if key then
+					fields[key] = value
+				end
+			end
+			local seen = lastState[instance]
+			local previous = previousState[instance] or {}
+			if seen then
+				for key, value in fields do
+					if seen[key] ~= nil and seen[key] ~= value then
+						previous[key] = seen[key]
+					end
+				end
+			end
+			lastState[instance] = fields
+			previousState[instance] = previous
 			table.insert(list, {
 				instance = instance,
+				path = fullName(instance),
+				previous = previous,
 				depth = depthOf(instance),
 				name = (instance:GetAttribute("RivueComponent") :: string?) or instance.Name,
 				props = (instance:GetAttribute("RivueProps") :: string?) or "",
-				state = (instance:GetAttribute("RivueState") :: string?) or "",
+				state = stateText,
 				renders = renders - (baselines[instance] or 0),
 				renderMs = (instance:GetAttribute("RivueRenderMs") :: number?) or 0,
 				trigger = (instance:GetAttribute("RivueTrigger") :: string?) or "",
@@ -121,7 +209,7 @@ local function collect()
 		end
 	end
 	table.sort(list, function(a, b)
-		return fullName(a.instance) < fullName(b.instance)
+		return a.path < b.path
 	end)
 	for i, entry in list do
 		local nextEntry = list[i + 1]
@@ -171,6 +259,112 @@ local function logEmit(instance: Instance)
 	events.value = list
 end
 
+local function ingestPerf(added: { TimelineEntry })
+	if not recording.value then
+		return
+	end
+	local rows: { [string]: PerfRow }? = nil
+	local slowest: { SlowUpdate }? = nil
+	local span = perfSpan.value
+	for i = #added, 1, -1 do
+		local entry = added[i]
+		if entry.kind ~= "render" then
+			continue
+		end
+		local ms = tonumber(entry.ms) or 0
+		local map = rows or table.clone(perfRows.value)
+		rows = map
+		local row = map[entry.label]
+		if not row then
+			row = { name = entry.label, renders = 0, totalMs = 0, maxMs = 0, causes = {} }
+			map[entry.label] = row
+		end
+		row.renders += 1
+		row.totalMs += ms
+		row.maxMs = math.max(row.maxMs, ms)
+		local cause = if entry.detail == "" then "parent" else entry.detail
+		row.causes[cause] = (row.causes[cause] or 0) + 1
+		local list = slowest or table.clone(perfSlowest.value)
+		slowest = list
+		table.insert(list, { seq = entry.seq, name = entry.label, ms = ms, cause = cause })
+		span = { first = if span.first == 0 then entry.at else span.first, last = entry.at }
+	end
+	if rows then
+		perfRows.value = rows
+		perfSpan.value = span
+	end
+	if slowest then
+		table.sort(slowest, function(a, b)
+			return a.ms > b.ms
+		end)
+		while #slowest > MAX_SLOWEST do
+			table.remove(slowest)
+		end
+		perfSlowest.value = slowest
+	end
+end
+
+local function ingestNetwork(added: { TimelineEntry })
+	local list: { NetEntry }? = nil
+	local totals: { [string]: NetTotal }? = nil
+	local states: { [string]: NetState }? = nil
+	for i = #added, 1, -1 do
+		local entry = added[i]
+		if not NETWORK_KINDS[entry.kind] then
+			continue
+		end
+		local bytes = tonumber(string.match(entry.detail, "(%d+) B$"))
+		local ms = tonumber(entry.ms)
+		local failed = entry.kind == "request" and string.sub(entry.detail, 1, 2) ~= "ok"
+		local items = list or table.clone(netEntries.value)
+		list = items
+		table.insert(items, 1, {
+			seq = entry.seq,
+			at = entry.at,
+			kind = entry.kind,
+			label = entry.label,
+			detail = entry.detail,
+			ms = ms,
+			bytes = bytes,
+			failed = failed,
+		})
+		while #items > MAX_NETWORK do
+			table.remove(items)
+		end
+		if entry.kind == "state" then
+			local version, value = string.match(entry.detail, "^v(%d+) = (.*)$")
+			local map = states or table.clone(netState.value)
+			states = map
+			map[entry.label] = { name = entry.label, value = value or entry.detail, version = tonumber(version) or 0 }
+		else
+			local key = `{entry.kind}:{entry.label}`
+			local map = totals or table.clone(netTotals.value)
+			totals = map
+			local total = map[key]
+			if not total then
+				total =
+					{ key = key, kind = entry.kind, label = entry.label, count = 0, totalMs = 0, failed = 0, bytes = 0 }
+				map[key] = total
+			end
+			total.count += 1
+			total.totalMs += ms or 0
+			total.bytes += bytes or 0
+			if failed then
+				total.failed += 1
+			end
+		end
+	end
+	if list then
+		netEntries.value = list
+	end
+	if totals then
+		netTotals.value = totals
+	end
+	if states then
+		netState.value = states
+	end
+end
+
 local function readTimeline(channel: Instance)
 	if paused.value then
 		return
@@ -196,6 +390,8 @@ local function readTimeline(channel: Instance)
 		return
 	end
 	lastSeq = added[1].seq
+	ingestPerf(added)
+	ingestNetwork(added)
 	local list = table.clone(timeline.value)
 	for i = #added, 1, -1 do
 		table.insert(list, 1, added[i])
@@ -213,6 +409,14 @@ local function readRoute(channel: Instance)
 	end
 end
 
+local function toSet(list: { string }): { [string]: boolean }
+	local set = {}
+	for _, item in list do
+		set[item] = true
+	end
+	return set
+end
+
 local function setSettingsStore(store: SettingsStore?)
 	settingsStore = store
 	if not store then
@@ -224,6 +428,8 @@ local function setSettingsStore(store: SettingsStore?)
 			(settings :: any)[key] = saved
 		end
 	end
+	collapsed.value = toSet(settings.collapsed)
+	pinned.value = toSet(settings.pinned)
 end
 
 local function setSetting(key: string, value: any)
@@ -248,10 +454,196 @@ local function resetCounts()
 	collect()
 end
 
-local function toggleCollapsed(instance: Instance)
-	local next = setmetatable(table.clone(collapsed.value), { __mode = "k" })
-	next[instance] = if next[instance] then nil else true
+local function saveSet(key: string, set: { [string]: boolean })
+	local list = {}
+	for item in set do
+		table.insert(list, item)
+	end
+	table.sort(list)
+	setSetting(key, list)
+end
+
+local function setCollapsed(next: { [string]: boolean })
 	collapsed.value = next
+	saveSet("collapsed", next)
+end
+
+local function toggleCollapsed(path: string)
+	local next = table.clone(collapsed.value)
+	next[path] = if next[path] then nil else true
+	setCollapsed(next)
+end
+
+local function collapseAll()
+	local next = {}
+	for _, entry in entries.value do
+		if entry.hasChildren then
+			next[entry.path] = true
+		end
+	end
+	setCollapsed(next)
+end
+
+local function expandAll()
+	setCollapsed({})
+end
+
+local function togglePinned(path: string)
+	local next = table.clone(pinned.value)
+	next[path] = if next[path] then nil else true
+	pinned.value = next
+	saveSet("pinned", next)
+end
+
+local function startRecording()
+	perfRows.value = {}
+	perfSlowest.value = {}
+	perfSpan.value = { first = 0, last = 0 }
+	recording.value = true
+end
+
+local function stopRecording()
+	recording.value = false
+end
+
+local function clearNetwork()
+	netEntries.value = {}
+	netTotals.value = {}
+end
+
+local function componentNameIn(message: string): string?
+	return string.match(message, "<([^<>]+)>")
+		or string.match(message, "%[Rivue%] ([%w_]+) emitted")
+		or string.match(message, "event '[^']*' in ([%w_]+)")
+end
+
+local function logMessage(message: string, messageType: Enum.MessageType)
+	if not string.find(message, "[Rivue", 1, true) then
+		return
+	end
+	local level = if messageType == Enum.MessageType.MessageError
+		then "error"
+		elseif messageType == Enum.MessageType.MessageWarning then "warning"
+		else nil
+	if not level then
+		return
+	end
+	warningCount += 1
+	local list = table.clone(warnings.value)
+	table.insert(list, 1, {
+		id = warningCount,
+		level = level,
+		message = message,
+		component = componentNameIn(message),
+	})
+	while #list > MAX_WARNINGS do
+		table.remove(list)
+	end
+	warnings.value = list
+end
+
+local function componentOf(instance: Instance?): Instance?
+	local node = instance
+	while node do
+		if CollectionService:HasTag(node, TAG) then
+			return node
+		end
+		node = node.Parent
+	end
+	return nil
+end
+
+local function selectComponent(instance: Instance)
+	selected.value = instance
+	view.value = "components"
+	picking.value = false
+	Selection:Set({ instance })
+end
+
+local function pickAt(position: Vector2): boolean
+	local player = Players.LocalPlayer
+	local gui = if player then player:FindFirstChildOfClass("PlayerGui") else nil
+	if not gui then
+		return false
+	end
+	local ok, hits = pcall(function()
+		return (gui :: PlayerGui):GetGuiObjectsAtPosition(position.X, position.Y)
+	end)
+	if not ok then
+		return false
+	end
+	for _, hit in hits do
+		local found = componentOf(hit)
+		if found then
+			selectComponent(found)
+			return true
+		end
+	end
+	return false
+end
+
+local function snapshotSource(): string
+	local out = { "return {", `\tcreatedAt = {os.time()},`, "\tcomponents = {" }
+	for _, entry in entries.value do
+		table.insert(
+			out,
+			string.format(
+				"\t\t{ name = %q, path = %q, depth = %d, renders = %d, renderMs = %s, trigger = %q, props = %q, state = %q },",
+				entry.name,
+				entry.path,
+				entry.depth,
+				entry.renders,
+				tostring(entry.renderMs),
+				entry.trigger,
+				entry.props,
+				entry.state
+			)
+		)
+	end
+	table.insert(out, "\t},")
+	table.insert(out, "\ttimeline = {")
+	for i = #timeline.value, 1, -1 do
+		local entry = timeline.value[i]
+		table.insert(
+			out,
+			string.format(
+				"\t\t{ at = %d, kind = %q, label = %q, detail = %q, ms = %q },",
+				entry.at,
+				entry.kind,
+				entry.label,
+				entry.detail,
+				entry.ms
+			)
+		)
+	end
+	table.insert(out, "\t},")
+	table.insert(out, "}")
+	return table.concat(out, "\n")
+end
+
+local function exportSnapshot(): string
+	if #entries.value > 0 then
+		setSetting("lastSnapshot", snapshotSource())
+	end
+	local source = settings.lastSnapshot
+	if source == "" then
+		statusMessage.value = "Nothing to export yet"
+	elseif RunService:IsRunning() then
+		statusMessage.value = "Snapshot kept. Stop the game and press Export again to save it to ServerStorage"
+	else
+		local module = ServerStorage:FindFirstChild("RivueSnapshot")
+		if not (module and module:IsA("ModuleScript")) then
+			module = Instance.new("ModuleScript")
+			module.Name = "RivueSnapshot"
+			module.Parent = ServerStorage
+		end
+		(module :: ModuleScript).Source = source
+		statusMessage.value = "Snapshot saved to ServerStorage.RivueSnapshot"
+	end
+	task.delay(4, function()
+		statusMessage.value = ""
+	end)
+	return statusMessage.value
 end
 
 local function watch(instance: Instance)
@@ -288,6 +680,20 @@ end
 
 local function start(): () -> ()
 	local conns = {
+		LogService.MessageOut:Connect(logMessage),
+		Selection.SelectionChanged:Connect(function()
+			if picking.value then
+				local found = componentOf(Selection:Get()[1])
+				if found then
+					selectComponent(found)
+				end
+			end
+		end),
+		UserInputService.InputBegan:Connect(function(input: InputObject)
+			if picking.value and input.UserInputType == Enum.UserInputType.MouseButton1 then
+				pickAt(Vector2.new(input.Position.X, input.Position.Y))
+			end
+		end),
 		CollectionService:GetInstanceAddedSignal(CHANNEL_TAG):Connect(watchChannel),
 		CollectionService:GetInstanceAddedSignal(TAG):Connect(function(instance)
 			watch(instance)
@@ -521,6 +927,10 @@ local function buildStyles(p: Theme.Palette): { [string]: any }
 			BorderSizePixel = 0,
 			cornerRadius = 6,
 			padding = 2,
+			AutomaticCanvasSize = Enum.AutomaticSize.X,
+			CanvasSize = UDim2.new(),
+			ScrollingDirection = Enum.ScrollingDirection.X,
+			ScrollBarThickness = 0,
 		},
 		tab = {
 			Size = UDim2.fromScale(0, 1),
@@ -605,6 +1015,16 @@ local function buildStyles(p: Theme.Palette): { [string]: any }
 			TextSize = 10,
 		},
 		dot = { Size = UDim2.fromOffset(6, 6), BorderSizePixel = 0, BackgroundColor3 = p.changed, cornerRadius = 3 },
+		pin = {
+			Size = UDim2.new(0, 16, 1, 0),
+			BackgroundTransparency = 1,
+			TextColor3 = p.dimText,
+			TextSize = 12,
+			Text = "☆",
+		},
+		pinned = { TextColor3 = p.changed, Text = "★" },
+		warning = { TextColor3 = p.changed, BackgroundColor3 = p.changed },
+		error = { TextColor3 = p.slow, BackgroundColor3 = p.slow },
 		name = auto(true),
 		changedName = { TextColor3 = p.changed },
 		slowName = { TextColor3 = p.slow },
@@ -784,39 +1204,112 @@ local KeyValue = Rivue.defineComponent({
 	render = function(ctx)
 		return h("Frame", { Name = ctx.field, class = "kv" }, {
 			h("TextLabel", { Name = "Key", class = "kvKey", Text = ctx.field }),
-			h("TextLabel", { Name = "Value", class = "kvValue", Text = ctx.value }),
+			h("TextBox", {
+				Name = "Value",
+				class = "kvValue",
+				Text = ctx.value,
+				TextEditable = false,
+				ClearTextOnFocus = false,
+			}),
 		})
 	end,
 })
 
-local StateField = Rivue.defineComponent({
+local StateField
+StateField = Rivue.defineComponent({
 	name = "StateField",
 	styles = styles,
 	props = {
 		target = { required = true },
 		field = { type = "string", required = true },
+		path = { type = "string" },
 		value = { type = "string", required = true },
+		previous = { type = "string" },
+		depth = { type = "number", default = 0 },
 	},
 	setup = function(props)
 		local draft = Rivue.ref(props.value)
+		local open = Rivue.ref(false)
 		Rivue.watch(function()
 			return props.value
 		end, function(value)
 			draft.value = value
 		end)
+		local function send(value: string)
+			props.target:SetAttribute("RivueEdit", `{props.path or props.field}={value}`)
+		end
 		return {
 			draft = draft,
+			open = open,
 			commit = function()
 				if draft.value ~= props.value then
-					props.target:SetAttribute("RivueEdit", `{props.field}={draft.value}`)
+					send(draft.value)
 				end
+			end,
+			flip = function()
+				send(if props.value == "true" then "false" else "true")
+			end,
+			toggleOpen = function()
+				open.value = not open.value
 			end,
 		}
 	end,
 	render = function(ctx)
-		return h("Frame", { Name = ctx.field, class = "kv" }, {
-			h("TextLabel", { Name = "Key", class = "kvKey", Text = ctx.field }),
-			h("TextBox", { Name = "Value", class = "field", model = "draft", onFocusLost = ctx.commit }),
+		local value: string = ctx.value
+		local indent = { left = (ctx.depth :: number) * INDENT }
+		local isTable = string.sub(value, 1, 1) == "{" and value ~= "{}"
+		local editor: any
+		if value == "true" or value == "false" then
+			editor = h("TextButton", {
+				Name = "Value",
+				class = { "chip", if value == "true" then "render" else nil },
+				BackgroundTransparency = if value == "true" then 0.8 else 0,
+				Text = value,
+				onClick = ctx.flip,
+			})
+		elseif isTable then
+			editor = h("TextButton", {
+				Name = "Value",
+				class = "kvValue",
+				Text = `{if ctx.open then "▾" else "▸"} {value}`,
+				onClick = ctx.toggleOpen,
+			})
+		elseif isEditable(value) then
+			editor = h("TextBox", { Name = "Value", class = "field", model = "draft", onFocusLost = ctx.commit })
+		else
+			editor = h("TextBox", {
+				Name = "Value",
+				class = "kvValue",
+				Text = value,
+				TextEditable = false,
+				ClearTextOnFocus = false,
+			})
+		end
+		local nested = {}
+		if isTable and ctx.open then
+			for _, field in tableFields(value) do
+				table.insert(
+					nested,
+					h(StateField, {
+						key = field.key,
+						target = ctx.target,
+						field = field.key,
+						path = `{ctx.path or ctx.field}.{field.key}`,
+						value = field.value,
+						depth = (ctx.depth :: number) + 1,
+					})
+				)
+			end
+		end
+		return h(Rivue.Fragment, nil, {
+			h("Frame", { Name = ctx.field, class = "kv", padding = indent }, {
+				h("TextLabel", { Name = "Key", class = "kvKey", Text = ctx.field }),
+				editor,
+				if ctx.previous
+					then h("TextLabel", { Name = "Previous", class = { "statusText" }, Text = `was {ctx.previous}` })
+					else nil,
+			}),
+			h(Rivue.Fragment, nil, nested),
 		})
 	end,
 })
@@ -864,12 +1357,21 @@ local function emptyNote(name: string, text: string): any
 	})
 end
 
-local function fieldRows(text: string, target: Instance?): { any }
+local function fieldRows(text: string, target: Instance?, previous: { [string]: string }?): { any }
 	local rows = {}
 	for _, line in lines(text) do
 		local key, value = splitPair(line)
-		if target and isEditable(value) then
-			table.insert(rows, h(StateField, { key = key, field = key, target = target, value = value }))
+		if target then
+			table.insert(
+				rows,
+				h(StateField, {
+					key = key,
+					field = key,
+					target = target,
+					value = value,
+					previous = if previous then previous[key] else nil,
+				})
+			)
 		else
 			table.insert(rows, h(KeyValue, { key = key, field = key, value = value }))
 		end
@@ -938,7 +1440,7 @@ local Details = Rivue.defineComponent({
 				}),
 			}),
 			h(Card, { key = "props", title = "Props" }, fieldRows(current.props, nil)),
-			h(Card, { key = "state", title = "State" }, fieldRows(current.state, current.instance)),
+			h(Card, { key = "state", title = "State" }, fieldRows(current.state, current.instance, current.previous)),
 			h(Card, { key = "provides", title = "Provides", count = #provides }, keyList("Provides", provides)),
 			h(Card, { key = "injects", title = "Injects", count = #injects }, keyList("Injects", injects)),
 		})
@@ -964,9 +1466,9 @@ local function componentRow(ctx, entry: Entry, tree: boolean): any
 			then h("TextButton", {
 				Name = "Toggle",
 				class = "toggle",
-				Text = if ctx.collapsed[entry.instance] then "▸" else "▾",
+				Text = if ctx.collapsed[entry.path] then "▸" else "▾",
 				onClick = function()
-					toggleCollapsed(entry.instance)
+					toggleCollapsed(entry.path)
 				end,
 			})
 			elseif tree then h("Frame", { Name = "Gap", class = "toggle" })
@@ -992,7 +1494,18 @@ local function componentRow(ctx, entry: Entry, tree: boolean): any
 			Text = if slow then formatMs(entry.renderMs) else "",
 		}),
 		h(Pill, { key = "renders", text = tostring(entry.renders), tone = if entry.changed then "hot" else nil }),
+		h("TextButton", {
+			Name = "Pin",
+			class = { "pin", if ctx.pinned[entry.path] then "pinned" else nil },
+			onClick = function()
+				togglePinned(entry.path)
+			end,
+		}),
 	})
+end
+
+local function summaryRow(name: string, cells: { any }, onClick: (() -> ())?): any
+	return h("TextButton", { key = name, Name = name, class = "row", onClick = onClick }, cells)
 end
 
 local App = Rivue.defineComponent({
@@ -1008,7 +1521,7 @@ local App = Rivue.defineComponent({
 		local shownTimeline = Rivue.computed(function()
 			local list = {}
 			for _, entry in timeline.value do
-				if kindsShown[entry.kind] ~= false then
+				if kindsShown[if NETWORK_KINDS[entry.kind] then "network" else entry.kind] ~= false then
 					table.insert(list, entry)
 				end
 			end
@@ -1029,12 +1542,110 @@ local App = Rivue.defineComponent({
 			selected.value = instance
 			Selection:Set({ instance })
 		end
+		local filterBox = Rivue.useTemplateRef("filterBox")
+		local visible: { Entry } = {}
 
 		return {
 			entries = entries,
 			events = events,
 			selected = selected,
 			collapsed = collapsed,
+			pinned = pinned,
+			onlySlow = onlySlow,
+			onlyChanged = onlyChanged,
+			picking = picking,
+			recording = recording,
+			perfRows = perfRows,
+			perfSlowest = perfSlowest,
+			perfSpan = perfSpan,
+			netEntries = netEntries,
+			netTotals = netTotals,
+			netState = netState,
+			warnings = warnings,
+			statusMessage = statusMessage,
+			setVisible = function(list: { Entry })
+				visible = list
+			end,
+			expandAll = expandAll,
+			collapseAll = collapseAll,
+			toggleSlow = function()
+				onlySlow.value = not onlySlow.value
+			end,
+			toggleChanged = function()
+				onlyChanged.value = not onlyChanged.value
+			end,
+			togglePicking = function()
+				picking.value = not picking.value
+			end,
+			exportSnapshot = exportSnapshot,
+			toggleRecording = function()
+				if recording.value then
+					stopRecording()
+				else
+					startRecording()
+				end
+			end,
+			clearNetwork = clearNetwork,
+			clearWarnings = function()
+				warnings.value = {}
+			end,
+			openWarning = function(warning: Warning)
+				local instance = if warning.component then findComponent(warning.component) else nil
+				if instance then
+					selectComponent(instance)
+				end
+			end,
+			openComponent = function(name: string)
+				local instance = findComponent(name)
+				if instance then
+					selectComponent(instance)
+				end
+			end,
+			shortcut = function(input: InputObject)
+				if input.UserInputType ~= Enum.UserInputType.Keyboard then
+					return
+				end
+				local key = input.KeyCode
+				local ctrl = UserInputService:IsKeyDown(Enum.KeyCode.LeftControl)
+					or UserInputService:IsKeyDown(Enum.KeyCode.RightControl)
+				if key == Enum.KeyCode.F and ctrl then
+					view.value = "components"
+					local box = filterBox.value
+					if box then
+						(box :: TextBox):CaptureFocus()
+					end
+				elseif key == Enum.KeyCode.Escape then
+					selected.value = nil
+					picking.value = false
+				elseif key == Enum.KeyCode.Up or key == Enum.KeyCode.Down then
+					if #visible == 0 then
+						return
+					end
+					local index = 0
+					for i, entry in visible do
+						if entry.instance == selected.value then
+							index = i
+						end
+					end
+					local step = if key == Enum.KeyCode.Down then 1 else -1
+					local nextEntry = visible[math.clamp(index + step, 1, #visible)]
+					pick(nextEntry.instance)
+				elseif key == Enum.KeyCode.Return then
+					local current = selected.value
+					local entry = nil
+					for _, item in entries.value do
+						if item.instance == current then
+							entry = item
+						end
+					end
+					if entry and openScript then
+						local script, line = resolveSource(entry.source)
+						if script then
+							openScript(script, line or 1)
+						end
+					end
+				end
+			end,
 			paused = paused,
 			sortMode = sortMode,
 			view = view,
@@ -1127,11 +1738,14 @@ local App = Rivue.defineComponent({
 		local tree = ctx.sortMode == "tree"
 		local ordered = sorted(ctx.entries, ctx.sortMode)
 		local keep: { [Entry]: boolean }? = nil
-		if query ~= "" then
+		if query ~= "" or ctx.onlySlow or ctx.onlyChanged then
 			local matches: { [Entry]: boolean } = {}
 			keep = matches
 			for i, entry in ordered do
-				if not string.find(string.lower(entry.name), query, 1, true) then
+				local nameMatches = query == "" or string.find(string.lower(entry.name), query, 1, true) ~= nil
+				local slowMatches = not ctx.onlySlow or entry.renderMs >= settings.slowMs
+				local changedMatches = not ctx.onlyChanged or entry.changed
+				if not (nameMatches and slowMatches and changedMatches) then
 					continue
 				end
 				matches[entry] = true
@@ -1159,23 +1773,34 @@ local App = Rivue.defineComponent({
 				continue
 			end
 			hiddenBelow = nil
-			if tree and ctx.collapsed[entry.instance] then
+			if tree and ctx.collapsed[entry.path] then
 				hiddenBelow = entry.depth
 			end
 			if keep == nil or keep[entry] then
 				table.insert(shown, entry)
 			end
 		end
+		ctx.setVisible(shown)
+		local pinnedRows = {}
+		for _, entry in ctx.entries do
+			if ctx.pinned[entry.path] then
+				table.insert(pinnedRows, entry)
+			end
+		end
+		local pinnedHeight = if #pinnedRows > 0 then math.min(#pinnedRows, 4) * (ROW + 2) + 4 else 0
 
 		local viewName = ctx.view
 		local content: any
 		if viewName == "components" then
 			content = h(Rivue.Column, { Name = "ComponentsView", gap = 6, Size = UDim2.fromScale(1, 1) }, {
 				h(Rivue.Row, { Name = "Toolbar", class = "toolbar", gap = 6, align = "center" }, {
-					h(
-						"TextBox",
-						{ Name = "Filter", class = "filter", model = "filter", PlaceholderText = "Filter by name" }
-					),
+					h("TextBox", {
+						Name = "Filter",
+						ref = "filterBox",
+						class = "filter",
+						model = "filter",
+						PlaceholderText = "Filter by name (Ctrl+F)",
+					}),
 					h("TextButton", {
 						Name = "Sort",
 						class = "tool",
@@ -1184,11 +1809,55 @@ local App = Rivue.defineComponent({
 					}),
 					h("TextButton", { Name = "Reset", class = "tool", Text = "Reset counts", onClick = ctx.reset }),
 				}),
+				h(Rivue.Row, { Name = "TreeTools", class = "toolbar", gap = 6, align = "center" }, {
+					h("TextButton", {
+						Name = if next(ctx.collapsed) ~= nil then "ExpandAll" else "CollapseAll",
+						class = { "tool", "smallTool" },
+						Text = if next(ctx.collapsed) ~= nil then "Open all" else "Fold all",
+						onClick = if next(ctx.collapsed) ~= nil then ctx.expandAll else ctx.collapseAll,
+					}),
+					h("TextButton", {
+						Name = "OnlySlow",
+						class = { "tool", "smallTool", if ctx.onlySlow then "activeTool" else nil },
+						Text = "Slow",
+						onClick = ctx.toggleSlow,
+					}),
+					h("TextButton", {
+						Name = "OnlyChanged",
+						class = { "tool", "smallTool", if ctx.onlyChanged then "activeTool" else nil },
+						Text = "Changed",
+						onClick = ctx.toggleChanged,
+					}),
+					h(Rivue.Spacer),
+					h("TextButton", {
+						Name = "Pick",
+						class = { "tool", "smallTool", if ctx.picking then "activeTool" else nil },
+						Text = if ctx.picking then "Picking..." else "Pick",
+						onClick = ctx.togglePicking,
+					}),
+					h("TextButton", {
+						Name = "Export",
+						class = { "tool", "smallTool" },
+						Text = "Export",
+						onClick = ctx.exportSnapshot,
+					}),
+				}),
+				if #pinnedRows > 0
+					then h("ScrollingFrame", {
+						Name = "Pinned",
+						class = "list",
+						Size = UDim2.new(1, 0, 0, pinnedHeight - 4),
+					}, {
+						Rivue.hFor(pinnedRows, function(entry: Entry)
+							return componentRow(ctx, entry, false)
+						end),
+					})
+					else nil,
 				h("Frame", {
 					Name = "Body",
 					ref = "body",
 					BackgroundTransparency = 1,
-					Size = UDim2.new(1, 0, 1, -30),
+					Size = UDim2.new(1, 0, 1, -60 - pinnedHeight),
 					onInputChanged = ctx.drag,
 					onInputEnded = ctx.stopDrag,
 					onMouseLeave = ctx.cancelDrag,
@@ -1224,6 +1893,234 @@ local App = Rivue.defineComponent({
 									else "Click a component to see its props and state."
 							),
 					}),
+				}),
+			})
+		elseif viewName == "performance" then
+			local rows = {}
+			for _, row in ctx.perfRows do
+				table.insert(rows, row)
+			end
+			table.sort(rows, function(a: PerfRow, b: PerfRow)
+				return a.totalMs > b.totalMs
+			end)
+			local renders, totalMs = 0, 0
+			for _, row in rows do
+				renders += row.renders
+				totalMs += row.totalMs
+			end
+			local span = ctx.perfSpan
+			local seconds = math.max((span.last - span.first) / 1000, 0)
+			content = h(Rivue.Column, { Name = "PerformanceView", gap = 6, Size = UDim2.fromScale(1, 1) }, {
+				h(Rivue.Row, { class = "toolbar", gap = 6, align = "center" }, {
+					h("TextButton", {
+						Name = "Record",
+						class = { "tool", if ctx.recording then "activeTool" else nil },
+						Text = if ctx.recording then "Stop" else "Record",
+						onClick = ctx.toggleRecording,
+					}),
+					h("TextLabel", {
+						Name = "Summary",
+						class = "statusText",
+						Text = `{renders} renders · {formatMs(totalMs)} over {string.format("%.1f", seconds)}s`,
+					}),
+				}),
+				h(
+					"ScrollingFrame",
+					{ Name = "Perf", class = "list", Size = UDim2.new(1, 0, 1, -30), layout = { gap = 6 } },
+					{
+						if #rows == 0
+							then emptyNote(
+								"Empty",
+								if ctx.recording
+									then "Recording. Use the UI, then press Stop."
+									else "Press Record, use the UI, then Stop to see which components render most and why."
+							)
+							else nil,
+						if #rows > 0
+							then h(Card, { key = "components", title = "By component", count = #rows }, {
+								Rivue.hFor(rows, function(row: PerfRow)
+									local topCause, topCount = "", 0
+									for cause, count in row.causes do
+										if count > topCount then
+											topCause, topCount = cause, count
+										end
+									end
+									return summaryRow(`Row_{row.name}`, {
+										h("TextLabel", { Name = "Label", class = "label", Text = `<{row.name}>` }),
+										h("TextLabel", {
+											Name = "Detail",
+											class = "detail",
+											Text = `{row.renders}× · max {formatMs(row.maxMs)} · {causeText(
+												topCause
+											)} ({topCount})`,
+										}),
+										h("TextLabel", {
+											Name = "Ms",
+											class = { "ms", if row.maxMs >= settings.slowMs then "slowMs" else nil },
+											Text = formatMs(row.totalMs),
+										}),
+									}, function()
+										ctx.openComponent(row.name)
+									end)
+								end),
+							})
+							else nil,
+						if #ctx.perfSlowest > 0
+							then h(Card, { key = "slowest", title = "Slowest updates", count = #ctx.perfSlowest }, {
+								Rivue.hFor(ctx.perfSlowest, function(update: SlowUpdate)
+									return summaryRow(`Slow_{update.seq}`, {
+										h("TextLabel", { Name = "Label", class = "label", Text = `<{update.name}>` }),
+										h(
+											"TextLabel",
+											{ Name = "Detail", class = "detail", Text = causeText(update.cause) }
+										),
+										h("TextLabel", {
+											Name = "Ms",
+											class = { "ms", if update.ms >= settings.slowMs then "slowMs" else nil },
+											Text = formatMs(update.ms),
+										}),
+									}, function()
+										ctx.openComponent(update.name)
+									end)
+								end),
+							})
+							else nil,
+					}
+				),
+			})
+		elseif viewName == "network" then
+			local totals = {}
+			local requests, bytes = 0, 0
+			for _, total in ctx.netTotals do
+				table.insert(totals, total)
+				requests += total.count
+				bytes += total.bytes
+			end
+			table.sort(totals, function(a: NetTotal, b: NetTotal)
+				if a.count ~= b.count then
+					return a.count > b.count
+				end
+				return a.key < b.key
+			end)
+			local states = {}
+			for _, state in ctx.netState do
+				table.insert(states, state)
+			end
+			table.sort(states, function(a: NetState, b: NetState)
+				return a.name < b.name
+			end)
+			local log = {}
+			for i = 1, math.min(#ctx.netEntries, 50) do
+				log[i] = ctx.netEntries[i]
+			end
+			content = h(Rivue.Column, { Name = "NetworkView", gap = 6, Size = UDim2.fromScale(1, 1) }, {
+				h(Rivue.Row, { class = "toolbar", gap = 6, align = "center" }, {
+					h(
+						"TextLabel",
+						{ Name = "Summary", class = "statusText", Text = `{requests} messages · {bytes} B` }
+					),
+					h(Rivue.Spacer),
+					h("TextButton", { Name = "Clear", class = "tool", Text = "Clear", onClick = ctx.clearNetwork }),
+				}),
+				h(
+					"ScrollingFrame",
+					{ Name = "Network", class = "list", Size = UDim2.new(1, 0, 1, -30), layout = { gap = 6 } },
+					{
+						if #totals == 0 and #states == 0
+							then emptyNote(
+								"Empty",
+								"No traffic yet. RivueRemote requests, sends, events and replicated state show here while DevTools is open."
+							)
+							else nil,
+						if #totals > 0
+							then h(Card, { key = "totals", title = "By action", count = #totals }, {
+								Rivue.hFor(totals, function(total: NetTotal)
+									local average = if total.count > 0 then total.totalMs / total.count else 0
+									return summaryRow(`Total_{total.key}`, {
+										h(
+											"TextLabel",
+											{ Name = "Kind", class = { "kind", "request" }, Text = total.kind }
+										),
+										h("TextLabel", { Name = "Label", class = "label", Text = total.label }),
+										h("TextLabel", {
+											Name = "Detail",
+											class = "detail",
+											Text = `{total.count}× · {total.bytes} B{if total.kind == "request"
+												then ` · avg {formatMs(average)}`
+												else ""}{if total.failed > 0
+												then ` · {total.failed} failed`
+												else ""}`,
+										}),
+									})
+								end),
+							})
+							else nil,
+						if #states > 0
+							then h(Card, { key = "state", title = "Replicated state", count = #states }, {
+								Rivue.hFor(states, function(state: NetState)
+									return h(KeyValue, {
+										key = state.name,
+										field = state.name,
+										value = `{state.value}  (v{state.version})`,
+									})
+								end),
+							})
+							else nil,
+						if #log > 0
+							then h(Card, { key = "log", title = "Latest", count = #ctx.netEntries }, {
+								Rivue.hFor(log, function(entry: NetEntry)
+									return summaryRow(`Log_{entry.seq}`, {
+										h(
+											"TextLabel",
+											{ Name = "Kind", class = { "kind", "request" }, Text = entry.kind }
+										),
+										h("TextLabel", { Name = "Label", class = "label", Text = entry.label }),
+										h("TextLabel", {
+											Name = "Detail",
+											class = { "detail", if entry.failed then "error" else nil },
+											Text = entry.detail,
+										}),
+										h("TextLabel", {
+											Name = "Ms",
+											class = "ms",
+											Text = if entry.ms then formatMs(entry.ms) else "",
+										}),
+									})
+								end),
+							})
+							else nil,
+					}
+				),
+			})
+		elseif viewName == "warnings" then
+			content = h(Rivue.Column, { Name = "WarningsView", gap = 6, Size = UDim2.fromScale(1, 1) }, {
+				h(Rivue.Row, { class = "toolbar", gap = 6, align = "center" }, {
+					h("TextLabel", { class = "statusText", Text = "Rivue warnings and errors, newest first" }),
+					h(Rivue.Spacer),
+					h("TextButton", { Name = "Clear", class = "tool", Text = "Clear", onClick = ctx.clearWarnings }),
+				}),
+				h("ScrollingFrame", { Name = "Warnings", class = "list", Size = UDim2.new(1, 0, 1, -30) }, {
+					Rivue.hFor(ctx.warnings, function(warning: Warning)
+						return h("TextButton", {
+							key = warning.id,
+							class = "row",
+							onClick = function()
+								ctx.openWarning(warning)
+							end,
+						}, {
+							h("TextLabel", { Name = "Kind", class = { "kind", warning.level }, Text = warning.level }),
+							h("TextLabel", {
+								Name = "Label",
+								class = "label",
+								Text = if warning.component then `<{warning.component}>` else "",
+							}),
+							h("TextLabel", {
+								Name = "Detail",
+								class = "detail",
+								Text = string.gsub(warning.message, "^%[Rivue[%w]*%]%s*", ""),
+							}),
+						})
+					end),
 				}),
 			})
 		elseif viewName == "events" then
@@ -1406,6 +2303,25 @@ local App = Rivue.defineComponent({
 				end,
 			}),
 			h(TabButton, {
+				key = "performance",
+				Name = "PerformanceTab",
+				label = if ctx.recording then "● Perf" else "Perf",
+				active = viewName == "performance",
+				onSelect = function()
+					ctx.showView("performance")
+				end,
+			}),
+			h(TabButton, {
+				key = "network",
+				Name = "NetworkTab",
+				label = "Network",
+				active = viewName == "network",
+				count = #ctx.netEntries,
+				onSelect = function()
+					ctx.showView("network")
+				end,
+			}),
+			h(TabButton, {
 				key = "events",
 				Name = "EventsTab",
 				label = "Events",
@@ -1435,6 +2351,16 @@ local App = Rivue.defineComponent({
 				end,
 			}),
 			h(TabButton, {
+				key = "warnings",
+				Name = "WarningsTab",
+				label = "Warnings",
+				active = viewName == "warnings",
+				count = #ctx.warnings,
+				onSelect = function()
+					ctx.showView("warnings")
+				end,
+			}),
+			h(TabButton, {
 				key = "settings",
 				Name = "SettingsTab",
 				label = "⚙",
@@ -1445,8 +2371,12 @@ local App = Rivue.defineComponent({
 			}),
 		}
 
-		return h("Frame", { class = "panel", layout = { gap = 8 } }, {
-			h(Rivue.Row, { Name = "TabBar", class = "tabBar", gap = 2, align = "center" }, tabs),
+		return h("Frame", { class = "panel", layout = { gap = 8 }, onInputBegan = ctx.shortcut }, {
+			h("ScrollingFrame", {
+				Name = "TabBar",
+				class = "tabBar",
+				layout = { direction = "horizontal", gap = 2, align = "center" },
+			}, tabs),
 			h("Frame", { Name = "View", BackgroundTransparency = 1, Size = UDim2.new(1, 0, 1, -64) }, { content }),
 			h(Rivue.Row, { Name = "StatusBar", class = "statusBar", gap = 6, align = "center" }, {
 				h("TextLabel", {
@@ -1454,6 +2384,7 @@ local App = Rivue.defineComponent({
 					class = "statusText",
 					Text = `Rivue {Rivue.version} · {#ctx.entries} components{if ctx.paused then " · paused" else ""}`,
 				}),
+				h("TextLabel", { Name = "Message", class = "statusText", Text = ctx.statusMessage }),
 				h(Rivue.Spacer),
 				h("TextButton", {
 					Name = "Highlight",
@@ -1493,6 +2424,17 @@ return {
 	setPalette = setPalette,
 	resetCounts = resetCounts,
 	resolveSource = resolveSource,
+	warnings = warnings,
+	netEntries = netEntries,
+	netTotals = netTotals,
+	netState = netState,
+	perfRows = perfRows,
+	perfSlowest = perfSlowest,
+	recording = recording,
+	picking = picking,
+	pinned = pinned,
+	collapsed = collapsed,
+	exportSnapshot = exportSnapshot,
 	parseRoute = parseRoute,
 	setOpenScript = function(handler: ((script: LuaSourceContainer, line: number) -> ())?)
 		openScript = handler

@@ -11,6 +11,18 @@ Pre-release.
 - `Transition` takes `mode = "in-out"`, as in Vue: the new child enters first, then the old one leaves.
 - `TransitionGroup` takes `moveInfo`: items that change place slide there, including inside a `UIListLayout` or `UIGridLayout`, like Vue's move transition.
 
+## RivueDevTools
+
+- A **Perf** tab: record a session and see which components rendered most, for how long, and why, plus the slowest single updates.
+- A **Network** tab for RivueRemote: requests, sends, events and replicated state, with payload sizes, totals per action and failures.
+- A **Warnings** tab that collects Rivue warnings and errors and opens the component they came from.
+- **Pick**: select a GUI object in the Explorer, or click it in the game, to open its component.
+- Tree tools: expand and collapse all, Slow and Changed filters, pinned components, and folded branches and pins remembered between sessions.
+- Better state editing: booleans are toggles, tables open into editable fields, changed fields show their previous value, and values can be copied.
+- **Export** saves the tree and timeline to `ServerStorage.RivueSnapshot`.
+- Keyboard shortcuts: Ctrl+F, Up and Down, Enter and Esc.
+- Tables in props and state show their fields instead of `table`.
+
 ## Fixed
 
 - RivueUI: `onBeforeUpdate` ran after the render instead of before it, so state it changed cost an extra render. It now runs first, untracked, as in Vue.

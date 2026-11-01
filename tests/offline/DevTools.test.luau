@@ -7,6 +7,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Selection = game:GetService("Selection")
+local ServerStorage = game:GetService("ServerStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
 local DevTools = require(ReplicatedStorage:WaitForChild("RivueDevTools"):WaitForChild("App"))
 local Highlight = require(ReplicatedStorage:WaitForChild("RivueDevTools"):WaitForChild("Highlight"))
@@ -396,6 +397,138 @@ return function()
 	)
 	DevTools.setPalette(Theme.DARK)
 	Rivue.nextTick()
+
+	Rivue.testing.trigger(find(widget, "CollapseAll"), "onClick")
+	Rivue.nextTick()
+	assertEquals(#rows(widget), 1, "Collapse all folds the tree")
+	assertTrue(
+		table.find(Rivue.toRaw(DevTools.settings.collapsed), find(game, "Shop"):GetFullName()) ~= nil,
+		"and remembers it"
+	)
+	Rivue.testing.trigger(find(widget, "ExpandAll"), "onClick")
+	Rivue.nextTick()
+	assertEquals(#rows(widget), 2, "Expand all opens it again")
+
+	Rivue.testing.trigger(find(rows(widget)[2], "Pin"), "onClick")
+	Rivue.nextTick()
+	assertEquals(#rows(widget, "Pinned"), 1, "a pinned component is listed above the tree")
+	assertEquals(find(rows(widget, "Pinned")[1], "Label").Text, "<Wallet>", "with its row")
+	Rivue.testing.trigger(find(rows(widget, "Pinned")[1], "Pin"), "onClick")
+	Rivue.nextTick()
+	assertEquals(find(widget, "Pinned"), nil, "unpinning removes the list")
+
+	Rivue.testing.trigger(find(widget, "OnlySlow"), "onClick")
+	Rivue.nextTick()
+	assertEquals(#rows(widget), 0, "Slow keeps only slow components")
+	Rivue.testing.trigger(find(widget, "OnlySlow"), "onClick")
+	Rivue.nextTick()
+
+	local root = widget:FindFirstChild("RivueDevTools")
+	local function press(key: Enum.KeyCode)
+		Rivue.testing.trigger(root, "onInputBegan", { UserInputType = Enum.UserInputType.Keyboard, KeyCode = key })
+		Rivue.nextTick()
+	end
+	Rivue.testing.trigger(rows(widget)[2], "onClick")
+	Rivue.nextTick()
+	press(Enum.KeyCode.Escape)
+	assertEquals(DevTools.selected.value, nil, "Escape clears the selection")
+	press(Enum.KeyCode.Down)
+	assertEquals(DevTools.selected.value, find(game, "Shop"), "Down selects the first row")
+	press(Enum.KeyCode.Down)
+	assertEquals(DevTools.selected.value, find(game, "Wallet"), "and moves on")
+	press(Enum.KeyCode.Up)
+	assertEquals(DevTools.selected.value, find(game, "Shop"), "Up moves back")
+
+	press(Enum.KeyCode.Escape)
+	Rivue.testing.trigger(find(widget, "Pick"), "onClick")
+	Rivue.nextTick()
+	assertEquals(DevTools.picking.value, true, "Pick waits for a selection")
+	Selection:Set({ find(game, "Wallet") })
+	Rivue.nextTick()
+	assertEquals(DevTools.selected.value, find(game, "Wallet"), "selecting a GUI object picks its component")
+	assertEquals(DevTools.picking.value, false, "and ends picking")
+
+	coins.value = 20
+	waitRefresh()
+	coins.value = 21
+	waitRefresh()
+	local previous = find(find(widget, "coins"), "Previous")
+	assertTrue(previous ~= nil and previous.Text == "was 20", "a changed field shows its previous value")
+
+	local muted = Rivue.ref(false)
+	local bag = Rivue.ref({ gold = 1 })
+	local Prefs = Rivue.defineComponent({
+		name = "Prefs",
+		setup = function()
+			return { muted = muted, bag = bag }
+		end,
+		render = function()
+			return h("Frame")
+		end,
+	})
+	local prefsApp = Rivue.createApp(Prefs)
+	prefsApp.config.devtools = true
+	prefsApp:mount(game)
+	waitRefresh()
+	DevTools.selected.value = find(game, "Prefs")
+	Rivue.nextTick()
+	local mutedValue = find(find(widget, "muted"), "Value")
+	assertEquals(mutedValue.ClassName, "TextButton", "booleans get a toggle")
+	Rivue.testing.trigger(mutedValue, "onClick")
+	waitRefresh()
+	assertEquals(muted.value, true, "which flips the ref")
+	Rivue.testing.trigger(find(find(widget, "bag"), "Value"), "onClick")
+	Rivue.nextTick()
+	local gold = find(find(widget, "gold"), "Value")
+	assertEquals(gold.Text, "1", "a table opens into its fields")
+	gold.Text = "7"
+	Rivue.testing.trigger(gold, "onFocusLost", true)
+	waitRefresh()
+	assertEquals(bag.value.gold, 7, "and nested fields can be edited")
+	prefsApp:unmount()
+	waitRefresh()
+
+	Rivue.testing.trigger(find(widget, "PerformanceTab"), "onClick")
+	Rivue.nextTick()
+	Rivue.testing.trigger(find(widget, "Record"), "onClick")
+	Rivue.nextTick()
+	coins.value += 1
+	waitRefresh()
+	assertTrue(find(widget, "Row_Wallet") ~= nil, "recording lists the components that rendered")
+	assertTrue(
+		string.find(find(find(widget, "Row_Wallet"), "Detail").Text, "coins changed", 1, true) ~= nil,
+		"with why they rendered"
+	)
+	Rivue.testing.trigger(find(widget, "Record"), "onClick")
+	Rivue.nextTick()
+	assertEquals(DevTools.recording.value, false, "Stop ends the recording")
+
+	Rivue._devtools.event("request", "bag:sell", "ok · 24 B", 12)
+	Rivue._devtools.event("request", "bag:sell", "rate_limited · 24 B", 3)
+	Rivue._devtools.event("state", "round", 'v2 = "playing"')
+	Rivue.testing.trigger(find(widget, "NetworkTab"), "onClick")
+	Rivue.nextTick()
+	local total = find(widget, "Total_request:bag:sell")
+	assertTrue(total ~= nil, "requests are totalled per action")
+	assertTrue(string.find(find(total, "Detail").Text, "2× · 48 B", 1, true) ~= nil, "with their count and size")
+	assertTrue(string.find(find(total, "Detail").Text, "1 failed", 1, true) ~= nil, "and failures")
+	assertEquals(find(find(widget, "round"), "Value").Text, '"playing"  (v2)', "replicated state shows its value")
+
+	warn("[Rivue] Error in render of <Wallet> in <Shop>: boom")
+	Rivue.nextTick()
+	Rivue.testing.trigger(find(widget, "WarningsTab"), "onClick")
+	Rivue.nextTick()
+	local warningRows = rows(widget, "Warnings")
+	assertEquals(#warningRows, 1, "Rivue warnings are collected")
+	assertEquals(find(warningRows[1], "Label").Text, "<Wallet>", "with the component they came from")
+	DevTools.selected.value = nil
+	Rivue.testing.trigger(warningRows[1], "onClick")
+	Rivue.nextTick()
+	assertEquals(DevTools.selected.value, find(game, "Wallet"), "clicking one opens that component")
+
+	DevTools.exportSnapshot()
+	local snapshot = ServerStorage:FindFirstChild("RivueSnapshot")
+	assertTrue(snapshot ~= nil and string.find(snapshot.Source, '"Wallet"', 1, true) ~= nil, "Export writes a snapshot")
 
 	gameApp:unmount()
 	waitRefresh()
