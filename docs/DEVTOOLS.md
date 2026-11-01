@@ -5,7 +5,7 @@
 A Studio plugin for looking at your Rivue UI while you playtest. It shows which components
 rendered, how long that took and why, and lets you edit their state live.
 
-![The DevTools window: the component tree with sparklines and details, the Activity tab and the Perf tab](assets/diagrams/devtools-window.webp)
+![The DevTools window: the component tree with sparklines and details, and the Activity, Perf and Network tabs](assets/diagrams/devtools-window.webp)
 
 ## Install
 
