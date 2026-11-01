@@ -821,7 +821,7 @@ local function onEffectCleanup(fn: () -> (), failSilently: boolean?)
 	end
 end
 
-local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: WatchOptions?): WatchHandle
+local function watch<T>(source: WatchSource<T> | { [any]: any }, cb: WatchCallback<T>, opts: WatchOptions?): WatchHandle
 	local options: WatchOptions = opts or {}
 	local deepOption = options.deep
 	local deep = deepOption == true or (type(deepOption) == "number" and deepOption > 0)
@@ -839,7 +839,7 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 	elseif isReactive(source) then
 		deep = deepOption ~= false and deepOption ~= 0
 		getter = function(): T
-			return source :: T
+			return source :: any
 		end
 	elseif type(source) == "table" and isMultiSourceList(source) then
 		isMultiSource = true
@@ -858,7 +858,7 @@ local function watch<T>(source: WatchSource<T> | T, cb: WatchCallback<T>, opts: 
 		end
 	else
 		getter = function(): T
-			return source :: T
+			return source :: any
 		end
 	end
 
@@ -1220,7 +1220,7 @@ local function proxyRefs<T>(object: T): T
 	}) :: any
 end
 
-local function triggerListChange(raw: RawTable, first: number, last: number, lengthChanged: boolean)
+local function triggerListChange(raw: { [any]: any }, first: number, last: number, lengthChanged: boolean)
 	local deps = depMap[raw]
 	if not deps then
 		return

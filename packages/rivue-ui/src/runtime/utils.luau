@@ -18,6 +18,8 @@ local debugModule = require("./debug")
 
 local utils = {}
 
+local pack: (...any) -> { n: number, [number]: any } = table.pack :: any
+
 --- ms values below 1 are read as seconds
 local function toMilliseconds(ms: number): number
 	return if ms > 0 and ms < 1 then ms * 1000 else ms
@@ -33,10 +35,10 @@ function utils.debounce<A...>(fn: (A...) -> (), ms: number): (A...) -> Debounced
 			timer = nil
 		end
 	end
-	local handle: DebouncedHandle = table.freeze({ cancel = cancel })
+	local handle: DebouncedHandle = table.freeze({ cancel = cancel }) :: any
 
 	return function(...: A...): DebouncedHandle
-		local args = table.pack(...)
+		local args = pack(...)
 		cancel()
 		timer = task.delay(delayMs / 1000, function()
 			timer = nil
@@ -59,7 +61,7 @@ function utils.throttle<A...>(fn: (A...) -> (), ms: number): (A...) -> ()
 			pcall(fn, ...)
 			return
 		end
-		pendingArgs = table.pack(...)
+		pendingArgs = pack(...)
 		if not scheduled then
 			scheduled = true
 			task.delay((intervalMs - (now - last)) / 1000, function()
@@ -105,7 +107,8 @@ end
 
 --- Falls back to the original text if filtering fails
 function utils.filterForClient(player: Player, str: string): string
-	local ok, result = pcall(TextService.FilterStringAsync, TextService, str, player.UserId)
+	local ok, result =
+		pcall(TextService.FilterStringAsync, TextService, str, player.UserId, Enum.TextFilterContext.PrivateChat)
 	if not ok then
 		return str
 	end

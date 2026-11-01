@@ -46,7 +46,7 @@ export type App = {
 	use: (self: App, plugin: Plugin, ...any) -> App,
 	directive: (self: App, name: string, hooks: Types.Directive) -> App,
 	component: (self: App, name: string, def: ComponentDef) -> App,
-	styles: (self: App, styles: { [string]: Props }) -> App,
+	styles: (self: App, styles: { [string]: any }) -> App,
 	onUnmount: (self: App, fn: () -> ()) -> App,
 	runWithContext: <T>(self: App, fn: () -> T) -> T,
 	printTree: (self: App) -> string,

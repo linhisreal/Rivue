@@ -25,7 +25,7 @@ local isFlushingMicro: boolean = false
 local reentrancyDepth = 0
 const MAX_REENTRANCY_DEPTH = 100
 
-local NOOP_HANDLE: JobHandle = table.freeze({ cancel = function() end })
+local NOOP_HANDLE: JobHandle = table.freeze({ cancel = function() end }) :: any
 
 -- Roblox silently drops a task.defer nested over 80 deep, so past 60 we wait for Heartbeat
 const MAX_DEFER_DEPTH = 60

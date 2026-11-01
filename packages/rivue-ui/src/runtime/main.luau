@@ -108,7 +108,11 @@ local function trackForCleanup(handle: WatchHandle | Effect)
 	end
 end
 
-function Rivue.watch<T>(source: WatchSource<T> | T, callback: WatchCallback<T>, options: WatchOptions?): WatchHandle
+function Rivue.watch<T>(
+	source: WatchSource<T> | { [any]: any },
+	callback: WatchCallback<T>,
+	options: WatchOptions?
+): WatchHandle
 	local stopHandle = reactivity.watch(source, callback, options)
 	trackForCleanup(stopHandle)
 	return stopHandle
