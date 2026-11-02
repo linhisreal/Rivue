@@ -84,9 +84,9 @@ optional packages next to it.
 
 ```toml
 [dependencies]
-RivueUI = "linhisreal/rivue-ui@0.10.0-rc.1"
-RivueRemote = "linhisreal/rivue-remote@0.8.0-beta.1" # optional, client/server calls
-RivueRouter = "linhisreal/rivue-router@0.3.0-beta.1" # optional, screens and history
+RivueUI = "linhisreal/rivue-ui@0.10.0-rc.2"
+RivueRemote = "linhisreal/rivue-remote@0.8.0-beta.2" # optional, client/server calls
+RivueRouter = "linhisreal/rivue-router@0.3.0-beta.2" # optional, screens and history
 ```
 
 **pesde:** `pesde add linhisreal/rivue_ui`, plus `linhisreal/rivue_remote` or

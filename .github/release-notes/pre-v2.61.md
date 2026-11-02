@@ -2,9 +2,9 @@ Pre-release.
 
 | Package | Version | Stage |
 |---|---|---|
-| RivueUI | 0.10.0-rc.1 | release candidate |
-| RivueRemote | 0.8.0-beta.1 | beta |
-| RivueRouter | 0.3.0-beta.1 | beta |
+| RivueUI | 0.10.0-rc.2 | release candidate |
+| RivueRemote | 0.8.0-beta.2 | beta |
+| RivueRouter | 0.3.0-beta.2 | beta |
 
 ## RivueUI
 

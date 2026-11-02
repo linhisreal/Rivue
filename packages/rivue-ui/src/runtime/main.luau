@@ -346,7 +346,7 @@ Rivue.useGamepadFocus = robloxUtils.useGamepadFocus
 Rivue.useTween = robloxUtils.useTween
 Rivue.useSpring = robloxUtils.useSpring
 
-Rivue.version = "0.10.0-rc.1"
+Rivue.version = "0.10.0-rc.2"
 
 function Rivue.bind<T>(getter: () -> T): T
 	assert(type(getter) == "function", "Rivue.bind expects a function")
