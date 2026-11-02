@@ -17,8 +17,8 @@
   <a href="docs/README.md"><img src="docs/assets/badges/docs.webp" height="32" alt="Read the docs"></a>
 </p>
 
-Vue-style components and fine-grained reactivity for Roblox UI. Only components that read a
-changed value re-render, and only changed properties are written.
+Write Roblox UI as Vue components. When state changes, Rivue re-renders the components that use it
+and updates their Instances.
 
 ```lua
 local Rivue = require(game.ReplicatedStorage.RivueUI)
@@ -64,12 +64,16 @@ Differences from Vue are in the [cheat sheet](docs/VUE.md).
 
 ## Packages
 
-| | |
-|---|---|
-| RivueUI | the framework |
-| [RivueRemote](docs/api/remote.md) | client/server calls, events and replicated state |
-| [RivueRouter](docs/api/router.md) | screens, history and guards, after Vue Router 4 |
-| [RivueDevTools](docs/DEVTOOLS.md) | Studio plugin for inspecting components |
+<table>
+<tr><td width="72"><img src="docs/assets/packages/rivue-ui.webp" width="56" height="56" alt="RivueUI"></td>
+<td>RivueUI: the framework.</td></tr>
+<tr><td><img src="docs/assets/packages/rivue-remote.webp" width="56" height="56" alt="RivueRemote"></td>
+<td><a href="docs/api/remote.md">RivueRemote</a>: client/server calls, events and replicated state.</td></tr>
+<tr><td><img src="docs/assets/packages/rivue-router.webp" width="56" height="56" alt="RivueRouter"></td>
+<td><a href="docs/api/router.md">RivueRouter</a>: screens, history and guards, after Vue Router 4.</td></tr>
+<tr><td><img src="docs/assets/packages/rivue-devtools.webp" width="56" height="56" alt="RivueDevTools"></td>
+<td><a href="docs/DEVTOOLS.md">RivueDevTools</a>: a Studio plugin for inspecting components.</td></tr>
+</table>
 
 ## Installation
 
@@ -109,17 +113,12 @@ into each package. Releases: [docs/RELEASING.md](docs/RELEASING.md).
 <img src="docs/assets/license-lockup.webp" height="110" alt="Rivue License, based on PolyForm Noncommercial 1.0.0, with the games permission">
 </a>
 
-[PolyForm Noncommercial 1.0.0](LICENSE.md), with an extra permission for games. You can use, fork,
-port and change Rivue for noncommercial purposes, in closed or open source, as long as you keep the
-credit notice and the license. Games built with Rivue may make money from their players, you can be
-paid to build one, and you can sell a whole game to a new owner. What you can't do is make money
-from Rivue itself: selling it or a fork, a framework or UI kit made from it, copies of a game's
-project files, or paid services around it outside game work. Apps that only borrow game features
-don't count as games. Forks stay under the same license. [LICENSE](LICENSE.md) has the exact terms.
+[PolyForm Noncommercial 1.0.0](LICENSE.md) with a games permission:
 
-Credit Rivue in the game's public description, or in an in-game credits screen any player can open
-for free from the main menu or settings, for example:
+- Games made with Rivue can earn money, and you can be paid to build one or sell one.
+- You can't make money from Rivue itself: selling it, a fork, a UI kit made from it, a game's
+  project files, or paid services around it outside game work. Apps aren't games.
+- Keep the license and credit notice. Forks stay under the same license.
 
-```
-UI built with Rivue by linhisreal
-```
+Credit it in the game's description or an in-game credits screen any player can open, like
+`UI built with Rivue by linhisreal`. [LICENSE](LICENSE.md) has the exact terms.
