@@ -189,6 +189,8 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [on()](api/remote.md#remoteon) ·
 [send() / sendAll()](api/remote.md#remotesend-and-remotesendall) ·
 [use()](api/remote.md#remoteuse) ·
+[schema()](api/remote.md#remoteschema) ·
+[onSuspicious() / trap()](api/remote.md#remoteonsuspicious-and-remotetrap) ·
 [action()](api/remote.md#remoteaction) ·
 [state()](api/remote.md#remotestate) ·
 [useState()](api/remote.md#remoteusestate-getstate-and-onstate) ·

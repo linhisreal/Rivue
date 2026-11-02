@@ -16,6 +16,8 @@ and per-player rate limits. It's a separate package from Rivue, which only does 
 - [Remote.on()](#remoteon)
 - [Remote.send() and Remote.sendAll()](#remotesend-and-remotesendall)
 - [Remote.use()](#remoteuse)
+- [Remote.schema()](#remoteschema)
+- [Remote.onSuspicious() and Remote.trap()](#remoteonsuspicious-and-remotetrap)
 - [Remote.action()](#remoteaction)
 - [Remote.state()](#remotestate)
 - [Remote.useState(), getState() and onState()](#remoteusestate-getstate-and-onstate)
@@ -77,9 +79,7 @@ returns is sent back as the response.
   	return { ok = true }
   end, {
   	maxPerSecond = 5,
-  	check = function(payload)
-  		return type(payload) == "table" and type(payload.id) == "string"
-  	end,
+  	check = Remote.schema({ id = "string 1..32" }),
   })
   ```
 
@@ -92,9 +92,11 @@ returns is sent back as the response.
     [`configure()`](#remoteconfigure). Calls over either limit get `"rate_limited"`.
   - **Payloads come from the client.** Never trust them. `check` gets the payload before the
     handler does; if it returns anything but `true` (or errors), the client gets
-    `"invalid_payload"` and the handler doesn't run. `check` doesn't get the player, so put
-    permission checks in [`use()`](#remoteuse) or the handler. An Instance in a payload can be any
-    Instance the client sees, so check the player owns it.
+    `"invalid_payload"` and the handler doesn't run. [`schema()`](#remoteschema) builds one for
+    you. An Instance in a payload can be any Instance the client sees, so check the player owns
+    it.
+  - **Permissions.** `allow` gets the player and runs before the payload is even read. If it
+    returns anything but `true`, the client gets `"rejected"`. Use it for admin and dev actions.
   - **One at a time.** With `exclusive = true`, a player's second call to the action while the
     first is still running gets `"busy"`. Use it for handlers that yield between reading and
     writing data, like trades and purchases.
@@ -110,6 +112,7 @@ returns is sent back as the response.
   	options: {
   		maxPerSecond: number?,
   		check: ((payload: unknown) -> boolean)?,
+  		allow: ((player: Player) -> boolean)?,
   		exclusive: boolean?,
   	}?
   )
@@ -319,6 +322,91 @@ players, data that hasn't loaded yet, logging.
 
   ```lua
   function Remote.use(middleware: (player: Player, action: string, payload: unknown) -> boolean?): () -> ()
+  ```
+
+---
+
+## Remote.schema()
+
+Builds a `check` function from a description of the payload. Specs are compiled once, so checking
+is just a few comparisons.
+
+- **Example**
+
+  <!-- server -->
+  ```lua
+  Remote.handle("shop:buy", function(player, payload)
+  	return true
+  end, {
+  	check = Remote.schema({
+  		id = "string 1..32",
+  		amount = "integer 1..99",
+  		gift = "Player?",
+  		tags = { "string ..16" },
+  	}),
+  })
+  ```
+
+- **Details**
+
+  | Spec | Matches |
+  |---|---|
+  | `"string"`, `"number"`, `"integer"`, `"boolean"` | that type; `"integer"` must be whole |
+  | `"number 0..1"`, `"string 1..32"` | a range; for strings it's the length. Either end can be left out (`"..16"`) |
+  | `"Vector3"`, `"CFrame"`, `"EnumItem"`, ... | that Roblox datatype |
+  | `"Player"`, `"BasePart"`, ... | an Instance of that class (`IsA`) |
+  | `"any"` | anything but `nil` |
+  | `"string?"` | add `?` to allow `nil` |
+  | `{ field = spec }` | a table with exactly these fields; unknown fields fail |
+  | `{ spec }` | an array, with no holes, where every item matches |
+  | a function | your own check: return `true` to accept |
+
+  A bad spec errors when `schema()` is called, not when a request arrives.
+
+- **Type**
+
+  ```lua
+  function Remote.schema(spec: any): (payload: unknown) -> boolean
+  ```
+
+---
+
+## Remote.onSuspicious() and Remote.trap()
+
+`onSuspicious` tells the server when a player sends requests a normal client never would. `trap`
+adds a fake action your game never calls, so anyone who calls it was reading your code or spying
+on remotes.
+
+- **Example**
+
+  <!-- server -->
+  ```lua
+  Remote.trap("admin:giveCoins")
+
+  Remote.onSuspicious(function(player, reason, count)
+  	warn(`{player.Name}: {reason} x{count}`)
+  	if reason == "trap" then
+  		player:Kick()
+  	end
+  end)
+  ```
+
+- **Details**
+
+  - Reasons: `"malformed"`, `"unknown_action"`, `"rate_limited"`, `"forbidden"` (`allow`
+    refused), `"invalid_payload"`, `"trap"`, and the payload errors such as `"payload_bad_number"`.
+  - It's called at most once a second per player and reason. `count` is how many times it
+    happened since the last call.
+  - A trap answers `"unknown_action"`, like an action that doesn't exist.
+  - Lag or a buggy client can cause the odd `"rate_limited"` or `"invalid_payload"`, so act on
+    counts, not single reports. A trap call is never accidental.
+  - `onSuspicious` returns a function that removes the listener.
+
+- **Type**
+
+  ```lua
+  function Remote.onSuspicious(listener: (player: Player, reason: string, count: number) -> ()): () -> ()
+  function Remote.trap(action: string)
   ```
 
 ---
