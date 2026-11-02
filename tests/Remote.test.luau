@@ -56,19 +56,19 @@ local function runServerTests()
 				return true
 			end, { maxPerSecond = 2 })
 
-			local ok = process(player, { action = "test:echo", id = "1", payload = { value = 5 } })
-			assertTrue(ok ~= nil and ok.ok == true and ok.id == "1", "a handled request gets an ok reply")
+			local ok = process(player, { action = "test:echo", id = 1, payload = { value = 5 } })
+			assertTrue(ok ~= nil and ok.ok == true and ok.id == 1, "a handled request gets an ok reply")
 			assertEquals((ok :: any).data.value, 5, "with the handler's result")
 			assertTrue(seen == player, "the handler gets the player")
 
-			local failed = process(player, { action = "test:fail", id = "2" })
+			local failed = process(player, { action = "test:fail", id = 2 })
 			assertEquals((failed :: any).error, "handler_error", "a handler error becomes handler_error")
 			assertTrue(
 				not string.find(tostring((failed :: any).error), "secret", 1, true),
 				"without the server's error text"
 			)
 
-			local unsafe = process(player, { action = "test:echo", id = "3", payload = { f = print } })
+			local unsafe = process(player, { action = "test:echo", id = 3, payload = { f = print } })
 			assertEquals((unsafe :: any).error, "payload_unsafe_type", "functions in the payload are refused")
 
 			local deep = {}
@@ -77,7 +77,7 @@ local function runServerTests()
 				node.next = {}
 				node = node.next
 			end
-			local tooDeep = process(player, { action = "test:echo", id = "4", payload = deep })
+			local tooDeep = process(player, { action = "test:echo", id = 4, payload = deep })
 			assertEquals((tooDeep :: any).error, "payload_too_deep", "deeply nested payloads are refused")
 
 			assertEquals(
@@ -86,20 +86,20 @@ local function runServerTests()
 				"fire() without an id gets no reply"
 			)
 			assertEquals(process(player, "junk"), nil, "a request that isn't a table is ignored")
-			assertEquals(process(player, { action = 5, id = "5" }), nil, "a non-string action is ignored")
+			assertEquals(process(player, { action = 5, id = 5 }), nil, "a non-string action is ignored")
 
 			local results = {}
 			for i = 1, 3 do
-				local reply = process(player, { action = "test:limited", id = `l{i}` })
+				local reply = process(player, { action = "test:limited", id = 10 + i })
 				results[i] = if reply and reply.ok then "ok" else (reply :: any).error
 			end
 			assertEquals(table.concat(results, ","), "ok,ok,rate_limited", "maxPerSecond limits each player")
-			local other = process(Instance.new("Folder") :: any, { action = "test:limited", id = "o" })
+			local other = process(Instance.new("Folder") :: any, { action = "test:limited", id = 20 })
 			assertTrue(other ~= nil and other.ok == true, "other players have their own limit")
 
 			local replies = 0
 			for i = 1, 40 do
-				local reply = process(player, { action = "test:missing", id = `u{i}` })
+				local reply = process(player, { action = "test:missing", id = 100 + i })
 				if reply and reply.error == "unknown_action" then
 					replies += 1
 				end

@@ -153,7 +153,14 @@ local function validatePayload(payload: unknown): (boolean, string?, number)
 		local t = type(val)
 		if t == "string" then
 			size += #(val :: string) + 2
-		elseif t == "number" or t == "boolean" or t == "nil" then
+		elseif t == "number" then
+			local n = val :: number
+			if n ~= n or n == math.huge or n == -math.huge then
+				reason = "payload_bad_number"
+				return false
+			end
+			size += 8
+		elseif t == "boolean" or t == "nil" then
 			size += 8
 		elseif t == "table" then
 			size += 2
@@ -477,12 +484,15 @@ export type RequestHandler = (player: Player, payload: unknown) -> unknown
 export type HandleOptions = {
 	maxPerSecond: number?,
 	check: ((payload: unknown) -> boolean)?,
+	exclusive: boolean?,
 }
 
 --- Return false to reject the request with "rejected"
 export type Middleware = (player: Player, action: string, payload: unknown) -> boolean?
 
 const DEFAULT_MAX_PER_SECOND = 30
+const MAX_ACTION_LENGTH = 100
+const WARN_INTERVAL = 10
 
 type Bucket = { tokens: number, last: number }
 
@@ -498,6 +508,18 @@ local handlers: { [string]: RequestHandler } = {}
 local limits: { [string]: number } = {}
 local checks: { [string]: ((payload: unknown) -> boolean)? } = {}
 local middlewares: { Middleware } = {}
+local exclusive: { [string]: { [Player]: true } } = {}
+local lastWarned: { [string]: number } = {}
+
+local function warnThrottled(key: string, message: string)
+	local now = os.clock()
+	local last = lastWarned[key]
+	if last and now - last < WARN_INTERVAL then
+		return
+	end
+	lastWarned[key] = now
+	warn(message)
+end
 local buckets: { [Player]: { [unknown]: Bucket } } = {}
 local stats: { [string]: ActionStats } = {}
 
@@ -542,15 +564,12 @@ local function processRequest(player: Player, req: unknown): RemoteResponse?
 	end
 	local request = req :: { action: unknown, id: unknown, payload: unknown }
 	local action = request.action
-	if type(action) ~= "string" then
+	if type(action) ~= "string" or #action > MAX_ACTION_LENGTH then
 		return nil
 	end
 	local id = request.id
 	local function reply(ok: boolean, data: unknown?, err: string?): RemoteResponse?
-		local idType = type(id)
-		return if idType == "number" or idType == "string"
-			then { id = id :: any, ok = ok, data = data, error = err }
-			else nil
+		return if type(id) == "number" then { id = id :: any, ok = ok, data = data, error = err } else nil
 	end
 
 	local actionHandler = handlers[action]
@@ -591,7 +610,7 @@ local function processRequest(player: Player, req: unknown): RemoteResponse?
 	for _, middleware in table.clone(middlewares) do
 		local ran, allowed = pcall(middleware, player, action, payload)
 		if not ran then
-			warn(`[RivueRemote] Middleware failed on '{action}': {allowed}`)
+			warnThrottled(`middleware:{action}`, `[RivueRemote] Middleware failed on '{action}': {allowed}`)
 			entry.failed += 1
 			return reply(false, nil, "handler_error")
 		elseif allowed == false then
@@ -607,9 +626,19 @@ local function processRequest(player: Player, req: unknown): RemoteResponse?
 		end
 	end
 
+	local running = exclusive[action]
+	if running then
+		if running[player] then
+			return refuse("busy")
+		end
+		running[player] = true
+	end
 	local started = os.clock()
 	local ok, result = pcall(actionHandler, player, payload)
 	local elapsed = os.clock() - started
+	if running then
+		running[player] = nil
+	end
 	entry.calls += 1
 	entry.totalTime += elapsed
 	if elapsed > entry.maxTime then
@@ -617,7 +646,7 @@ local function processRequest(player: Player, req: unknown): RemoteResponse?
 	end
 	if not ok then
 		-- The client only learns that it failed, the error stays in the server log
-		warn(`[RivueRemote] Remote handler '{action}' failed: {result}`)
+		warnThrottled(`handler:{action}`, `[RivueRemote] Remote handler '{action}' failed: {result}`)
 		entry.failed += 1
 		return reply(false, nil, "handler_error")
 	end
@@ -647,17 +676,26 @@ function Remote.setupServer(): ()
 	getUnreliableEvent()
 end
 
-function Remote.handle(actionName: string, handler: RequestHandler, opts: HandleOptions?): ()
+local function register(actionName: string, handler: RequestHandler, opts: HandleOptions?)
 	assert(RunService:IsServer(), "Remote.handle() must be called on the server")
+	assert(#actionName <= MAX_ACTION_LENGTH, `[RivueRemote] Action names are limited to {MAX_ACTION_LENGTH} characters`)
 	handlers[actionName] = handler
 	limits[actionName] = if opts and opts.maxPerSecond then opts.maxPerSecond else DEFAULT_MAX_PER_SECOND
 	checks[actionName] = if opts then opts.check else nil
+	if opts and opts.exclusive then
+		exclusive[actionName] = {}
+	else
+		exclusive[actionName] = nil
+	end
 	if serverConn then
 		return
 	end
 
 	Players.PlayerRemoving:Connect(function(player)
 		buckets[player] = nil
+		for _, running in exclusive do
+			running[player] = nil
+		end
 	end)
 
 	local resEv = getResponseEvent()
@@ -667,6 +705,11 @@ function Remote.handle(actionName: string, handler: RequestHandler, opts: Handle
 			resEv:FireClient(player, response)
 		end
 	end)
+end
+
+function Remote.handle(actionName: string, handler: RequestHandler, opts: HandleOptions?): ()
+	assert(string.sub(actionName, 1, 7) ~= "__rivue", `[RivueRemote] '{actionName}' is reserved for RivueRemote`)
+	register(actionName, handler, opts)
 end
 
 --- Runs before every handler, after the rate limit and payload checks. Returns a remover
@@ -730,7 +773,7 @@ function Remote.state<T>(name: string, initial: T): State<T>
 	serverStates[name] = state
 
 	if not handlers[STATE_SYNC] then
-		Remote.handle(STATE_SYNC, function(player)
+		register(STATE_SYNC, function(player)
 			local snapshot = {}
 			for stateName, entry in serverStates do
 				snapshot[stateName] = { value = effectiveValue(entry, player), version = entry.version }

@@ -92,7 +92,14 @@ returns is sent back as the response.
     [`configure()`](#remoteconfigure). Calls over either limit get `"rate_limited"`.
   - **Payloads come from the client.** Never trust them. `check` gets the payload before the
     handler does; if it returns anything but `true` (or errors), the client gets
-    `"invalid_payload"` and the handler doesn't run.
+    `"invalid_payload"` and the handler doesn't run. `check` doesn't get the player, so put
+    permission checks in [`use()`](#remoteuse) or the handler. An Instance in a payload can be any
+    Instance the client sees, so check the player owns it.
+  - **One at a time.** With `exclusive = true`, a player's second call to the action while the
+    first is still running gets `"busy"`. Use it for handlers that yield between reading and
+    writing data, like trades and purchases.
+  - **Logs.** Handler and middleware errors are warned at most once every 10 seconds per action.
+  - Names starting with `__rivue` are reserved.
 
 - **Type**
 
@@ -103,6 +110,7 @@ returns is sent back as the response.
   	options: {
   		maxPerSecond: number?,
   		check: ((payload: unknown) -> boolean)?,
+  		exclusive: boolean?,
   	}?
   )
   ```
@@ -580,7 +588,7 @@ Counts per action on the server, for finding slow or failing handlers in a live 
   ```
 
 - **Payloads** can contain:
-  - strings, numbers and booleans,
+  - strings, numbers (not NaN or infinity) and booleans,
   - tables up to 10 levels deep, and about 20 KB in total (both can be changed with
     [`configure()`](#remoteconfigure)),
   - Instances,
@@ -598,6 +606,8 @@ Counts per action on the server, for finding slow or failing handlers in a live 
   | `"rejected"` | A [`use()`](#remoteuse) function returned `false` |
   | `"invalid_payload"` | The action's `check` didn't return `true` |
   | `"handler_error"` | The server handler errored |
+  | `"busy"` | The action is `exclusive` and this player's last call hasn't finished |
+  | `"payload_bad_number"` | The payload contains NaN or infinity |
   | `"invalid_action_name"` | Not a non-empty string of at most 100 characters |
   | `"payload_unsafe_type"` | The payload contains something RemoteEvents can't send |
   | `"payload_too_large"` / `"payload_too_deep"` | Over the size or nesting limit |

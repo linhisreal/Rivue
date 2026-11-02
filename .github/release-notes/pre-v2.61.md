@@ -41,6 +41,12 @@ Pre-release.
 - RivueUI: `array.sort` with a comparator that errored left the list half sorted, without updating the UI. The list now stays as it was.
 - RivueUI: in strict mode, the old type solver rejected a `setup()` that returns a table, like `return { count = count }`.
 - RivueUI: Luau's new type solver, which Studio uses, rejected typed child lists like `{ VNode }`, `watch()` with a getter and an options table, and an `app:styles()` table from another module. Rivue's own source now type checks cleanly with both solvers.
+- RivueUI: `utils.filterForClient` returned the unfiltered text when filtering failed. It now returns `""`.
+- RivueRemote: payloads with NaN or infinity were accepted. They're now refused with `"payload_bad_number"`.
+- RivueRemote: requests with a non-number id or an over-long action name were still processed and answered. They're now dropped.
+- RivueRemote: `handle("__rivueStateSync", ...)` replaced the internal state sync handler. Names starting with `__rivue` are now reserved.
+- RivueRemote: a client spamming an erroring action flooded the server log. Errors now warn at most once every 10 seconds per action.
+- RivueRemote: new `exclusive` option for `handle()`. A player's second call while the first is running gets `"busy"`, which stops duplicate purchases and trades from overlapping calls.
 
 ## Install
 
