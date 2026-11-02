@@ -563,6 +563,10 @@ return function()
 	assertEquals(#rows(widget), 0, "unmounted components disappear")
 	assertEquals(find(widget, "Title").Text, "No components yet", "and an empty state explains why")
 
+	local fields = DevTools.tableFields('{ note = "a \\", b = {", gold = 5 }')
+	assertEquals(#fields, 2, "an escaped quote inside a string doesn't split a table's fields")
+	assertEquals(fields[2] and fields[2].key, "gold", "so later fields keep their keys")
+
 	devApp:unmount()
 	stop()
 	Highlight.setParent(nil)

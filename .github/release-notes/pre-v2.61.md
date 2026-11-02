@@ -48,6 +48,8 @@ Pre-release.
 - RivueUI: in strict mode, the old type solver rejected a `setup()` that returns a table, like `return { count = count }`.
 - RivueUI: Luau's new type solver, which Studio uses, rejected typed child lists like `{ VNode }`, `watch()` with a getter and an options table, and an `app:styles()` table from another module. Rivue's own source now type checks cleanly with both solvers.
 - RivueUI: `utils.filterForClient` returned the unfiltered text when filtering failed. It now returns `""`.
+- RivueRemote: a second `getState()` while the first was still loading returned `nil`. It now waits for the same load. A failed load also no longer adds a second state listener when it retries.
+- RivueDevTools: a string ref with a quote or a newline broke its line in the state list and the fields after it. Strings are now escaped, and edits turn the escapes back into characters.
 - RivueRemote: payloads with NaN or infinity were accepted. They're now refused with `"payload_bad_number"`.
 - RivueRemote: requests with a non-number id or an over-long action name were still processed and answered. They're now dropped.
 - RivueRemote: `handle("__rivueStateSync", ...)` replaced the internal state sync handler. Names starting with `__rivue` are now reserved.

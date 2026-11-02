@@ -883,14 +883,18 @@ local function tableFields(text: string): { { key: string, value: string } }
 	if not inner then
 		return fields
 	end
-	local depth, quoted, start = 0, false, 1
+	local depth, quoted, escaped, start = 0, false, false, 1
 	local function push(piece: string)
 		local key, value = splitPair(piece)
 		table.insert(fields, { key = key, value = value })
 	end
 	for i = 1, #inner do
 		local c = string.sub(inner, i, i)
-		if c == '"' then
+		if escaped then
+			escaped = false
+		elseif quoted and c == "\\" then
+			escaped = true
+		elseif c == '"' then
 			quoted = not quoted
 		elseif not quoted and c == "{" then
 			depth += 1
