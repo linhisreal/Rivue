@@ -159,8 +159,7 @@ local function runTests()
 
 	print("Test 6: Roblox datatypes are allowed in payloads")
 	do
-		local position = newproxy(true)
-		getmetatable(position).__rbxtype = "Vector3"
+		local position = Vector3.new(1, 2, 3)
 		local result, err = Remote.request("echoType", { position = position }, 1)
 		assertEquals(err, nil, "Vector3 payload isn't rejected")
 		assertEquals(result, "Vector3", "Server receives it")
@@ -622,6 +621,51 @@ local function runTests()
 				`{name} has a server listener, so client fires are dropped instead of queued`
 			)
 		end
+	end
+
+	print("Test 20: datatypes can't smuggle NaN, and one player can't park endless handlers")
+	do
+		task.wait(1.1)
+		local smuggled = {
+			Vector3.new(0 / 0, 0, 0),
+			Vector2.new(math.huge, 0),
+			UDim2.new(0, -math.huge, 0, 0),
+			Color3.new(0 / 0, 0, 0),
+		}
+		for _, value in smuggled do
+			local response = Remote._processRequest(
+				game:GetService("Players").LocalPlayer,
+				{ action = "double", id = 1, payload = { at = value } }
+			)
+			assertEquals(
+				response and response.error,
+				"payload_bad_number",
+				`a {typeof(value)} holding NaN or infinity is refused`
+			)
+		end
+		local plain = Remote._processRequest(
+			game:GetService("Players").LocalPlayer,
+			{ action = "double", id = 2, payload = { n = 2, at = Vector3.new(1, 2, 3) } }
+		)
+		assertEquals(plain and plain.data, 4, "ordinary datatypes still pass")
+
+		local inFlight, most = 0, 0
+		asServer(function()
+			Remote.handle("slowSave", function()
+				inFlight += 1
+				most = math.max(most, inFlight)
+				task.wait(0.3)
+				inFlight -= 1
+				return true
+			end, { maxPerSecond = 0 })
+		end)
+		local folder = ReplicatedStorage:WaitForChild("RemoteEvents")
+		local requestEvent = folder:WaitForChild("Request") :: RemoteEvent
+		for i = 1, 40 do
+			task.spawn(requestEvent.FireServer, requestEvent, { action = "slowSave", id = 4000 + i, payload = {} })
+		end
+		task.wait(0.5)
+		assertTrue(most <= 10, `a player can only have a few handlers running at once (got {most})`)
 	end
 
 	print("\n========== REMOTE SERVER TESTS COMPLETE ==========\n")

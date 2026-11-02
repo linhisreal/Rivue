@@ -49,6 +49,8 @@ Pre-release.
 - RivueRemote: a client spamming requests got a `"rate_limited"` reply for every one, so the server sent as much as it received. Refusals are now answered at most 30 times a second per player.
 - RivueRemote: payloads that failed validation didn't count toward the byte budget, so a client could make the server scan large payloads for free. They now count.
 - RivueRemote: the server had no listener on the `Response`, `Events` and `UnreliableEvents` remotes, so client fires to them were queued. They're now dropped.
+- RivueRemote: NaN or infinity inside a Vector3, CFrame, UDim2 or other datatype got past the payload check. It's now refused like a plain NaN.
+- RivueRemote: one player could keep any number of yielding handlers running at once, for example to use up the server's DataStore budget. It's now capped at 10 per player (`maxConcurrentRequests`).
 - RivueRemote: new `exclusive` option for `handle()`. A player's second call while the first is running gets `"busy"`, which stops duplicate purchases and trades from overlapping calls.
 
 ## Install

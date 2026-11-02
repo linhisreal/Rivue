@@ -105,6 +105,7 @@ export type Config = {
 	maxPayloadDepth: number?,
 	maxRequestsPerSecond: number?,
 	maxBytesPerSecond: number?,
+	maxConcurrentRequests: number?,
 }
 
 local settings = {
@@ -112,6 +113,7 @@ local settings = {
 	maxPayloadDepth = 10,
 	maxRequestsPerSecond = 60,
 	maxBytesPerSecond = 50000,
+	maxConcurrentRequests = 10,
 }
 
 --- Call it with the same values on the server and the client, from a shared module
@@ -139,6 +141,40 @@ const SAFE_DATATYPES: { [string]: boolean } = table.freeze({
 	DateTime = true,
 }) :: any
 
+local function isFinite(n: number): boolean
+	return n == n and n ~= math.huge and n ~= -math.huge
+end
+
+-- Datatypes are userdata, so NaN inside a Vector3 or CFrame would skip the number check
+local function finiteComponents(value: any, kind: string): boolean
+	local parts: { number }
+	if kind == "Vector2" then
+		parts = { value.X, value.Y }
+	elseif kind == "Vector3" then
+		parts = { value.X, value.Y, value.Z }
+	elseif kind == "CFrame" then
+		parts = { value:GetComponents() }
+	elseif kind == "Color3" then
+		parts = { value.R, value.G, value.B }
+	elseif kind == "UDim" then
+		parts = { value.Scale, value.Offset }
+	elseif kind == "UDim2" then
+		parts = { value.X.Scale, value.X.Offset, value.Y.Scale, value.Y.Offset }
+	elseif kind == "NumberRange" then
+		parts = { value.Min, value.Max }
+	elseif kind == "Rect" then
+		parts = { value.Min.X, value.Min.Y, value.Max.X, value.Max.Y }
+	else
+		return true
+	end
+	for _, n in parts do
+		if not isFinite(n) then
+			return false
+		end
+	end
+	return true
+end
+
 local function validatePayload(payload: unknown): (boolean, string?, number)
 	local size = 0
 	local reason: string? = nil
@@ -150,12 +186,11 @@ local function validatePayload(payload: unknown): (boolean, string?, number)
 			reason = "payload_too_deep"
 			return false
 		end
-		local t = type(val)
+		local t = typeof(val)
 		if t == "string" then
 			size += #(val :: string) + 2
 		elseif t == "number" then
-			local n = val :: number
-			if n ~= n or n == math.huge or n == -math.huge then
+			if not isFinite(val :: number) then
 				reason = "payload_bad_number"
 				return false
 			end
@@ -169,7 +204,11 @@ local function validatePayload(payload: unknown): (boolean, string?, number)
 					return false
 				end
 			end
-		elseif SAFE_DATATYPES[typeof(val)] then
+		elseif SAFE_DATATYPES[t] then
+			if not finiteComponents(val, t) then
+				reason = "payload_bad_number"
+				return false
+			end
 			size += 16
 		else
 			reason = "payload_unsafe_type"
@@ -509,6 +548,7 @@ local limits: { [string]: number } = {}
 local checks: { [string]: ((payload: unknown) -> boolean)? } = {}
 local middlewares: { Middleware } = {}
 local exclusive: { [string]: { [Player]: true } } = {}
+local inFlight: { [Player]: number } = {}
 local lastWarned: { [string]: number } = {}
 
 local function warnThrottled(key: string, message: string)
@@ -628,10 +668,17 @@ local function processRequest(player: Player, req: unknown): RemoteResponse?
 	end
 
 	local running = exclusive[action]
+	if running and running[player] then
+		return refuse("busy")
+	end
+	-- Handlers can yield, so without a cap one player could keep hundreds waiting on DataStores
+	local concurrent = inFlight[player] or 0
+	local maxConcurrent = settings.maxConcurrentRequests
+	if maxConcurrent > 0 and concurrent >= maxConcurrent then
+		return refuse("busy")
+	end
+	inFlight[player] = concurrent + 1
 	if running then
-		if running[player] then
-			return refuse("busy")
-		end
 		running[player] = true
 	end
 	local started = os.clock()
@@ -639,6 +686,12 @@ local function processRequest(player: Player, req: unknown): RemoteResponse?
 	local elapsed = os.clock() - started
 	if running then
 		running[player] = nil
+	end
+	local left = (inFlight[player] or 1) - 1
+	if left > 0 then
+		inFlight[player] = left
+	else
+		inFlight[player] = nil
 	end
 	entry.calls += 1
 	entry.totalTime += elapsed
@@ -703,6 +756,7 @@ local function register(actionName: string, handler: RequestHandler, opts: Handl
 
 	Players.PlayerRemoving:Connect(function(player)
 		buckets[player] = nil
+		inFlight[player] = nil
 		for _, running in exclusive do
 			running[player] = nil
 		end

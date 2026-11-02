@@ -512,8 +512,9 @@ payloads against the same limits the server does.
   | `maxPayloadDepth` | 10 | how deep tables can nest |
   | `maxRequestsPerSecond` | 60 | requests one player can send per second, all actions together |
   | `maxBytesPerSecond` | 50000 | payload bytes one player can send per second, all actions together |
+  | `maxConcurrentRequests` | 10 | handlers one player can have running at once; more get `"busy"` |
 
-  `0` turns off `maxRequestsPerSecond` or `maxBytesPerSecond`. Without the totals, a client could
+  `0` turns off `maxRequestsPerSecond`, `maxBytesPerSecond` or `maxConcurrentRequests`. Without the totals, a client could
   spread its spam across every action and stay under each action's own `maxPerSecond`. An unknown
   setting errors.
 
@@ -525,6 +526,7 @@ payloads against the same limits the server does.
   	maxPayloadDepth: number?,
   	maxRequestsPerSecond: number?,
   	maxBytesPerSecond: number?,
+  	maxConcurrentRequests: number?,
   })
   ```
 
@@ -592,7 +594,8 @@ Counts per action on the server, for finding slow or failing handlers in a live 
   - tables up to 10 levels deep, and about 20 KB in total (both can be changed with
     [`configure()`](#remoteconfigure)),
   - Instances,
-  - Roblox datatypes such as Vector3, CFrame, Color3, UDim2 and EnumItem.
+  - Roblox datatypes such as Vector3, CFrame, Color3, UDim2 and EnumItem, also without NaN or
+    infinity.
 
   Functions and threads are rejected before anything is sent.
 
@@ -609,8 +612,8 @@ Counts per action on the server, for finding slow or failing handlers in a live 
   | `"rejected"` | A [`use()`](#remoteuse) function returned `false` |
   | `"invalid_payload"` | The action's `check` didn't return `true` |
   | `"handler_error"` | The server handler errored |
-  | `"busy"` | The action is `exclusive` and this player's last call hasn't finished |
-  | `"payload_bad_number"` | The payload contains NaN or infinity |
+  | `"busy"` | The action is `exclusive` and this player's last call hasn't finished, or the player has `maxConcurrentRequests` handlers running |
+  | `"payload_bad_number"` | The payload contains NaN or infinity, including inside a datatype |
   | `"invalid_action_name"` | Not a non-empty string of at most 100 characters |
   | `"payload_unsafe_type"` | The payload contains something RemoteEvents can't send |
   | `"payload_too_large"` / `"payload_too_deep"` | Over the size or nesting limit |
