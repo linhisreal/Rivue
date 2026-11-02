@@ -17,10 +17,8 @@
   <a href="docs/README.md"><img src="docs/assets/badges/docs.webp" height="32" alt="Read the docs"></a>
 </p>
 
-Rivue lets you describe a Roblox UI as components, the way Vue does on the web. You write what the
-screen should show for the current state, and Rivue updates the Instances when that state changes.
-Only the components that read a changed value re-render, and only the properties that changed are
-written.
+Vue-style components and fine-grained reactivity for Roblox UI. Only components that read a
+changed value re-render, and only changed properties are written.
 
 ```lua
 local Rivue = require(game.ReplicatedStorage.RivueUI)
@@ -49,131 +47,61 @@ local Counter = Rivue.defineComponent({
 Rivue.createApp(Counter):mountToPlayerGui(game.Players.LocalPlayer)
 ```
 
-[TodoList](examples/components/TodoList.luau) is a bigger example, with a text box, a keyed list
-and styles. The rest are in [examples](examples).
-
-Rivue runs in LocalScripts. It's still young, so the API can change between releases.
-
-## Why Rivue
-
-Most of it will look familiar if you know Vue: `ref`, `computed`, `watch`, and components with
-props, emits, slots and provide/inject. The [cheat sheet](docs/VUE.md) lists where Rivue differs.
-
-Updates are tracked per value. When a parent re-renders, a child only re-renders if its props
-changed, and you get that without `memo`.
-
-It's built around Roblox UI. Colours and fonts go in style classes, the `layout` and `flex` props
-replace most UIListLayout setup, and tweens, springs, `Transition` and `VirtualList` are included.
+More in [examples](examples). Runs in LocalScripts. The API can still change between releases.
 
 ## Features
 
 | | |
 |---|---|
-| Reactivity | `ref`, `reactive`, `computed`, `watch`, `watchEffect`, effect scopes, readonly and shallow variants |
-| Components | `setup` + `render(ctx)`, validated props, emits, slots, provide/inject, every lifecycle hook |
-| Styling | style classes per app or component; `layout`, `flex`, `cornerRadius`, `padding`, `stroke` props |
-| Performance | keyed diffing, batched parent-first updates, `Rivue.bind` for properties that change every frame, `memo`, optional Instance pool |
-| Built-ins | `Transition` with fade/slide/pop presets, `TransitionGroup`, `KeepAlive`, `Teleport`, `Suspense`, `VirtualList`, `Dialog`, `ErrorBoundary`, `Row`/`Column`/`Spacer`, `useAsync` |
-| Roblox | tweens, springs, viewport and input-type composables, gamepad selection, attribute refs, tags |
-| Studio | warnings that name the component chain, roots named after components, `app:printTree()`, a DevTools plugin, `testing.render` for tests |
-| Types | strict Luau with exported types like `Rivue.Ref<T>` and `Rivue.VNode` |
+| Reactivity | `ref`, `reactive`, `computed`, `watch`, `watchEffect`, effect scopes, readonly/shallow variants |
+| Components | `setup` + `render(ctx)`, props, emits, slots, provide/inject, all lifecycle hooks |
+| Styling | style classes; `layout`, `flex`, `cornerRadius`, `padding`, `stroke` props |
+| Built-ins | `Transition`, `TransitionGroup`, `KeepAlive`, `Teleport`, `Suspense`, `VirtualList`, `Dialog`, `ErrorBoundary`, `Row`/`Column`/`Spacer` |
+| Roblox | tweens, springs, viewport/input composables, gamepad selection, attribute refs |
+| Tooling | strict types, a DevTools plugin, `testing.render` |
+
+Differences from Vue are in the [cheat sheet](docs/VUE.md).
 
 ## Packages
 
-RivueUI is the framework, and everything above is part of it. The other packages are optional and
-have their own versions, like Vue Router next to Vue.
-
-<table>
-<tr>
-<td width="72"><img src="docs/assets/packages/rivue-ui.webp" width="56" height="56" alt="RivueUI"></td>
-<td>RivueUI: components, state, styling, layout and the built-in components.</td>
-</tr>
-<tr>
-<td><img src="docs/assets/packages/rivue-remote.webp" width="56" height="56" alt="RivueRemote"></td>
-<td><a href="docs/api/remote.md">RivueRemote</a>: client/server calls and events over RemoteEvents,
-with payload checks and per-player rate limits.</td>
-</tr>
-<tr>
-<td><img src="docs/assets/packages/rivue-router.webp" width="56" height="56" alt="RivueRouter"></td>
-<td><a href="docs/api/router.md">RivueRouter</a>: screens with history, guards and nested routes,
-following Vue Router 4.</td>
-</tr>
-<tr>
-<td><img src="docs/assets/packages/rivue-devtools.webp" width="56" height="56" alt="RivueDevTools"></td>
-<td><a href="docs/DEVTOOLS.md">RivueDevTools</a>: a Studio plugin that shows each component's
-props, state and renders during a playtest.</td>
-</tr>
-</table>
+| | |
+|---|---|
+| RivueUI | the framework |
+| [RivueRemote](docs/api/remote.md) | client/server calls, events and replicated state |
+| [RivueRouter](docs/api/router.md) | screens, history and guards, after Vue Router 4 |
+| [RivueDevTools](docs/DEVTOOLS.md) | Studio plugin for inspecting components |
 
 ## Installation
 
-Rivue is a ModuleScript with a `runtime` folder inside, and it goes in `ReplicatedStorage`. Install
-it the same way as your other packages.
-
-With Wally, add it to `wally.toml` and run `wally install`:
-
 ```toml
+# wally.toml
 [dependencies]
 RivueUI = "linhisreal/rivue-ui@0.10.0-rc.1"
-RivueRemote = "linhisreal/rivue-remote@0.8.0-beta.1" # optional, for client/server calls
-RivueRouter = "linhisreal/rivue-router@0.3.0-beta.1" # optional, for screens and back/forward
+RivueRemote = "linhisreal/rivue-remote@0.8.0-beta.1" # optional
+RivueRouter = "linhisreal/rivue-router@0.3.0-beta.1" # optional
 ```
 
-With pesde, run `pesde add linhisreal/rivue_ui`, plus `linhisreal/rivue_remote` or
-`linhisreal/rivue_router` if you want them.
-
-With Rojo, add this repo as a git submodule and point your project at the package:
-
-```json
-"ReplicatedStorage": {
-  "RivueUI": { "$path": "vendor/Rivue/packages/rivue-ui" }
-}
-```
-
-Without Rojo, download `RivueUI.rbxm` from the latest release on the repo's Releases page and drag
-it into `ReplicatedStorage`. The release also has `RivueUI.min.rbxm` (the same code without
-comments), and `RivueRemote.rbxm` and `RivueRouter.rbxm`, which go next to it.
+pesde: `pesde add linhisreal/rivue_ui` (and `rivue_remote`, `rivue_router`). Or grab the `.rbxm`
+files from the latest release and put them in `ReplicatedStorage`.
 
 ## Docs
 
-The [docs home](docs/README.md) has an "I want to…" table that points to the right page.
-
-[Guide](docs/GUIDE.md) · [Examples](examples) · [API reference](docs/API.md) ·
-[Coming from Vue](docs/VUE.md) ·
-[Coming from React-lua or Fusion](docs/COMING-FROM-REACT.md) · [DevTools](docs/DEVTOOLS.md) ·
+[Docs home](docs/README.md) · [Guide](docs/GUIDE.md) · [API](docs/API.md) ·
+[Coming from Vue](docs/VUE.md) · [Coming from React-lua or Fusion](docs/COMING-FROM-REACT.md) ·
 [Architecture](docs/ARCHITECTURE.md)
 
 ## Contributing
 
-Tools are pinned in `rokit.toml` ([Rokit](https://github.com/rojo-rbx/rokit)):
-
 ```sh
 rokit install
-lune setup                        # editor types for the Lune scripts
-lune run test                     # all suites, without Studio
-lune run check-docs               # links resolve and every API example runs
-lune run build                    # the packages and the dev place, into build/
-lune run version rivue-ui 0.9.0-rc.3 # bump one package
-lune run license                  # copy LICENSE.md into every package after editing it
-rojo serve                        # the dev place in Studio
+lune run test         # all suites, offline
+lune run check-docs   # links and API examples
+lune run build        # packages and the dev place into build/
+rojo serve            # the dev place in Studio
 ```
 
-CI runs StyLua and luau-lsp, checks the packages for Wally and pesde, and runs every test suite a
-second time inside a real Roblox server. How releases and publishing work is in
-[docs/RELEASING.md](docs/RELEASING.md).
-
-```
-packages/rivue-ui/         the UI framework                 Wally, pesde, RivueUI.rbxm
-packages/rivue-remote/     client/server calls              Wally, pesde, RivueRemote.rbxm
-packages/rivue-router/     screens and history              Wally, pesde, RivueRouter.rbxm
-packages/rivue-devtools/   Studio plugin                    RivueDevTools.rbxm
-dev/                       the dev place: test runner, demo app, examples, stress test
-examples/                  example components, tested in tests/Examples.test.luau
-tests/                     test suites; tests/offline is the Lune harness
-docs/                      the Guide, API reference and docs site
-default.project.json       the dev place (rojo serve)
-pesde.toml                 the pesde workspace
-```
+`lune run version <package> <version>` bumps a package, and `lune run license` copies LICENSE.md
+into each package. Releases: [docs/RELEASING.md](docs/RELEASING.md).
 
 ## License
 
