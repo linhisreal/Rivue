@@ -241,6 +241,7 @@ it does something unexpected, and examples. To learn Rivue step by step, start w
 
 **[Utilities and debugging](api/utilities.md)**
 [Rivue.dev](api/utilities.md#rivuedev) ·
+[Rivue.version](api/utilities.md#rivueversion) ·
 [printTree()](api/utilities.md#printtree) ·
 [debug.enabled](api/utilities.md#debugenabled) ·
 [inspect()](api/utilities.md#inspect) ·

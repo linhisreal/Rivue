@@ -1,7 +1,7 @@
 [package]
 name = "linhisreal/rivue-remote"
 description = "Client/server requests and events over RemoteEvents, with rate limits. Companion to Rivue"
-version = "0.8.0-beta.1"
+version = "0.8.0-beta.2"
 license = "LicenseRef-Rivue"
 authors = ["linhisreal"]
 realm = "shared"

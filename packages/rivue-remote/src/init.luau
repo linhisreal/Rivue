@@ -23,7 +23,7 @@ local Players = game:GetService("Players")
 
 local Remote = {}
 
-Remote.version = "0.8.0-beta.1"
+Remote.version = "0.8.0-beta.2"
 Remote.__index = Remote
 
 local rivue: any = nil

@@ -1,7 +1,7 @@
 [package]
 name = "linhisreal/rivue-ui"
 description = "Vue 3's component model for Roblox UI, in Luau"
-version = "0.10.0-rc.1"
+version = "0.10.0-rc.2"
 license = "LicenseRef-Rivue"
 authors = ["linhisreal"]
 realm = "shared"
