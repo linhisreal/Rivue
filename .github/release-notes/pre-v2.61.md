@@ -46,6 +46,9 @@ Pre-release.
 - RivueRemote: requests with a non-number id or an over-long action name were still processed and answered. They're now dropped.
 - RivueRemote: `handle("__rivueStateSync", ...)` replaced the internal state sync handler. Names starting with `__rivue` are now reserved.
 - RivueRemote: a client spamming an erroring action flooded the server log. Errors now warn at most once every 10 seconds per action.
+- RivueRemote: a client spamming requests got a `"rate_limited"` reply for every one, so the server sent as much as it received. Refusals are now answered at most 30 times a second per player.
+- RivueRemote: payloads that failed validation didn't count toward the byte budget, so a client could make the server scan large payloads for free. They now count.
+- RivueRemote: the server had no listener on the `Response`, `Events` and `UnreliableEvents` remotes, so client fires to them were queued. They're now dropped.
 - RivueRemote: new `exclusive` option for `handle()`. A player's second call while the first is running gets `"busy"`, which stops duplicate purchases and trades from overlapping calls.
 
 ## Install

@@ -523,7 +523,7 @@ end
 local buckets: { [Player]: { [unknown]: Bucket } } = {}
 local stats: { [string]: ActionStats } = {}
 
-local UNKNOWN_ACTIONS = newproxy(false)
+local REFUSALS = newproxy(false)
 local ALL_REQUESTS = newproxy(false)
 local ALL_BYTES = newproxy(false)
 
@@ -572,19 +572,20 @@ local function processRequest(player: Player, req: unknown): RemoteResponse?
 		return if type(id) == "number" then { id = id :: any, ok = ok, data = data, error = err } else nil
 	end
 
+	-- Refusals are capped too, or a client could make the server reply as fast as it sends
+	local function refuseQuietly(err: string): RemoteResponse?
+		return if take(player, REFUSALS, DEFAULT_MAX_PER_SECOND, 1) then reply(false, nil, err) else nil
+	end
+
 	local actionHandler = handlers[action]
 	if not actionHandler then
-		-- Replies are limited too, or a client could make the server reply as fast as it sends
-		if take(player, UNKNOWN_ACTIONS, DEFAULT_MAX_PER_SECOND, 1) then
-			return reply(false, nil, "unknown_action")
-		end
-		return nil
+		return refuseQuietly("unknown_action")
 	end
 
 	local entry = statsFor(action)
 	local function refuse(err: string): RemoteResponse?
 		entry.rejected += 1
-		return reply(false, nil, err)
+		return refuseQuietly(err)
 	end
 
 	-- Totalled across actions, or spam could be spread over all of them
@@ -599,12 +600,12 @@ local function processRequest(player: Player, req: unknown): RemoteResponse?
 
 	local payload = request.payload
 	local valid, validErr, size = validatePayload(payload)
-	if not valid then
-		return refuse(validErr :: string)
-	end
 	local bytes = settings.maxBytesPerSecond
 	if bytes > 0 and not take(player, ALL_BYTES, bytes, size) then
 		return refuse("rate_limited")
+	end
+	if not valid then
+		return refuse(validErr :: string)
 	end
 
 	for _, middleware in table.clone(middlewares) do
@@ -668,12 +669,20 @@ end
 
 Remote._processRequest = processRequest
 
+local function ignore() end
+local listening = false
+
 function Remote.setupServer(): ()
 	assert(RunService:IsServer(), "Remote.setupServer() must be called on the server")
 	getRequestEvent()
-	getResponseEvent()
-	getEventsEvent()
-	getUnreliableEvent()
+	if listening then
+		return
+	end
+	listening = true
+	-- Fires to a remote with no server listener are queued, so exploiters could fill the queue
+	getResponseEvent().OnServerEvent:Connect(ignore)
+	getEventsEvent().OnServerEvent:Connect(ignore)
+	getUnreliableEvent().OnServerEvent:Connect(ignore)
 end
 
 local function register(actionName: string, handler: RequestHandler, opts: HandleOptions?)
@@ -690,6 +699,7 @@ local function register(actionName: string, handler: RequestHandler, opts: Handl
 	if serverConn then
 		return
 	end
+	Remote.setupServer()
 
 	Players.PlayerRemoving:Connect(function(player)
 		buckets[player] = nil

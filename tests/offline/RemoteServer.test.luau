@@ -8,6 +8,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService") :: any
 local Remote = require(ReplicatedStorage:WaitForChild("RivueRemote"))
+local DEFAULT_REPLIES = 30
 
 local function assertEquals(actual: any, expected: any, message: string?)
 	if actual ~= expected then
@@ -574,6 +575,53 @@ local function runTests()
 		logConn:Disconnect()
 		assertEquals(warnings, 1, "a failing handler can't flood the output")
 		conn:Disconnect()
+	end
+
+	print("Test 19: a flooding client can't make the server work or reply for free")
+	do
+		local folder = ReplicatedStorage:WaitForChild("RemoteEvents")
+		local requestEvent = folder:WaitForChild("Request") :: RemoteEvent
+		local responseEvent = folder:WaitForChild("Response") :: RemoteEvent
+		local replies: { any } = {}
+		local conn = responseEvent.OnClientEvent:Connect(function(reply)
+			table.insert(replies, reply)
+		end)
+
+		task.wait(1.1)
+		for i = 1, 500 do
+			requestEvent:FireServer({ action = "double", id = 1000 + i, payload = { n = 1 } })
+		end
+		task.wait()
+		local refused = 0
+		for _, reply in replies do
+			if reply.error == "rate_limited" then
+				refused += 1
+			end
+		end
+		assertTrue(refused <= DEFAULT_REPLIES, `refusals are answered at a capped rate (got {refused})`)
+
+		task.wait(1.1)
+		local junk = { string.rep("x", 19000), 0 / 0 }
+		for i = 1, 10 do
+			requestEvent:FireServer({ action = "double", id = 2000 + i, payload = junk })
+		end
+		table.clear(replies)
+		requestEvent:FireServer({ action = "double", id = 3000, payload = { n = 1, note = string.rep("x", 15000) } })
+		task.wait()
+		assertEquals(
+			replies[1] and replies[1].error,
+			"rate_limited",
+			`payloads that fail validation still use up the byte budget`
+		)
+		conn:Disconnect()
+
+		for _, name in { "Response", "Events", "UnreliableEvents" } do
+			local event = folder:FindFirstChild(name) :: any
+			assertTrue(
+				event ~= nil and #event.OnServerEvent._conns > 0,
+				`{name} has a server listener, so client fires are dropped instead of queued`
+			)
+		end
 	end
 
 	print("\n========== REMOTE SERVER TESTS COMPLETE ==========\n")

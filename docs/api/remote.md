@@ -596,12 +596,15 @@ Counts per action on the server, for finding slow or failing handlers in a live 
 
   Functions and threads are rejected before anything is sent.
 
+  The server answers at most 30 refused requests a second per player, and the rest get no reply.
+  A refused payload still counts toward the byte budget.
+
 - **Errors** returned by `request()`:
 
   | Error | Meaning |
   |-------|---------|
   | `"timeout"` | No response in time |
-  | `"unknown_action"` | No `handle()` for that action on the server (at most 30 of these replies a second per player) |
+  | `"unknown_action"` | No `handle()` for that action on the server |
   | `"rate_limited"` | Over the action's `maxPerSecond`, or the player's total request or byte budget |
   | `"rejected"` | A [`use()`](#remoteuse) function returned `false` |
   | `"invalid_payload"` | The action's `check` didn't return `true` |
