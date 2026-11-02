@@ -77,16 +77,32 @@ Differences from Vue are in the [cheat sheet](docs/VUE.md).
 
 ## Installation
 
+RivueUI is a ModuleScript with a `runtime` folder inside. Put it in `ReplicatedStorage`, and the
+optional packages next to it.
+
+**Wally:** add the packages to `wally.toml`, then run `wally install`.
+
 ```toml
-# wally.toml
 [dependencies]
 RivueUI = "linhisreal/rivue-ui@0.10.0-rc.1"
-RivueRemote = "linhisreal/rivue-remote@0.8.0-beta.1" # optional
-RivueRouter = "linhisreal/rivue-router@0.3.0-beta.1" # optional
+RivueRemote = "linhisreal/rivue-remote@0.8.0-beta.1" # optional, client/server calls
+RivueRouter = "linhisreal/rivue-router@0.3.0-beta.1" # optional, screens and history
 ```
 
-pesde: `pesde add linhisreal/rivue_ui` (and `rivue_remote`, `rivue_router`). Or grab the `.rbxm`
-files from the latest release and put them in `ReplicatedStorage`.
+**pesde:** `pesde add linhisreal/rivue_ui`, plus `linhisreal/rivue_remote` or
+`linhisreal/rivue_router` if you want them.
+
+**Rojo:** add this repo as a git submodule and point your project at the package:
+
+```json
+"ReplicatedStorage": {
+  "RivueUI": { "$path": "vendor/Rivue/packages/rivue-ui" }
+}
+```
+
+**Studio:** download `RivueUI.rbxm` from the latest release and drag it into `ReplicatedStorage`.
+The release also has `RivueUI.min.rbxm` (no comments), `RivueRemote.rbxm`, `RivueRouter.rbxm`, and
+the `RivueDevTools.rbxm` plugin.
 
 ## Docs
 
