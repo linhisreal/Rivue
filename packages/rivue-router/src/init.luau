@@ -1026,7 +1026,7 @@ local RouterLink = table.freeze({
 })
 
 return table.freeze({
-	version = "0.3.0-beta.1",
+	version = "0.3.0-beta.2",
 	createRouter = createRouter,
 	useRouter = useRouter,
 	useRoute = useRoute,

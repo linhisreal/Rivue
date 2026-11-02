@@ -1,5 +1,5 @@
 name = "linhisreal/rivue_router"
-version = "0.3.0-beta.1"
+version = "0.3.0-beta.2"
 description = "Screen navigation for Rivue: named routes, params as props, history and guards"
 license = "LicenseRef-Rivue"
 authors = ["linhisreal"]
