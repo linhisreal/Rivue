@@ -2136,8 +2136,9 @@ componentModule.devtoolsHooks.emit = function(
 end
 
 --- Mirrors a component's name, props and state onto its root Instance for the DevTools plugin.
---- Reads refs' raw values, so it never adds dependencies to the render
-local function writeDevtools(inst: ComponentInstance, el: Instance, renderMs: number)
+--- Reads refs' raw values, so it never adds dependencies to the render. Without `renderMs` it
+--- refreshes the mirror for a change that didn't render, so the render count stays as it was
+local function writeDevtools(inst: ComponentInstance, el: Instance, renderMs: number?)
 	if not devtoolsEditConns[el] then
 		devtoolsEditConns[el] = el:GetAttributeChangedSignal("RivueEdit"):Connect(function()
 			applyDevtoolsEdit(inst, el)
@@ -2154,12 +2155,18 @@ local function writeDevtools(inst: ComponentInstance, el: Instance, renderMs: nu
 	el:SetAttribute("RivueComponent", inst.type.__name or "Anonymous")
 	el:SetAttribute("RivueProps", devtoolsText(props))
 	writeDevtoolsState(inst, el)
-	local renders = ((el:GetAttribute("RivueRenders") :: number?) or 0) + 1
-	el:SetAttribute("RivueRenders", renders)
-	el:SetAttribute("RivueRenderMs", math.round(renderMs * 100) / 100)
+	local renders = (el:GetAttribute("RivueRenders") :: number?) or 0
+	if renderMs then
+		renders += 1
+		el:SetAttribute("RivueRenders", renders)
+		el:SetAttribute("RivueRenderMs", math.round(renderMs * 100) / 100)
+	end
 	local triggers = inst._devtoolsTriggers
 	inst._devtoolsTriggers = nil
-	local trigger = if renders == 1 then "mount" elseif triggers then table.concat(triggers, ", ") else "parent"
+	local trigger = if renderMs and renders == 1
+		then "mount"
+		elseif triggers then table.concat(triggers, ", ")
+		else "parent"
 	el:SetAttribute("RivueTrigger", trigger)
 
 	local provided: { string } = {}
@@ -2175,7 +2182,47 @@ local function writeDevtools(inst: ComponentInstance, el: Instance, renderMs: nu
 	end
 	el:SetAttribute("RivueInjects", devtoolsText(injected))
 
-	devtoolsEvent("render", inst.type.__name or "Anonymous", trigger, renderMs)
+	if renderMs then
+		devtoolsEvent("render", inst.type.__name or "Anonymous", trigger, renderMs)
+	end
+end
+
+--- A vapor component renders once, so this keeps its DevTools mirror current as its props and
+--- state refs change. The watcher belongs to the component's scope and stops when it unmounts
+local function watchVaporDevtools(inst: ComponentInstance)
+	local scope = inst._scope
+	if not scope then
+		return
+	end
+	local started = false
+	scope:run(function()
+		local watcher = reactivity.effect(function()
+			for key in inst.props do
+				local _ = inst.props[key]
+			end
+			local setupState = inst.setupState
+			if type(setupState) == "table" then
+				for _, value in next, setupState do
+					if type(value) == "table" and rawget(value :: any, "_isRef") then
+						local _ = (value :: any).value
+					end
+				end
+			end
+			local el = inst.el
+			if started and el then
+				reactivity._untracked(function()
+					writeDevtools(inst, el)
+				end)
+			end
+			started = true
+		end, {
+			lazy = true,
+			onTrigger = function(event: Types.DebuggerEvent)
+				recordTrigger(inst, event)
+			end,
+		})
+		watcher.run()
+	end)
 end
 
 local function applyFallthroughAttrs(props: Props?, attrs: Props): Props?
@@ -2398,6 +2445,9 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 	renderEffect.run()
 	if vapor then
 		renderEffect:stop()
+		if devtools then
+			watchVaporDevtools(inst)
+		end
 	else
 		inst._renderEffect = renderEffect
 	end

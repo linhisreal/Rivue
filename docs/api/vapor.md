@@ -62,8 +62,8 @@ coins.value = 10 -- updates the label's Text; the component doesn't render again
 - Without the app flag, a component with `vapor = true` renders normally and warns once.
 - Set the flag before `app:mount()`.
 - Lifecycle hooks, `provide`/`inject` and error handling work as in any component.
-- The [DevTools plugin](../DEVTOOLS.md) lists a Vapor component and can edit its state, but the
-  state it shows is from the first render, because that's the only render.
+- The [DevTools plugin](../DEVTOOLS.md) shows a Vapor component's props and state as they change,
+  and what changed them. Its render count stays at 1, because that's the only render.
 - Vapor and normal components can be mixed in one tree.
 - A Vapor component doesn't render again when its slots change. Pass changing content through
   props instead.

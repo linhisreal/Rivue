@@ -401,6 +401,59 @@ local function runTests()
 		app:unmount()
 	end
 
+	print("DevTools sees a vapor component's props and state change without counting renders")
+	do
+		local count = Rivue.ref(1)
+		local label = Rivue.ref("Coins")
+		local Counter = Rivue.defineComponent({
+			name = "VaporDevtoolsCounter",
+			vapor = true,
+			props = { label = {} },
+			setup = function()
+				return { count = count }
+			end,
+			render = function(ctx)
+				return Rivue.h("TextLabel", {
+					Text = Rivue.bind(function()
+						return `{ctx.label}: {count.value}`
+					end),
+				})
+			end,
+		})
+		local Root = Rivue.defineComponent({
+			name = "VaporDevtoolsRoot",
+			vapor = true,
+			setup = function()
+				return function()
+					return Rivue.h(Counter, { label = label })
+				end
+			end,
+		})
+		local container = Instance.new("Folder")
+		local app = Rivue.createApp(Root)
+		app.config.experimental = { vapor = true }
+		app.config.devtools = true
+		app:mount(container)
+		local el = container:FindFirstChild("VaporDevtoolsCounter") :: TextLabel
+		assertEquals(el:GetAttribute("RivueState"), "count = 1", "state starts as rendered")
+
+		count.value = 2
+		Rivue.nextTick()
+		assertEquals(el:GetAttribute("RivueState"), "count = 2", "a state change reaches DevTools")
+		assertEquals(el:GetAttribute("RivueTrigger"), "count", "and names what changed")
+		assertEquals(el:GetAttribute("RivueRenders"), 1, "without counting a render that didn't happen")
+
+		label.value = "Gems"
+		Rivue.nextTick()
+		assertEquals(el:GetAttribute("RivueProps"), 'label = "Gems"', "a prop change reaches DevTools")
+		assertEquals(el:GetAttribute("RivueTrigger"), "props.label", "and names the prop")
+
+		app:unmount()
+		count.value = 3
+		Rivue.nextTick()
+		assertEquals(el:GetAttribute("RivueState"), nil, "nothing is written after unmount")
+	end
+
 	print("\n========== VAPOR TESTS COMPLETE ==========\n")
 end
 
