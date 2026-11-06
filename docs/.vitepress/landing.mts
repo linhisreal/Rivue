@@ -92,18 +92,21 @@ const FEATURE_CODE: Record<string, FeatureCode> = {
 	reactivity: {
 		file: "Coins.luau",
 		code: `local coins = Rivue.ref(3)
-local label = Rivue.computed(function()
-	return \`Coins: {coins.value}\`
+
+Rivue.hFor(CELLS, function(cell)
+	return h("Frame", {
+		Visible = GLYPHS[coins.value][cell],
+	})
 end)
 
-coins.value += 1`,
-		focus: "coins.value += 1",
-		note: 'label = "Coins: 4"',
+coins.value = 4`,
+		focus: "coins.value = 4",
+		note: "20 of 120 written",
 	},
 	components: {
 		file: "ItemRow.luau",
 		code: `local ItemRow = Rivue.defineComponent({
-	props = { name = { type = "string" } },
+	props = { name = {} },
 	render = function(ctx)
 		return h("TextButton", {
 			Text = ctx.name,
@@ -111,7 +114,7 @@ coins.value += 1`,
 	end,
 })`,
 		focus: "Text = ctx.name",
-		note: '"Sword"',
+		note: '"Potion"',
 	},
 	styling: {
 		file: "Card.luau",
@@ -126,13 +129,17 @@ coins.value += 1`,
 	},
 	animation: {
 		file: "Panel.luau",
-		code: `local fade = Rivue.transitions.fade()
+		code: `local pos = Rivue.useTween(function()
+	return if open.value then OPEN else SHUT
+end, TweenInfo.new(0.4))
 
-h(Rivue.Transition, fade, {
-	Rivue.hIf(ctx.open, h(Panel)),
+h("Frame", {
+	Position = Rivue.bind(function()
+		return pos.value
+	end),
 })`,
-		focus: "Rivue.hIf",
-		note: "fades in",
+		focus: "TweenInfo.new",
+		note: "ease out",
 	},
 	lists: {
 		file: "Inventory.luau",
@@ -186,6 +193,7 @@ function featureCode({ file, code, focus, note, error }: FeatureCode) {
 		transformers: [
 			{
 				line(node, line) {
+					node.properties.style = `--i:${line - 1}`
 					if (line !== focusLine) return
 					node.properties["data-note"] = note
 					if (error) node.properties["data-error"] = ""
