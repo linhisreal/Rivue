@@ -63,6 +63,40 @@ return function()
 		end, { immediate = false, initial = 0 })
 		assertEquals(lazy.data.value, 0, "immediate = false waits, with the initial value")
 
+		local thrown = Rivue.useAsync(function()
+			error({ code = 404 })
+		end)
+		task.wait()
+		assertEquals(
+			type(thrown.error.value) == "table" and thrown.error.value.code,
+			404,
+			"a thrown table stays a table in error"
+		)
+
+		if __OFFLINE then
+			local RunService = game:GetService("RunService") :: any
+			local wasStudio = RunService.IsStudio
+			RunService.IsStudio = function()
+				return true
+			end
+			local warned = 0
+			local conn = game:GetService("LogService").MessageOut:Connect(function(message)
+				if string.find(message, "useAsync", 1, true) and string.find(message, "typo", 1, true) then
+					warned += 1
+				end
+			end)
+			Rivue.useAsync(function()
+				error("typo")
+			end)
+			Rivue.useAsync(function()
+				error("typo")
+			end, { silent = true })
+			task.wait()
+			conn:Disconnect()
+			RunService.IsStudio = wasStudio
+			assertEquals(warned, 1, "failures warn in Studio unless silent")
+		end
+
 		local landed = false
 		local Panel = Rivue.defineComponent({
 			name = "AsyncPanel",

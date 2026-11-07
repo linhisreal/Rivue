@@ -1220,6 +1220,7 @@ function Remote.useRequest(name: string, options: RequestOptions?): any
 		args = if opts.payload ~= nil then { opts.payload } else nil,
 		initial = opts.initial,
 		suspense = opts.suspense,
+		silent = true,
 	})
 end
 
