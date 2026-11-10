@@ -26,7 +26,7 @@ local composables = {}
 function composables.useAttrs(): Props
 	local instance = componentModule.getCurrentInstance()
 	if not instance then
-		error("useAttrs() must be called during setup()", 2)
+		error("[Rivue] useAttrs() must be called in setup()", 2)
 	end
 	return instance.attrs
 end
@@ -34,7 +34,7 @@ end
 function composables.useSlots(): { Child }
 	local instance = componentModule.getCurrentInstance()
 	if not instance then
-		error("useSlots() must be called during setup()", 2)
+		error("[Rivue] useSlots() must be called in setup()", 2)
 	end
 	return instance.slots
 end

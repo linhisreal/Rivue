@@ -5,7 +5,7 @@
 
 local Types = require("./types")
 local reactivity = require("./reactivity")
-local componentAPI = require("./component")
+local componentModule = require("./component")
 local debugModule = require("./debug")
 local utils = require("./utils")
 
@@ -38,7 +38,7 @@ local function attributeRef<T>(
 	defaultValue: T?,
 	opts: { throttle: number? }?
 ): AttributeRef<T?>
-	assert(typeof(instance) == "Instance", "attributeRef expects an Instance")
+	assert(typeof(instance) == "Instance", "[Rivue] attributeRef() expects an Instance")
 	assert(
 		type(attributeName) == "string" and attributeName ~= "",
 		"attributeRef expects a non-empty string for attributeName"
@@ -128,7 +128,7 @@ local function useTag(tagName: string, onAdded: (instance: Instance) -> (() -> (
 	local removedConn = CollectionService:GetInstanceRemovedSignal(tagName):Connect(function(instance)
 		local cleanup = cleanupMap[instance]
 		if cleanup then
-			pcall(cleanup)
+			debugModule.safeCall("useTag cleanup", cleanup)
 			cleanupMap[instance] = nil
 		end
 	end)
@@ -144,53 +144,35 @@ local function useTag(tagName: string, onAdded: (instance: Instance) -> (() -> (
 		addedConn:Disconnect()
 		removedConn:Disconnect()
 		for _, cleanup in cleanupMap do
-			pcall(cleanup)
+			debugModule.safeCall("useTag cleanup", cleanup)
 		end
 		table.clear(cleanupMap)
 	end, true)
 end
 
-local frameSignal: RBXScriptSignal = if RunService:IsClient() then RunService.RenderStepped else RunService.Heartbeat
+local frameSignal: RBXScriptSignal = if RunService:IsClient() then RunService.PreRender else RunService.Heartbeat
 
-local function onRenderStepped(callback: (deltaTime: number) -> ()): ()
-	debugModule.log("Roblox", "Registering RenderStepped callback")
-	local currentInstance = componentAPI.getCurrentInstance()
-	if not currentInstance then
-		error("onRenderStepped must be called during component setup()")
+local function connectForComponent(hookName: string, signal: RBXScriptSignal, callback: (...any) -> ())
+	if not componentModule.getCurrentInstance() then
+		error(`[Rivue] {hookName}() must be called in setup()`, 3)
 	end
-
-	local conn = frameSignal:Connect(callback)
-
-	componentAPI.onUnmounted(function()
+	local conn = signal:Connect(callback)
+	componentModule.onUnmounted(function()
 		conn:Disconnect()
 	end)
+end
+
+local function onRenderStepped(callback: (deltaTime: number) -> ()): ()
+	connectForComponent("onRenderStepped", frameSignal, callback)
 end
 
 local function onHeartbeat(callback: (deltaTime: number) -> ()): ()
-	debugModule.log("Roblox", "Registering Heartbeat callback")
-	local currentInstance = componentAPI.getCurrentInstance()
-	if not currentInstance then
-		error("onHeartbeat must be called during component setup()")
-	end
-
-	local conn = RunService.Heartbeat:Connect(callback)
-
-	componentAPI.onUnmounted(function()
-		conn:Disconnect()
-	end)
+	connectForComponent("onHeartbeat", RunService.Heartbeat, callback)
 end
 
 local function onStepped(callback: (time: number, deltaTime: number) -> ()): ()
-	debugModule.log("Roblox", "Registering Stepped callback")
-	local currentInstance = componentAPI.getCurrentInstance()
-	if not currentInstance then
-		error("onStepped must be called during component setup()")
-	end
-
-	local conn = RunService.Stepped:Connect(callback)
-
-	componentAPI.onUnmounted(function()
-		conn:Disconnect()
+	connectForComponent("onStepped", RunService.PreSimulation, function(deltaTime: number)
+		callback(workspace.DistributedGameTime, deltaTime)
 	end)
 end
 

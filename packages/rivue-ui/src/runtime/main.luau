@@ -7,13 +7,13 @@ local Types = require("./types")
 local reactivity = require("./reactivity")
 local hModule = require("./h")
 local renderer = require("./renderer")
-local componentAPI = require("./component")
+local componentModule = require("./component")
 local utils = require("./utils")
 local directives = require("./directives")
-local robloxUtils = require("./roblox")
+local robloxModule = require("./roblox")
 local debugModule = require("./debug")
-local schedulerModule = require("./scheduler")
-local poolModule = require("./pool")
+local scheduler = require("./scheduler")
+local Pool = require("./pool")
 local builtins = require("./builtins")
 local composables = require("./composables")
 local array = require("./array")
@@ -56,7 +56,7 @@ export type AppOptions = Types.AppOptions
 export type App = renderer.App
 export type Plugin = renderer.Plugin
 export type WritableComputedOptions<T> = Types.WritableComputedOptions<T>
-export type ComponentInstance = componentAPI.ComponentInstance
+export type ComponentInstance = componentModule.ComponentInstance
 export type AsyncState<T> = composables.AsyncState<T>
 
 local Rivue = {}
@@ -102,7 +102,7 @@ Rivue.onWatcherCleanup = reactivity.onWatcherCleanup
 Rivue.onEffectCleanup = reactivity.onEffectCleanup
 
 local function trackForCleanup(handle: WatchHandle | Effect)
-	local currentInstance = componentAPI.getCurrentInstance()
+	local currentInstance = componentModule.getCurrentInstance()
 	if currentInstance then
 		table.insert(currentInstance._effects, handle)
 	end
@@ -138,7 +138,7 @@ function Rivue.watchSyncEffect(fn: (onCleanup: OnCleanup) -> ()): WatchHandle
 	return Rivue.watchEffect(fn, { flush = "sync" })
 end
 
-Rivue.nextTick = schedulerModule.nextTick
+Rivue.nextTick = scheduler.nextTick
 
 Rivue.h = hModule.h
 Rivue.Fragment = hModule.Fragment
@@ -150,9 +150,9 @@ Rivue.isVNode = hModule.isVNode
 
 --- Call in setup or render: it needs the current app
 function Rivue.resolveComponent(name: string): ComponentDef?
-	local inst = componentAPI.getCurrentInstance() or componentAPI.getRenderingInstance()
+	local inst = componentModule.getCurrentInstance() or componentModule.getRenderingInstance()
 	if not inst then
-		error("resolveComponent() must be called in setup() or a render function", 2)
+		error("[Rivue] resolveComponent() must be called in setup() or a render function", 2)
 	end
 	local localComponents = inst.type.components
 	local def = (if localComponents then localComponents[name] else nil) or inst.appContext.components[name]
@@ -264,28 +264,28 @@ function Rivue.story(component: ComponentDef, options: StoryOptions?): any
 	}
 end
 
-Rivue.onBeforeMount = componentAPI.onBeforeMount
-Rivue.onMounted = componentAPI.onMounted
-Rivue.onBeforeUpdate = componentAPI.onBeforeUpdate
-Rivue.onUpdated = componentAPI.onUpdated
-Rivue.onBeforeUnmount = componentAPI.onBeforeUnmount
-Rivue.onUnmounted = componentAPI.onUnmounted
-Rivue.onActivated = componentAPI.onActivated
-Rivue.onDeactivated = componentAPI.onDeactivated
-Rivue.onRenderTracked = componentAPI.onRenderTracked
-Rivue.onRenderTriggered = componentAPI.onRenderTriggered
-Rivue.onErrorCaptured = componentAPI.onErrorCaptured
-Rivue.onTransition = componentAPI.onTransition
+Rivue.onBeforeMount = componentModule.onBeforeMount
+Rivue.onMounted = componentModule.onMounted
+Rivue.onBeforeUpdate = componentModule.onBeforeUpdate
+Rivue.onUpdated = componentModule.onUpdated
+Rivue.onBeforeUnmount = componentModule.onBeforeUnmount
+Rivue.onUnmounted = componentModule.onUnmounted
+Rivue.onActivated = componentModule.onActivated
+Rivue.onDeactivated = componentModule.onDeactivated
+Rivue.onRenderTracked = componentModule.onRenderTracked
+Rivue.onRenderTriggered = componentModule.onRenderTriggered
+Rivue.onErrorCaptured = componentModule.onErrorCaptured
+Rivue.onTransition = componentModule.onTransition
 
-Rivue.provide = componentAPI.provide
-Rivue.inject = componentAPI.inject
-Rivue.hasInjectionContext = componentAPI.hasInjectionContext
+Rivue.provide = componentModule.provide
+Rivue.inject = componentModule.inject
+Rivue.hasInjectionContext = componentModule.hasInjectionContext
 
-Rivue.getCurrentInstance = componentAPI.getCurrentInstance
-Rivue.useId = componentAPI.useId
-Rivue.useTemplateRef = componentAPI.useTemplateRef
+Rivue.getCurrentInstance = componentModule.getCurrentInstance
+Rivue.useId = componentModule.useId
+Rivue.useTemplateRef = componentModule.useTemplateRef
 
-Rivue.Teleport = componentAPI.Teleport
+Rivue.Teleport = componentModule.Teleport
 Rivue.Suspense = builtins.Suspense
 Rivue.KeepAlive = builtins.KeepAlive
 Rivue.Transition = builtins.Transition
@@ -310,46 +310,46 @@ Rivue.useTheme = composables.useTheme
 Rivue.useStyles = composables.useStyles
 Rivue.useAsync = composables.useAsync
 
-Rivue.scheduler = schedulerModule
+Rivue.scheduler = scheduler
 
 function Rivue.queueJob(fn: () -> (), opts: QueueOptions?): JobHandle
-	local jobHandle = schedulerModule.queueJob(fn, opts)
-	local currentInstance = componentAPI.getCurrentInstance()
+	local jobHandle = scheduler.queueJob(fn, opts)
+	local currentInstance = componentModule.getCurrentInstance()
 	if currentInstance then
 		table.insert(currentInstance._schedulerJobs, jobHandle)
 	end
 	return jobHandle
 end
 
-Rivue.pool = poolModule
+Rivue.pool = Pool
 
 Rivue.utils = utils
 Rivue.directives = directives
 
 Rivue.iterArray = utils.iterArray
 
-Rivue.attributeRef = robloxUtils.attributeRef
-Rivue.useTag = robloxUtils.useTag
-Rivue.onRenderStepped = robloxUtils.onRenderStepped
-Rivue.onHeartbeat = robloxUtils.onHeartbeat
-Rivue.onStepped = robloxUtils.onStepped
-Rivue.useViewportSize = robloxUtils.useViewportSize
-Rivue.useDevice = robloxUtils.useDevice
-Rivue.useKeybind = robloxUtils.useKeybind
-Rivue.useLocale = robloxUtils.useLocale
-Rivue.useTranslator = robloxUtils.useTranslator
-Rivue.useScroll = robloxUtils.useScroll
-Rivue.useInputType = robloxUtils.useInputType
-Rivue.useSafeArea = robloxUtils.useSafeArea
-Rivue.useSelection = robloxUtils.useSelection
-Rivue.useGamepadFocus = robloxUtils.useGamepadFocus
-Rivue.useTween = robloxUtils.useTween
-Rivue.useSpring = robloxUtils.useSpring
+Rivue.attributeRef = robloxModule.attributeRef
+Rivue.useTag = robloxModule.useTag
+Rivue.onRenderStepped = robloxModule.onRenderStepped
+Rivue.onHeartbeat = robloxModule.onHeartbeat
+Rivue.onStepped = robloxModule.onStepped
+Rivue.useViewportSize = robloxModule.useViewportSize
+Rivue.useDevice = robloxModule.useDevice
+Rivue.useKeybind = robloxModule.useKeybind
+Rivue.useLocale = robloxModule.useLocale
+Rivue.useTranslator = robloxModule.useTranslator
+Rivue.useScroll = robloxModule.useScroll
+Rivue.useInputType = robloxModule.useInputType
+Rivue.useSafeArea = robloxModule.useSafeArea
+Rivue.useSelection = robloxModule.useSelection
+Rivue.useGamepadFocus = robloxModule.useGamepadFocus
+Rivue.useTween = robloxModule.useTween
+Rivue.useSpring = robloxModule.useSpring
 
 Rivue.version = "0.10.0-rc.2"
 
 function Rivue.bind<T>(getter: () -> T): T
-	assert(type(getter) == "function", "Rivue.bind expects a function")
+	assert(type(getter) == "function", "[Rivue] bind() expects a function")
 	return table.freeze({ __rivueBinding = getter }) :: any
 end
 

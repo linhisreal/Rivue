@@ -5,6 +5,8 @@
 
 local RunService = game:GetService("RunService")
 
+local traceback = debug.traceback
+
 local debug = {}
 
 type PrettyPrintOptions = {
@@ -57,7 +59,7 @@ local function unwrapProxy(value: unknown): unknown
 end
 
 local function formatKey(key: unknown): string
-	return if type(key) == "string" then key else `[{tostring(key)}]`
+	return if type(key) == "string" then key else `[{key}]`
 end
 
 local function formatScalar(v: unknown): string
@@ -149,6 +151,14 @@ function debug.formatError(component: string, message: string, context: unknown?
 	end
 
 	return table.concat(parts)
+end
+
+--- Runs a user callback; an error is warned with its traceback instead of stopping the caller
+function debug.safeCall(label: string, fn: (...any) -> ...any, ...: any)
+	local ok, err = xpcall(fn, traceback :: (any) -> string, ...)
+	if not ok then
+		warn(`[Rivue] {label} failed: {err}`)
+	end
 end
 
 return debug

@@ -4,12 +4,12 @@
 -- Licensed under the Rivue License, based on PolyForm Noncommercial 1.0.0. See LICENSE.
 
 local Types = require("./types")
-local componentAPI = require("./component")
+local componentModule = require("./component")
 local hModule = require("./h")
-local _reactivity = require("./reactivity")
+local reactivity = require("./reactivity")
 local Pool = require("./pool")
 local scheduler = require("./scheduler")
-local _utils = require("./utils")
+local utils = require("./utils")
 local directives = require("./directives")
 local robloxModule = require("./roblox")
 
@@ -29,7 +29,7 @@ type FunctionalComponent = Types.FunctionalComponent
 type PoolOptions = Types.PoolOptions
 type AppOptions = Types.AppOptions
 type Effect = Types.Effect
-type ComponentInstance = componentAPI.ComponentInstance
+type ComponentInstance = componentModule.ComponentInstance
 type AppContext = Types.AppContext
 
 local Fragment = hModule.Fragment
@@ -143,7 +143,7 @@ local function devWarn(message: string)
 		warnedOnce[message] = true
 		local appContext = if currentRenderingInstance then currentRenderingInstance.appContext else currentAppContext
 		local warnHandler = if appContext then appContext.config.warnHandler else nil
-		local trace = componentAPI.formatComponentTrace(currentRenderingInstance)
+		local trace = componentModule.formatComponentTrace(currentRenderingInstance)
 		if warnHandler then
 			warnHandler(message, currentRenderingInstance, trace)
 		else
@@ -435,7 +435,7 @@ local sugarSpecs: { [string]: SugarSpec } = {
 				item.GrowRatio = v
 				item.ShrinkRatio = v
 			elseif type(v) == "string" then
-				item.FlexMode = FLEX_MODES[v] or error(`unknown flex mode '{v}'`)
+				item.FlexMode = FLEX_MODES[v] or error(`[Rivue] Unknown flex mode '{v}'`)
 			else
 				for k, x in v do
 					(item :: any)[k] = x
@@ -664,7 +664,7 @@ local function bindingGetter(value: unknown): (() -> unknown)?
 	local getter = rawget(value :: any, BINDING_MARKER)
 	if type(getter) == "function" then
 		return getter
-	elseif _reactivity.isRef(value) then
+	elseif reactivity.isRef(value) then
 		local r = value :: any
 		return function(): unknown
 			return r.value
@@ -691,10 +691,10 @@ local function bindProp(inst: Instance, key: string, getter: () -> unknown, vnod
 	local bindings: { [any]: any } = vnode._bindings or {}
 	vnode._bindings = bindings
 	bindings[BINDING_VNODE] = vnode
-	local eff = _reactivity.effect(function()
+	local eff = reactivity.effect(function()
 		local value = getter()
 		-- Untracked: in Immediate signal mode handlers run here and would become deps
-		_reactivity._untracked(function()
+		reactivity._untracked(function()
 			applyProp(inst, key, value, bindings[BINDING_VNODE])
 		end)
 	end, { lazy = true })
@@ -978,8 +978,8 @@ local function setTemplateRef(props: Props?, owner: unknown, value: unknown)
 			end
 		end
 	elseif type(r) == "function" then
-		pcall(r, value)
-	elseif type(r) == "table" and r._is_ref then
+		debugModule.safeCall("function ref", r, value)
+	elseif type(r) == "table" and r._isRef then
 		r.value = value
 	end
 end
@@ -1576,7 +1576,7 @@ local function unmountVNode(vnode: RenderVNode?, poolOpt: PoolOptions?, doRemove
 	end
 
 	if def then
-		if def == componentAPI.Teleport then
+		if def == componentModule.Teleport then
 			vnode._deferred = nil
 			for _, child in vnode.children do
 				if type(child) == "table" then
@@ -1708,7 +1708,7 @@ local function patchKeyedChildren(
 		if k ~= nil then
 			if seenKeys then
 				if seenKeys[k] then
-					devWarn(`Duplicate key '{tostring(k)}' in children of {parent:GetFullName()}`)
+					devWarn(`Duplicate key '{k}' in children of {parent:GetFullName()}`)
 				end
 				seenKeys[k] = true
 			end
@@ -1934,7 +1934,7 @@ local function describeValue(value: unknown, depth: number?): string
 	elseif t == "Instance" then
 		return (value :: Instance).Name
 	elseif t == "table" and (depth or 0) < DESCRIBE_DEPTH then
-		local raw = _reactivity.toRaw(value) :: { [unknown]: unknown }
+		local raw = reactivity.toRaw(value) :: { [unknown]: unknown }
 		local keys: { unknown } = {}
 		for key in next, raw do
 			if type(key) == "string" or type(key) == "number" then
@@ -1973,7 +1973,7 @@ local function describeKey(key: unknown): string
 end
 
 local function describeTrigger(inst: ComponentInstance, target: unknown, key: unknown): string
-	if target == _reactivity.toRaw(inst.props) then
+	if target == reactivity.toRaw(inst.props) then
 		return `props{describeKey(key)}`
 	end
 	local setupState = inst.setupState
@@ -1981,7 +1981,7 @@ local function describeTrigger(inst: ComponentInstance, target: unknown, key: un
 		for name, value in next, setupState do
 			if value == target then
 				return tostring(name)
-			elseif type(value) == "table" and _reactivity.toRaw(value) == target then
+			elseif type(value) == "table" and reactivity.toRaw(value) == target then
 				return `{name}{describeKey(key)}`
 			end
 		end
@@ -2003,7 +2003,7 @@ local function writeDevtoolsState(inst: ComponentInstance, el: Instance)
 	local setupState = inst.setupState
 	if type(setupState) == "table" then
 		for key, value in next, setupState do
-			if type(value) == "table" and rawget(value :: any, "_is_ref") then
+			if type(value) == "table" and rawget(value :: any, "_isRef") then
 				table.insert(state, `{key} = {describeValue(rawget(value :: any, "_value"))}`)
 			end
 		end
@@ -2026,14 +2026,14 @@ local function applyDevtoolsEdit(inst: ComponentInstance, el: Instance)
 	end
 	local segments = string.split(path, ".")
 	local target = rawget(setupState :: any, segments[1])
-	if type(target) ~= "table" or not rawget(target, "_is_ref") then
+	if type(target) ~= "table" or not rawget(target, "_isRef") then
 		return
 	end
 	local holder: any = target
 	local field: unknown = "value"
 	local current = rawget(target, "_value")
 	for i = 2, #segments do
-		local raw: any = _reactivity.toRaw(current)
+		local raw: any = reactivity.toRaw(current)
 		if type(raw) ~= "table" then
 			return
 		end
@@ -2069,18 +2069,22 @@ end
 
 local devtoolsEmitCount = 0
 
-componentAPI.devtoolsHooks.emit = function(inst: ComponentInstance, eventName: string, args: { unknown })
+componentModule.devtoolsHooks.emit = function(
+	inst: ComponentInstance,
+	eventName: string,
+	args: { n: number, [number]: unknown }
+)
 	local el = inst.el
 	if not el then
 		return
 	end
 	local parts = {}
-	for i = 1, #args do
+	for i = 1, args.n do
 		parts[i] = describeValue(args[i])
 	end
 	devtoolsEmitCount += 1
 	local text = `{devtoolsEmitCount}|{eventName}|{table.concat(parts, ", ")}`
-	_reactivity._untracked(function()
+	reactivity._untracked(function()
 		(el :: Instance):SetAttribute("RivueEmit", text)
 	end)
 	devtoolsEvent("emit", `{inst.type.__name or "Anonymous"}: {eventName}`, table.concat(parts, ", "))
@@ -2096,7 +2100,7 @@ local function writeDevtools(inst: ComponentInstance, el: Instance, renderMs: nu
 		el:SetAttribute("RivueSource", inst.type.__source)
 	end
 	local props: { string } = {}
-	for key, value in _reactivity.toRaw(inst.props) do
+	for key, value in reactivity.toRaw(inst.props) do
 		table.insert(props, `{key} = {describeValue(value)}`)
 	end
 	if not CollectionService:HasTag(el, DEVTOOLS_TAG) then
@@ -2150,7 +2154,7 @@ local function applyFallthroughAttrs(props: Props?, attrs: Props): Props?
 end
 
 local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: PoolOptions?)
-	local inst = componentAPI.createComponentInstance(vnode, currentRenderingInstance, currentAppContext)
+	local inst = componentModule.createComponentInstance(vnode, currentRenderingInstance, currentAppContext)
 	vnode._instance = inst
 	inst.container = container
 	if inst.type.__isKeepAlive then
@@ -2201,7 +2205,7 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 		inst.el = el
 		if el and devtools then
 			local renderMs = (os.clock() - renderStart) * 1000
-			_reactivity._untracked(function()
+			reactivity._untracked(function()
 				writeDevtools(inst, el, renderMs)
 			end)
 		end
@@ -2220,19 +2224,19 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 			renderEffect.run()
 		end,
 	}
-	renderEffect = _reactivity.effect(function()
+	renderEffect = reactivity.effect(function()
 		if devtools then
 			renderStart = os.clock()
 		end
 		if inst.isMounted then
-			_reactivity._untracked(function()
+			reactivity._untracked(function()
 				inst:runBeforeUpdate()
 			end)
 		end
 		local render = inst.render
 		local profiled = inst.appContext.config.performance == true
 		local label = if profiled then `Rivue {inst.type.__name or "Anonymous"}` else ""
-		local prevRendering = componentAPI.setRenderingInstance(inst)
+		local prevRendering = componentModule.setRenderingInstance(inst)
 		if profiled then
 			debug.profilebegin(label .. " render")
 		end
@@ -2242,7 +2246,7 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 		if profiled then
 			debug.profileend()
 		end
-		componentAPI.setRenderingInstance(prevRendering)
+		componentModule.setRenderingInstance(prevRendering)
 
 		if not ok then
 			inst:handleError(tostring(sub), "render")
@@ -2300,7 +2304,7 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 		onTrack = if #inst.renderTrackedCbs > 0
 			then function(event: Types.DebuggerEvent)
 				for _, fn in inst.renderTrackedCbs do
-					pcall(fn, event)
+					debugModule.safeCall("render debug hook", fn, event)
 				end
 			end
 			else nil,
@@ -2310,7 +2314,7 @@ local function mountComponent(vnode: RenderVNode, container: Instance, poolOpt: 
 					recordTrigger(inst, event)
 				end
 				for _, fn in inst.renderTriggeredCbs do
-					pcall(fn, event)
+					debugModule.safeCall("render debug hook", fn, event)
 				end
 			end
 			else nil,
@@ -2325,8 +2329,8 @@ local function activateComponent(vnode: RenderVNode, container: Instance)
 	vnode._kept = nil
 	inst.vnode = vnode
 	inst.container = container
-	componentAPI.updateComponentProps(inst, vnode.props)
-	local slotsChanged = componentAPI.updateComponentSlots(inst, vnode.children, vnode.slots)
+	componentModule.updateComponentProps(inst, vnode.props)
+	local slotsChanged = componentModule.updateComponentSlots(inst, vnode.children, vnode.slots)
 	for _, el in collectRootEls(vnode, {}) do
 		el.Parent = container
 	end
@@ -2547,7 +2551,7 @@ local function patchInner(oldVNode: RenderVNode?, newVNode: RenderVNode?, contai
 	if oldVNode == nil then
 		if newType == Fragment then
 			mountFragment(newVNode, container, poolOpt)
-		elseif def == componentAPI.Teleport then
+		elseif def == componentModule.Teleport then
 			mountTeleport(newVNode, container, poolOpt)
 		elseif def and newVNode._kept and newVNode._instance then
 			activateComponent(newVNode, container)
@@ -2575,7 +2579,7 @@ local function patchInner(oldVNode: RenderVNode?, newVNode: RenderVNode?, contai
 	if newType == Fragment then
 		patchKeyedChildren(oldVNode.children, newVNode.children, container, poolOpt)
 		newVNode.el = firstChildEl(newVNode.children)
-	elseif def == componentAPI.Teleport then
+	elseif def == componentModule.Teleport then
 		patchTeleport(oldVNode, newVNode, container, poolOpt)
 	elseif def then
 		local inst = oldVNode._instance :: ComponentInstance?
@@ -2590,12 +2594,12 @@ local function patchInner(oldVNode: RenderVNode?, newVNode: RenderVNode?, contai
 			end
 		elseif inst then
 			inst.vnode = newVNode
-			if not componentAPI.propsUnchanged(def, oldProps, newProps) then
-				componentAPI.updateComponentProps(inst, newProps)
+			if not componentModule.propsUnchanged(def, oldProps, newProps) then
+				componentModule.updateComponentProps(inst, newProps)
 			end
 			local renderEffect = inst._renderEffect
 			if
-				componentAPI.updateComponentSlots(inst, newVNode.children, newVNode.slots)
+				componentModule.updateComponentSlots(inst, newVNode.children, newVNode.slots)
 				and renderEffect
 				and renderEffect.scheduler
 			then
@@ -2638,13 +2642,13 @@ function formatTree(vnode: VNode?): string
 			local inst = node._instance :: ComponentInstance?
 			local parts: { string } = {}
 			if inst then
-				for key, value in _reactivity.toRaw(inst.props) do
+				for key, value in reactivity.toRaw(inst.props) do
 					table.insert(parts, `{key}={describeValue(value)}`)
 				end
 			end
 			table.sort(parts)
 			local suffix = if #parts > 0 then " " .. table.concat(parts, " ") else ""
-			if def == componentAPI.Teleport then
+			if def == componentModule.Teleport then
 				local target = node._teleportTarget
 				table.insert(lines, `{indent}<Teleport -> {if target then target:GetFullName() else "nowhere"}>`)
 				for _, child in node.children do
@@ -2733,7 +2737,7 @@ local function createApp(root: VNode | ComponentDef, opts: AppOptions?): App
 		elseif type(plugin) == "table" and type(plugin.install) == "function" then
 			plugin.install(self, ...)
 		else
-			error("app:use() expects a function or a table with install()", 2)
+			error("[Rivue] app:use() expects a function or a table with install()", 2)
 		end
 		return self
 	end
@@ -2752,7 +2756,7 @@ local function createApp(root: VNode | ComponentDef, opts: AppOptions?): App
 
 	function api.component(self: App, name: string, def: ComponentDef): App
 		if not asComponent(def) then
-			error("app:component() expects a component definition", 2)
+			error("[Rivue] app:component() expects a component definition", 2)
 		end
 		appContext.components[name] = def
 		return self
@@ -2760,7 +2764,7 @@ local function createApp(root: VNode | ComponentDef, opts: AppOptions?): App
 
 	function api.mount(self: App, container: Instance): MountedState
 		if typeof(container) ~= "Instance" then
-			error("mount() requires Roblox Instance", 2)
+			error("[Rivue] app:mount() expects an Instance", 2)
 		end
 
 		if mounted.vnode then
@@ -2792,7 +2796,7 @@ local function createApp(root: VNode | ComponentDef, opts: AppOptions?): App
 	end
 
 	function api.runWithContext<T>(_self: App, fn: () -> T): T
-		return componentAPI.runWithInjectionContext(appContext, fn)
+		return componentModule.runWithInjectionContext(appContext, fn)
 	end
 
 	function api.printTree(_self: App): string
@@ -2824,7 +2828,7 @@ local function createApp(root: VNode | ComponentDef, opts: AppOptions?): App
 	end
 
 	function api.rerender(self: App, newRoot: VNode?): MountedState
-		local container = mounted.container or error("no previous container", 2)
+		local container = mounted.container or error("[Rivue] The app isn't mounted", 2)
 		local keep = ownedGui
 		ownedGui = nil
 		self:unmount()
@@ -2834,7 +2838,7 @@ local function createApp(root: VNode | ComponentDef, opts: AppOptions?): App
 	end
 
 	function api.swapRoot(self: App, newRoot: VNode): MountedState
-		local container = mounted.container or error("no previous container", 2)
+		local container = mounted.container or error("[Rivue] The app isn't mounted", 2)
 		local keep = ownedGui
 		ownedGui = nil
 		self:unmount()
@@ -2845,7 +2849,7 @@ local function createApp(root: VNode | ComponentDef, opts: AppOptions?): App
 
 	function api.mountToPlayerGui(self: App, player: Player)
 		if typeof(player) ~= "Instance" or not player:IsA("Player") then
-			error("mountToPlayerGui expects a Player", 2)
+			error("[Rivue] app:mountToPlayerGui() expects a Player", 2)
 		end
 
 		local screenGui = Instance.new("ScreenGui")

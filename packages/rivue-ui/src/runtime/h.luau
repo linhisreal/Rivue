@@ -4,6 +4,7 @@
 -- Copyright (c) 2025-2026 linhisreal (ThisisLinh)
 -- Licensed under the Rivue License, based on PolyForm Noncommercial 1.0.0. See LICENSE.
 
+local RunService = game:GetService("RunService")
 local Types = require("./types")
 
 type VNode = Types.VNode
@@ -16,7 +17,7 @@ local utils = require("./utils")
 local componentModule = require("./component")
 local directives = require("./directives")
 
-const IS_STUDIO = game:GetService("RunService"):IsStudio()
+const IS_STUDIO = RunService:IsStudio()
 
 local warnedMissingKey = false
 
@@ -70,7 +71,7 @@ local function splitSlots(children: { [unknown]: unknown }): ({ Child }, Types.S
 	for key, value in children do
 		if type(key) == "string" then
 			if type(value) ~= "function" then
-				error(`slot '{key}' must be a function`, 3)
+				error(`[Rivue] Slot '{key}' must be a function`, 3)
 			end
 			local named = slots or {}
 			slots = named
@@ -110,7 +111,7 @@ local function resolveModelRef(model: unknown, label: string): Types.Ref<any>
 		local owner = componentModule.getRenderingInstance()
 		local state = if owner then owner.setupState else nil
 		local found = if state then (state :: any)[model] else nil
-		if type(found) ~= "table" or not found._is_ref then
+		if type(found) ~= "table" or not found._isRef then
 			error(`[Rivue] {label} = "{model}": setup() didn't return a ref named '{model}'`, 4)
 		end
 		return found
