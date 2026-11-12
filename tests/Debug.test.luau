@@ -6,45 +6,11 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
 local debugModule = Rivue.debug
 
-local function assertTrue(condition: boolean, message: string?)
-	if not condition then
-		error("Assertion failed: " .. (message or "condition is false"))
-	end
-	print("✓", message or "Assertion passed")
-end
-
-local function assertEquals(actual: any, expected: any, message: string?)
-	if actual ~= expected then
-		error(
-			string.format(
-				"Assertion failed: %s\nExpected: %s\nActual: %s",
-				message or "values not equal",
-				tostring(expected),
-				tostring(actual)
-			)
-		)
-	end
-	print("✓", message or "Assertion passed")
-end
-
-local function assertNoError(fn: () -> (), message: string?)
-	local results = { pcall(fn) }
-	local success = results[1]
-	if not success then
-		local errorMsg = results[2]
-		error("Expected no error but got: " .. tostring(errorMsg) .. " (" .. (message or "") .. ")")
-	end
-	print("✓", message or "No error raised")
-end
-
-local function assertError(fn: () -> (), message: string?)
-	local results = { pcall(fn) }
-	local success = results[1]
-	if success then
-		error("Expected error but function succeeded (" .. (message or "") .. ")")
-	end
-	print("✓", message or "Error raised as expected")
-end
+local TestSupport = require(game:GetService("ReplicatedStorage"):WaitForChild("TestSupport"))
+local assertEquals = TestSupport.assertEquals
+local assertTrue = TestSupport.assertTrue
+local assertError = TestSupport.assertError
+local assertNoError = TestSupport.assertNoError
 
 local function runTests()
 	print("\n========== DEBUG MODULE TEST SUITE ==========\n")
@@ -157,7 +123,7 @@ local function runTests()
 		local result = debugModule.inspect(state)
 
 		assertEquals(type(result), "string", "inspect should return a string")
-		assertTrue(string.len(result) > 0, "inspect should return non-empty string")
+		assertTrue(#result > 0, "inspect should return non-empty string")
 	end
 
 	print("Test 13: inspect handles primitive values")

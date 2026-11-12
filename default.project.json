@@ -19,6 +19,9 @@
       "Demo": {
         "$path": "dev/Demo"
       },
+      "TestSupport": {
+        "$path": "tests/support/TestSupport.luau"
+      },
       "Tests": {
         "$className": "Folder",
         "ApiValidation": {

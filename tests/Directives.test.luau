@@ -7,26 +7,9 @@ local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
 local directives_module =
 	require(ReplicatedStorage:WaitForChild("RivueUI"):WaitForChild("runtime"):WaitForChild("directives"))
 
-local function assertEquals(actual: any, expected: any, message: string?)
-	if actual ~= expected then
-		error(
-			string.format(
-				"Assertion failed: %s\nExpected: %s\nActual: %s",
-				message or "values not equal",
-				tostring(expected),
-				tostring(actual)
-			)
-		)
-	end
-	print("✓", message or "Assertion passed")
-end
-
-local function assertTrue(condition: boolean, message: string?)
-	if not condition then
-		error("Assertion failed: " .. (message or "condition is false"))
-	end
-	print("✓", message or "Assertion passed")
-end
+local TestSupport = require(game:GetService("ReplicatedStorage"):WaitForChild("TestSupport"))
+local assertEquals = TestSupport.assertEquals
+local assertTrue = TestSupport.assertTrue
 
 local function runTests()
 	local printHeader = "DIRECTIVES TEST SUITE"
@@ -41,21 +24,21 @@ local function runTests()
 		}
 		directives_module.register("test-directive", testDirective)
 		local retrieved = directives_module.get("test-directive")
-		assertTrue(retrieved and true or false, "Should register and retrieve directive")
+		assertTrue(retrieved, "Should register and retrieve directive")
 	end
 
 	print("Test 2: Built-in focus directive exists")
 	do
 		local focusDirective = directives_module.get("focus")
-		assertTrue(focusDirective and true or false, "Should have focus directive")
-		assertTrue(focusDirective.mounted and true or false, "Should have mounted hook")
+		assertTrue(focusDirective, "Should have focus directive")
+		assertTrue(focusDirective.mounted, "Should have mounted hook")
 	end
 
 	print("Test 3: Built-in click-outside directive exists")
 	do
 		local clickOutsideDirective = directives_module.get("click-outside")
-		assertTrue(clickOutsideDirective and true or false, "Should have click-outside directive")
-		assertTrue(clickOutsideDirective.mounted and true or false, "Should have mounted hook")
+		assertTrue(clickOutsideDirective, "Should have click-outside directive")
+		assertTrue(clickOutsideDirective.mounted, "Should have mounted hook")
 	end
 
 	print("Test 4: vModelText creates two-way binding props")
@@ -104,31 +87,31 @@ local function runTests()
 	print("Test 8: Built-in show directive exists")
 	do
 		local showDirective = directives_module.get("show")
-		assertTrue(showDirective and true or false, "Should have show directive")
-		assertTrue(showDirective.mounted and true or false, "Should have mounted hook")
-		assertTrue(showDirective.updated and true or false, "Should have updated hook")
+		assertTrue(showDirective, "Should have show directive")
+		assertTrue(showDirective.mounted, "Should have mounted hook")
+		assertTrue(showDirective.updated, "Should have updated hook")
 	end
 
 	print("Test 9: Built-in drag directive exists")
 	do
 		local dragDirective = directives_module.get("drag")
-		assertTrue(dragDirective and true or false, "Should have drag directive")
-		assertTrue(dragDirective.mounted and true or false, "Should have mounted hook")
+		assertTrue(dragDirective, "Should have drag directive")
+		assertTrue(dragDirective.mounted, "Should have mounted hook")
 	end
 
 	print("Test 10: Built-in fade-in directive exists")
 	do
 		local fadeInDirective = directives_module.get("fade-in")
-		assertTrue(fadeInDirective and true or false, "Should have fade-in directive")
-		assertTrue(fadeInDirective.mounted and true or false, "Should have mounted hook")
-		assertTrue(fadeInDirective.unmounted and true or false, "Should have unmounted hook")
+		assertTrue(fadeInDirective, "Should have fade-in directive")
+		assertTrue(fadeInDirective.mounted, "Should have mounted hook")
+		assertTrue(fadeInDirective.unmounted, "Should have unmounted hook")
 	end
 
 	print("Test 11: Built-in preload directive exists")
 	do
 		local preloadDirective = directives_module.get("preload")
-		assertTrue(preloadDirective and true or false, "Should have preload directive")
-		assertTrue(preloadDirective.mounted and true or false, "Should have mounted hook")
+		assertTrue(preloadDirective, "Should have preload directive")
+		assertTrue(preloadDirective.mounted, "Should have mounted hook")
 	end
 
 	print("Test 11b: preload takes a reactive list")

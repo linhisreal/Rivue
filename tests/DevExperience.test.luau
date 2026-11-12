@@ -8,26 +8,9 @@ local renderer = require(ReplicatedStorage:WaitForChild("RivueUI"):WaitForChild(
 
 local h = Rivue.h
 
-local function assertEquals(actual: any, expected: any, message: string?)
-	if actual ~= expected then
-		error(
-			string.format(
-				"Assertion failed: %s\nExpected: %s\nActual: %s",
-				message or "values not equal",
-				tostring(expected),
-				tostring(actual)
-			)
-		)
-	end
-	print("✓", message or "Assertion passed")
-end
-
-local function assertTrue(condition: boolean, message: string?)
-	if not condition then
-		error("Assertion failed: " .. (message or "condition is false"))
-	end
-	print("✓", message or "Assertion passed")
-end
+local TestSupport = require(game:GetService("ReplicatedStorage"):WaitForChild("TestSupport"))
+local assertEquals = TestSupport.assertEquals
+local assertTrue = TestSupport.assertTrue
 
 --- Runs fn and collects the warnings it caused. Through LogService, because in Roblox each module
 --- has its own globals: replacing warn here wouldn't catch Rivue's own warn calls
@@ -532,16 +515,19 @@ local function runTests()
 
 		local Buyer = Rivue.defineComponent({
 			name = "Buyer",
-			emits = { "buy" },
+			emits = { "buy", "clear" },
 			setup = function(_, ctx)
 				return {
 					buy = function()
 						ctx.emit("buy", "Sword", 3)
 					end,
+					clear = function()
+						ctx.emit("clear", 7, nil)
+					end,
 				}
 			end,
 			render = function(ctx)
-				return Rivue.h("TextButton", { onClick = ctx.buy })
+				return Rivue.h("TextButton", { onClick = ctx.buy, onSelectionGained = ctx.clear })
 			end,
 		})
 		local shopFolder = Instance.new("Folder")
@@ -554,6 +540,9 @@ local function runTests()
 		assertTrue(string.find(first, '|buy|"Sword", 3$') ~= nil, `emits are logged with their arguments: {first}`)
 		Rivue.testing.trigger(button, "onClick")
 		assertTrue(button:GetAttribute("RivueEmit") ~= first, "the same event twice still changes the attribute")
+		Rivue.testing.trigger(button, "onSelectionGained")
+		local cleared = button:GetAttribute("RivueEmit") :: string
+		assertTrue(string.find(cleared, "|clear|7, nil$") ~= nil, `trailing nil arguments are kept: {cleared}`)
 		shopApp:unmount()
 	end
 

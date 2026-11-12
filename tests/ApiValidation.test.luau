@@ -5,33 +5,10 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
 
-local function assertEquals(actual: any, expected: any, message: string?)
-	if actual ~= expected then
-		error(
-			string.format(
-				"Assertion failed: %s\nExpected: %s\nActual: %s",
-				message or "values not equal",
-				tostring(expected),
-				tostring(actual)
-			)
-		)
-	end
-	print("✓", message or "Assertion passed")
-end
-
-local function assertTrue(condition: boolean, message: string?)
-	if not condition then
-		error("Assertion failed: " .. (message or "condition is false"))
-	end
-	print("✓", message or "Assertion passed")
-end
-
-local function assertFalse(condition: boolean, message: string?)
-	if condition then
-		error("Assertion failed: " .. (message or "condition is true"))
-	end
-	print("✓", message or "Assertion passed")
-end
+local TestSupport = require(game:GetService("ReplicatedStorage"):WaitForChild("TestSupport"))
+local assertEquals = TestSupport.assertEquals
+local assertTrue = TestSupport.assertTrue
+local assertFalse = TestSupport.assertFalse
 
 -- Nil on a server, where there's no local player: the ScreenGui then stays unparented
 local function playerGui(): Instance?
@@ -170,7 +147,7 @@ local function runTests()
 		local effectRan = 0
 
 		local eff = Rivue.effect(function()
-			effectRan = effectRan + 1
+			effectRan += 1
 			local _ = count.value
 		end)
 
@@ -509,7 +486,7 @@ local function runTests()
 	do
 		local debounceCalled = 0
 		local debounced = Rivue.utils.debounce(function()
-			debounceCalled = debounceCalled + 1
+			debounceCalled += 1
 		end, 0.1)
 
 		debounced()
@@ -521,7 +498,7 @@ local function runTests()
 
 		local throttleCalled = 0
 		local throttled = Rivue.utils.throttle(function()
-			throttleCalled = throttleCalled + 1
+			throttleCalled += 1
 		end, 100)
 
 		throttled()

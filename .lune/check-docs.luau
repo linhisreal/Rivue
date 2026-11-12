@@ -196,7 +196,7 @@ return function()
 		local ok, err = pcall(example[2])
 		RunService.IsServer = function() return false end
 		RunService.IsClient = function() return true end
-		if not ok then print("DOCFAIL " .. example[1] .. ": " .. tostring(err)) end
+		if not ok then print(`DOCFAIL {example[1]}: {err}`) end
 		task.wait(0.05)
 	end
 end]]

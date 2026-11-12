@@ -6,33 +6,10 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = ReplicatedStorage:WaitForChild("RivueUI")
 local scheduler = require(Rivue:WaitForChild("runtime"):WaitForChild("scheduler"))
 
-local function assertEquals(actual: any, expected: any, message: string?)
-	if actual ~= expected then
-		error(
-			string.format(
-				"Assertion failed: %s\nExpected: %s\nActual: %s",
-				message or "values not equal",
-				tostring(expected),
-				tostring(actual)
-			)
-		)
-	end
-	print("✓", message or "Assertion passed")
-end
-
-local function assertTrue(condition: boolean, message: string?)
-	if not condition then
-		error("Assertion failed: " .. (message or "condition is false"))
-	end
-	print("✓", message or "Assertion passed")
-end
-
-local function assertFalse(condition: boolean, message: string?)
-	if condition then
-		error("Assertion failed: " .. (message or "condition is true"))
-	end
-	print("✓", message or "Assertion passed")
-end
+local TestSupport = require(game:GetService("ReplicatedStorage"):WaitForChild("TestSupport"))
+local assertEquals = TestSupport.assertEquals
+local assertTrue = TestSupport.assertTrue
+local assertFalse = TestSupport.assertFalse
 
 local function runTests()
 	print("\n========== SCHEDULER TEST SUITE ==========\n")
@@ -51,7 +28,7 @@ local function runTests()
 	do
 		local count = 0
 		local fn = function()
-			count = count + 1
+			count += 1
 		end
 		scheduler.queueJob(fn, { mode = "micro" })
 		scheduler.queueJob(fn, { mode = "micro" })
@@ -64,7 +41,7 @@ local function runTests()
 	do
 		local count = 0
 		local fn = function()
-			count = count + 1
+			count += 1
 		end
 		scheduler.queueJob(fn, { mode = "micro" })
 		task.wait(0.1)
@@ -89,13 +66,13 @@ local function runTests()
 	do
 		local count1, count2, count3 = 0, 0, 0
 		scheduler.queueJob(function()
-			count1 = count1 + 1
+			count1 += 1
 		end, { mode = "micro" })
 		scheduler.queueJob(function()
-			count2 = count2 + 1
+			count2 += 1
 		end, { mode = "micro" })
 		scheduler.queueJob(function()
-			count3 = count3 + 1
+			count3 += 1
 		end, { mode = "micro" })
 		task.wait(0.1)
 		assertTrue(count1 == 1 and count2 == 1 and count3 == 1, "All different jobs should execute")

@@ -246,4 +246,5 @@ devtools on.
 
 Lune bundles each suite with `tests/offline/prelude.luau`, a fake Roblox: stub Instances, a
 virtual clock, service stand-ins and the 80-level `task.defer` limit. Extend it when a test needs
-more. Bug fixes start with a failing test.
+more. Suites share their assertions through `tests/support/TestSupport.luau`. Bug fixes start
+with a failing test.
