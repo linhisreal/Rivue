@@ -4,12 +4,12 @@
 
 A render function full of `Color3.fromRGB` calls is hard to read and harder to restyle. This
 chapter moves the looks into style classes, lays things out without hand-placed positions, and
-makes the same UI work on a phone, a console and a desktop.
+makes one UI work on phones, consoles and desktops, in the player's language.
 
 ## Style classes
 
-Give colours, fonts and sizes a name once, as a style class, and refer to them with `class`. If
-you've written CSS, this will feel familiar:
+Name your colours, fonts and sizes once as style classes, then apply them with `class`. It works a
+lot like CSS classes:
 
 ```lua
 -- UI/styles.luau
@@ -35,8 +35,8 @@ flowchart LR
 
 `class` takes a name, a list (`{ "button", "active" }`, where later entries win) or a map
 (`{ active = isActive }`, applied alphabetically). Styles only one component uses can live in its
-own `styles = { ... }` option. And values that follow state can stay inline, since the element's
-own props always win anyway.
+own `styles = { ... }` option. Values that follow state can stay inline, since the element's own
+props win anyway.
 
 ### Hover, pressed, selected and disabled
 
@@ -62,7 +62,7 @@ beats hover, and hover beats selected.
 
 ### Different devices
 
-Classes can change per device too. Think media queries:
+Classes can also change per device, the way media queries do in CSS:
 
 ```lua
 panel = {
@@ -79,8 +79,8 @@ device variant re-render.
 
 ## Layout without positions
 
-Hand-placed positions break the moment a label wraps or the screen gets smaller. The `layout` prop
-creates the layout object for you, and children show up in the order you render them:
+Hand-placed positions break as soon as a label wraps or the screen gets smaller. The `layout` prop
+creates the layout object for you, and children appear in the order you render them:
 
 ![layout = "vertical", "horizontal" and grid](../assets/diagrams/layout-direction.webp)
 
@@ -98,7 +98,7 @@ h("Frame", { class = "panel", layout = { gap = 8 } }, { -- vertical list, 8 px a
 
 ![justify and align](../assets/diagrams/layout-justify-align.webp)
 
-And `flex` decides how a child shares whatever space is left over:
+`flex` decides how a child shares the space that's left over:
 
 ![flex](../assets/diagrams/layout-flex.webp)
 
@@ -146,8 +146,32 @@ render = function(ctx)
 end,
 ```
 
-Controllers need one more thing: something selected to start from. `vSelect = true` selects an
-element, and `Rivue.useSelection()` reads or changes the current selection.
+Controllers also need something selected to start from. `vSelect = true` selects an element,
+`Rivue.useSelection()` reads or changes the current selection, and `useGamepadFocus`
+([chapter 5](05-forms-and-input.md#keyboard-and-gamepad-shortcuts)) handles menus that open and
+close.
+
+## Text in the player's language
+
+`Rivue.useTranslator()` reads your game's localization table. Text that uses it updates when the
+translations load and when the player switches language:
+
+```lua
+-- the table has Shop.Buy = "Buy for {price}" in English
+local BuyButton = Rivue.defineComponent({
+	name = "BuyButton",
+	props = { price = { type = "number", required = true } },
+	setup = function()
+		return { t = Rivue.useTranslator() }
+	end,
+	render = function(ctx)
+		return h("TextButton", { Text = ctx.t("Shop.Buy", { price = ctx.price }) })
+	end,
+})
+```
+
+Until the translator loads, and for keys the table doesn't have, `t` returns the key itself.
+`Rivue.useLocale()` gives you the locale id (`"en-us"`) as a ref if you need it for formatting.
 
 ---
 
@@ -156,6 +180,6 @@ element, and `Rivue.useSelection()` reads or changes the current selection.
 [Demo app](../../dev/Demo) (app-wide styles)
 **Reference:** [Element props: class, layout, flex](../api/render-function.md#element-props) ·
 [styles option](../api/component.md#styles) · [app:styles()](../api/application.md#appstyles) ·
-[Roblox composables](../api/roblox.md)
+[Roblox composables](../api/roblox.md) · [useTranslator()](../api/roblox.md#usetranslator)
 
 [← 5. Forms and input](05-forms-and-input.md) · [Guide contents](../GUIDE.md) · [7. Effects and animation →](07-effects-and-animation.md)

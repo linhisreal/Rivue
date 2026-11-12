@@ -1,0 +1,91 @@
+.vp-doc .mermaid {
+	--fd-mm-node: #ffffff;
+	--fd-mm-border: #c4c4c4;
+	--fd-mm-edge: #6e6e6e;
+	--fd-mm-group: #b8b8b8;
+	display: flex;
+	justify-content: center;
+	margin: 16px 0;
+	padding: 24px 16px;
+	overflow-x: auto;
+	border: 1px solid var(--vp-c-border);
+	border-radius: var(--fd-radius);
+	background: var(--vp-c-bg-alt);
+}
+
+.vp-doc .mermaid svg {
+	max-width: 100%;
+	height: auto;
+	font-family: var(--vp-font-family-base) !important;
+}
+
+.vp-doc .mermaid foreignObject {
+	overflow: visible;
+}
+
+.vp-doc .mermaid :is(p, span, div) {
+	margin: 0;
+	line-height: 1.5;
+}
+
+.vp-doc .mermaid :is(.node rect, .node polygon, .node circle, .node path, rect.actor) {
+	fill: var(--fd-mm-node) !important;
+	stroke: var(--fd-mm-border) !important;
+	stroke-width: 1px !important;
+	rx: 8px;
+}
+
+.vp-doc .mermaid :is(.nodeLabel, .label, .edgeLabel, text.actor, text.actor > tspan, .messageText, .noteText, .loopText) {
+	fill: var(--vp-c-text-1) !important;
+	color: var(--vp-c-text-1) !important;
+	font-family: var(--vp-font-family-base) !important;
+}
+
+.vp-doc .mermaid :is(.messageText, .edgeLabel) {
+	fill: var(--vp-c-text-2) !important;
+	color: var(--vp-c-text-2) !important;
+}
+
+.vp-doc .mermaid :is(.edgeLabel, .edgeLabel rect, .edgeLabel p, .edgeLabel span, .labelBkg) {
+	background: var(--vp-c-bg-alt) !important;
+	fill: var(--vp-c-bg-alt) !important;
+}
+
+.vp-doc .mermaid :is(.flowchart-link, .edgePath path, .messageLine0, .messageLine1, .actor-line, .relation) {
+	stroke: var(--fd-mm-edge) !important;
+	stroke-width: 1.25px !important;
+}
+
+.vp-doc .mermaid .actor-line {
+	stroke: var(--vp-c-divider) !important;
+}
+
+.vp-doc .mermaid :is(marker path, .arrowheadPath, .arrowMarkerPath, #arrowhead path) {
+	fill: var(--fd-mm-edge) !important;
+	stroke: var(--fd-mm-edge) !important;
+}
+
+.vp-doc .mermaid .note {
+	fill: var(--vp-c-brand-soft) !important;
+	stroke: var(--vp-c-brand-1) !important;
+	rx: 6px;
+}
+
+.vp-doc .mermaid .cluster rect {
+	fill: transparent !important;
+	stroke: var(--fd-mm-group) !important;
+	stroke-dasharray: 4 4;
+	rx: 10px;
+}
+
+.vp-doc .mermaid .cluster-label :is(span, p, .nodeLabel) {
+	color: var(--vp-c-text-2) !important;
+	fill: var(--vp-c-text-2) !important;
+}
+
+.dark .vp-doc .mermaid {
+	--fd-mm-node: var(--vp-c-bg);
+	--fd-mm-border: #3a3a3a;
+	--fd-mm-edge: #8a8a8a;
+	--fd-mm-group: #3a3a3a;
+}

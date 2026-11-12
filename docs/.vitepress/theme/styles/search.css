@@ -1,0 +1,178 @@
+:root .VPLocalSearchBox .backdrop {
+	background: rgba(0, 0, 0, 0.45);
+	backdrop-filter: blur(4px);
+	animation: fd-fade 0.18s ease-out;
+}
+
+:root .VPLocalSearchBox .shell {
+	gap: 0;
+	padding: 0;
+	overflow: hidden;
+	border: 1px solid var(--vp-c-border);
+	border-radius: var(--fd-radius);
+	background: var(--vp-c-bg-elv);
+	box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+	animation: fd-pop 0.22s cubic-bezier(0.2, 0.9, 0.3, 1);
+}
+
+:root .VPLocalSearchBox .search-bar {
+	padding: 6px 12px;
+	border: 0;
+	border-bottom: 1px solid var(--vp-c-divider);
+	border-radius: 0;
+}
+
+:root .VPLocalSearchBox .search-bar:focus-within {
+	border-color: var(--vp-c-divider);
+}
+
+:root .VPLocalSearchBox .results {
+	padding: 8px;
+}
+
+:root .VPLocalSearchBox {
+	--vp-local-search-result-bg: var(--vp-c-bg-elv);
+	--vp-local-search-result-selected-bg: var(--fd-secondary);
+	--vp-local-search-highlight-bg: var(--vp-c-brand-soft);
+	--vp-local-search-highlight-text: var(--vp-c-brand-1);
+}
+
+:root .VPLocalSearchBox .result {
+	border: 0;
+	border-radius: 8px;
+	background: var(--vp-local-search-result-bg);
+	transition: background-color 0.12s ease;
+	animation: fd-rise 0.24s ease-out backwards;
+}
+
+:root .VPLocalSearchBox .result:nth-child(2) {
+	animation-delay: 0.03s;
+}
+
+:root .VPLocalSearchBox .result:nth-child(3) {
+	animation-delay: 0.06s;
+}
+
+:root .VPLocalSearchBox .result:nth-child(4) {
+	animation-delay: 0.09s;
+}
+
+:root .VPLocalSearchBox .result:nth-child(n + 5) {
+	animation-delay: 0.12s;
+}
+
+:root .VPLocalSearchBox .result.selected {
+	--vp-local-search-result-bg: var(--vp-local-search-result-selected-bg);
+}
+
+:root .VPLocalSearchBox .result .titles,
+:root .VPLocalSearchBox .result.selected .titles {
+	color: var(--vp-c-text-1);
+}
+
+:root .VPLocalSearchBox .result .title-icon,
+:root .VPLocalSearchBox .result.selected .title-icon {
+	color: var(--vp-c-text-3);
+}
+
+:root .VPLocalSearchBox .titles mark {
+	padding: 0;
+	background: transparent;
+	color: var(--vp-c-brand-1);
+	font-weight: 600;
+}
+
+:root .VPLocalSearchBox .excerpt-wrapper {
+	margin-top: 6px;
+	padding-left: 10px;
+	border-left: 2px solid var(--vp-c-divider);
+}
+
+:root .VPLocalSearchBox .result.selected .excerpt-wrapper {
+	border-left-color: var(--vp-c-brand-1);
+}
+
+:root .VPLocalSearchBox .excerpt {
+	max-height: 96px;
+	margin-top: 0;
+}
+
+:root .VPLocalSearchBox .excerpt :is(h1, h2, h3, h4) {
+	margin: 0 0 4px;
+	padding: 0;
+	border: 0;
+	font-weight: 600;
+}
+
+:root .VPLocalSearchBox .excerpt :is(p, ul, ol) {
+	margin: 0 0 4px;
+}
+
+:root .VPLocalSearchBox .excerpt div[class*="language-"] {
+	margin: 4px 0;
+	border: 0;
+	background: transparent;
+}
+
+:root .VPLocalSearchBox .excerpt pre {
+	padding: 0;
+}
+
+:root .VPLocalSearchBox .excerpt :is(.copy, .lang, .header-anchor, .page-actions, .fd-actions) {
+	display: none;
+}
+
+:root .VPLocalSearchBox .search-keyboard-shortcuts {
+	padding: 10px 16px;
+	border-top: 1px solid var(--vp-c-divider);
+}
+
+@keyframes fd-fade {
+	from {
+		opacity: 0;
+	}
+}
+
+@keyframes fd-pop {
+	from {
+		opacity: 0;
+		transform: translateY(-6px) scale(0.98);
+	}
+}
+
+@keyframes fd-rise {
+	from {
+		opacity: 0;
+		transform: translateY(4px);
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+	:root .VPLocalSearchBox .backdrop,
+	:root .VPLocalSearchBox .shell,
+	:root .VPLocalSearchBox .result,
+	.rv-code .line.rv-run {
+		animation: none;
+	}
+}
+
+:root .VPLocalSearchBox .result .titles::after {
+	content: "Docs";
+	margin-inline-start: auto;
+	padding: 1px 8px;
+	border: 1px solid var(--vp-c-divider);
+	border-radius: 999px;
+	font-size: 11px;
+	font-weight: 500;
+	color: var(--vp-c-text-2);
+}
+
+:root .VPLocalSearchBox .result[href*="/guide/"] .titles::after {
+	content: "Guide";
+}
+
+:root .VPLocalSearchBox .result:is([href*="/api/"], [href$="/API"], [href*="/API#"]) .titles::after {
+	content: "API";
+	color: var(--vp-c-brand-1);
+	border-color: color-mix(in srgb, var(--vp-c-brand-1) 35%, transparent);
+}

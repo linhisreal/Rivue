@@ -2,9 +2,9 @@
 
 # 5. Forms and input
 
-Text boxes are where state flows both ways: the player changes it, and so does your code. This
-chapter covers binding them, shortcuts, and the small helpers for focus, clicks outside, dragging
-and gamepad selection.
+In a text box, state changes from both sides: the player types, and your code sets it too. This
+chapter covers binding text boxes, keyboard and gamepad shortcuts, and the small helpers for focus,
+clicks outside, dragging and gamepad selection.
 
 ## Binding a TextBox
 
@@ -47,8 +47,8 @@ flowchart LR
     R -- "setting draft.value" --> T
 ```
 
-Why a string? Because `ctx.draft` is already the ref's value, so `model = ctx.draft` would bind to
-a plain string and nothing would update. Outside `render(ctx)` you pass the ref itself:
+It's a string because `ctx.draft` is already the ref's value: `model = ctx.draft` would bind to a
+plain string and nothing would update. Outside `render(ctx)` you pass the ref itself,
 `model = draftRef`.
 
 `modelModifiers` changes what gets stored, the same way Vue's `.trim`, `.number` and `.lazy` do:
@@ -61,8 +61,8 @@ h("TextBox", { model = "search", modelModifiers = { lazy = true } }) -- updates 
 
 ## Keyboard and gamepad shortcuts
 
-Escape to close a menu, B on a controller: `Rivue.useKeybind` binds keys or gamepad buttons for as
-long as the component is mounted.
+`Rivue.useKeybind` binds keys or gamepad buttons for as long as the component is mounted, for
+example Escape and B to close a menu:
 
 ```lua
 setup = function(_props, ctx)
@@ -73,8 +73,28 @@ setup = function(_props, ctx)
 end,
 ```
 
-You don't unbind it yourself. If it should only work some of the time, pass
+It unbinds itself on unmount. If it should only work some of the time, pass
 `{ enabled = someRef }`.
+
+A gamepad player who opens a menu has to press the select button before any button responds.
+`Rivue.useGamepadFocus` selects one for them when the menu opens, and gives the selection back when
+it closes:
+
+```lua
+local PauseMenu = Rivue.defineComponent({
+	name = "PauseMenu",
+	setup = function()
+		Rivue.useGamepadFocus(Rivue.useTemplateRef("resume"))
+		return {}
+	end,
+	render = function()
+		return h("Frame", { layout = { gap = 8 } }, {
+			h("TextButton", { Text = "Resume", ref = "resume" }),
+			h("TextButton", { Text = "Settings" }),
+		})
+	end,
+})
+```
 
 ## model on your own components
 
@@ -114,14 +134,14 @@ Directives are small behaviours you switch on with a `v` prop:
 | `vSelect = true` | selects the element for gamepad navigation |
 | `vDrag = true` | makes it draggable with mouse or touch |
 
-Need one that isn't here? Register it with
-[`app:directive()`](../api/application.md#appdirective).
+To add your own, register it with [`app:directive()`](../api/application.md#appdirective).
 
 ---
 
 **Try it:** [TodoList example](../../examples/components/TodoList.luau) (`model = "draft"`) ·
 [Modal example](../../examples/components/Modal.luau) (`vClickOutside`)
 **Reference:** [Element props: model](../api/render-function.md#element-props) ·
-[defineModel()](../api/component.md#definemodel) · [Directives](../api/directives.md)
+[defineModel()](../api/component.md#definemodel) · [useKeybind()](../api/roblox.md#usekeybind) ·
+[useGamepadFocus()](../api/roblox.md#usegamepadfocus) · [Directives](../api/directives.md)
 
 [← 4. Components](04-components.md) · [Guide contents](../GUIDE.md) · [6. Styling and layout →](06-styling-and-layout.md)

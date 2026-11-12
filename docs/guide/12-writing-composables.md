@@ -2,9 +2,9 @@
 
 # 12. Writing composables
 
-Sooner or later two components need the same logic. A composable is how you share it: a `use*`
-function called from `setup`. This chapter writes a few, from a simple countdown to a data loader
-that copes with slow answers.
+When two components need the same logic, put it in a composable: a `use*` function called from
+`setup`. This chapter builds a countdown step by step, then covers cleanup, a debounced ref and
+loading data.
 
 ## From component to composable
 
@@ -26,7 +26,7 @@ local RoundTimer = Rivue.defineComponent({
 })
 ```
 
-Now a sale banner needs the same countdown. Move it out into a composable:
+When a sale banner needs the same countdown, move it into a composable:
 
 ```lua
 -- UI/composables/useCountdown.luau
@@ -56,14 +56,14 @@ end,
 ![each call to a composable makes its own state](../assets/diagrams/composable-calls.webp)
 
 Whatever a composable creates during `setup` belongs to the component that called it, and stops
-when that component unmounts. Each call makes new state, too. Two components that need the same
-state, rather than the same logic, want a store instead ([chapter 14](14-state-architecture.md)).
+when that component unmounts. Each call also makes new state. Two components that need the same
+state, rather than the same logic, need a store instead ([chapter 14](14-state-architecture.md)).
 
 ## Accept a ref, not only a number
 
-Say the round length is a ref. `useCountdown(roundLength.value)` reads it once and never notices
-when it changes. The fix is to accept a number, a ref or a getter (`MaybeRefOrGetter`) and read it
-with `Rivue.toValue()`:
+If the round length is a ref, `useCountdown(roundLength.value)` reads it once and never notices
+when it changes. Accept a number, a ref or a getter (`MaybeRefOrGetter`) instead, and read it with
+`Rivue.toValue()`:
 
 ```lua
 local function useCountdown(seconds: Rivue.MaybeRefOrGetter<number>)
@@ -97,7 +97,7 @@ end)
 
 ## Return the ref itself
 
-Hand back the ref itself. Return `.value` and the caller gets a number that never changes:
+Return the ref, not its `.value`. A returned `.value` is a number that never changes:
 
 ```lua
 setup = function()
@@ -137,13 +137,13 @@ local function usePartTouched(part: BasePart)
 end
 ```
 
-Why not `onUnmounted`? It only works inside a component. `onScopeDispose` also works when the
-composable runs in a store or in a test's [`effectScope`](../api/reactivity-advanced.md#effectscope).
+`onUnmounted` would only work inside a component. `onScopeDispose` also works when the composable
+runs in a store or in a test's [`effectScope`](../api/reactivity-advanced.md#effectscope).
 
 ## A debounced ref with customRef
 
-With `customRef` you decide when a ref tells its readers it changed. Here's a debounced one, for a
-search box:
+`customRef` lets you decide when a ref tells its readers it changed. This one waits until the
+player stops typing, for a search box:
 
 ```lua
 local function useDebounced<T>(initial: T, delaySeconds: number)
@@ -172,7 +172,7 @@ local function useDebounced<T>(initial: T, delaySeconds: number)
 end
 ```
 
-Anywhere a ref works, this works, `model` included:
+It works anywhere a ref does, `model` included:
 
 ```lua
 setup = function()
@@ -187,84 +187,37 @@ render = function()
 end,
 ```
 
-## Loading server data
+## Loading data
 
-A loader gives back data, loading and error refs, plus a refresh function. The tricky part is
-answers that arrive out of order:
+A loader needs data, loading and error refs, plus a way to load again. The awkward part is answers
+that arrive out of order, when the player switches pages faster than the server replies:
 
 ![an old answer arriving after a newer one](../assets/diagrams/stale-response.webp)
 
-Number each request, and drop any answer that isn't for the latest one:
+`Rivue.useAsync` handles that: it keeps only the newest answer, and it holds a surrounding
+`Suspense` on its fallback until the data arrives. For RivueRemote calls, `Remote.useRequest` wraps
+it and puts request errors in `error`:
 
 ```lua
 local Remote = require(game.ReplicatedStorage.RivueRemote)
 
-local function useRemoteData(action: string, payload: Rivue.MaybeRefOrGetter<any>?)
-	local data = Rivue.shallowRef(nil) -- replaced as a whole, so no need to track inside it
-	local loading = Rivue.ref(false)
-	local errorText = Rivue.ref(nil :: string?)
-	local latest = 0
-
-	local function refresh()
-		latest += 1
-		local mine = latest -- this request's number
-		loading.value = true
-		errorText.value = nil
-
-		task.spawn(function()
-			local result, err = Remote.request(action, Rivue.toValue(payload))
-			if mine ~= latest then
-				return -- a newer request was made while this one was waiting
-			end
-			loading.value = false
-			if err then
-				errorText.value = err
-			else
-				data.value = result
-			end
-		end)
-	end
-
-	-- Load now, and again whenever the payload changes (another page, a new filter)
-	Rivue.watch(function()
-		return Rivue.toValue(payload)
-	end, refresh, { immediate = true })
-
-	return { data = data, loading = loading, errorText = errorText, refresh = refresh }
+local function useShopPage(page: Rivue.Ref<number>)
+	local shop = Remote.useRequest("shop:list", { payload = { page = page.value }, initial = {} })
+	Rivue.watch(page, function(value)
+		shop.run({ page = value }) -- a late answer for the old page is dropped
+	end)
+	return shop
 end
 ```
 
-Here it is driving a paged shop screen:
+For async work that isn't a Remote call, pass your own function to `useAsync`:
 
 ```lua
-setup = function()
-	local page = Rivue.ref(1)
-	local shop = useRemoteData("shop:list", function()
-		return { page = page.value }
-	end)
-	return {
-		page = page, -- set ctx.page = 2 and the next page loads
-		items = shop.data,
-		loading = shop.loading,
-		errorText = shop.errorText,
-		retry = shop.refresh,
-	}
-end,
+-- in setup: the player's headshot, for an avatar ImageLabel
+local thumbnail = Rivue.useAsync(function(userId: number)
+	return game.Players:GetUserThumbnailAsync(userId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size100x100)
+end, { args = { props.userId } })
 ```
-
-Writing this once shows how the request numbering works. In your own code, `Rivue.useAsync` does
-the same job: data, loading and error refs, only the newest answer kept, and it holds a
-surrounding `Suspense` on its loading screen until the data arrives:
-
-```lua
-local shop = Rivue.useAsync(function(page: number)
-	return Remote.request("shop:list", { page = page })
-end, { args = { 1 } })
-
-shop.run(2) -- load page 2; a late answer for page 1 is dropped
-```
-
-See [useAsync()](../api/component.md#useasync).
 
 ---
 
@@ -272,6 +225,7 @@ See [useAsync()](../api/component.md#useasync).
 
 **Reference:** [toValue()](../api/reactivity-utilities.md#tovalue) ·
 [customRef()](../api/reactivity-advanced.md#customref) ·
-[onScopeDispose()](../api/reactivity-advanced.md#onscopedispose) · [watch()](../api/reactivity-core.md#watch)
+[onScopeDispose()](../api/reactivity-advanced.md#onscopedispose) · [watch()](../api/reactivity-core.md#watch) ·
+[useAsync()](../api/component.md#useasync) · [Remote.useRequest()](../api/remote.md#remoteuserequest)
 
 [← 11. Style rules](11-style-rules.md) · [Guide contents](../GUIDE.md) · [13. Component patterns →](13-advanced-components.md)

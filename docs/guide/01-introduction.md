@@ -2,17 +2,18 @@
 
 # 1. Introduction
 
-Start here. By the end of this page you'll have a button on screen that counts clicks, and you'll
-know the shape every component in these docs follows.
+This page gets a button on screen that counts its clicks, and shows the shape every component in
+these docs follows.
 
 ## The idea
 
-Without a framework, UI code creates Instances and then keeps them in sync by hand. The coins
-change, so something has to find the label and set its `Text`. That's one label. Now do it for
-every value on every screen.
+Without a framework you create Instances and keep them in sync by hand: the coins change, so
+something has to find the label and set its `Text`, and the same again for every value on every
+screen.
 
-Rivue turns this around. You describe what the UI should look like for the current state, and when
-the state changes, Rivue works out what's different and writes only those properties.
+With Rivue you describe what the UI looks like for the current state. When the state changes, Rivue
+compares the new description with the last one and writes only the properties that differ, so
+there's no `label.Text = ...` in your code.
 
 ```mermaid
 flowchart LR
@@ -23,14 +24,12 @@ flowchart LR
     I -. "player clicks,<br/>server data" .-> S
 ```
 
-You don't write `label.Text = ...` anywhere.
-
 ## Your first component
 
-Put Rivue in `ReplicatedStorage` (see [Installation](../../README.md#installation)), then add a
+Put Rivue in `ReplicatedStorage` (see [Installation](../INSTALLATION.md)), then add a
 LocalScript:
 
-```lua
+```lua {9,19} /ctx/
 -- StarterPlayerScripts/Hud.client.luau
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -87,6 +86,7 @@ not `ctx.count.value`). After that come the component's props, then helpers like
 `createApp(Counter):mountToPlayerGui(player)` creates a ScreenGui in the player's PlayerGui and
 renders into it. `app:mount(instance)` renders into any other Instance.
 
+> [!NOTE]
 > Tiny components can skip the table and return the render function straight from `setup`. A few
 > API examples do that. The rest of these docs stick to `setup` + `render`.
 

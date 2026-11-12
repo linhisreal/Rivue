@@ -4,10 +4,10 @@
 
 # Rivue for Vue developers
 
-If you know Vue 3, you already know most of Rivue. It's Vue's runtime (reactivity, components,
-the virtual DOM) rewritten in Luau, with the same names wherever the idea carries over. The big
-missing piece is the template compiler. You write what a Vue template compiles to, a render
-function made of `h()` calls, and Rivue turns that into Roblox Instances instead of DOM nodes:
+If you know Vue 3, you know most of Rivue. It's Vue's runtime (reactivity, components, the virtual
+DOM) rewritten in Luau, with Vue's names wherever the idea carries over. What's missing is the
+template compiler: you write the render function a template would compile to, made of `h()`
+calls, and Rivue turns it into Roblox Instances instead of DOM nodes.
 
 ```mermaid
 flowchart LR
@@ -18,8 +18,6 @@ flowchart LR
         RF2["render function<br/>h() calls, written by you"] --> I["Roblox Instances"]
     end
 ```
-
-The tables below are the cheat sheet. The differences worth knowing are at the end.
 
 ## Templates to render functions
 
@@ -56,7 +54,7 @@ The tables below are the cheat sheet. The differences worth knowing are at the e
 
 ## script setup to defineComponent
 
-```vue
+```vue [Vue] tab
 <script setup>
 const props = defineProps({ start: { type: Number, default: 0 } })
 const emit = defineEmits(["change"])
@@ -66,47 +64,16 @@ onMounted(() => console.log("mounted"))
 </script>
 ```
 
-```lua
+```lua [Rivue] tab
 local Counter = Rivue.defineComponent({
 	name = "Counter",
 	props = { start = { type = "number", default = 0 } },
 	emits = { "change" },
 	setup = function(props, ctx)
 		local count = Rivue.ref(props.start)
-		local doubled = Rivue.computed(function()
-			return count.value * 2
-		end)
 		Rivue.onMounted(function()
 			print("mounted")
 		end)
-
-		return function()
-			return h("TextButton", {
-				Text = `{count.value} ({doubled.value})`,
-				onClick = function()
-					count.value += 1
-					ctx.emit("change", count.value)
-				end,
-			})
-		end
-	end,
-})
-```
-
-There's a short form too, when all you have is a setup function:
-`Rivue.defineComponent(function(props, ctx) ... end, { name = "Counter" })`.
-
-Most of the docs use a third form. `setup()` returns its state, much like the Options API's
-`setup` + `render` pair, or what `<script setup>` exposes to a template, and refs are unwrapped
-in `render(ctx)` the way they are in a template:
-
-```lua
-local Counter = Rivue.defineComponent({
-	name = "Counter",
-	props = { start = { type = "number", default = 0 } },
-	emits = { "change" },
-	setup = function(props, ctx)
-		local count = Rivue.ref(props.start)
 		return {
 			count = count,
 			doubled = Rivue.computed(function()
@@ -123,6 +90,12 @@ local Counter = Rivue.defineComponent({
 	end,
 })
 ```
+
+`setup` returns what `render(ctx)` can use, the way `<script setup>` exposes its bindings to the
+template, and `ctx` unwraps refs the way a template does. This is the form the docs use. Two
+shorter forms also work: `setup` can return the render function itself, and
+`Rivue.defineComponent(function(props, ctx) ... end, { name = "Counter" })` takes only a setup
+function.
 
 ## Same names, same behaviour
 
@@ -141,30 +114,37 @@ local Counter = Rivue.defineComponent({
 
 ### Proxies and Luau
 
-`.value` and reactive proxies work the same as in Vue. What's missing is `__pairs` and `__ipairs`:
-Luau doesn't have them, so `pairs()`, `ipairs()` and `next()` see an empty table. Loop with
-`for k, v in state do` or a numeric loop instead. `table.insert` and `table.remove` go around the
-proxy too, so where you'd use JavaScript's array methods, use [`Rivue.array`](api/array.md)
-(`push`, `splice`, `removeWhere`, `sort` and the rest).
+`.value` and reactive proxies behave as in Vue. Two Luau gaps change how you loop and edit lists:
+
+> [!WARNING]
+> Luau has no `__pairs` or `__ipairs`, so `pairs()`, `ipairs()` and `next()` see an empty table on
+> a reactive proxy. Loop with `for k, v in state do` or a numeric loop.
+
+> [!WARNING]
+> `table.insert` and `table.remove` go around the proxy, so nothing re-renders. Where you'd reach
+> for JavaScript's array methods, use [`Rivue.array`](api/array.md) (`push`, `splice`,
+> `removeWhere`, `sort` and the rest).
 
 ### No compiler
 
-Without templates there's nothing to compile, so a few things that depend on the compiler aren't
-here: props destructuring, `<style>` blocks and single-file components. Each component is a
-ModuleScript instead ([Organising a project](guide/10-organising-a-project.md) shows a layout).
-The `defineProps` and `defineEmits` macros become the `props` and `emits` options.
-
-It also means every render builds its vnodes from scratch. Rivue diffs props shallowly, and
-`memo` and keys cover what the compiler's static hoisting would do in Vue.
+Props destructuring, `<style>` blocks and single-file components need the compiler, so they
+aren't here. Each component is a ModuleScript ([Organising a project](guide/10-organising-a-project.md)
+shows a layout), and the `defineProps` and `defineEmits` macros become the `props` and `emits`
+options. Every render builds its vnodes from scratch; Rivue diffs props shallowly, and `memo` and
+keys cover what static hoisting does in Vue.
 
 ### Instances instead of the DOM
 
 Element types are Roblox ClassNames, and props are Instance properties and events. Styling is
-properties as well, grouped into `class` styles, plus modifier props like `cornerRadius`,
-`padding` and `layout`. There's no cascade. A class styles the element it's on, and nothing else.
+properties too, grouped into `class` styles, plus modifier props like `cornerRadius`, `padding`
+and `layout`.
 
-Event names follow Roblox. `onClick` connects `Activated`, and `onX` connects the event `X`, or
-the changed signal of property `X` if there's no such event.
+> [!IMPORTANT]
+> There's no cascade. A class styles the element it's on and nothing else, so children don't
+> inherit text colour or font from a parent's class.
+
+Events follow Roblox. `onClick` connects `Activated`, and `onX` connects the event `X`, or the
+changed signal of property `X` when there's no such event.
 
 ### Transitions are tweens
 
@@ -173,21 +153,20 @@ the animating.
 
 ### Client only
 
-There's no SSR and no hydration. Rivue runs on the client.
+> [!NOTE]
+> There's no SSR and no hydration. Rivue runs on the client.
 
 ### Vue Router
 
-[RivueRouter](api/router.md) follows Vue Router 4, and is a separate package like Vue's.
-`createRouter`, `RouterView`, `RouterLink`, `useRouter`, `useRoute`, `useLink`, nested routes,
-named views, `redirect`, `alias`, `meta`, `addRoute`, the global and per-route guards,
-`onBeforeRouteLeave`, `onBeforeRouteUpdate`, navigation failures and `scrollBehavior` work the way
-they do in Vue Router. The differences come from Roblox having no URLs: routes have names but no paths,
-there's no hash, `query` is a table, and guards yield where Vue's return Promises. The
-[full list](api/router.md#differences-from-vue-router) is short.
+[RivueRouter](api/router.md) follows Vue Router 4 and ships as its own package, like Vue's.
+`createRouter`, `RouterView`, `RouterLink`, `useRoute`, nested and named views, the guards,
+navigation failures and `scrollBehavior` keep their names and behaviour. Roblox has no URLs, so
+routes have names but no paths, there's no hash, `query` is a table, and guards yield where Vue's
+return Promises. Those are most of the [differences from Vue Router](api/router.md#differences-from-vue-router).
 
 ### Things Vue doesn't have
 
-Roblox needs a few extras with no Vue counterpart: `VirtualList`, `useTween` and `useSpring`,
+Roblox needs some extras with no Vue counterpart: `VirtualList`, `useTween` and `useSpring`,
 `useViewportSize`, `useInputType`, `useSafeArea`, `useSelection`, `useGamepadFocus`, `useAsync`,
 `attributeRef`, `useTag`, and the Instance pool. A few more cover what Vue leaves to libraries:
 `Dialog`, `ErrorBoundary`, `Row`/`Column`/`Spacer`, `Rivue.transitions`, `Rivue.bind` for

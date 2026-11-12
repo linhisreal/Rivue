@@ -2,8 +2,8 @@
 
 # 14. Organising state
 
-Where should a piece of state live? This chapter answers that, then builds a complete store,
-syncs data the server owns, and makes purchases feel instant.
+This chapter is about where state should live. It then builds a complete store, keeps a client copy
+of data the server owns, and makes purchases feel instant.
 
 ## Where state lives
 
@@ -19,9 +19,9 @@ Start local. Move state up only when a second component needs it.
 
 ## A store module
 
-[Chapter 8](08-state-and-server.md#game-wide-state-a-store-module) introduced stores. Here's a
-fuller one, with derived state that outlives any component. Components only read it, and only the
-store's own functions write:
+[Chapter 8](08-state-and-server.md#game-wide-state-a-store-module) introduced stores. This one adds
+derived state that outlives any component. Components only read it, and only the store's own
+functions write:
 
 ![a store module](../assets/diagrams/store-flow.webp)
 
@@ -70,19 +70,17 @@ end,
 
 ## Server-owned data
 
-For a few simple values, attributes are the easy route. `attributeRef` gives you a ref that
-follows one:
+Pick by the shape of the data:
 
-```lua
--- Server
-player:SetAttribute("Coins", 250)
+| Data | Server | Client |
+|---|---|---|
+| a few simple values on an Instance | `player:SetAttribute("Coins", 250)` | `Rivue.attributeRef(player, "Coins", 0)` |
+| a value or table the server replaces | `Remote.state("round", ...)`, then `set` or `setFor` | `Remote.useState("round")` or `Remote.getState` |
+| a list that changes item by item | `Remote.handle` to list it, `Remote.send` for each change | request once, then apply the pushed changes |
 
--- Client, in the store
-local coins = Rivue.attributeRef(Players.LocalPlayer, "Coins", 0)
-```
-
-Lists and bigger data go through Remote instead. Load once, then apply the changes the server
-pushes:
+The first two need no extra code: the client value follows the server's, and players who join late
+get the current one ([chapter 8](08-state-and-server.md#when-the-server-has-news)). A long list is
+cheaper to send as changes. Load it once, then apply what the server pushes:
 
 ```lua
 -- Client, in the store
@@ -105,14 +103,13 @@ end)
 Remote.send(player, "inventory:added", itemId)
 ```
 
-On the server, `Remote.handle` can take a `check` function that rejects a malformed payload before
-your handler sees it, and `Remote.use` runs a check before every action, such as "has this
-player's data loaded yet". See [RivueRemote](../api/remote.md).
+`Remote.use` runs a check before every action on the server, such as "has this player's data
+loaded yet". See [RivueRemote](../api/remote.md).
 
 ## Optimistic updates
 
-Waiting for the server makes a buy button feel slow. Apply the change right away, and roll it
-back if the server says no:
+Waiting for the server makes a buy button feel slow. Apply the change right away and roll it back
+if the server refuses:
 
 ![optimistic update](../assets/diagrams/optimistic-update.webp)
 
@@ -154,8 +151,8 @@ end,
 ## Large data
 
 Data you replace as a whole, like a page of results or a leaderboard, belongs in a `shallowRef`,
-which doesn't make its contents reactive. Tables that should never be reactive at all (Instances,
-class objects, static config) can be marked with `markRaw`. And for thousands of rows, use
+which doesn't make its contents reactive. Mark tables that should never be reactive (Instances,
+class objects, static config) with `markRaw`. For thousands of rows, use
 [`VirtualList`](../api/builtins.md#virtuallist).
 
 ---
@@ -163,6 +160,6 @@ class objects, static config) can be marked with `markRaw`. And for thousands of
 **Try it:** [Shop example](../../examples/components/Shop.luau) (loading, errors, buying)
 **Reference:** [readonly()](../api/reactivity-core.md#readonly) ·
 [effectScope()](../api/reactivity-advanced.md#effectscope) · [attributeRef()](../api/roblox.md#attributeref) ·
-[Remote](../api/remote.md) · [shallowRef()](../api/reactivity-advanced.md#shallowref)
+[Remote](../api/remote.md) · [Remote.state()](../api/remote.md#remotestate) · [shallowRef()](../api/reactivity-advanced.md#shallowref)
 
 [← 13. Component patterns](13-advanced-components.md) · [Guide contents](../GUIDE.md) · [15. Performance in depth →](15-performance-in-depth.md)
