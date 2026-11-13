@@ -4,6 +4,9 @@
 import fs from "node:fs"
 import { createRequire } from "node:module"
 import path from "node:path"
+import type { HeadConfig, PageData } from "vitepress"
+import type { Example } from "./examples.mts"
+import { DESCRIPTION, pageMarkdown, pageTitle, pageUrl, plainTitle, SITE } from "./site.mts"
 
 export interface OgPage {
 	slug: string
@@ -82,4 +85,28 @@ export function writeOgImages(pages: OgPage[], outDir: string, iconFile: string)
 		const png = new Resvg(card(page, icon), { font: { fontFiles, loadSystemFonts: false, defaultFontFamily: "Geist" } }).render().asPng()
 		fs.writeFileSync(path.join(outDir, "og", `${page.slug}.png`), png)
 	}
+}
+
+export function ogPages(pages: string[], examples: Example[]): OgPage[] {
+	return pages.map((page) => {
+		if (page === "README.md") return { slug: ogSlug(page), title: "The Vue-style framework for Roblox UI", section: "Docs" }
+		return { slug: ogSlug(page), title: plainTitle(pageTitle(pageMarkdown(page, examples), page)), section: ogSection(page) }
+	})
+}
+
+export function ogHead(pageData: PageData): HeadConfig[] {
+	const page = pageData.relativePath
+	const image = `${SITE}og/${ogSlug(page)}.png`
+	return [
+		["meta", { property: "og:type", content: "website" }],
+		["meta", { property: "og:site_name", content: "Rivue" }],
+		["meta", { property: "og:title", content: page === "index.md" ? "Rivue" : `${pageData.title} | Rivue` }],
+		["meta", { property: "og:description", content: pageData.description || DESCRIPTION }],
+		["meta", { property: "og:url", content: pageUrl(page) }],
+		["meta", { property: "og:image", content: image }],
+		["meta", { property: "og:image:width", content: String(WIDTH) }],
+		["meta", { property: "og:image:height", content: String(HEIGHT) }],
+		["meta", { name: "twitter:card", content: "summary_large_image" }],
+		["meta", { name: "twitter:image", content: image }],
+	]
 }

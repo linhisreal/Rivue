@@ -3,13 +3,10 @@
 
 import fs from "node:fs"
 import path from "node:path"
-
-const ROOT = path.resolve(import.meta.dirname, "../..")
-const REPO = "https://github.com/linhisreal/Rivue"
+import { htmlToken, REPO, ROOT, slug } from "./site.mts"
 
 type Location = { file: string; line: number }
 
-// first definition of each function name per package, for the "Source" link on API entries
 function sourceIndex() {
 	const index = new Map<string, Map<string, Location>>()
 	const definition = /^\s*(?:local\s+)?function\s+(?:[\w.]+[.:])?(\w+)\s*[(<]|^\s*(?:[\w.]+\.)?(\w+)\s*=\s*function\s*\(/
@@ -55,7 +52,6 @@ function cellsOf(tokens: any[], start: number, end: number) {
 
 type TypeTarget = { file: string; anchor: string }
 
-// where each type is documented: an entry named after it, or a `type X =` in an entry's signature
 function typeIndex() {
 	const index = new Map<string, TypeTarget>()
 	const dir = path.join(ROOT, "docs", "api")
@@ -77,7 +73,6 @@ function typeIndex() {
 	return index
 }
 
-// types whose fields are a props or options table in some entry, rather than a `type` line
 const DOCUMENTED_ELSEWHERE: [string, string, string][] = [
 	["VNode", "api/render-function.md", "h"],
 	["Props", "api/render-function.md", "element-props"],
@@ -177,7 +172,6 @@ ${out.join("\n")}
 </div>\n`
 }
 
-// what an entry documents, read from the first line of its signature
 function kindOf(signature: string) {
 	const first = signature.trimStart().split("\n")[0]
 	if (/^(export\s+)?type\s/.test(first)) return "type"
@@ -188,11 +182,6 @@ function kindOf(signature: string) {
 	return "function"
 }
 
-function slug(text: string) {
-	return text.trim().toLowerCase().replace(/<[^>]*>/g, "").replace(/[^\p{L}\p{N}\s_-]/gu, "").replace(/\s/g, "-")
-}
-
-// each API page's entries with the first sentence under them, for the cards on the API home page
 function pageEntries(file: string) {
 	const text = fs.readFileSync(path.join(ROOT, "docs", file), "utf8")
 	const entries: { title: string; anchor: string; summary: string }[] = []
@@ -219,67 +208,60 @@ function apiIndexCard(md: any, env: any, label: string, file: string) {
 	return `<section class="fd-api-card"><a class="fd-api-card-title" href="${href}">${md.utils.escapeHtml(label)}</a><ul>${items}</ul></section>\n`
 }
 
-// API pages: signature cards, parameter lists, a Returns row and Source links, built from the Markdown format in docs/api
+function labelsHtml(md: any, labels: string) {
+	const items = labels.split(" · ").map((label) => `<span class="fd-label">${md.utils.escapeHtml(label)}</span>`)
+	return `<div class="fd-labels">${items.join("")}</div>\n`
+}
+
+function returnsHtml(md: any, env: any, text: string) {
+	const value = linkTypes(md.renderInline(text, env), env.relativePath)
+	return `<div class="fd-returns"><span class="fd-returns-label">Returns</span><span>${value}</span></div>\n`
+}
+
+function renderApiIndex(md: any, state: any) {
+	const tokens = state.tokens
+	for (let i = 0; i < tokens.length; i++) {
+		if (tokens[i].type !== "paragraph_open") continue
+		const head = /^\*\*\[([^\]]+)\]\((api\/[\w-]+\.md)\)\*\*/.exec(tokens[i + 1]?.content ?? "")
+		if (head) tokens.splice(i, 3, htmlToken(state, apiIndexCard(md, state.env, head[1], head[2])))
+	}
+}
+
+function renderApiPage(md: any, state: any, sources: Map<string, Location> | undefined) {
+	const tokens = state.tokens
+	let heading: any
+	let entry: string | undefined
+	for (let i = 0; i < tokens.length; i++) {
+		const t = tokens[i]
+		if (t.type === "heading_open" && t.tag === "h2") {
+			heading = t
+			entry = /([A-Za-z_]\w*)\s*\(\)/.exec(tokens[i + 1].content.replace(/\s*\/.*$/, ""))?.[1]
+			const labels = tokens[i + 3]?.type === "paragraph_open" ? /^_([^_]+)_$/.exec(tokens[i + 4]?.content ?? "")?.[1] : undefined
+			if (labels) tokens.splice(i + 3, 3, htmlToken(state, labelsHtml(md, labels)))
+		} else if (t.type === "fence" && /^lua\s+signature\b/.test(t.info)) {
+			if (heading && !heading.attrGet("data-kind")) heading.attrSet("data-kind", kindOf(t.content))
+			t.info = "lua"
+			t.meta = { ...t.meta, signature: true }
+			// only the entry's first signature gets the Source link; later ones are overloads or related types
+			const at = entry ? sources?.get(entry) : undefined
+			if (at) t.meta.source = `${REPO}/blob/main/${at.file}#L${at.line}`
+			entry = undefined
+		} else if (t.type === "table_open") {
+			const close = tokens.findIndex((x: any, j: number) => j > i && x.type === "table_close")
+			const [header, ...rows] = cellsOf(tokens, i, close)
+			if (header && PARAM_HEADERS.has(header[0])) tokens.splice(i, close - i + 1, htmlToken(state, paramList(md, state.env, header, rows)))
+		} else if (t.type === "paragraph_open" && /^\*\*Returns\*\*/.test(tokens[i + 1]?.content ?? "")) {
+			const text = tokens[i + 1].content.replace(/^\*\*Returns\*\*\s*/, "")
+			tokens.splice(i, 3, htmlToken(state, returnsHtml(md, state.env, text)))
+		}
+	}
+}
+
 export function apiEntries(md: any) {
 	const sources = sourceIndex()
-
 	md.core.ruler.push("api_entries", (state: any) => {
 		const page: string = state.env?.relativePath ?? ""
-		if (page === "API.md") {
-			const tokens = state.tokens
-			for (let i = 0; i < tokens.length; i++) {
-				if (tokens[i].type !== "paragraph_open") continue
-				const head = /^\*\*\[([^\]]+)\]\((api\/[\w-]+\.md)\)\*\*/.exec(tokens[i + 1]?.content ?? "")
-				if (!head) continue
-				const html = new state.Token("html_block", "", 0)
-				html.content = apiIndexCard(md, state.env, head[1], head[2])
-				tokens.splice(i, 3, html)
-			}
-			return
-		}
-		if (!page.startsWith("api/")) return
-		const names = sources.get(PAGE_PACKAGE[page] ?? "rivue-ui")
-		const tokens = state.tokens
-		let entry: string | undefined
-		let linked = false
-		for (let i = 0; i < tokens.length; i++) {
-			const t = tokens[i]
-			if (t.type === "heading_close" && t.tag === "h2" && tokens[i + 1]?.type === "paragraph_open") {
-				const labels = /^_([^_]+)_$/.exec(tokens[i + 2]?.content ?? "")?.[1]
-				if (labels) {
-					const html = new state.Token("html_block", "", 0)
-					html.content = `<div class="fd-labels">${labels
-						.split(" · ")
-						.map((label) => `<span class="fd-label">${md.utils.escapeHtml(label)}</span>`)
-						.join("")}</div>\n`
-					tokens.splice(i + 1, 3, html)
-				}
-			}
-			if (t.type === "heading_open" && t.tag === "h2") {
-				const title: string = tokens[i + 1].content
-				entry = /([A-Za-z_]\w*)\s*\(\)/.exec(title.replace(/\s*\/.*$/, ""))?.[1]
-				linked = false
-			} else if (t.type === "fence" && /^lua\s+signature\b/.test(t.info)) {
-				const heading = tokens.findLast?.((x: any, j: number) => j < i && x.type === "heading_open" && x.tag === "h2")
-				if (heading && !heading.attrGet("data-kind")) heading.attrSet("data-kind", kindOf(t.content))
-				t.info = "lua"
-				t.meta = { ...t.meta, signature: true }
-				const at = !linked && entry ? names?.get(entry) : undefined
-				if (at) t.meta.source = `${REPO}/blob/main/${at.file}#L${at.line}`
-				linked = true
-			} else if (t.type === "table_open") {
-				const close = tokens.findIndex((x: any, j: number) => j > i && x.type === "table_close")
-				const [header, ...rows] = cellsOf(tokens, i, close)
-				if (!header || !PARAM_HEADERS.has(header[0])) continue
-				const html = new state.Token("html_block", "", 0)
-				html.content = paramList(md, state.env, header, rows)
-				tokens.splice(i, close - i + 1, html)
-			} else if (t.type === "paragraph_open" && /^\*\*Returns\*\*/.test(tokens[i + 1]?.content ?? "")) {
-				const rest = tokens[i + 1].content.replace(/^\*\*Returns\*\*\s*/, "")
-				const html = new state.Token("html_block", "", 0)
-				html.content = `<div class="fd-returns"><span class="fd-returns-label">Returns</span><span>${linkTypes(md.renderInline(rest, state.env), page)}</span></div>\n`
-				tokens.splice(i, 3, html)
-			}
-		}
+		if (page === "API.md") renderApiIndex(md, state)
+		else if (page.startsWith("api/")) renderApiPage(md, state, sources.get(PAGE_PACKAGE[page] ?? "rivue-ui"))
 	})
 }

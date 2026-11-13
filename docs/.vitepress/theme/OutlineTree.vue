@@ -57,7 +57,6 @@ const kinds = computed(() => {
 
 function applyFilter() {
 	const list = kindFilter.value ? all.value.filter((h) => h.kind === kindFilter.value) : all.value
-	// group labels only when a page mixes kinds and keeps each kind in one block
 	const runs = list.filter((h, i) => h.kind && h.kind !== list[i - 1]?.kind).map((h) => h.kind)
 	const grouped = runs.length > 1 && new Set(runs).size === runs.length
 	headings.value = list.map((h, i) => ({

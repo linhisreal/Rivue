@@ -195,7 +195,6 @@
 	background: var(--vp-c-bg-soft);
 }
 
-/* on phones a wide table scrolls sideways instead of squeezing every column to a word per line */
 @media (max-width: 767px) {
 	.vp-doc table {
 		display: block;
