@@ -3,20 +3,10 @@
 
 <script setup lang="ts">
 import type { Scene } from "./types"
+import { DIGITS, pixels } from "./glyphs"
 
 defineProps<{ kind: Scene }>()
 
-const COLS = 15
-const ROWS = 8
-const DIGITS = [3, 4, 5] as const
-const GLYPHS: Record<(typeof DIGITS)[number], string[]> = {
-	3: ["01110", "10001", "00001", "00110", "00001", "10001", "01110"],
-	4: ["00010", "00110", "01010", "10010", "11111", "00010", "00010"],
-	5: ["11111", "10000", "11110", "00001", "00001", "10001", "01110"],
-}
-const pixels = Array.from({ length: COLS * ROWS }, (_, i) =>
-	DIGITS.map((digit) => GLYPHS[digit][Math.floor(i / COLS)]?.[(i % COLS) - 5] ?? "0").join(""),
-)
 const writes = DIGITS.map((_, step) => pixels.filter((p) => p[step] !== p[(step + 1) % DIGITS.length]).length)
 const copies = [
 	{ name: "Sword", price: 20, swatch: "a", link: "M98 66 C 124 66, 124 22, 150 22" },

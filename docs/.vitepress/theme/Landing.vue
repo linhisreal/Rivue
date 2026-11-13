@@ -6,6 +6,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue"
 import { withBase } from "vitepress"
 import LandingDemo from "./LandingDemo.vue"
 import FeatureArt from "./FeatureArt.vue"
+import { morph, shownTick } from "./cardMorph"
 import { ICONS } from "./icons"
 import { readStorage, writeStorage } from "./storage"
 import { useTheme, type Landing, type Scene } from "./types"
@@ -86,9 +87,40 @@ const features: Feature[] = [
 const codeShown = ref(new Set<number>())
 const codeToggled = ref(new Set<number>())
 
-function toggleCode(index: number) {
+const TICKS: Partial<Record<Scene, string>> = {
+	reactivity: ".rv-field-head .rv-tick",
+	styling: ".rv-spec-pad-top .rv-tick",
+}
+const LOOP_RESUME_DELAY = 350
+const shownValue = ref<Partial<Record<Scene, string>>>({})
+
+function codeFor(kind: Scene) {
+	return landing.codeVariants[kind]?.[shownValue.value[kind] ?? ""] ?? landing.featureCode[kind]
+}
+
+async function toggleCode(index: number, kind: Scene, event: Event) {
+	const stage = (event.currentTarget as HTMLElement).closest<HTMLElement>(".rv-spec-stage")
+	const cell = stage?.closest<HTMLElement>(".rv-spec-cell")
+	if (!stage || !cell) return
+	const opening = !codeShown.value.has(index)
+	const scene = sceneAnimations(cell)
+	scene.forEach((anim) => anim.pause())
+	const tick = TICKS[kind] && stage.querySelector(`.rv-art ${TICKS[kind]}`)
+	if (opening && tick) {
+		shownValue.value = { ...shownValue.value, [kind]: shownTick(tick) }
+		await nextTick()
+	}
 	codeToggled.value.add(index)
-	if (!codeShown.value.delete(index)) codeShown.value.add(index)
+	const done = morph(stage, kind, opening)
+	if (opening) codeShown.value.add(index)
+	else codeShown.value.delete(index)
+	if (opening) return
+	await done
+	await new Promise((resume) => setTimeout(resume, LOOP_RESUME_DELAY))
+	if (codeShown.value.has(index)) return
+	scene.forEach((anim) => anim.play())
+	if (!cell.matches(":hover, :focus-within")) settleScene(index, cell)
+	else if (!playing.value.has(index)) playScene(index, cell)
 }
 
 function sceneAnimations(cell: HTMLElement) {
@@ -119,11 +151,11 @@ function settleScene(index: number, cell: HTMLElement) {
 }
 
 function enterFeature(index: number, event: Event) {
-	playScene(index, event.currentTarget as HTMLElement)
+	if (!codeShown.value.has(index)) playScene(index, event.currentTarget as HTMLElement)
 }
 
 function leaveFeature(index: number, event: Event) {
-	settleScene(index, event.currentTarget as HTMLElement)
+	if (!codeShown.value.has(index)) settleScene(index, event.currentTarget as HTMLElement)
 }
 
 let lastMessage = ""
@@ -311,20 +343,24 @@ onUnmounted(() => {
 				>
 					<div class="rv-spec-stage">
 						<FeatureArt :kind="feature.art" :inert="codeShown.has(i)" />
-						<div :id="`rv-code-${feature.art}`" class="rv-spec-code" :inert="!codeShown.has(i)">
+						<div
+							:id="`rv-code-${feature.art}`"
+							class="rv-spec-code"
+							:style="{ '--rv-cols': codeFor(feature.art).cols, '--rv-rows': codeFor(feature.art).rows }"
+							:inert="!codeShown.has(i)"
+						>
 							<div class="rv-spec-file">
-								<span class="rv-spec-file-icon" aria-hidden="true"></span>{{ landing.featureCode[feature.art].file }}
+								<span class="rv-spec-file-icon" aria-hidden="true"></span>{{ codeFor(feature.art).file }}
 							</div>
-							<div class="rv-spec-src" v-html="landing.featureCode[feature.art].html"></div>
+							<div class="rv-spec-src" v-html="codeFor(feature.art).html"></div>
 						</div>
-						<span class="rv-spec-scan" aria-hidden="true"></span>
 						<button
 							type="button"
 							class="rv-spec-chip"
 							:aria-pressed="codeShown.has(i)"
 							:aria-controls="`rv-code-${feature.art}`"
 							:aria-label="`Show the code for ${feature.title}`"
-							@click="toggleCode(i)"
+							@click="toggleCode(i, feature.art, $event)"
 						>
 							<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 7-5 5 5 5M16 7l5 5-5 5" /></svg>
 						</button>

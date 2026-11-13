@@ -6,6 +6,7 @@ import path from "node:path"
 import { createHighlighter } from "shiki"
 import { siteLink } from "./markdown.mts"
 import { DOCS, packageVersion, REPO, ROOT } from "./site.mts"
+import { COLS, DIGITS, type Digit, nextDigit, ROWS, writesFrom } from "./theme/glyphs.ts"
 
 const SHOP = `local ITEMS = {
 	{ name = "Sword", price = 20 },
@@ -88,10 +89,10 @@ const count = ref(0)
 
 type FeatureCode = { file: string; code: string; focus: string; note: string; error?: boolean }
 
-const FEATURE_CODE: Record<string, FeatureCode> = {
-	reactivity: {
+function coinsCode(digit: Digit): FeatureCode {
+	return {
 		file: "Coins.luau",
-		code: `local coins = Rivue.ref(3)
+		code: `local coins = Rivue.ref(${digit})
 
 Rivue.hFor(CELLS, function(cell)
 	return h("Frame", {
@@ -99,10 +100,30 @@ Rivue.hFor(CELLS, function(cell)
 	})
 end)
 
-coins.value = 4`,
-		focus: "coins.value = 4",
-		note: "20 of 120 written",
-	},
+coins.value = ${nextDigit(digit)}`,
+		focus: `coins.value = ${nextDigit(digit)}`,
+		note: `${writesFrom(digit)} of ${COLS * ROWS} written`,
+	}
+}
+
+const PADDINGS = [8, 16] as const
+
+function cardCode(padding: number): FeatureCode {
+	return {
+		file: "Card.luau",
+		code: `h("Frame", {
+	class = "card",
+	padding = ${padding},
+	cornerRadius = 8,
+	layout = "horizontal",
+})`,
+		focus: 'layout = "horizontal"',
+		note: "UIListLayout",
+	}
+}
+
+const FEATURE_CODE: Record<string, FeatureCode> = {
+	reactivity: coinsCode(3),
 	components: {
 		file: "ItemRow.luau",
 		code: `local ItemRow = Rivue.defineComponent({
@@ -116,17 +137,8 @@ coins.value = 4`,
 		focus: "Text = ctx.name",
 		note: '"Potion"',
 	},
-	styling: {
-		file: "Card.luau",
-		code: `h("Frame", {
-	class = "card",
-	padding = 8,
-	cornerRadius = 8,
-	layout = "horizontal",
-})`,
-		focus: 'layout = "horizontal"',
-		note: "UIListLayout",
-	},
+	styling: cardCode(8),
+
 	animation: {
 		file: "Panel.luau",
 		code: `local pos = Rivue.useTween(function()
@@ -185,6 +197,10 @@ function highlight(code: string, lang: string, steps: Record<string, string> = {
 	})
 }
 
+const GUTTER = 5
+const NOTE_SCALE = 0.92
+const NOTE_PAD = 3
+
 function featureCode({ file, code, focus, note, error }: FeatureCode) {
 	const focusLine = code.split("\n").findIndex((line) => line.includes(focus)) + 1
 	const html = highlighter.codeToHtml(code, {
@@ -201,7 +217,11 @@ function featureCode({ file, code, focus, note, error }: FeatureCode) {
 			},
 		],
 	})
-	return { file, html }
+	const lines = code.split("\n")
+	const width = (line: string) => line.replaceAll("\t", "  ").length
+	const noteWidth = (index: number) => (index + 1 === focusLine ? Math.ceil(note.length * NOTE_SCALE) + NOTE_PAD : 0)
+	const cols = Math.max(...lines.map((line, i) => width(line) + noteWidth(i))) + GUTTER
+	return { file, html, cols, rows: lines.length }
 }
 
 function readmeCopy() {
@@ -246,6 +266,10 @@ export function landingData() {
 	const { lead, blurbs } = readmeCopy()
 	return {
 		lookup: lookup(),
+		codeVariants: {
+			reactivity: Object.fromEntries(DIGITS.map((digit) => [digit, featureCode(coinsCode(digit))])),
+			styling: Object.fromEntries(PADDINGS.map((padding) => [padding, featureCode(cardCode(padding))])),
+		} as Record<string, Record<string, ReturnType<typeof featureCode>>>,
 		featureCode: Object.fromEntries(Object.entries(FEATURE_CODE).map(([art, code]) => [art, featureCode(code)])),
 		shop: highlight(SHOP, "luau", {
 			"coins.value -= item.price": "spend",
