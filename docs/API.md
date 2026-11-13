@@ -2,9 +2,10 @@
 
 # API reference
 
-Everything on the module returned by `require(game.ReplicatedStorage.RivueUI)`. Each entry has its
-type, details and an example. New to Rivue? Start with the [Guide](GUIDE.md). Coming from Vue?
-See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide/11-style-rules.md).
+Everything on the module returned by `require(game.ReplicatedStorage.RivueUI)`, plus RivueRemote
+and RivueRouter. Each entry has its signature, a row per parameter, what it returns, notes where
+it does something unexpected, and examples. To learn Rivue step by step, start with the
+[Guide](GUIDE.md); coming from Vue, see [Rivue for Vue developers](VUE.md).
 
 ## Reactivity
 
@@ -132,7 +133,7 @@ See [Rivue for Vue developers](VUE.md). For conventions, see [Style rules](guide
 [vDrag](api/directives.md#vdrag) ·
 [vPreload](api/directives.md#vpreload) ·
 [vFadeIn](api/directives.md#vfadein) ·
-[Custom directives](api/directives.md#custom-directives) ·
+[directives.register()](api/directives.md#directivesregister) ·
 [vModelText()](api/directives.md#vmodeltext) ·
 [vModelProp()](api/directives.md#vmodelprop)
 

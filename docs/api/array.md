@@ -4,51 +4,44 @@
 
 **Learn it:** [Guide 2: State](../guide/02-state.md)
 
-`table.insert`, `table.remove`, `table.sort` and `table.find` work on a table's raw contents, so
-on a reactive array they do nothing, or read nothing. `Rivue.array` has the same operations for
-reactive arrays: they change the array and notify everything that read it, like Vue's array
-methods. They also work on plain arrays.
-
-All examples assume:
+`table.insert`, `table.remove`, `table.sort` and `table.find` work on a table's raw contents, so on
+a reactive array they change or read nothing. `Rivue.array` has the same operations for reactive
+arrays: they change the array and notify everything that read it, like Vue's array methods. They
+work on plain arrays too. Examples assume:
 
 ```lua
 local Rivue = require(game.ReplicatedStorage.RivueUI)
 local array = Rivue.array
 ```
 
-- [array.push()](#arraypush)
-- [array.insert()](#arrayinsert)
-- [array.remove()](#arrayremove)
-- [array.removeValue()](#arrayremovevalue)
-- [array.removeWhere()](#arrayremovewhere)
-- [array.splice()](#arraysplice)
-- [array.move()](#arraymove)
-- [array.sort()](#arraysort)
-- [array.clear()](#arrayclear)
-- [array.indexOf()](#arrayindexof)
-- [array.find()](#arrayfind)
-- [array.filter() / array.map() / array.count()](#arrayfilter--arraymap--arraycount)
+> [!WARNING]
+> The helpers that change a list error on a read-only one, such as a `readonly()` view.
 
 ---
 
 ## array.push()
 
-Adds one or more items to the end of a list, like `table.insert(list, value)`.
+Adds items to the end of a list, like `table.insert(list, value)`.
 
-- **Example**
+```lua signature
+function array.push<T>(list: { T }, ...: T): number
+```
 
-  ```lua
-  local todos = Rivue.ref({})
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `list` | `{ T }` | | the list to change |
+| `...` | `T` | | one or more items |
 
-  array.push(todos.value, { id = 1, text = "Milk" })
-  array.push(todos.value, { id = 2, text = "Eggs" }, { id = 3, text = "Bread" })
-  ```
+**Returns** the new length.
 
-- **Type**
+### Example
 
-  ```lua
-  function array.push<T>(list: { T }, ...: T): number -- new length
-  ```
+```lua
+local todos = Rivue.ref({})
+
+array.push(todos.value, { id = 1, text = "Milk" })
+array.push(todos.value, { id = 2, text = "Eggs" }, { id = 3, text = "Bread" })
+```
 
 ---
 
@@ -56,143 +49,154 @@ Adds one or more items to the end of a list, like `table.insert(list, value)`.
 
 Adds an item at a position and moves the rest down, like `table.insert(list, index, value)`.
 
-- **Example**
+```lua signature
+function array.insert<T>(list: { T }, index: number, value: T)
+```
 
-  ```lua
-  local queue = Rivue.reactive({ "b", "c" })
-  array.insert(queue, 1, "a") -- { "a", "b", "c" }
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `list` | `{ T }` | | the list to change |
+| `index` | `number` | | from 1 to one past the end |
+| `value` | `T` | | the item |
 
-- **Details**
+> [!WARNING]
+> Any other `index` errors, instead of dropping the item without a word.
 
-  The position must be between 1 and one past the end. Anything else errors, so an item is never
-  dropped without a word.
+### Example
 
-- **Type**
-
-  ```lua
-  function array.insert<T>(list: { T }, index: number, value: T)
-  ```
+```lua
+local queue = Rivue.reactive({ "b", "c" })
+array.insert(queue, 1, "a") -- { "a", "b", "c" }
+```
 
 ---
 
 ## array.remove()
 
-Takes an item out by position and gives it back. Without a position it takes the last one, like
-`table.remove`.
+Takes an item out by position and gives it back, like `table.remove`.
 
-- **Example**
+```lua signature
+function array.remove<T>(list: { T }, index: number?): T?
+```
 
-  ```lua
-  local stack = Rivue.reactive({ 1, 2, 3 })
-  print(array.remove(stack)) -- 3
-  print(array.remove(stack, 1)) -- 1
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `list` | `{ T }` | | the list to change |
+| `index` | `number?` | the last item | the position to take out |
 
-- **Type**
+**Returns** the removed item, or `nil`.
 
-  ```lua
-  function array.remove<T>(list: { T }, index: number?): T?
-  ```
+### Example
+
+```lua
+local stack = Rivue.reactive({ 1, 2, 3 })
+print(array.remove(stack)) -- 3
+print(array.remove(stack, 1)) -- 1
+```
 
 ---
 
 ## array.removeValue()
 
-Takes out the first item equal to the one you pass, when you have the item but not its index.
-Returns `true` if it was there.
+Takes out the first item equal to the one you pass, for when you have the item but not its index.
 
-- **Example**
+```lua signature
+function array.removeValue<T>(list: { T }, value: T): boolean
+```
 
-  ```lua
-  local selected = Rivue.reactive({ "Sword", "Shield" })
-  array.removeValue(selected, "Sword")
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `list` | `{ T }` | | the list to change |
+| `value` | `T` | | the item; a reactive item and its raw table count as the same |
 
-- **Details**
+**Returns** `true` if the item was there.
 
-  A reactive item and its raw table count as the same value, so you can pass an item you got from
-  the reactive array.
+### Example
 
-- **Type**
-
-  ```lua
-  function array.removeValue<T>(list: { T }, value: T): boolean
-  ```
+```lua
+local selected = Rivue.reactive({ "Sword", "Shield" })
+array.removeValue(selected, "Sword")
+```
 
 ---
 
 ## array.removeWhere()
 
-Takes out every item matching a test, like "every finished todo". The UI updates once, not once per
-item. Returns how many were removed.
+Takes out every item that passes a test, such as every finished todo. The UI updates once, not once
+per item.
 
-- **Example**
+```lua signature
+function array.removeWhere<T>(list: { T }, predicate: (item: T, index: number) -> boolean): number
+```
 
-  ```lua
-  local todos = Rivue.reactive({
-  	{ id = 1, done = true },
-  	{ id = 2, done = false },
-  })
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `list` | `{ T }` | | the list to change |
+| `predicate` | `(item, index) -> boolean` | | return `true` to remove the item |
 
-  array.removeWhere(todos, function(todo)
-  	return todo.done
-  end)
-  ```
+**Returns** how many items were removed.
 
-- **Type**
+### Example
 
-  ```lua
-  function array.removeWhere<T>(list: { T }, predicate: (item: T, index: number) -> boolean): number
-  ```
+```lua
+local todos = Rivue.reactive({
+	{ id = 1, done = true },
+	{ id = 2, done = false },
+})
+
+array.removeWhere(todos, function(todo)
+	return todo.done
+end)
+```
 
 ---
 
 ## array.splice()
 
-Like JavaScript's `splice`: removes some items at a position and inserts new ones in their place.
-Returns what was removed.
+Removes items at a position and inserts new ones in their place, like JavaScript's `splice`.
 
-- **Example**
+```lua signature
+function array.splice<T>(list: { T }, start: number, deleteCount: number?, ...: T): { T }
+```
 
-  ```lua
-  local letters = Rivue.reactive({ "a", "b", "c", "d" })
-  local removed = array.splice(letters, 2, 2, "x") -- letters: a, x, d; removed: b, c
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `list` | `{ T }` | | the list to change |
+| `start` | `number` | | where to start; negative counts from the end, `-1` being the last item |
+| `deleteCount` | `number?` | everything to the end | how many items to remove |
+| `...` | `T` | | items to insert at `start` |
 
-- **Details**
+**Returns** the removed items.
 
-  Without `deleteCount`, everything from `start` to the end is removed. A negative `start` counts
-  from the end, as in JavaScript: `-1` is the last item.
+### Example
 
-- **Type**
-
-  ```lua
-  function array.splice<T>(list: { T }, start: number, deleteCount: number?, ...: T): { T }
-  ```
+```lua
+local letters = Rivue.reactive({ "a", "b", "c", "d" })
+local removed = array.splice(letters, 2, 2, "x") -- letters: a, x, d; removed: b, c
+```
 
 ---
 
 ## array.move()
 
-Moves an item to a new position, for reordering things like hotbar slots or a queue.
+Moves an item to a new position, for reordering things like hotbar slots.
 
-- **Example**
+```lua signature
+function array.move<T>(list: { T }, from: number, to: number)
+```
 
-  ```lua
-  local hotbar = Rivue.reactive({ "Sword", "Bow", "Potion" })
-  array.move(hotbar, 3, 1) -- Potion, Sword, Bow
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `list` | `{ T }` | | the list to change |
+| `from` | `number` | | the item's position; outside the list does nothing |
+| `to` | `number` | | the new position; past either end moves it to that end |
 
-- **Details**
+### Example
 
-  A `to` past either end moves the item to that end. A `from` that isn't in the list does nothing.
-
-- **Type**
-
-  ```lua
-  function array.move<T>(list: { T }, from: number, to: number)
-  ```
+```lua
+local hotbar = Rivue.reactive({ "Sword", "Bow", "Potion" })
+array.move(hotbar, 3, 1) -- Potion, Sword, Bow
+```
 
 ---
 
@@ -200,21 +204,24 @@ Moves an item to a new position, for reordering things like hotbar slots or a qu
 
 Sorts a list in place, like `table.sort`, and updates everything that shows it.
 
-- **Example**
+```lua signature
+function array.sort<T>(list: { T }, comparator: ((a: T, b: T) -> boolean)?)
+```
 
-  ```lua
-  local scores = Rivue.reactive({ { name = "A", score = 5 }, { name = "B", score = 9 } })
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `list` | `{ T }` | | the list to sort |
+| `comparator` | `((a, b) -> boolean)?` | `<` | return `true` when `a` goes first |
 
-  array.sort(scores, function(a, b)
-  	return a.score > b.score
-  end)
-  ```
+### Example
 
-- **Type**
+```lua
+local scores = Rivue.reactive({ { name = "A", score = 5 }, { name = "B", score = 9 } })
 
-  ```lua
-  function array.sort<T>(list: { T }, comparator: ((a: T, b: T) -> boolean)?)
-  ```
+array.sort(scores, function(a, b)
+	return a.score > b.score
+end)
+```
 
 ---
 
@@ -222,101 +229,119 @@ Sorts a list in place, like `table.sort`, and updates everything that shows it.
 
 Empties a list.
 
-- **Example**
+```lua signature
+function array.clear<T>(list: { T })
+```
 
-  ```lua
-  local notifications = Rivue.reactive({ "Saved", "Level up!" })
-  array.clear(notifications)
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `list` | `{ T }` | | the list to empty |
 
-- **Type**
+### Example
 
-  ```lua
-  function array.clear<T>(list: { T })
-  ```
+```lua
+local notifications = Rivue.reactive({ "Saved", "Level up!" })
+array.clear(notifications)
+```
 
 ---
 
 ## array.indexOf()
 
-Finds where an item is, or `nil` if it isn't there. Unlike `table.find`, it works on reactive lists,
-and a computed that uses it updates when items come and go.
+Where an item is in a list. Unlike `table.find`, it works on reactive lists, and a computed that
+uses it updates when items come and go.
 
-- **Example**
+```lua signature
+function array.indexOf<T>(list: { T }, value: T): number?
+```
 
-  ```lua
-  local party = Rivue.reactive({ "Ada", "Grace" })
-  print(array.indexOf(party, "Grace")) -- 2
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `list` | `{ T }` | | the list to search |
+| `value` | `T` | | the item |
 
-- **Type**
+**Returns** the index, or `nil` if it isn't there.
 
-  ```lua
-  function array.indexOf<T>(list: { T }, value: T): number?
-  ```
+### Example
+
+```lua
+local party = Rivue.reactive({ "Ada", "Grace" })
+print(array.indexOf(party, "Grace")) -- 2
+```
 
 ---
 
 ## array.find()
 
-Gives you the first item matching a test, and its index. You get the reactive item, so changing its
-fields updates the UI.
+The first item that passes a test, and its index. You get the reactive item, so changing its fields
+updates the UI.
 
-- **Example**
+```lua signature
+function array.find<T>(list: { T }, predicate: (item: T, index: number) -> boolean): (T?, number?)
+```
 
-  ```lua
-  local todos = Rivue.reactive({ { id = 1, done = false } })
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `list` | `{ T }` | | the list to search |
+| `predicate` | `(item, index) -> boolean` | | return `true` for the item you want |
 
-  local todo = array.find(todos, function(t)
-  	return t.id == 1
-  end)
-  if todo then
-  	todo.done = true -- reactive
-  end
-  ```
+**Returns** the item and its index, or `nil`.
 
-- **Type**
+### Example
 
-  ```lua
-  function array.find<T>(list: { T }, predicate: (item: T, index: number) -> boolean): (T?, number?)
-  ```
+```lua
+local todos = Rivue.reactive({ { id = 1, done = false } })
+
+local todo = array.find(todos, function(t)
+	return t.id == 1
+end)
+if todo then
+	todo.done = true -- reactive
+end
+```
 
 ---
 
 ## array.filter() / array.map() / array.count()
 
-Read-only helpers for building something new from a list: a filtered copy, a transformed copy, or a
-count. They're tracked, so they work inside computeds and render.
+Build something new from a list without changing it: a filtered copy, a transformed copy, or a
+count. The reads are tracked, so they work inside computeds and render.
 
-- **Example**
+```lua signature
+function array.filter<T>(list: { T }, predicate: (item: T, index: number) -> boolean): { T }
+function array.map<T, U>(list: { T }, mapper: (item: T, index: number) -> U): { U }
+function array.count<T>(list: { T }, predicate: ((item: T, index: number) -> boolean)?): number
+```
 
-  ```lua
-  local todos = Rivue.reactive({
-  	{ text = "Milk", done = true },
-  	{ text = "Eggs", done = false },
-  })
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `list` | `{ T }` | | the list to read |
+| `predicate` | `(item, index) -> boolean` | | `filter` keeps and `count` counts the items it returns `true` for; `count` without it counts every item |
+| `mapper` | `(item, index) -> U` | | `map` puts its result in the new list |
 
-  local remaining = Rivue.computed(function()
-  	return array.count(todos, function(t)
-  		return not t.done
-  	end)
-  end)
+**Returns** a new plain list, or a number for `count`.
 
-  local open = array.filter(todos, function(t)
-  	return not t.done
-  end)
-  local labels = array.map(todos, function(t)
-  	return t.text
-  end)
-  ```
+### Example
 
-- **Type**
+```lua
+local todos = Rivue.reactive({
+	{ text = "Milk", done = true },
+	{ text = "Eggs", done = false },
+})
 
-  ```lua
-  function array.filter<T>(list: { T }, predicate: (item: T, index: number) -> boolean): { T }
-  function array.map<T, U>(list: { T }, mapper: (item: T, index: number) -> U): { U }
-  function array.count<T>(list: { T }, predicate: ((item: T, index: number) -> boolean)?): number
-  ```
+local remaining = Rivue.computed(function()
+	return array.count(todos, function(t)
+		return not t.done
+	end)
+end)
+
+local open = array.filter(todos, function(t)
+	return not t.done
+end)
+local labels = array.map(todos, function(t)
+	return t.text
+end)
+```
 
 ---
 

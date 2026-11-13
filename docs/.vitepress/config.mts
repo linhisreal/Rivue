@@ -7,6 +7,7 @@ import { withMermaid } from "vitepress-plugin-mermaid"
 import { transformerMetaWordHighlight } from "@shikijs/transformers"
 import { exampleMarkdown, loadExamples } from "./examples.mts"
 import { introMarkdown } from "./intro.mts"
+import { apiEntries } from "./api.mts"
 import { ogSection, ogSlug, writeOgImages } from "./og.mts"
 import { loadHovers, luaBlocks, stripPathComment, transformerLuauHovers, typeLines } from "./hovers.mts"
 
@@ -82,6 +83,10 @@ function codeBlocks(md: any) {
 		const html = fence(tokens, idx, options, env, self)
 		const tab = token.meta?.tab
 		if (tab !== undefined) return html.replace(/^<div class="([^"]*)"/, `<div class="$1 fd-tab-panel${tab === 0 ? " active" : ""}" role="tabpanel"`)
+		if (token.meta?.signature) {
+			const source = token.meta.source ? `<a class="fd-source" href="${token.meta.source}" target="_blank" rel="noreferrer">Source</a>` : ""
+			return html.replace(/^<div class="([^"]*)">/, `<div class="$1 fd-signature">${source}`)
+		}
 		if (!title) return html
 		const head = `<div class="fd-code-head"><span class="fd-code-icon" data-lang="${langOf(token.info)}"></span>${md.utils.escapeHtml(title)}</div>`
 		return html.replace(/^<div class="([^"]*)">/, `<div class="$1 fd-titled">${head}`)
@@ -572,6 +577,7 @@ export default withMermaid(
 				...pageData.frontmatter,
 				githubPath: `docs/${source}`,
 				pageClass: PAGE_CLASSES[pageData.relativePath] ?? (pageData.relativePath.startsWith("api/") ? "fd-api" : undefined),
+				...(pageData.relativePath.startsWith("api/") ? { outline: 2 } : {}),
 				markdown: fs.readFileSync(path.resolve(DOCS, source)).toString("base64"),
 			}
 		},
@@ -583,6 +589,7 @@ export default withMermaid(
 				codeBlocks(md)
 				pageActions(md)
 				dropPagerLine(md)
+				apiEntries(md)
 			},
 			anchor: { slugify: githubSlug },
 		},

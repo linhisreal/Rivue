@@ -4,255 +4,261 @@
 
 **Learn it:** [Guide 2: State](../guide/02-state.md)
 
-All examples assume `local Rivue = require(game.ReplicatedStorage.RivueUI)`.
-
-- [isRef()](#isref)
-- [unref()](#unref)
-- [toRef()](#toref)
-- [toValue()](#tovalue)
-- [toRefs()](#torefs)
-- [proxyRefs()](#proxyrefs)
-- [isProxy()](#isproxy)
-- [isReactive()](#isreactive)
-- [isReadonly()](#isreadonly)
+Checks and conversions between refs, reactive tables and plain values. Examples assume
+`local Rivue = require(game.ReplicatedStorage.RivueUI)`.
 
 ---
 
 ## isRef()
 
-Tells you whether a value is a ref (computeds count).
+Whether a value is a ref. Computeds count.
 
-- **Example**
+```lua signature
+function isRef(value: unknown): boolean
+```
 
-  ```lua
-  print(Rivue.isRef(Rivue.ref(1))) -- true
-  print(Rivue.isRef(Rivue.computed(function() return 1 end))) -- true
-  print(Rivue.isRef(1)) -- false
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `value` | `unknown` | | anything |
 
-- **Type**
+### Example
 
-  ```lua
-  function isRef(value: unknown): boolean
-  ```
+```lua
+print(Rivue.isRef(Rivue.ref(1))) -- true
+print(Rivue.isRef(Rivue.computed(function() return 1 end))) -- true
+print(Rivue.isRef(1)) -- false
+```
 
 ---
 
 ## unref()
 
-Gives you the value whether you have a ref or a plain value. Use it in functions that accept either.
+The value inside a ref, or the value itself if it isn't one. Use it in functions that take either.
 
-- **Example**
+```lua signature
+function unref<T>(value: T | Ref<T>): T
+```
 
-  ```lua
-  local function double(n: number | Rivue.Ref<number>): number
-  	return Rivue.unref(n) * 2
-  end
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `value` | `T \| Ref<T>` | | a ref or a plain value |
 
-  print(double(2)) -- 4
-  print(double(Rivue.ref(3))) -- 6
-  ```
+### Example
 
-- **Type**
+```lua
+local function double(n: number | Rivue.Ref<number>): number
+	return Rivue.unref(n) * 2
+end
 
-  ```lua
-  function unref<T>(value: T | Ref<T>): T
-  ```
+print(double(2)) -- 4
+print(double(Rivue.ref(3))) -- 6
+```
 
 ---
 
 ## toRef()
 
-A ref linked to one field of a table: reading and writing it reads and writes the field. Use it to
-pass a single prop or field to a composable that expects a ref.
+A ref linked to one field of a table: reading or writing the ref reads or writes the field. Use it
+to hand a single prop or field to a composable that expects a ref.
 
-- **Example**
+```lua signature
+function toRef<K, V>(object: { [K]: V }, key: K): Ref<V>
+```
 
-  ```lua
-  local state = Rivue.reactive({ foo = 1, bar = 2 })
-  local fooRef = Rivue.toRef(state, "foo")
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `object` | `{ [K]: V }` | | a reactive table, or `props` |
+| `key` | `K` | | the field to link to |
 
-  fooRef.value += 1
-  print(state.foo) -- 2
+**Returns** a `Ref<V>` that stays linked both ways.
 
-  state.foo += 1
-  print(fooRef.value) -- 3
-  ```
+### Example
 
-  Keeping a prop reactive inside setup:
+```lua
+local state = Rivue.reactive({ foo = 1, bar = 2 })
+local fooRef = Rivue.toRef(state, "foo")
 
-  ```lua
-  local Label = Rivue.defineComponent({
-  	name = "Label",
-  	props = { text = { type = "string" } },
-  	setup = function(props)
-  		local text = Rivue.toRef(props, "text")
-  		return function()
-  			return Rivue.h("TextLabel", { Text = text.value })
-  		end
-  	end,
-  })
-  ```
+fooRef.value += 1
+print(state.foo) -- 2
 
-- **Details**
+state.foo += 1
+print(fooRef.value) -- 3
+```
 
-  The ref stays linked to the source: writing the ref writes the key, and the other way around.
+Keeping a prop reactive inside setup:
 
-- **Type**
-
-  ```lua
-  function toRef<K, V>(object: { [K]: V }, key: K): Ref<V>
-  ```
+```lua
+local Label = Rivue.defineComponent({
+	name = "Label",
+	props = { text = { type = "string" } },
+	setup = function(props)
+		local text = Rivue.toRef(props, "text")
+		return function()
+			return Rivue.h("TextLabel", { Text = text.value })
+		end
+	end,
+})
+```
 
 ---
 
 ## toValue()
 
-Gives you the value from a plain value, a ref or a getter function. Composables use it to accept any
-of the three.
+The value from a plain value, a ref or a getter. Composables use it to accept any of the three.
 
-- **Example**
+```lua signature
+function toValue<T>(source: T | Ref<T> | () -> T): T
+```
 
-  ```lua
-  local function useDoubled(source: Rivue.MaybeRefOrGetter<number>)
-  	return Rivue.computed(function()
-  		return Rivue.toValue(source) * 2
-  	end)
-  end
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `source` | `T \| Ref<T> \| () -> T` | | a value, a ref, or a function to call |
 
-  local count = Rivue.ref(2)
-  print(useDoubled(count).value) -- 4
-  print(useDoubled(function() return count.value + 1 end).value) -- 6
-  print(useDoubled(10).value) -- 20
-  ```
+### Example
 
-- **Details**
+```lua
+local function useDoubled(source: Rivue.MaybeRefOrGetter<number>)
+	return Rivue.computed(function()
+		return Rivue.toValue(source) * 2
+	end)
+end
 
-  Like [`unref()`](#unref), but also calls getter functions.
+local count = Rivue.ref(2)
+print(useDoubled(count).value) -- 4
+print(useDoubled(function() return count.value + 1 end).value) -- 6
+print(useDoubled(10).value) -- 20
+```
 
-- **Type**
+### Details
 
-  ```lua
-  function toValue<T>(source: T | Ref<T> | () -> T): T
-  ```
+- Like [`unref()`](#unref), but it also calls functions. Read it inside a computed or watcher
+  source so the read is tracked.
 
 ---
 
 ## toRefs()
 
 Turns each field of a reactive table into its own linked ref, so you can return or pass the fields
-separately without them losing reactivity.
+separately without losing reactivity.
 
-- **Example**
+```lua signature
+function toRefs<K, V>(object: { [K]: V }): { [K]: Ref<V> }
+```
 
-  ```lua
-  local function usePosition()
-  	local state = Rivue.reactive({ x = 0, y = 0 })
-  	return Rivue.toRefs(state)
-  end
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `object` | `{ [K]: V }` | | a reactive table |
 
-  local position = usePosition()
-  position.x.value = 10 -- still reactive
-  ```
+**Returns** a plain table with one linked ref per field.
 
-- **Details**
+> [!NOTE]
+> Only the fields that exist when you call it get a ref. Fields added later aren't included.
 
-  Copying values out of a reactive table (`local x = state.x`) loses reactivity. `toRefs` keeps
-  each one linked.
+### Example
 
-- **Type**
+```lua
+local function usePosition()
+	local state = Rivue.reactive({ x = 0, y = 0 })
+	return Rivue.toRefs(state)
+end
 
-  ```lua
-  function toRefs<K, V>(object: { [K]: V }): { [K]: Ref<V> }
-  ```
+local position = usePosition()
+position.x.value = 10 -- still reactive
+```
 
 ---
 
 ## proxyRefs()
 
-Lets you use a table of refs without writing `.value` everywhere. It's what `render(ctx)` uses for
-the state `setup()` returns.
+Lets you use a table of refs without writing `.value`. `render(ctx)` uses it for what `setup()`
+returns.
 
-- **Example**
+```lua signature
+function proxyRefs<T>(object: T): T
+```
 
-  ```lua
-  local count = Rivue.ref(1)
-  local state = Rivue.proxyRefs({ count = count, label = "Coins" })
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `object` | `T` | | a table whose fields may be refs |
 
-  print(state.count) -- 1
-  state.count = 5
-  print(count.value) -- 5
-  ```
+**Returns** a proxy: reading a ref field gives its value, and assigning a plain value to a ref field
+sets the ref. Other fields pass through.
 
-- **Details**
+### Example
 
-  Reading a key that holds a ref returns the ref's value. Assigning to it sets the ref. Other
-  keys pass through.
+```lua
+local count = Rivue.ref(1)
+local state = Rivue.proxyRefs({ count = count, label = "Coins" })
 
-- **Type**
-
-  ```lua
-  function proxyRefs<T>(object: T): T
-  ```
+print(state.count) -- 1
+state.count = 5
+print(count.value) -- 5
+```
 
 ---
 
 ## isProxy()
 
-Tells you whether a table is any kind of reactive or readonly proxy.
+Whether a table is any kind of reactive or read-only proxy.
 
-- **Example**
+```lua signature
+function isProxy(value: unknown): boolean
+```
 
-  ```lua
-  print(Rivue.isProxy(Rivue.reactive({}))) -- true
-  print(Rivue.isProxy(Rivue.readonly({}))) -- true
-  print(Rivue.isProxy({})) -- false
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `value` | `unknown` | | anything |
 
-- **Type**
+### Example
 
-  ```lua
-  function isProxy(value: unknown): boolean
-  ```
+```lua
+print(Rivue.isProxy(Rivue.reactive({}))) -- true
+print(Rivue.isProxy(Rivue.readonly({}))) -- true
+print(Rivue.isProxy({})) -- false
+```
 
 ---
 
 ## isReactive()
 
-Tells you whether a table is reactive (from `reactive()` or `shallowReactive()`, or a readonly view
-of one).
+Whether a table is reactive: made by `reactive()` or `shallowReactive()`, or a read-only view of
+one.
 
-- **Example**
+```lua signature
+function isReactive(value: unknown): boolean
+```
 
-  ```lua
-  print(Rivue.isReactive(Rivue.reactive({}))) -- true
-  print(Rivue.isReactive({})) -- false
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `value` | `unknown` | | anything |
 
-- **Type**
+### Example
 
-  ```lua
-  function isReactive(value: unknown): boolean
-  ```
+```lua
+print(Rivue.isReactive(Rivue.reactive({}))) -- true
+print(Rivue.isReactive({})) -- false
+```
 
 ---
 
 ## isReadonly()
 
-Tells you whether a table is a readonly view.
+Whether a table is a read-only view.
 
-- **Example**
+```lua signature
+function isReadonly(value: unknown): boolean
+```
 
-  ```lua
-  print(Rivue.isReadonly(Rivue.readonly({}))) -- true
-  print(Rivue.isReadonly(Rivue.reactive({}))) -- false
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `value` | `unknown` | | anything |
 
-- **Type**
+### Example
 
-  ```lua
-  function isReadonly(value: unknown): boolean
-  ```
+```lua
+print(Rivue.isReadonly(Rivue.readonly({}))) -- true
+print(Rivue.isReadonly(Rivue.reactive({}))) -- false
+```
 
 ---
 

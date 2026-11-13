@@ -4,130 +4,129 @@
 
 **Learn it:** [Guide 7: Effects and animation](../guide/07-effects-and-animation.md)
 
-When updates happen, and how to run code after them. All examples assume
+When updates happen, and how to run code after them. Examples assume
 `local Rivue = require(game.ReplicatedStorage.RivueUI)`.
-
-- [nextTick()](#nexttick)
-- [queueJob()](#queuejob)
-- [Update timing](#update-timing)
 
 ---
 
 ## nextTick()
 
-Waits until Rivue has applied pending updates to the screen. Use it when you change state and then
-need to read the updated Instances.
+_yields without a callback_
 
-- **Example**
+Waits until Rivue has applied pending updates. Use it when you change state and then need to read
+the updated Instances.
 
-  Read an Instance right after changing state:
+```lua signature
+function nextTick(callback: (() -> ())?)
+```
 
-  ```lua
-  local count = Rivue.ref(0)
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `callback` | `(() -> ())?` | | runs after the updates; without it, the current thread yields until then |
 
-  local Counter = Rivue.defineComponent({
-  	name = "Counter",
-  	render = function()
-  		return h("TextLabel", { Text = tostring(count.value) })
-  	end,
-  })
+> [!WARNING]
+> Without a callback it yields. Don't call it that way from a render function, a computed or
+> anywhere else that can't yield.
 
-  local screen = Instance.new("ScreenGui")
-  Rivue.createApp(Counter):mount(screen)
-  local label = screen:FindFirstChild("Counter") :: TextLabel
+### Example
 
-  count.value = 5
-  print(label.Text) -- "0": updates are batched, not applied yet
-  Rivue.nextTick()
-  print(label.Text) -- "5"
-  ```
+```lua
+local count = Rivue.ref(0)
 
-- **Details**
+local Counter = Rivue.defineComponent({
+	name = "Counter",
+	render = function()
+		return h("TextLabel", { Text = tostring(count.value) })
+	end,
+})
 
-  Changing state doesn't update the UI right away: renders are batched and run deferred. With a
-  callback, `nextTick` runs it after that flush. Without one, it yields the current thread until
-  then.
+local screen = Instance.new("ScreenGui")
+Rivue.createApp(Counter):mount(screen)
+local label = screen:FindFirstChild("Counter") :: TextLabel
 
-- **Type**
-
-  ```lua
-  function nextTick(callback: (() -> ())?)
-  ```
+count.value = 5
+print(label.Text) -- "0": updates are batched, not applied yet
+Rivue.nextTick()
+print(label.Text) -- "5"
+```
 
 ---
 
 ## queueJob()
 
-Runs a function on the next update. Queuing the same function again before then does nothing,
-so it's a cheap way to batch expensive work.
+Runs a function on the next update. Queuing the same function again before then does nothing, so
+it's a cheap way to batch expensive work.
 
-- **Example**
+```lua signature
+function queueJob(job: () -> (), options: { mode: ("micro" | "render" | "heartbeat")? }?): JobHandle
+```
 
-  ```lua
-  local dirty = {}
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `job` | `() -> ()` | | the function to run |
+| `options.mode` | `"micro" \| "render" \| "heartbeat"` | `"micro"` | deferred in the same frame, on the next RenderStepped, or on the next Heartbeat |
 
-  local function flushSaves()
-  	for key in dirty do
-  		print("save", key)
-  	end
-  	table.clear(dirty)
-  end
+**Returns** a `JobHandle`, `{ cancel: () -> () }`.
 
-  local function markDirty(key: string)
-  	dirty[key] = true
-  	Rivue.queueJob(flushSaves) -- many calls this frame, one save
-  end
+> [!NOTE]
+> Jobs queued in `setup()` are cancelled when the component unmounts.
+> `Rivue.scheduler.queueJob` is the same function without that.
 
-  markDirty("volume")
-  markDirty("sensitivity")
-  ```
+> [!WARNING]
+> A job that keeps queuing itself makes the scheduler error after too many passes in one frame.
 
-- **Details**
+### Example
 
-  - **Modes.**
-    - `"micro"` (the default) runs deferred, in the same frame.
-    - `"render"` runs on the next RenderStepped.
-    - `"heartbeat"` runs on the next Heartbeat.
-  
-  - **In components.** Jobs queued in `setup()` are cancelled when the component unmounts.
+```lua
+local dirty = {}
 
-  `Rivue.scheduler.queueJob` is the same function without the automatic cancel.
+local function flushSaves()
+	for key in dirty do
+		print("save", key)
+	end
+	table.clear(dirty)
+end
 
-- **Type**
+local function markDirty(key: string)
+	dirty[key] = true
+	Rivue.queueJob(flushSaves) -- many calls this frame, one save
+end
 
-  ```lua
-  function queueJob(job: () -> (), options: { mode: ("micro" | "render" | "heartbeat")? }?): JobHandle
-
-  type JobHandle = { cancel: () -> () }
-  ```
+markDirty("volume")
+markDirty("sensitivity")
+```
 
 ---
 
 ## Update timing
 
-The order in which work runs after you change state.
+The order work runs in after you change state:
 
-1. **`"sync"` watchers** run right away, inside the write.
-2. **`"pre"` watchers and effects** (the default) run deferred, in the same frame.
-3. **Component re-renders** run deferred and batched, **parents before children**. Each
-   component renders at most once per batch, even if several of its dependencies changed.
-4. **`onMounted`, directive `mounted` and enter transitions** run once the patch that created the
+1. `"sync"` watchers, right away, inside the write.
+2. `"pre"` watchers and effects (the default), deferred in the same frame.
+3. Component re-renders, deferred and batched, parents before children. Each component renders at
+   most once per batch.
+4. `onMounted`, directive `mounted` hooks and enter transitions, once the patch that created the
    Instances has finished.
-5. **`"post"` watchers** run on the next Heartbeat.
+5. `"post"` watchers, on the next Heartbeat.
 
-- **Example**
+> [!WARNING]
+> Updates that keep queuing more updates stop after a limit, with a warning about a possible
+> infinite update loop. It usually means a render or watcher writes state it also reads.
 
-  ```lua
-  local count = Rivue.ref(0)
+### Example
 
-  Rivue.watch(count, function() print("sync") end, { flush = "sync" })
-  Rivue.watch(count, function() print("pre") end)
-  Rivue.watch(count, function() print("post") end, { flush = "post" })
+```lua
+local count = Rivue.ref(0)
 
-  count.value = 1
-  print("after write")
-  -- sync, after write, pre, (next Heartbeat) post
-  ```
+Rivue.watch(count, function() print("sync") end, { flush = "sync" })
+Rivue.watch(count, function() print("pre") end)
+Rivue.watch(count, function() print("post") end, { flush = "post" })
+
+count.value = 1
+print("after write")
+-- sync, after write, pre, (next Heartbeat) post
+```
 
 ---
 

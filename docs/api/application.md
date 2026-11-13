@@ -4,7 +4,7 @@
 
 **Learn it:** [Guide 1: Introduction](../guide/01-introduction.md) · [Guide 6: Styling and layout](../guide/06-styling-and-layout.md)
 
-Creating and configuring an app. All examples assume:
+Creating, configuring and mounting an app. Examples assume:
 
 ```lua
 local Rivue = require(game.ReplicatedStorage.RivueUI)
@@ -12,573 +12,556 @@ local h = Rivue.h
 local Players = game:GetService("Players")
 ```
 
-- [createApp()](#createapp)
-- [mount()](#mount)
-- [app:mount()](#appmount)
-- [app:mountToPlayerGui()](#appmounttoplayergui)
-- [app:unmount()](#appunmount)
-- [app:onUnmount()](#apponunmount)
-- [app:component()](#appcomponent)
-- [app:styles()](#appstyles)
-- [app:directive()](#appdirective)
-- [app:use()](#appuse)
-- [app:provide()](#appprovide)
-- [app:runWithContext()](#apprunwithcontext)
-- [app:printTree()](#appprinttree)
-- [app:rerender() / app:swapRoot()](#apprerender--appswaproot)
-- [app.config.errorHandler](#appconfigerrorhandler)
-- [app.config.warnHandler](#appconfigwarnhandler)
-- [app.config.globalProperties](#appconfigglobalproperties)
-- [app.config.devtools](#appconfigdevtools)
-- [app.config.performance](#appconfigperformance)
-- [Pooling options](#pooling-options)
-
 ---
 
 ## createApp()
 
 Creates an app from your root component. Configure it (styles, global components, plugins), then
-mount it.
+mount it; nothing renders before that.
 
-- **Example**
+```lua signature
+function createApp(root: ComponentDef | VNode, options: AppOptions?): App
+```
 
-  Create the app for your root component, configure it, then mount it:
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `root` | `ComponentDef \| VNode` | | the root component, or a vnode when you want to pass it props |
+| `options` | `AppOptions?` | | see [Pooling options](#pooling-options) |
 
-  ```lua
-  local App = Rivue.defineComponent({
-  	name = "App",
-  	props = { title = { type = "string", default = "Lobby" } },
-  	render = function(ctx)
-  		return h("TextLabel", { Text = ctx.title })
-  	end,
-  })
+**Returns** an `App`. Its configuration methods return the app, so they chain.
 
-  local app = Rivue.createApp(App)
-  -- or pass props to the root by giving it a vnode:
-  local lobby = Rivue.createApp(h(App, { title = "Waiting for players" }))
-  ```
+### Example
 
-- **Details**
+```lua
+local App = Rivue.defineComponent({
+	name = "App",
+	props = { title = { type = "string", default = "Lobby" } },
+	render = function(ctx)
+		return h("TextLabel", { Text = ctx.title })
+	end,
+})
 
-  The root can be a component, or a vnode when you want to pass props to it. Nothing renders
-  until you mount the app.
-
-- **Type**
-
-  ```lua
-  function createApp(root: ComponentDef | VNode, options: AppOptions?): App
-
-  type AppOptions = {
-  	usePool: boolean?, -- reuse Instances, see "Pooling options"
-  	poolConfig: PoolConfig?,
-  	poolWarmup: { [string]: number }?,
-  }
-  ```
+local app = Rivue.createApp(App)
+local lobby = Rivue.createApp(h(App, { title = "Waiting for players" })) -- with root props
+```
 
 ---
 
 ## mount()
 
-A one-liner for the common case: create an app and mount it straight away. Same as `createApp(root,
-options):mount(parent)`.
+Creates an app and mounts it in one call: the same as `createApp(root, options):mount(parent)`.
 
-- **Example**
+```lua signature
+function mount(root: ComponentDef | VNode, parent: Instance, options: AppOptions?): App
+```
 
-  ```lua
-  local screen = Instance.new("ScreenGui")
-  screen.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `root` | `ComponentDef \| VNode` | | the root component or vnode |
+| `parent` | `Instance` | | where to render |
+| `options` | `AppOptions?` | | see [Pooling options](#pooling-options) |
 
-  local Hud = Rivue.defineComponent({ name = "Hud", render = function() return h("Frame") end })
-  local app = Rivue.mount(Hud, screen)
-  ```
+### Example
 
-- **Type**
+```lua
+local screen = Instance.new("ScreenGui")
+screen.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
 
-  ```lua
-  function mount(root: ComponentDef | VNode, parent: Instance, options: AppOptions?): App
-  ```
+local Hud = Rivue.defineComponent({ name = "Hud", render = function() return h("Frame") end })
+local app = Rivue.mount(Hud, screen)
+```
 
 ---
 
 ## app:mount()
 
-Puts the app on screen inside any Instance you choose: a ScreenGui, a SurfaceGui on a part, a Frame.
-Use [`mountToPlayerGui()`](#appmounttoplayergui) for the usual full-screen case.
+Renders the app inside any Instance: a ScreenGui, a Frame, a SurfaceGui or a BillboardGui. For the
+usual full-screen case, use [`mountToPlayerGui()`](#appmounttoplayergui).
 
-- **Example**
+```lua signature
+function App:mount(container: Instance): MountedState
+```
 
-  ```lua
-  local part = Instance.new("Part")
-  local surface = Instance.new("SurfaceGui")
-  surface.Parent = part
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `container` | `Instance` | | where to render; anything else errors |
 
-  local Sign = Rivue.defineComponent({ name = "Sign", render = function() return h("TextLabel", { Text = "Shop" }) end })
-  Rivue.createApp(Sign):mount(surface)
-  ```
+### Example
 
-- **Details**
+```lua
+local part = Instance.new("Part")
+local surface = Instance.new("SurfaceGui")
+surface.Parent = part
 
-  The container can be any Instance: a ScreenGui, a Frame, a SurfaceGui or a BillboardGui.
-  Mounting again unmounts the previous tree first.
+local Sign = Rivue.defineComponent({ name = "Sign", render = function() return h("TextLabel", { Text = "Shop" }) end })
+Rivue.createApp(Sign):mount(surface)
+```
 
-- **Type**
+### Details
 
-  ```lua
-  function App:mount(container: Instance): MountedState
-  ```
+- Mounting again unmounts the previous tree first.
 
 ---
 
 ## app:mountToPlayerGui()
 
-The usual way to show an app: it creates a ScreenGui in the player's PlayerGui (with `ResetOnSpawn =
-false`) and mounts into it.
+_yields_
 
-- **Example**
+The usual way to show an app: creates a ScreenGui named `AppRoot` in the player's PlayerGui and
+mounts into it.
 
-  ```lua
-  local Hud = Rivue.defineComponent({ name = "Hud", render = function() return h("Frame") end })
-  Rivue.createApp(Hud):mountToPlayerGui(Players.LocalPlayer)
-  ```
+```lua signature
+function App:mountToPlayerGui(player: Player)
+```
 
-- **Details**
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `player` | `Player` | | usually `Players.LocalPlayer`; anything else errors |
 
-  The ScreenGui is named `AppRoot` and has `ResetOnSpawn = false`, so the UI survives
-  respawning.
+> [!NOTE]
+> It waits for the player's PlayerGui, so it can yield. The ScreenGui has `ResetOnSpawn = false`,
+> so the UI survives respawning, and `app:unmount()` destroys it.
 
-- **Type**
+### Example
 
-  ```lua
-  function App:mountToPlayerGui(player: Player)
-  ```
+```lua
+local Hud = Rivue.defineComponent({ name = "Hud", render = function() return h("Frame") end })
+Rivue.createApp(Hud):mountToPlayerGui(Players.LocalPlayer)
+```
 
 ---
 
 ## app:unmount()
 
-Takes the whole app off screen and cleans up after it: unmount hooks run, watchers stop, and its
-Instances are destroyed (or returned to the pool).
+Takes the app off screen and cleans up: unmount hooks run, watchers stop, and its Instances are
+destroyed or returned to the pool.
 
-- **Example**
+```lua signature
+function App:unmount()
+```
 
-  ```lua
-  local Hud = Rivue.defineComponent({ name = "Hud", render = function() return h("Frame") end })
-  local app = Rivue.createApp(Hud)
-  app:mountToPlayerGui(Players.LocalPlayer)
+### Example
 
-  -- Later, e.g. when leaving the lobby
-  app:unmount()
-  ```
+```lua
+local Hud = Rivue.defineComponent({ name = "Hud", render = function() return h("Frame") end })
+local app = Rivue.createApp(Hud)
+app:mountToPlayerGui(Players.LocalPlayer)
 
-- **Type**
-
-  ```lua
-  function App:unmount()
-  ```
+app:unmount() -- e.g. when leaving the lobby
+```
 
 ---
 
 ## app:onUnmount()
 
-Runs your callback when the app unmounts. Plugins use it to release whatever they set up, like
-connections or timers.
+Runs a callback when the app unmounts. Plugins use it to release what they set up.
 
-- **Example**
+```lua signature
+function App:onUnmount(callback: () -> ()): App
+```
 
-  ```lua
-  local app = Rivue.createApp(h("Frame"))
-  local conn = Players.PlayerAdded:Connect(print)
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `callback` | `() -> ()` | | runs once, on unmount; an error in it is warned |
 
-  app:onUnmount(function()
-  	conn:Disconnect()
-  end)
-  ```
+### Example
 
-- **Type**
+```lua
+local app = Rivue.createApp(h("Frame"))
+local conn = Players.PlayerAdded:Connect(print)
 
-  ```lua
-  function App:onUnmount(callback: () -> ()): App
-  ```
+app:onUnmount(function()
+	conn:Disconnect()
+end)
+```
 
 ---
 
 ## app:component()
 
-Makes a component available everywhere in the app by name, so any render function can write
-`h("Icon")` without requiring it. Use it for small, widely used pieces like icons and buttons.
+Registers a component by name for the whole app, so any render can write `h("Icon")` without
+requiring it. For small pieces used everywhere, like icons and buttons.
 
-- **Example**
+```lua signature
+function App:component(name: string, component: ComponentDef): App
+```
 
-  ```lua
-  local Icon = Rivue.defineComponent({
-  	name = "Icon",
-  	props = { image = { type = "string" } },
-  	render = function(props)
-  		return h("ImageLabel", { Image = props.image, Size = UDim2.fromOffset(24, 24) })
-  	end,
-  })
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `name` | `string` | | the name renders use |
+| `component` | `ComponentDef` | | the component; anything else errors |
 
-  local App = Rivue.defineComponent({
-  	name = "App",
-  	render = function()
-  		return h("Icon", { image = "rbxassetid://123" })
-  	end,
-  })
+### Example
 
-  Rivue.createApp(App):component("Icon", Icon):mountToPlayerGui(Players.LocalPlayer)
-  ```
+```lua
+local Icon = Rivue.defineComponent({
+	name = "Icon",
+	props = { image = { type = "string" } },
+	render = function(props)
+		return h("ImageLabel", { Image = props.image, Size = UDim2.fromOffset(24, 24) })
+	end,
+})
 
-- **Details**
+local App = Rivue.defineComponent({
+	name = "App",
+	render = function()
+		return h("Icon", { image = "rbxassetid://123" })
+	end,
+})
 
-  Registered names take priority over ClassNames with the same name.
-  [`resolveComponent()`](render-function.md#resolvecomponent) looks them up in code.
+Rivue.createApp(App):component("Icon", Icon):mountToPlayerGui(Players.LocalPlayer)
+```
 
-- **Type**
+### Details
 
-  ```lua
-  function App:component(name: string, component: ComponentDef): App
-  ```
+- A registered name wins over a ClassName with the same name.
+- [`resolveComponent()`](render-function.md#resolvecomponent) looks names up in code.
 
 ---
 
 ## app:styles()
 
-Registers your app-wide style classes, so any element can use them with the
+Registers app-wide style classes, which any element can use with the
 [`class`](render-function.md#element-props) prop. Usually called once with your `styles.luau`
 module.
 
-- **Example**
+```lua signature
+function App:styles(styles: { [className: string]: { [prop: string]: any } }): App
+```
 
-  ```lua
-  local styles = {
-  	card = { BackgroundColor3 = Color3.fromRGB(30, 30, 36), cornerRadius = 8, padding = 12 },
-  	title = { TextSize = 22, Font = Enum.Font.GothamBold, TextColor3 = Color3.new(1, 1, 1) },
-  }
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `styles` | `{ [string]: table }` | | class name to a table of props; calling again adds classes and replaces ones with the same name |
 
-  local App = Rivue.defineComponent({
-  	name = "App",
-  	render = function()
-  		return h("Frame", { class = "card", Size = UDim2.fromOffset(300, 200) }, {
-  			h("TextLabel", { class = "title", Text = "Shop" }),
-  		})
-  	end,
-  })
+Each class can also hold these variants, each a table of props:
 
-  Rivue.createApp(App):styles(styles):mountToPlayerGui(Players.LocalPlayer)
-  ```
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `hover`, `pressed`, `selected` | `table` | | applied while the player interacts, without re-rendering; pressed wins over hover, hover over selected |
+| `disabled` | `table` | | applied with `disabled = true`, which also sets `Interactable = false` and turns hover and pressed off |
+| `phone`, `tablet`, `desktop`, `console` | `table` | | applied on that device; see [useDevice()](roblox.md#usedevice) |
 
-- **Details**
+> [!NOTE]
+> An unknown class name warns in Studio.
 
-  Each class is a table of props: Instance properties and modifier props (`cornerRadius`,
-  `padding`, `stroke`, `layout`, ...). Calling it again adds classes and replaces ones with the
-  same name. A component's own [`styles`](component.md#styles) option wins over app styles, and an
-  element's own props win over both. Unknown class names warn in Studio.
+### Example
 
-  A class can hold variants, which are tables of props too:
-  - `hover`, `pressed` and `selected` apply while the player interacts with the element, without
-    re-rendering. Pressed wins over hover, hover over selected.
-  - `disabled` applies when the element has `disabled = true`, which also sets
-    `Interactable = false` and turns hover and pressed off.
-  - `phone`, `tablet`, `desktop` and `console` apply on that device (see
-    [useDevice()](roblox.md#usedevice)).
+```lua
+local styles = {
+	card = { BackgroundColor3 = Color3.fromRGB(30, 30, 36), cornerRadius = 8, padding = 12 },
+	title = { TextSize = 22, Font = Enum.Font.GothamBold, TextColor3 = Color3.new(1, 1, 1) },
+}
 
-- **Type**
+local App = Rivue.defineComponent({
+	name = "App",
+	render = function()
+		return h("Frame", { class = "card", Size = UDim2.fromOffset(300, 200) }, {
+			h("TextLabel", { class = "title", Text = "Shop" }),
+		})
+	end,
+})
 
-  ```lua
-  function App:styles(styles: { [className: string]: { [prop: string]: any } }): App
-  ```
+Rivue.createApp(App):styles(styles):mountToPlayerGui(Players.LocalPlayer)
+```
+
+### Details
+
+- A class can hold Instance properties and Rivue's own props (`cornerRadius`, `padding`, `layout`,
+  ...).
+- A component's own [`styles`](component.md#styles) win over app styles, and an element's own props
+  win over both.
 
 ---
 
 ## app:directive()
 
-Adds your own directive (a reusable behaviour like `vTooltip`) that any element in the app can use
-as a `v` prop.
+Registers a directive that any element can use as a `v` prop.
 
-- **Example**
+```lua signature
+function App:directive(name: string, directive: Directive): App
+```
 
-  ```lua
-  local app = Rivue.createApp(h("Frame"))
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `name` | `string` | | kebab-case, such as `"hover-scale"` for `vHoverScale` |
+| `directive` | `Directive` | | its hooks; see [directives.register()](directives.md#directivesregister) |
 
-  app:directive("hover-scale", {
-  	mounted = function(el)
-  		local scale = Instance.new("UIScale")
-  		scale.Parent = el
-  		local enter = (el :: GuiObject).MouseEnter:Connect(function()
-  			scale.Scale = 1.05
-  		end)
-  		local leave = (el :: GuiObject).MouseLeave:Connect(function()
-  			scale.Scale = 1
-  		end)
-  		return { enter, leave }
-  	end,
-  	unmounted = function(_el, conns)
-  		for _, conn in conns do
-  			conn:Disconnect()
-  		end
-  	end,
-  })
+> [!NOTE]
+> Directives are global: this is the same as `directives.register()`. It's on the app so plugins
+> can register through it.
 
-  -- Then: h("TextButton", { vHoverScale = true })
-  ```
+### Example
 
-- **Details**
+```lua
+local app = Rivue.createApp(h("Frame"))
 
-  Directives are global, so this is the same as
-  [`directives.register()`](directives.md#custom-directives). It's here so plugins can register
-  through the app.
+app:directive("hover-scale", {
+	mounted = function(el)
+		local scale = Instance.new("UIScale")
+		scale.Parent = el
+		local enter = (el :: GuiObject).MouseEnter:Connect(function()
+			scale.Scale = 1.05
+		end)
+		local leave = (el :: GuiObject).MouseLeave:Connect(function()
+			scale.Scale = 1
+		end)
+		return { enter, leave }
+	end,
+	unmounted = function(_el, conns)
+		for _, conn in conns do
+			conn:Disconnect()
+		end
+	end,
+})
 
-- **Type**
-
-  ```lua
-  function App:directive(name: string, directive: Directive): App
-  ```
+-- then: h("TextButton", { vHoverScale = true })
+```
 
 ---
 
 ## app:use()
 
-Installs a plugin: a reusable bundle of setup for an app, such as registering components, directives
-and provided values in one call.
+Installs a plugin: a bundle of setup, such as registering components, directives and provided
+values in one call.
 
-- **Example**
+```lua signature
+function App:use(plugin: Plugin, ...: any): App
 
-  ```lua
-  local LocalePlugin = {
-  	install = function(app, locale: string)
-  		app:provide("locale", locale)
-  		app.config.globalProperties.locale = locale
-  	end,
-  }
+type Plugin = ((app: App, ...any) -> ()) | { install: (app: App, ...any) -> () }
+```
 
-  Rivue.createApp(h("Frame")):use(LocalePlugin, "en")
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `plugin` | `Plugin` | | a function, or a table with `install`; anything else errors |
+| `...` | `any` | | passed to the plugin after the app |
 
-- **Details**
+### Example
 
-  A plugin is a function, or a table with an `install` function. It receives the app and any
-  extra arguments.
+```lua
+local LocalePlugin = {
+	install = function(app, locale: string)
+		app:provide("locale", locale)
+		app.config.globalProperties.locale = locale
+	end,
+}
 
-- **Type**
-
-  ```lua
-  function App:use(plugin: Plugin, ...: any): App
-
-  type Plugin = ((app: App, ...any) -> ()) | { install: (app: App, ...any) -> () }
-  ```
+Rivue.createApp(h("Frame")):use(LocalePlugin, "en")
+```
 
 ---
 
 ## app:provide()
 
 Makes a value available to every component in the app through [`inject()`](component.md#inject).
-Use it for app-wide services like a theme or a sound player.
+For app-wide services like a theme or a sound player.
 
-- **Example**
+```lua signature
+function App:provide(key: unknown, value: unknown): App
+```
 
-  Give every component access to the player's data:
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `key` | `unknown` | | what components inject by |
+| `value` | `unknown` | | the value; pass reactive state if it changes |
 
-  ```lua
-  local PlayerData = Rivue.reactive({ coins = 0 })
+### Example
 
-  local CoinLabel = Rivue.defineComponent({
-  	name = "CoinLabel",
-  	setup = function()
-  		return { data = Rivue.inject("playerData") }
-  	end,
-  	render = function(ctx)
-  		return h("TextLabel", { Text = `{ctx.data.coins} coins` })
-  	end,
-  })
+```lua
+local PlayerData = Rivue.reactive({ coins = 0 })
 
-  Rivue.createApp(CoinLabel):provide("playerData", PlayerData):mountToPlayerGui(Players.LocalPlayer)
-  ```
+local CoinLabel = Rivue.defineComponent({
+	name = "CoinLabel",
+	setup = function()
+		return { data = Rivue.inject("playerData") }
+	end,
+	render = function(ctx)
+		return h("TextLabel", { Text = `{ctx.data.coins} coins` })
+	end,
+})
 
-- **Type**
-
-  ```lua
-  function App:provide(key: unknown, value: unknown): App
-  ```
+Rivue.createApp(CoinLabel):provide("playerData", PlayerData):mountToPlayerGui(Players.LocalPlayer)
+```
 
 ---
 
 ## app:runWithContext()
 
 Runs a function as if it were inside the app, so [`inject()`](component.md#inject) works there.
-Useful in plugins and helper modules that run outside any component.
+For plugins, stores and services that run outside components.
 
-- **Example**
+```lua signature
+function App:runWithContext<T>(fn: () -> T): T
+```
 
-  ```lua
-  local app = Rivue.createApp(h("Frame")):provide("api", { baseUrl = "shop" })
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `fn` | `() -> T` | | the function to run |
 
-  local api = app:runWithContext(function()
-  	return Rivue.inject("api")
-  end)
-  print(api.baseUrl) -- shop
-  ```
+**Returns** what `fn` returns.
 
-- **Details**
+### Example
 
-  This lets code outside components, such as stores or services, use what the app provides.
+```lua
+local app = Rivue.createApp(h("Frame")):provide("api", { baseUrl = "shop" })
 
-- **Type**
-
-  ```lua
-  function App:runWithContext<T>(fn: () -> T): T
-  ```
+local api = app:runWithContext(function()
+	return Rivue.inject("api")
+end)
+print(api.baseUrl) -- shop
+```
 
 ---
 
 ## app:printTree()
 
-Prints what's on screen right now, as a tree: components with their props, and the elements they
-rendered. Use it to check what's actually mounted.
+Prints what's mounted right now as a tree: components with their props, and the elements they
+rendered.
 
-- **Example**
+```lua signature
+function App:printTree(): string
+```
 
-  ```lua
-  local Badge = Rivue.defineComponent({
-  	name = "Badge",
-  	props = { text = { type = "string" } },
-  	render = function(props)
-  		return h("TextLabel", { Text = props.text })
-  	end,
-  })
-  local app = Rivue.createApp(h("Frame", { Name = "Root" }, { h(Badge, { text = "NEW" }) }))
-  app:mount(Instance.new("ScreenGui"))
-  app:printTree()
-  --[[
-  Frame "Root"
-    <Badge text="NEW">
-      TextLabel "Badge"
-  ]]
-  ```
+**Returns** the same text it printed.
 
-- **Type**
+### Example
 
-  ```lua
-  function App:printTree(): string
-  ```
+```lua
+local Badge = Rivue.defineComponent({
+	name = "Badge",
+	props = { text = { type = "string" } },
+	render = function(props)
+		return h("TextLabel", { Text = props.text })
+	end,
+})
+local app = Rivue.createApp(h("Frame", { Name = "Root" }, { h(Badge, { text = "NEW" }) }))
+app:mount(Instance.new("ScreenGui"))
+app:printTree()
+--[[
+Frame "Root"
+  <Badge text="NEW">
+    TextLabel "Badge"
+]]
+```
 
 ---
 
 ## app:rerender() / app:swapRoot()
 
 Throws the current UI away and mounts again into the same container, optionally with a different
-root.
+root. For swapping whole screens; to update the UI, change state instead.
 
-- **Example**
+```lua signature
+function App:rerender(newRoot: VNode?): MountedState
+function App:swapRoot(newRoot: VNode): MountedState
+```
 
-  ```lua
-  local Lobby = Rivue.defineComponent({ name = "Lobby", render = function() return h("Frame") end })
-  local Match = Rivue.defineComponent({ name = "Match", render = function() return h("Frame") end })
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `newRoot` | `VNode` | the current root | what to mount instead |
 
-  local app = Rivue.createApp(Lobby)
-  app:mountToPlayerGui(Players.LocalPlayer)
+> [!WARNING]
+> All component state is lost. Both error when the app isn't mounted.
 
-  -- When the match starts
-  app:swapRoot(h(Match))
-  ```
+### Example
 
-- **Details**
+```lua
+local Lobby = Rivue.defineComponent({ name = "Lobby", render = function() return h("Frame") end })
+local Match = Rivue.defineComponent({ name = "Match", render = function() return h("Frame") end })
 
-  All component state is lost. To update the UI, change reactive state instead; these are for
-  swapping whole screens.
+local app = Rivue.createApp(Lobby)
+app:mountToPlayerGui(Players.LocalPlayer)
 
-- **Type**
-
-  ```lua
-  function App:rerender(newRoot: VNode?): MountedState
-  function App:swapRoot(newRoot: VNode): MountedState
-  ```
+app:swapRoot(h(Match)) -- when the match starts
+```
 
 ---
 
 ## app.config.errorHandler
 
-Receives any error that no
-[`onErrorCaptured()`](lifecycle.md#onerrorcaptured) handler stopped. Use it to report errors to your
-analytics.
+Receives every error that no [`onErrorCaptured()`](lifecycle.md#onerrorcaptured) stopped. Use it to
+send errors to your analytics.
 
-- **Example**
+```lua signature
+app.config.errorHandler: ((err: string, instance: ComponentInstance?, info: string) -> ())?
+```
 
-  ```lua
-  local app = Rivue.createApp(h("Frame"))
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `err` | `string` | | the error |
+| `instance` | `ComponentInstance?` | | the component it came from |
+| `info` | `string` | | where it happened, such as `"render"` |
 
-  app.config.errorHandler = function(err, instance, info)
-  	local name = if instance then (instance :: any).type.__name else "?"
-  	warn(`[UI] {info} in {name}: {err}`)
-  	-- report to your analytics here
-  end
-  ```
+### Example
 
-- **Details**
+```lua
+local app = Rivue.createApp(h("Frame"))
 
-  Without a handler, errors are reported with `warn`, along with the component chain.
+app.config.errorHandler = function(err, instance, info)
+	local name = if instance then (instance :: any).type.__name else "?"
+	warn(`[UI] {info} in {name}: {err}`)
+	-- report to your analytics here
+end
+```
 
-- **Type**
+### Details
 
-  ```lua
-  app.config.errorHandler: ((err: string, instance: ComponentInstance?, info: string) -> ())?
-  ```
+- Without a handler, errors are warned along with the component chain.
 
 ---
 
 ## app.config.warnHandler
 
-Receives Rivue's Studio warnings instead of printing them with `warn`. Useful for collecting them,
-or failing a test run on any warning.
+Receives Rivue's Studio warnings instead of printing them. Use it to collect them, or to fail a test
+run on any warning.
 
-- **Example**
+```lua signature
+app.config.warnHandler: ((message: string, instance: ComponentInstance?, trace: string) -> ())?
+```
 
-  ```lua
-  local app = Rivue.createApp(h("Frame"))
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `message` | `string` | | the warning |
+| `instance` | `ComponentInstance?` | | the component it came from |
+| `trace` | `string` | | the component chain, such as `<Row> in <List> in <App>` |
 
-  app.config.warnHandler = function(message, _instance, trace)
-  	print(`[Rivue warning] {message}\n  at {trace}`)
-  end
-  ```
+> [!NOTE]
+> These warnings only happen in Studio.
 
-- **Details**
+### Example
 
-  `trace` is the component chain, such as `<Row> in <List> in <App>`. Warnings only happen in
-  Studio.
+```lua
+local app = Rivue.createApp(h("Frame"))
 
-- **Type**
-
-  ```lua
-  app.config.warnHandler: ((message: string, instance: ComponentInstance?, trace: string) -> ())?
-  ```
+app.config.warnHandler = function(message, _instance, trace)
+	print(`[Rivue warning] {message}\n  at {trace}`)
+end
+```
 
 ---
 
 ## app.config.globalProperties
 
-Values every component in the app can read through `ctx.globals`, without injecting them one by one.
+Values every component in the app can read through `ctx.globals`, without injecting them one by
+one.
 
-- **Example**
+```lua signature
+app.config.globalProperties: { [string]: unknown }
+```
 
-  Show the game version in any component, without injecting it:
+### Example
 
-  ```lua
-  local VersionLabel = Rivue.defineComponent({
-  	name = "VersionLabel",
-  	render = function(ctx)
-  		return h("TextLabel", { Text = `v{ctx.globals.version}` })
-  	end,
-  })
+```lua
+local VersionLabel = Rivue.defineComponent({
+	name = "VersionLabel",
+	render = function(ctx)
+		return h("TextLabel", { Text = `v{ctx.globals.version}` })
+	end,
+})
 
-  local app = Rivue.createApp(VersionLabel)
-  app.config.globalProperties.version = "1.4.0"
-  app:mountToPlayerGui(Players.LocalPlayer)
-  ```
-
-- **Type**
-
-  ```lua
-  app.config.globalProperties: { [string]: unknown }
-  ```
+local app = Rivue.createApp(VersionLabel)
+app.config.globalProperties.version = "1.4.0"
+app:mountToPlayerGui(Players.LocalPlayer)
+```
 
 ---
 
@@ -586,124 +569,121 @@ Values every component in the app can read through `ctx.globals`, without inject
 
 Lets the [Rivue DevTools plugin](../DEVTOOLS.md) show this app's components while you playtest.
 
-- **Example**
+```lua signature
+app.config.devtools: boolean?
+```
 
-  ```lua
-  local App = Rivue.defineComponent({ name = "App", render = function() return h("Frame") end })
+> [!WARNING]
+> Set it before `app:mount()`. Every render writes attributes, which costs an engine call each, so
+> keep it off in live games: `game:GetService("RunService"):IsStudio()`.
 
-  local app = Rivue.createApp(App)
-  app.config.devtools = game:GetService("RunService"):IsStudio() -- only while testing in Studio
-  app:mountToPlayerGui(Players.LocalPlayer)
-  ```
+### Example
 
-- **Details**
+```lua
+local App = Rivue.defineComponent({ name = "App", render = function() return h("Frame") end })
 
-  Each component's root Instance gets the `RivueComponent` tag and these attributes, updated on
-  every render:
+local app = Rivue.createApp(App)
+app.config.devtools = game:GetService("RunService"):IsStudio() -- only while testing in Studio
+app:mountToPlayerGui(Players.LocalPlayer)
+```
 
-  | Attribute | Holds |
-  |---|---|
-  | `RivueComponent` | its name |
-  | `RivueProps` | its props, one `key = value` per line |
-  | `RivueState` | the refs `setup` returned, the same way |
-  | `RivueRenders` | how many times it rendered |
-  | `RivueRenderMs` | how long the last render and patch took, in milliseconds |
-  | `RivueTrigger` | what caused the last render: `mount`, `parent`, or the state that changed, like `count` or `props.title` |
-  | `RivueSource` | where `defineComponent` was called, like `ReplicatedStorage.UI.Shop:12` |
-  | `RivueEmit` | the latest `emit`: a counter, the event name and its arguments |
-  | `RivueProvides` | the keys it provides, one per line |
-  | `RivueInjects` | the keys it injected, one per line |
+### Details
 
-  The app also gets a `Configuration` named `RivueDevTools`, tagged `RivueDevToolsChannel`, inside
-  the container it was mounted in. Its `RivueTimeline` attribute holds the last 50 renders, emits,
+Each component's root Instance gets the `RivueComponent` tag and these attributes, updated on every
+render. Writing them adds no dependencies, so it doesn't change what re-renders.
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `RivueComponent` | `string` | | its name |
+| `RivueProps` | `string` | | its props, one `key = value` per line |
+| `RivueState` | `string` | | the refs `setup` returned, the same way |
+| `RivueRenders` | `number` | | how many times it rendered |
+| `RivueRenderMs` | `number` | | how long the last render and patch took, in milliseconds |
+| `RivueTrigger` | `string` | | what caused the last render: `mount`, `parent`, or the state that changed, like `count` or `props.title` |
+| `RivueSource` | `string` | | where `defineComponent` was called, like `ReplicatedStorage.UI.Shop:12` |
+| `RivueEmit` | `string` | | the latest `emit`: a counter, the event name and its arguments |
+| `RivueProvides` | `string` | | the keys it provides, one per line |
+| `RivueInjects` | `string` | | the keys it injected, one per line |
+
+- The app also gets a `Configuration` named `RivueDevTools`, tagged `RivueDevToolsChannel`, in the
+  container it was mounted in. Its `RivueTimeline` attribute holds the last 50 renders, emits,
   navigations and remote requests, and `RivueRoute` holds RivueRouter's current route and history.
-  It's removed when the app unmounts.
-
-  The plugin can also set `RivueEdit` to `"key=value"`. Rivue sets the ref `setup` returned as
-  `key`, if the value parses as the ref's current type (number, string or boolean), and clears the
-  attribute.
-
-  Writing them doesn't add dependencies, so it doesn't change what re-renders. It does cost an
-  engine call per attribute per render, so leave it off in live games. Set it before
-  `app:mount()`.
-
-- **Type**
-
-  ```lua
-  app.config.devtools: boolean?
-  ```
+  It's removed on unmount.
+- The plugin edits state by setting `RivueEdit` to `"key=value"`. Rivue sets the ref `setup`
+  returned as `key` when the value parses as the ref's current type (number, string or boolean),
+  then clears the attribute.
 
 ---
 
 ## app.config.performance
 
-Marks each component's `setup`, render and patch in Roblox's MicroProfiler, like Vue's
-`app.config.performance` does for the browser's performance tools.
+Marks each component's `setup`, render and patch in Roblox's MicroProfiler, as Vue's
+`app.config.performance` does for the browser's tools.
 
-- **Example**
+```lua signature
+app.config.performance: boolean?
+```
 
-  ```lua
-  local App = Rivue.defineComponent({ name = "App", render = function() return h("Frame") end })
+> [!NOTE]
+> Set it before `app:mount()`. Open the MicroProfiler with Ctrl+F6 and look for
+> `Rivue <Name> setup`, `Rivue <Name> render` and `Rivue <Name> patch` in the frame where the UI
+> updates.
 
-  local app = Rivue.createApp(App)
-  app.config.performance = game:GetService("RunService"):IsStudio()
-  app:mountToPlayerGui(Players.LocalPlayer)
-  ```
+### Example
 
-- **Details**
+```lua
+local App = Rivue.defineComponent({ name = "App", render = function() return h("Frame") end })
 
-  The labels are `Rivue <Name> setup`, `Rivue <Name> render` and `Rivue <Name> patch`. Open the
-  MicroProfiler with Ctrl+F6 and look for them in the frame where the UI updates. Set it before
-  `app:mount()`.
-
-- **Type**
-
-  ```lua
-  app.config.performance: boolean?
-  ```
+local app = Rivue.createApp(App)
+app.config.performance = game:GetService("RunService"):IsStudio()
+app:mountToPlayerGui(Players.LocalPlayer)
+```
 
 ---
 
 ## Pooling options
 
-Turn this on for UI that creates and removes many Instances (feeds, inventories, damage numbers):
-removed Instances are reset and reused instead of destroyed and created again.
+The `options` of `createApp()` and `mount()`. Turn pooling on for UI that creates and removes many
+Instances, like feeds, inventories and damage numbers: removed Instances are reset and reused
+instead of destroyed.
 
-- **Example**
+```lua signature
+type AppOptions = {
+	usePool: boolean?,
+	poolConfig: PoolConfig?,
+	poolWarmup: { [string]: number }?,
+}
+```
 
-  ```lua
-  local DamageNumbers = Rivue.defineComponent({ name = "DamageNumbers", render = function() return h("Frame") end })
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `usePool` | `boolean` | `false` | reuse Instances |
+| `poolConfig` | `PoolConfig?` | | the same fields as [Pool.configure()](pool.md#poolconfigure) |
+| `poolWarmup` | `{ [string]: number }?` | see below | ClassName to how many to create up front |
 
-  local app = Rivue.createApp(DamageNumbers, {
-  	usePool = true,
-  	poolConfig = { maxPoolSize = 100 },
-  	poolWarmup = { TextLabel = 50 },
-  })
-  app:mountToPlayerGui(Players.LocalPlayer)
-  print((app.getPoolStats :: any)(app))
-  ```
+> [!NOTE]
+> With `usePool` and no `poolWarmup`, it creates 10 Frames, 20 TextLabels and 5 TextButtons up
+> front, unless `poolConfig.enableAutoWarmup` is on.
 
-- **Details**
+### Example
 
-  Reused Instances have every property Rivue set reset to its default. With pooling on, the app
-  also gets `app:getPoolStats()` and `app:validatePoolHealth()`. See [Instance pool](pool.md).
+```lua
+local DamageNumbers = Rivue.defineComponent({ name = "DamageNumbers", render = function() return h("Frame") end })
 
-- **Type**
+local app = Rivue.createApp(DamageNumbers, {
+	usePool = true,
+	poolConfig = { maxPoolSize = 100 },
+	poolWarmup = { TextLabel = 50 },
+})
+app:mountToPlayerGui(Players.LocalPlayer)
+print((app.getPoolStats :: any)(app))
+```
 
-  ```lua
-  type AppOptions = {
-  	usePool: boolean?,
-  	poolConfig: {
-  		maxPoolSize: number?, -- per class (default 50)
-  		maxTotalSize: number?, -- across classes (default 500)
-  		defaultTTL: number?, -- seconds an unused Instance is kept
-  		enableMetrics: boolean?, -- default true
-  		enableDebug: boolean?,
-  		enableAutoWarmup: boolean?,
-  	}?,
-  	poolWarmup: { [string]: number }?, -- ClassName -> how many to create up front
-  }
-  ```
+### Details
+
+- Reused Instances have every property Rivue set reset to its default.
+- With pooling on, the app also has `app:getPoolStats()` and `app:validatePoolHealth()`. See
+  [Instance pool](pool.md).
 
 ---
 

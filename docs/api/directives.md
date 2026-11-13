@@ -4,69 +4,64 @@
 
 **Learn it:** [Guide 5: Forms and input](../guide/05-forms-and-input.md)
 
-Reusable behaviour attached to an element. Use a `v` prop with the directive's name in camelCase:
-`vFocus = true` applies the `focus` directive, and `vClickOutside = fn` applies `click-outside`.
-All examples assume:
+Reusable behaviour attached to an element. Turn one on with a `v` prop named after the directive in
+camelCase: `vFocus = true` applies the `focus` directive, and `vClickOutside = fn` applies
+`click-outside`. Examples assume:
 
 ```lua
 local Rivue = require(game.ReplicatedStorage.RivueUI)
 local h = Rivue.h
 ```
 
-- [vShow](#vshow)
-- [vFocus](#vfocus)
-- [vSelect](#vselect)
-- [vClickOutside](#vclickoutside)
-- [vDrag](#vdrag)
-- [vPreload](#vpreload)
-- [vFadeIn](#vfadein)
-- [Custom directives](#custom-directives)
-- [directives.get()](#directivesget)
-- [vModelText()](#vmodeltext)
-- [vModelProp()](#vmodelprop)
-
 ---
 
 ## vShow
 
 Shows or hides an element by setting `Visible`, without destroying it. Cheaper than removing and
-re-creating something you toggle often.
+creating again something you toggle often.
 
-- **Example**
+```lua signature
+vShow: boolean
+```
 
-  ```lua
-  local open = Rivue.ref(false)
+### Example
 
-  h("Frame", { vShow = open.value })
-  ```
+```lua
+local open = Rivue.ref(false)
 
-- **Details**
+h("Frame", { vShow = open.value })
+```
 
-  The element stays mounted and keeps its state. To remove it, use `hIf` instead.
+### Details
 
-- **Expects:** `boolean`
+- The element stays mounted and keeps its state. To remove it, use [`hIf()`](render-function.md#hif).
 
 ---
 
 ## vFocus
 
-Puts the cursor in a TextBox when the value turns on, like a search box that's ready to type in when
-a menu opens.
+Focuses a TextBox when the value turns on, like a search box that's ready to type in when a menu
+opens.
 
-- **Example**
+```lua signature
+vFocus: boolean
+```
 
-  ```lua
-  local searching = Rivue.ref(false)
+> [!NOTE]
+> It only works on a TextBox. On anything else it does nothing.
 
-  h("TextBox", { PlaceholderText = "Search", vFocus = searching.value })
-  ```
+### Example
 
-- **Details**
+```lua
+local searching = Rivue.ref(false)
 
-  It focuses on mount (if truthy), and again whenever the value changes from falsy to truthy.
-  Re-renders don't take focus back.
+h("TextBox", { PlaceholderText = "Search", vFocus = searching.value })
+```
 
-- **Expects:** `boolean`
+### Details
+
+- Focuses on mount if the value is on, and again each time it goes from off to on. Re-renders
+  don't take focus back.
 
 ---
 
@@ -75,92 +70,108 @@ a menu opens.
 Selects an element for gamepad navigation when the value turns on, so controller players start in
 the right place.
 
-- **Example**
+```lua signature
+vSelect: boolean
+```
 
-  ```lua
-  local items = { "Play", "Settings", "Quit" }
+### Example
 
-  h("Frame", nil, {
-  	h("UIListLayout"),
-  	Rivue.hFor(items, function(label, index)
-  		-- The first button is selected when the menu opens on a controller
-  		return h("TextButton", { key = label, Text = label, vSelect = index == 1 })
-  	end),
-  })
-  ```
+```lua
+local items = { "Play", "Settings", "Quit" }
 
-- **Details**
+h("Frame", nil, {
+	h("UIListLayout"),
+	Rivue.hFor(items, function(label, index)
+		-- the first button is selected when the menu opens on a controller
+		return h("TextButton", { key = label, Text = label, vSelect = index == 1 })
+	end),
+})
+```
 
-  It selects on mount (if truthy), and whenever the value changes from falsy to truthy. When the
-  value turns off or the element is removed, selection is cleared if it's still on this element.
-  Re-renders don't take selection back.
+### Details
 
-- **Expects:** `boolean`
+- Selects on mount if the value is on, and each time it goes from off to on.
+- When the value turns off or the element is removed, the selection is cleared if it's still on
+  this element.
+- For a whole menu that opens and closes, [`useGamepadFocus()`](roblox.md#usegamepadfocus) also
+  gives the selection back.
 
 ---
 
 ## vClickOutside
 
-Calls your function when the player clicks or taps anywhere outside the element. The usual way to
-close dropdowns, popups and context menus.
+Calls a function when the player clicks or taps anywhere outside the element. The usual way to close
+dropdowns, popups and context menus.
 
-- **Example**
+```lua signature
+vClickOutside: () -> ()
+```
 
-  ```lua
-  local open = Rivue.ref(true)
+> [!NOTE]
+> An error in the function is caught and warned, so it doesn't break input handling.
 
-  h("Frame", {
-  	Size = UDim2.fromOffset(200, 150),
-  	vShow = open.value,
-  	vClickOutside = function()
-  		open.value = false
-  	end,
-  })
-  ```
+### Example
 
-- **Details**
+```lua
+local open = Rivue.ref(true)
 
-  Checks mouse clicks and touches against the element's on-screen bounds. Clicking another button
-  counts as outside. The latest function is used, so inline closures work.
+h("Frame", {
+	Size = UDim2.fromOffset(200, 150),
+	vShow = open.value,
+	vClickOutside = function()
+		open.value = false
+	end,
+})
+```
 
-- **Expects:** `() -> ()`
+### Details
+
+- Mouse clicks and touches are checked against the element's on-screen bounds; clicking another
+  button counts as outside.
+- The latest function is used, so inline closures work.
 
 ---
 
 ## vDrag
 
-Lets the player drag an element around with the mouse or a finger.
+Lets the player drag an element with the mouse or a finger.
 
-- **Example**
+```lua signature
+vDrag: boolean
+```
 
-  ```lua
-  local locked = Rivue.ref(false)
+### Example
 
-  h("Frame", { Size = UDim2.fromOffset(200, 120), vDrag = not locked.value })
-  ```
+```lua
+local locked = Rivue.ref(false)
 
-- **Details**
+h("Frame", { Size = UDim2.fromOffset(200, 120), vDrag = not locked.value })
+```
 
-  Dragging updates `Position` directly. Setting the value to `false` stops dragging.
+### Details
 
-- **Expects:** `boolean`
+- Dragging writes `Position` directly. Turning the value off stops dragging.
+- To keep the position in state, combine it with [`vModelProp()`](#vmodelprop).
 
 ---
 
 ## vPreload
 
-Starts loading images and sounds as soon as the element appears, so they're ready by the time
-they're shown.
+Starts loading images and sounds as soon as the element appears, so they're ready when shown.
 
-- **Example**
+```lua signature
+vPreload: number | string | { number | string }
+```
 
-  ```lua
-  h("Frame", { vPreload = { 1234567, 7654321 } }, {
-  	h("ImageLabel", { Image = "rbxassetid://1234567" }),
-  })
-  ```
+The value is one asset id or a list of them, without `rbxassetid://`.
 
-- **Expects:** `number | string | { number | string }`, asset ids without `rbxassetid://`
+### Example
+
+```lua
+h("Frame", { vPreload = { 1234567, 7654321 } }, {
+	h("ImageLabel", { Image = "rbxassetid://1234567" }),
+})
+```
 
 ---
 
@@ -168,84 +179,81 @@ they're shown.
 
 Fades an element and everything inside it in from fully transparent, once it's on screen.
 
-- **Example**
+```lua signature
+vFadeIn: { duration: number?, delay: number?, renderWait: number?, waitForLoad: boolean? }
+```
 
-  ```lua
-  h("Frame", { vFadeIn = { duration = 0.3, renderWait = 0 } }, {
-  	h("TextLabel", { Text = "Welcome" }),
-  })
-  ```
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `duration` | `number` | `0.5` | seconds the fade takes |
+| `delay` | `number` | `0` | seconds before it starts |
+| `renderWait` | `number` | `0.5` | seconds to wait for the UI to render first |
+| `waitForLoad` | `boolean` | `false` | wait for `game:IsLoaded()` first |
 
-- **Details**
+### Example
 
-  This is a one-time effect on mount. For enter and leave animations that follow state, use
+```lua
+h("Frame", { vFadeIn = { duration = 0.3, renderWait = 0 } }, {
+	h("TextLabel", { Text = "Welcome" }),
+})
+```
+
+### Details
+
+- It runs once, on mount. For enter and leave animations that follow state, use
   [`Transition`](builtins.md#transition).
-
-- **Expects:**
-
-  ```lua
-  {
-  	duration: number?, -- seconds (default 0.5)
-  	delay: number?, -- seconds before starting (default 0)
-  	renderWait: number?, -- seconds to wait for the UI to render first (default 0.5)
-  	waitForLoad: boolean?, -- wait for game:IsLoaded() first
-  }
-  ```
 
 ---
 
-## Custom directives
+## directives.register()
 
-Your own reusable behaviours. Register a directive once, then turn it on for any element with a `v`
-prop, like `vTooltip = "Buy"`.
+Registers your own directive, which any element can then turn on with a `v` prop, like
+`vTooltip = "Buy"`.
 
-- **Example**
+```lua signature
+function directives.register(name: string, directive: Directive)
 
-  A tooltip directive:
+type Directive = {
+	mounted: ((el: Instance, value: any) -> any)?,
+	updated: ((el: Instance, value: any, state: any) -> any)?,
+	unmounted: ((el: Instance, state: any) -> ())?,
+}
+```
 
-  ```lua
-  Rivue.directives.register("tooltip", {
-  	mounted = function(el, text)
-  		local state = { text = text }
-  		state.conn = (el :: GuiObject).MouseEnter:Connect(function()
-  			print("tooltip:", state.text)
-  		end)
-  		return state
-  	end,
-  	updated = function(_el, text, state)
-  		state.text = text
-  		return state
-  	end,
-  	unmounted = function(_el, state)
-  		state.conn:Disconnect()
-  	end,
-  })
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `name` | `string` | | kebab-case: `"hover-scale"` is used as `vHoverScale` |
+| `directive.mounted` | `(el, value) -> any` | | runs once the element and the rest of the tree are parented; what it returns is the directive's state |
+| `directive.updated` | `(el, value, state) -> any` | | runs when the element re-renders; returning something other than `nil` replaces the state |
+| `directive.unmounted` | `(el, state) -> ()` | | runs when the element is removed |
 
-  h("TextButton", { Text = "Buy", vTooltip = "Costs 100 coins" })
-  ```
+### Example
 
-- **Details**
+```lua
+Rivue.directives.register("tooltip", {
+	mounted = function(el, text)
+		local state = { text = text }
+		state.conn = (el :: GuiObject).MouseEnter:Connect(function()
+			print("tooltip:", state.text)
+		end)
+		return state
+	end,
+	updated = function(_el, text, state)
+		state.text = text
+		return state
+	end,
+	unmounted = function(_el, state)
+		state.conn:Disconnect()
+	end,
+})
 
-  - **`mounted`** runs once the element and the rest of the tree are parented. Whatever it
-    returns is the directive's state, passed to `updated` and `unmounted`.
-  - **`updated`** runs when the element re-renders.
-  - **`unmounted`** runs when the element is removed.
+h("TextButton", { Text = "Buy", vTooltip = "Costs 100 coins" })
+```
 
-  The name is kebab-case: `"hover-scale"` is used as `vHoverScale`. The long form
-  `__directives = { { name = "hover-scale", value = true } }` also works.
-  [`app:directive()`](application.md#appdirective) registers in the same place.
+### Details
 
-- **Type**
-
-  ```lua
-  function directives.register(name: string, directive: Directive)
-
-  type Directive = {
-  	mounted: ((el: Instance, value: any) -> any)?, -- returns state
-  	updated: ((el: Instance, value: any, state: any) -> any)?, -- returning non-nil replaces state
-  	unmounted: ((el: Instance, state: any) -> ())?,
-  }
-  ```
+- [`app:directive()`](application.md#appdirective) registers in the same place.
+- The long form `__directives = { { name = "hover-scale", value = true } }` also works.
 
 ---
 
@@ -253,79 +261,80 @@ prop, like `vTooltip = "Buy"`.
 
 Looks up a registered directive by name.
 
-- **Example**
+```lua signature
+function directives.get(name: string): Directive?
+```
 
-  ```lua
-  if not Rivue.directives.get("tooltip") then
-  	warn("tooltip directive isn't registered")
-  end
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `name` | `string` | | the kebab-case name |
 
-- **Type**
+### Example
 
-  ```lua
-  function directives.get(name: string): Directive?
-  ```
+```lua
+if not Rivue.directives.get("tooltip") then
+	warn("tooltip directive isn't registered")
+end
+```
 
 ---
 
 ## vModelText()
 
-The props for binding a TextBox's `Text` to a ref, with optional debouncing.
+The props that bind a TextBox's `Text` to a ref, with optional debouncing. For a plain binding, the
+[`model`](render-function.md#element-props) prop is shorter.
 
-- **Example**
+```lua signature
+function vModelText(ref: Ref<string>, options: { debounce: number? }?): { Text: string, onTextChanged: (text: string) -> () }
+```
 
-  ```lua
-  local query = Rivue.ref("")
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `ref` | `Ref<string>` | | the ref to bind |
+| `options.debounce` | `number?` | none | milliseconds to wait after the last keystroke before writing the ref |
 
-  h("TextBox", Rivue.mergeProps(Rivue.vModelText(query, { debounce = 300 }), {
-  	PlaceholderText = "Search",
-  }))
-  ```
+**Returns** props to merge into the TextBox's props.
 
-- **Details**
+### Example
 
-  For a plain binding, the [`model`](render-function.md#element-props) prop is shorter. Use this
-  when you want writes to the ref debounced (milliseconds).
+```lua
+local query = Rivue.ref("")
 
-- **Type**
-
-  ```lua
-  function vModelText(ref: Ref<string>, options: { debounce: number? }?): {
-  	Text: string,
-  	onTextChanged: (text: string) -> (),
-  }
-  ```
+h("TextBox", Rivue.mergeProps(Rivue.vModelText(query, { debounce = 300 }), {
+	PlaceholderText = "Search",
+}))
+```
 
 ---
 
 ## vModelProp()
 
-The props for binding any property to a ref: the value, plus a handler that writes the ref when the
+The props that bind any property to a ref: the value, plus a handler that writes the ref when the
 property changes.
 
-- **Example**
+```lua signature
+function vModelProp<T>(ref: Ref<T>, propName: string, eventName: string?): Props
+```
 
-  ```lua
-  local position = Rivue.ref(UDim2.fromScale(0.5, 0.5))
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `ref` | `Ref<T>` | | the ref to bind |
+| `propName` | `string` | | the property, such as `"Position"` |
+| `eventName` | `string?` | `"on" .. propName` | the event prop to listen on; for a property, that's its changed signal |
 
-  -- position follows the Frame while vDrag moves it
-  h("Frame", Rivue.mergeProps(Rivue.vModelProp(position, "Position"), {
-  	Size = UDim2.fromOffset(100, 100),
-  	vDrag = true,
-  }))
-  ```
+**Returns** props to merge into the element's props.
 
-- **Details**
+### Example
 
-  `eventName` defaults to `"on" .. propName`. For a property that isn't an event, that connects
-  the property's changed signal, which passes the new value.
+```lua
+local position = Rivue.ref(UDim2.fromScale(0.5, 0.5))
 
-- **Type**
-
-  ```lua
-  function vModelProp<T>(ref: Ref<T>, propName: string, eventName: string?): Props
-  ```
+-- position follows the Frame while vDrag moves it
+h("Frame", Rivue.mergeProps(Rivue.vModelProp(position, "Position"), {
+	Size = UDim2.fromOffset(100, 100),
+	vDrag = true,
+}))
+```
 
 ---
 
