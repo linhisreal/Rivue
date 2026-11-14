@@ -2,6 +2,7 @@ import { h } from "vue"
 import DefaultTheme from "vitepress/theme"
 import type { Theme } from "vitepress"
 import Landing from "./Landing.vue"
+import OutlineTree from "./OutlineTree.vue"
 import PageActions from "./PageActions.vue"
 import SidebarBottom from "./SidebarBottom.vue"
 import SidebarTop from "./SidebarTop.vue"
@@ -17,5 +18,6 @@ export default {
 			"home-hero-before": () => h(Landing),
 			"sidebar-nav-before": () => h(SidebarTop),
 			"sidebar-nav-after": () => h(SidebarBottom),
+			"aside-outline-before": () => h(OutlineTree),
 		}),
 } satisfies Theme

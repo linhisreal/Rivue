@@ -570,53 +570,97 @@ body {
 
 /* On this page */
 
-.VPDocAsideOutline .outline-title {
+.VPDocAsideOutline {
+	display: none !important;
+}
+
+.fd-toc-title {
 	display: flex;
 	align-items: center;
 	gap: 8px;
+	margin: 0 0 12px;
 	font-size: 14px;
-	font-weight: 400;
 	color: var(--vp-c-text-2);
 }
 
-.VPDocAsideOutline .outline-title::before {
-	content: "";
+.fd-toc-title svg {
 	width: 14px;
 	height: 14px;
-	background: currentColor;
-	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cpath d='M3 6h18M3 12h12M3 18h16'/%3E%3C/svg%3E")
-		center / contain no-repeat;
+	fill: none;
+	stroke: currentColor;
+	stroke-width: 2;
+	stroke-linecap: round;
 }
 
-.VPDocAsideOutline .content {
-	padding-left: 0;
-	border-left: 0;
+.fd-toc-body {
+	position: relative;
 }
 
-.VPDocAsideOutline .outline-marker {
-	display: none;
+.fd-toc-line,
+.fd-toc-thumb {
+	position: absolute;
+	top: 0;
+	left: 0;
+	pointer-events: none;
 }
 
-.VPDocAsideOutline .outline-link {
-	padding: 4px 0 4px 12px;
-	border-left: 1px solid var(--vp-c-divider);
+.fd-toc svg path {
+	fill: none;
+	stroke-width: 1;
+	stroke-linejoin: round;
+}
+
+.fd-toc-line path {
+	stroke: var(--vp-c-divider);
+}
+
+.fd-toc-thumb path {
+	stroke: var(--vp-c-text-1);
+}
+
+.fd-toc-thumb {
+	transition: clip-path 0.3s ease;
+}
+
+.fd-toc-dot {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 4px;
+	height: 4px;
+	border-radius: 50%;
+	background: var(--vp-c-text-1);
+	transition: transform 0.3s ease;
+}
+
+.fd-toc ul {
+	margin: 0;
+	padding: 0;
+	list-style: none;
+}
+
+.fd-toc li a {
+	display: block;
+	padding: 4px 0;
 	font-size: 14px;
 	line-height: 20px;
 	color: var(--vp-c-text-2);
-	white-space: normal;
+	transition: color 0.15s ease;
 }
 
-.VPDocAsideOutline .nested .outline-link {
-	padding-left: 24px;
-}
-
-.VPDocAsideOutline .outline-link:hover {
+.fd-toc li a:hover {
 	color: var(--vp-c-text-1);
 }
 
-.VPDocAsideOutline .outline-link.active {
-	border-left-color: var(--vp-c-text-1);
+.fd-toc li a.active {
 	color: var(--vp-c-text-1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+	.fd-toc-thumb,
+	.fd-toc-dot {
+		transition: none;
+	}
 }
 
 /* Footer of a page */
