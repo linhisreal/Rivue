@@ -79,7 +79,7 @@ Without keys, removing one row re-patches every row after it, and state inside a
 
 ---
 
-**Try it:** [Inventory example](../../examples/components/Inventory.luau) (a long keyed list)
+**Try it:** [Inventory example](../../examples/components/Inventory.luau) (a long keyed list)\
 **Reference:** [h()](../api/render-function.md#h) · [Element props](../api/render-function.md#element-props) ·
 [hIf()](../api/render-function.md#hif) · [hFor()](../api/render-function.md#hfor)
 

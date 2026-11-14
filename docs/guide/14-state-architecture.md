@@ -157,7 +157,7 @@ class objects, static config) with `markRaw`. For thousands of rows, use
 
 ---
 
-**Try it:** [Shop example](../../examples/components/Shop.luau) (loading, errors, buying)
+**Try it:** [Shop example](../../examples/components/Shop.luau) (loading, errors, buying)\
 **Reference:** [readonly()](../api/reactivity-core.md#readonly) ·
 [effectScope()](../api/reactivity-advanced.md#effectscope) · [attributeRef()](../api/roblox.md#attributeref) ·
 [Remote](../api/remote.md) · [Remote.state()](../api/remote.md#remotestate) · [shallowRef()](../api/reactivity-advanced.md#shallowref)

@@ -177,7 +177,7 @@ Until the translator loads, and for keys the table doesn't have, `t` returns the
 
 **Try it:** [Tabs example](../../examples/components/Tabs.luau) (class maps, layout) ·
 [Hud example](../../examples/components/Hud.luau) (input type and viewport) ·
-[Demo app](../../dev/Demo) (app-wide styles)
+[Demo app](../../dev/Demo) (app-wide styles)\
 **Reference:** [Element props: class, layout, flex](../api/render-function.md#element-props) ·
 [styles option](../api/component.md#styles) · [app:styles()](../api/application.md#appstyles) ·
 [Roblox composables](../api/roblox.md) · [useTranslator()](../api/roblox.md#usetranslator)

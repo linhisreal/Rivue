@@ -92,7 +92,7 @@ Looping has a catch too. Luau's `pairs` and `ipairs` skip proxies, so loop with
 
 ---
 
-**Try it:** [TodoList example](../../examples/components/TodoList.luau) (array helpers, computed counts)
+**Try it:** [TodoList example](../../examples/components/TodoList.luau) (array helpers, computed counts)\
 **Reference:** [Reactivity: core](../api/reactivity-core.md) ·
 [Array helpers](../api/array.md) · [Reactivity: utilities](../api/reactivity-utilities.md)
 

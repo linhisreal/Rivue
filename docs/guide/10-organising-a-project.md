@@ -81,7 +81,7 @@ them.
 ---
 
 **Try it:** [Demo app](../../dev/Demo) (views, components, app styles) · the `rcomponent`,
-`rview` and `rcomposable` snippets in `.vscode/rivue.code-snippets` scaffold these files
+`rview` and `rcomposable` snippets in `.vscode/rivue.code-snippets` scaffold these files\
 **Reference:** [defineComponent()](../api/component.md#definecomponent) ·
 [components option](../api/component.md#components)
 

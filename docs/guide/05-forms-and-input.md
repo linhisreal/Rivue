@@ -139,7 +139,7 @@ To add your own, register it with [`app:directive()`](../api/application.md#appd
 ---
 
 **Try it:** [TodoList example](../../examples/components/TodoList.luau) (`model = "draft"`) ·
-[Modal example](../../examples/components/Modal.luau) (`vClickOutside`)
+[Modal example](../../examples/components/Modal.luau) (`vClickOutside`)\
 **Reference:** [Element props: model](../api/render-function.md#element-props) ·
 [defineModel()](../api/component.md#definemodel) · [useKeybind()](../api/roblox.md#usekeybind) ·
 [useGamepadFocus()](../api/roblox.md#usegamepadfocus) · [Directives](../api/directives.md)
