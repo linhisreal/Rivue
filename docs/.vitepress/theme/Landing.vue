@@ -117,11 +117,7 @@ onUnmounted(() => {
 <template>
 	<div class="rv">
 		<section class="rv-hero">
-			<a class="rv-pill" :href="withBase('/guide/01-introduction')">
-				<span class="rv-dot" aria-hidden="true"></span>
-				RivueUI {{ landing.version }}
-			</a>
-			<h1>The <span class="rv-grad">Vue-style</span> framework for Roblox UI</h1>
+			<h1>The <span class="rv-accent">Vue-style</span> framework for Roblox UI</h1>
 			<p class="rv-lead">
 				Write UI as components in Luau. When state changes, Rivue re-renders the components that use it and
 				updates their Instances.
@@ -143,9 +139,9 @@ onUnmounted(() => {
 			</div>
 		</section>
 
-		<section class="rv-showcase rv-reveal" aria-label="Example">
+		<section class="rv-showcase" aria-label="Example">
 			<div class="rv-window">
-				<div class="rv-window-bar"><span></span><span></span><span></span><b>Counter.luau</b></div>
+				<div class="rv-window-bar"><b>Counter.luau</b></div>
 				<div class="rv-code" v-html="landing.counter"></div>
 			</div>
 			<div class="rv-result">
@@ -155,7 +151,7 @@ onUnmounted(() => {
 			</div>
 		</section>
 
-		<section class="rv-section rv-reveal">
+		<section class="rv-section">
 			<h2>Everything a game UI needs</h2>
 			<div class="rv-grid">
 				<a v-for="feature in features" :key="feature.title" class="rv-card-link" :href="withBase(feature.link)">
@@ -168,24 +164,24 @@ onUnmounted(() => {
 			</div>
 		</section>
 
-		<section class="rv-section rv-reveal">
+		<section class="rv-section">
 			<h2>Familiar if you know Vue</h2>
 			<p class="rv-sub">
 				The same ideas, in Luau. <a :href="withBase('/VUE')">The cheat sheet</a> lists where Rivue differs.
 			</p>
 			<div class="rv-compare">
 				<div class="rv-window">
-					<div class="rv-window-bar"><span></span><span></span><span></span><b>Vue</b></div>
+					<div class="rv-window-bar"><b>Vue</b></div>
 					<div class="rv-code" v-html="landing.vue"></div>
 				</div>
 				<div class="rv-window">
-					<div class="rv-window-bar"><span></span><span></span><span></span><b>Rivue</b></div>
+					<div class="rv-window-bar"><b>Rivue</b></div>
 					<div class="rv-code" v-html="landing.rivue"></div>
 				</div>
 			</div>
 		</section>
 
-		<section class="rv-section rv-reveal">
+		<section class="rv-section">
 			<h2>Packages</h2>
 			<p class="rv-sub">RivueUI is the framework. The others are optional and versioned on their own.</p>
 			<div class="rv-grid rv-grid-4">
