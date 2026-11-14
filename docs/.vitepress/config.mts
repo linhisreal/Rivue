@@ -1,4 +1,6 @@
+import fs from "node:fs"
 import path from "node:path"
+import { createHighlighter } from "shiki"
 import { defineConfig } from "vitepress"
 import { withMermaid } from "vitepress-plugin-mermaid"
 
@@ -23,6 +25,17 @@ function githubLinks(md: any) {
 		}
 		return render(tokens, idx, options, env, self)
 	}
+}
+
+function pageActions(md: any) {
+	md.core.ruler.push("page_actions", (state: any) => {
+		const tokens = state.tokens
+		const close = tokens.findIndex((t: any) => t.type === "heading_close" && t.tag === "h1")
+		if (close === -1) return
+		const html = new state.Token("html_block", "", 0)
+		html.content = "<PageActions />\n"
+		tokens.splice(close + 1, 0, html)
+	})
 }
 
 function githubSlug(text: string): string {
@@ -55,6 +68,77 @@ const advanced = [
 	["Testing UI", "16-testing-ui"],
 	["Screens and navigation", "17-screens-and-navigation"],
 ]
+const version = (pkg: string) =>
+	/^version = "([^"]+)"/m.exec(fs.readFileSync(path.resolve(DOCS, `../packages/${pkg}/wally.toml`), "utf8"))?.[1] ?? ""
+
+const COUNTER = `local Rivue = require(game.ReplicatedStorage.RivueUI)
+local h = Rivue.h
+
+local Counter = Rivue.defineComponent({
+	name = "Counter",
+	setup = function()
+		local count = Rivue.ref(0)
+		return {
+			count = count,
+			increment = function()
+				count.value += 1
+			end,
+		}
+	end,
+	render = function(ctx)
+		return h("TextButton", {
+			Text = \`Clicked {ctx.count} times\`,
+			onClick = ctx.increment,
+		})
+	end,
+})
+
+Rivue.createApp(Counter):mountToPlayerGui(game.Players.LocalPlayer)`
+
+const VUE = `<script setup>
+import { ref, computed } from "vue"
+
+const coins = ref(0)
+const label = computed(() => \`\${coins.value} coins\`)
+</script>
+
+<template>
+  <button @click="coins += 10">{{ label }}</button>
+</template>`
+
+const RIVUE = `setup = function()
+	local coins = Rivue.ref(0)
+	local label = Rivue.computed(function()
+		return \`{coins.value} coins\`
+	end)
+	return { coins = coins, label = label }
+end,
+render = function(ctx)
+	return h("TextButton", {
+		Text = ctx.label,
+		onClick = function()
+			ctx.coins += 10
+		end,
+	})
+end,`
+
+const highlighter = await createHighlighter({ themes: ["github-light", "github-dark"], langs: ["luau", "vue"] })
+const highlight = (code: string, lang: string) =>
+	highlighter.codeToHtml(code, { lang, themes: { light: "github-light", dark: "github-dark" } })
+
+const landing = {
+	version: version("rivue-ui"),
+	counter: highlight(COUNTER, "luau"),
+	vue: highlight(VUE, "vue"),
+	rivue: highlight(RIVUE, "luau"),
+	packages: [
+		{ name: "RivueUI", version: version("rivue-ui"), text: "Components, reactivity, styling and the built-ins.", link: "/guide/01-introduction" },
+		{ name: "RivueRemote", version: version("rivue-remote"), text: "Checked client/server calls, events and replicated state.", link: "/api/remote" },
+		{ name: "RivueRouter", version: version("rivue-router"), text: "Screens with history, guards and nested routes.", link: "/api/router" },
+		{ name: "RivueDevTools", version: "", text: "A Studio plugin for props, state, renders and network.", link: "/DEVTOOLS" },
+	],
+}
+
 const api = [
 	["Reactivity: core", "reactivity-core"],
 	["Reactivity: utilities", "reactivity-utilities"],
@@ -82,8 +166,49 @@ export default withMermaid(
 		cleanUrls: true,
 		rewrites: { "README.md": "index.md" },
 		srcExclude: ["assets/README.md"],
-		markdown: { config: githubLinks, anchor: { slugify: githubSlug } },
+		head: [
+			["link", { rel: "icon", href: "/Rivue/favicon.ico", sizes: "any" }],
+			["link", { rel: "icon", type: "image/png", sizes: "32x32", href: "/Rivue/favicon-32.png" }],
+			["link", { rel: "apple-touch-icon", href: "/Rivue/apple-touch-icon.png" }],
+			["meta", { name: "theme-color", content: "#1f6feb" }],
+			["link", { rel: "preconnect", href: "https://fonts.googleapis.com" }],
+			["link", { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" }],
+			[
+				"link",
+				{
+					rel: "stylesheet",
+					href: "https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400..600&display=swap",
+				},
+			],
+		],
+		vite: { publicDir: path.resolve(DOCS, "assets/web") },
+		transformPageData(pageData) {
+			if (pageData.relativePath === "index.md") {
+				pageData.frontmatter = { ...pageData.frontmatter, layout: "home" }
+				return
+			}
+			const source = pageData.filePath === "index.md" ? "README.md" : pageData.filePath
+			pageData.frontmatter = {
+				...pageData.frontmatter,
+				source,
+				markdown: fs.readFileSync(path.resolve(DOCS, source)).toString("base64"),
+			}
+		},
+		markdown: {
+			config(md) {
+				githubLinks(md)
+				pageActions(md)
+			},
+			anchor: { slugify: githubSlug },
+		},
 		themeConfig: {
+			logo: { src: "/icon-192.png", alt: "Rivue" },
+			landing,
+			outline: { level: [2, 3] },
+			footer: {
+				message: "Released under the Rivue License, based on PolyForm Noncommercial 1.0.0.",
+				copyright: "Copyright © 2025-2026 linhisreal",
+			},
 			nav: [
 				{ text: "Guide", link: "/GUIDE" },
 				{ text: "API", link: "/API" },
@@ -106,7 +231,7 @@ export default withMermaid(
 			],
 			socialLinks: [{ icon: "github", link: REPO }],
 			search: { provider: "local" },
-			editLink: { pattern: `${REPO}/edit/main/docs/:path` },
+
 		},
 	}),
 )
