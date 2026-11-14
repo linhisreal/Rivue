@@ -7,26 +7,9 @@ local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
 local renderer = require(ReplicatedStorage:WaitForChild("RivueUI"):WaitForChild("runtime"):WaitForChild("renderer"))
 local Pool = require(ReplicatedStorage:WaitForChild("RivueUI"):WaitForChild("runtime"):WaitForChild("pool"))
 
-local function assertEquals(actual: any, expected: any, message: string?)
-	if actual ~= expected then
-		error(
-			string.format(
-				"Assertion failed: %s\nExpected: %s\nActual: %s",
-				message or "values not equal",
-				tostring(expected),
-				tostring(actual)
-			)
-		)
-	end
-	print("✓", message or "Assertion passed")
-end
-
-local function assertTrue(condition: boolean, message: string?)
-	if not condition then
-		error("Assertion failed: " .. (message or "condition is false"))
-	end
-	print("✓", message or "Assertion passed")
-end
+local TestSupport = require(game:GetService("ReplicatedStorage"):WaitForChild("TestSupport"))
+local assertEquals = TestSupport.assertEquals
+local assertTrue = TestSupport.assertTrue
 
 local function runTests()
 	print("\n========== RENDERER TEST SUITE ==========\n")
@@ -49,7 +32,7 @@ local function runTests()
 		app:mount(container)
 		task.wait(0.05)
 		local frame = container:FindFirstChild("MountTest")
-		assertTrue(frame and true or false, "Should create Frame in container")
+		assertTrue(frame, "Should create Frame in container")
 		if frame then
 			assertTrue(frame:IsA("Frame"), "Should be correct type")
 		end
@@ -64,7 +47,7 @@ local function runTests()
 		local app = renderer.createApp(vnode)
 		app:mount(container)
 		task.wait(0.05)
-		assertTrue(container:FindFirstChild("UnmountTest") and true or false, "Should mount element")
+		assertTrue(container:FindFirstChild("UnmountTest"), "Should mount element")
 		app:unmount()
 		task.wait(0.05)
 		assertTrue(container:FindFirstChild("UnmountTest") == nil, "Should remove element")
@@ -79,7 +62,7 @@ local function runTests()
 		app:mount(container)
 		task.wait(0.05)
 		local frame = container:FindFirstChild("Frame1")
-		assertTrue(frame and true or false, "Should mount initial vnode")
+		assertTrue(frame, "Should mount initial vnode")
 		if frame then
 			assertEquals((frame :: any).Size, UDim2.fromOffset(100, 100), "Should set initial size")
 		end
@@ -100,8 +83,8 @@ local function runTests()
 		local parentFrame = container:FindFirstChildWhichIsA("Frame", true)
 		local labelA = parentFrame and parentFrame:FindFirstChild("LabelA")
 		local labelB = parentFrame and parentFrame:FindFirstChild("LabelB")
-		assertTrue(labelA and true or false, "Should mount first keyed child")
-		assertTrue(labelB and true or false, "Should mount second keyed child")
+		assertTrue(labelA, "Should mount first keyed child")
+		assertTrue(labelB, "Should mount second keyed child")
 		app:unmount()
 		container:Destroy()
 	end
@@ -124,10 +107,7 @@ local function runTests()
 		app:mount(container)
 		task.wait(0.05)
 		assertTrue(setupCalled, "Should call setup function")
-		assertTrue(
-			container:FindFirstChild("ComponentFrame", true) and true or false,
-			"Should mount component render result"
-		)
+		assertTrue(container:FindFirstChild("ComponentFrame", true), "Should mount component render result")
 		app:unmount()
 		container:Destroy()
 	end
@@ -141,11 +121,11 @@ local function runTests()
 		app:mount(container)
 		task.wait(0.05)
 		local frame = container:FindFirstChild("PoolTest")
-		assertTrue(frame and true or false, "Should mount with pool")
+		assertTrue(frame, "Should mount with pool")
 		app:unmount()
 		task.wait(0.05)
 		local pooledFrame = Pool.acquire("Frame")
-		assertTrue(pooledFrame and true or false, "Should have pooled instance")
+		assertTrue(pooledFrame, "Should have pooled instance")
 		Pool.release(pooledFrame)
 		Pool.clear()
 		container:Destroy()
@@ -195,7 +175,7 @@ local function runTests()
 		local app = renderer.createApp(vnode)
 		app:mount(container)
 		task.wait(0.05)
-		assertTrue(myRef.value and true or false, "Ref should be assigned")
+		assertTrue(myRef.value, "Ref should be assigned")
 		if myRef.value then
 			assertTrue(myRef.value.Name == "RefTest", "Ref should point to correct element")
 		end
@@ -216,10 +196,10 @@ local function runTests()
 		app:mount(container)
 		task.wait(0.05)
 		local parent = container:FindFirstChild("Parent")
-		assertTrue(parent and true or false, "Should mount parent")
+		assertTrue(parent, "Should mount parent")
 		if parent then
-			assertTrue(parent:FindFirstChild("Child1") and true or false, "Should mount first child")
-			assertTrue(parent:FindFirstChild("Child2") and true or false, "Should mount second child")
+			assertTrue(parent:FindFirstChild("Child1"), "Should mount first child")
+			assertTrue(parent:FindFirstChild("Child2"), "Should mount second child")
 		end
 		app:unmount()
 		container:Destroy()
@@ -234,7 +214,7 @@ local function runTests()
 			setup = function()
 				local count = Rivue.ref(0)
 				return function()
-					renderCount = renderCount + 1
+					renderCount += 1
 					return Rivue.h("TextLabel", {
 						Name = "Counter",
 						Text = tostring(count.value),
@@ -514,7 +494,7 @@ local function runTests()
 				return function()
 					childRenders += 1
 					seenProp = props.value
-					return Rivue.h("Frame", { Name = "Child" .. tostring(childValue.value) })
+					return Rivue.h("Frame", { Name = `Child{childValue.value}` })
 				end
 			end,
 		})

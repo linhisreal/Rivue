@@ -14,7 +14,7 @@ type Job = {
 	cancelled: boolean,
 }
 
-local RS = game:GetService("RunService")
+local RunService = game:GetService("RunService")
 local debugModule = require("./debug")
 
 local scheduler = {}
@@ -45,7 +45,7 @@ local function defer(item: thread | () -> ()): ()
 	if depth > MAX_DEFER_DEPTH then
 		table.insert(overflow, item)
 		if #overflow == 1 then
-			RS.Heartbeat:Once(runOverflow)
+			RunService.Heartbeat:Once(runOverflow)
 		end
 		return
 	end
@@ -77,10 +77,7 @@ local function flushFrame(mode: FrameMode): ()
 
 	for _, job in q do
 		if not job.cancelled then
-			local ok, err = pcall(job.fn :: () -> ...unknown)
-			if not ok then
-				warn(`[Rivue] Error in {mode} job: {err}`)
-			end
+			debugModule.safeCall(`{mode} job`, job.fn :: () -> ...unknown)
 		end
 	end
 end
@@ -88,7 +85,7 @@ end
 local function queueFrameJob(mode: FrameMode, job: Job): ()
 	table.insert(frameQueues[mode], job)
 	if not frameConns[mode] then
-		local event = if mode == "render" and RS:IsClient() then RS.RenderStepped else RS.Heartbeat
+		local event = if mode == "render" and RunService:IsClient() then RunService.PreRender else RunService.Heartbeat
 		frameConns[mode] = event:Connect(function()
 			flushFrame(mode)
 		end)
@@ -104,7 +101,7 @@ local function flushMicro(): ()
 	reentrancyDepth += 1
 	if reentrancyDepth > MAX_REENTRANCY_DEPTH then
 		reentrancyDepth = 0
-		error("Scheduler: Maximum reentrancy depth exceeded. Possible infinite loop detected.")
+		error("[Rivue] The scheduler re-entered itself too many times, a job probably keeps queuing itself")
 	end
 
 	isFlushingMicro = true
@@ -119,10 +116,7 @@ local function flushMicro(): ()
 
 	for _, job in q do
 		if not job.cancelled then
-			local ok, err = pcall(job.fn :: () -> ...unknown)
-			if not ok then
-				warn(`[Rivue] Error in queued job: {err}`)
-			end
+			debugModule.safeCall("queued job", job.fn :: () -> ...unknown)
 		end
 	end
 

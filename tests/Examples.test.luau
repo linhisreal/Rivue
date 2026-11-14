@@ -11,35 +11,10 @@ local Examples = ReplicatedStorage:WaitForChild("Examples")
 
 local h = Rivue.h
 
-local function assertEquals(actual: any, expected: any, message: string?)
-	if actual ~= expected then
-		error(
-			string.format(
-				"Assertion failed: %s\nExpected: %s\nActual: %s",
-				message or "values not equal",
-				tostring(expected),
-				tostring(actual)
-			)
-		)
-	end
-	print("✓", message or "Assertion passed")
-end
-
-local function assertTrue(condition: boolean, message: string?)
-	if not condition then
-		error("Assertion failed: " .. (message or "condition is false"))
-	end
-	print("✓", message or "Assertion passed")
-end
-
-local function find(root: Instance, name: string): any
-	for _, child in root:GetDescendants() do
-		if child.Name == name then
-			return child
-		end
-	end
-	return nil
-end
+local TestSupport = require(game:GetService("ReplicatedStorage"):WaitForChild("TestSupport"))
+local assertEquals = TestSupport.assertEquals
+local assertTrue = TestSupport.assertTrue
+local find = TestSupport.find
 
 local function mount(component: any, props: any?): (Instance, any)
 	local container = Instance.new("Frame")

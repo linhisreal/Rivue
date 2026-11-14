@@ -5,26 +5,9 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Pool = require(ReplicatedStorage:WaitForChild("RivueUI"):WaitForChild("runtime"):WaitForChild("pool"))
 
-local function assertEquals(actual: any, expected: any, message: string?)
-	if actual ~= expected then
-		error(
-			string.format(
-				"Assertion failed: %s\nExpected: %s\nActual: %s",
-				message or "values not equal",
-				tostring(expected),
-				tostring(actual)
-			)
-		)
-	end
-	print("✓", message or "Assertion passed")
-end
-
-local function assertTrue(condition: boolean, message: string?)
-	if not condition then
-		error("Assertion failed: " .. (message or "condition is false"))
-	end
-	print("✓", message or "Assertion passed")
-end
+local TestSupport = require(game:GetService("ReplicatedStorage"):WaitForChild("TestSupport"))
+local assertEquals = TestSupport.assertEquals
+local assertTrue = TestSupport.assertTrue
 
 local function runTests()
 	print("\n========== POOL TEST SUITE ==========\n")
@@ -33,7 +16,7 @@ local function runTests()
 	do
 		Pool.clear()
 		local frame = Pool.acquire("Frame")
-		assertTrue(frame and true or false, "Should return an instance")
+		assertTrue(frame, "Should return an instance")
 		assertTrue(frame:IsA("Frame"), "Should be a Frame instance")
 	end
 
@@ -104,8 +87,8 @@ local function runTests()
 		Pool.release(label)
 		Pool.release(button)
 
-		assertTrue(Pool.store["Frame"] and true or false, "Should have Frame pool")
-		assertTrue(Pool.store["TextLabel"] and true or false, "Should have TextLabel pool")
+		assertTrue(Pool.store["Frame"], "Should have Frame pool")
+		assertTrue(Pool.store["TextLabel"], "Should have TextLabel pool")
 	end
 
 	print("Test 7: release() clears Parent")

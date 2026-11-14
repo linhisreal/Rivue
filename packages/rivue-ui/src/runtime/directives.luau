@@ -10,6 +10,8 @@ type Ref<T> = Types.Ref<T>
 
 local UserInputService = game:GetService("UserInputService")
 local GuiService = game:GetService("GuiService")
+local ContentProvider = game:GetService("ContentProvider")
+local TweenService = game:GetService("TweenService")
 local reactivity = require("./reactivity")
 local debugModule = require("./debug")
 
@@ -17,22 +19,19 @@ local directives = {}
 local registry: { [string]: DirectiveHooks } = {}
 
 function directives.register(name: string, hooks: DirectiveHooks): ()
-	local hookCount = 0
-	if hooks.mounted then
-		hookCount = hookCount + 1
+	if debugModule.enabled then
+		local hookCount = (if hooks.mounted then 1 else 0)
+			+ (if hooks.updated then 1 else 0)
+			+ (if hooks.unmounted then 1 else 0)
+		debugModule.log("Directives", "Registering directive", { name = name, hookCount = hookCount })
 	end
-	if hooks.updated then
-		hookCount = hookCount + 1
-	end
-	if hooks.unmounted then
-		hookCount = hookCount + 1
-	end
-	debugModule.log("Directives", "Registering directive", { name = name, hookCount = hookCount })
 	registry[name] = hooks
 end
 
 function directives.get(name: string): DirectiveHooks?
-	debugModule.log("Directives", "Getting directive", { name = name, found = registry[name] ~= nil })
+	if debugModule.enabled then
+		debugModule.log("Directives", "Getting directive", { name = name, found = registry[name] ~= nil })
+	end
 	return registry[name]
 end
 
@@ -41,10 +40,10 @@ directives.register("focus", {
 		if val and el:IsA("TextBox") then
 			el:CaptureFocus()
 		end
-		return { on = val and true or false }
+		return { on = if val then true else false }
 	end,
 	updated = function(el, val, state)
-		local on = val and true or false
+		local on = if val then true else false
 		if on and not (state and state.on) and el:IsA("TextBox") then
 			el:CaptureFocus()
 		end
@@ -57,10 +56,10 @@ directives.register("select", {
 		if val and el:IsA("GuiObject") then
 			GuiService.SelectedObject = el
 		end
-		return { on = val and true or false }
+		return { on = if val then true else false }
 	end,
 	updated = function(el, val, state)
-		local on = val and true or false
+		local on = if val then true else false
 		local was = state and state.on
 		if el:IsA("GuiObject") then
 			if on and not was then
@@ -248,14 +247,13 @@ directives.register("preload", {
 			return
 		end
 
-		local ContentProvider = game:GetService("ContentProvider")
 		local assets = {}
 
 		if type(assetIds) == "number" or type(assetIds) == "string" then
-			table.insert(assets, "rbxassetid://" .. tostring(assetIds))
+			table.insert(assets, `rbxassetid://{assetIds}`)
 		elseif type(assetIds) == "table" then
 			for _, id in assetIds do
-				table.insert(assets, "rbxassetid://" .. tostring(id))
+				table.insert(assets, `rbxassetid://{id}`)
 			end
 		end
 
@@ -275,11 +273,11 @@ directives.register("fade-in", {
 			return
 		end
 
-		local TweenService = game:GetService("TweenService")
-		local duration = type(opts) == "table" and opts.duration or 0.5
-		local delay = type(opts) == "table" and opts.delay or 0
-		local waitForLoad = type(opts) == "table" and opts.waitForLoad or false
-		local renderWait = type(opts) == "table" and opts.renderWait or 0.5
+		local options = if type(opts) == "table" then opts else {}
+		local duration = options.duration or 0.5
+		local delay = options.delay or 0
+		local waitForLoad = options.waitForLoad or false
+		local renderWait = options.renderWait or 0.5
 
 		local transparencyMap: { [Instance]: number } = {}
 		local textTransparencyMap: { [Instance]: number } = {}
@@ -426,10 +424,10 @@ function directives.vModelText(
 	opts: { debounce: number? }?
 ): { Text: string, onTextChanged: (new: string) -> () }
 	if not reactivity.isRef(r) then
-		error("vModelText expects a ref")
+		error("[Rivue] vModelText expects a ref", 2)
 	end
 
-	local debounceMs = opts and opts.debounce or 0
+	local debounceMs = if opts then opts.debounce or 0 else 0
 
 	if debounceMs > 0 then
 		local utils = require("./utils")
@@ -456,7 +454,7 @@ end
 --- eventName defaults to "on" .. PropName (Value -> onValue)
 function directives.vModelProp<T>(r: Ref<T>, propName: string, eventName: string?): Types.Props
 	if not reactivity.isRef(r) then
-		error("vModelProp expects a ref")
+		error("[Rivue] vModelProp expects a ref", 2)
 	end
 
 	local evtName = eventName or `on{propName:sub(1, 1):upper()}{propName:sub(2)}`

@@ -163,7 +163,7 @@ local function evictStaleInstances(className: string): ()
 
 				local onEvict = Pool.eventHooks.onEvict
 				if onEvict then
-					pcall(onEvict, inst, "TTL_EXPIRED")
+					debugModule.safeCall("pool onEvict", onEvict, inst, "TTL_EXPIRED")
 				end
 
 				if Pool._debugMode then
@@ -234,7 +234,7 @@ local function resetInstance(inst: Instance, touched: { [string]: boolean }?): (
 
 	local handler = Pool.customResetHandlers[inst.ClassName]
 	if handler then
-		pcall(handler, inst)
+		debugModule.safeCall("pool reset handler", handler, inst)
 		return
 	end
 
@@ -328,7 +328,7 @@ function Pool.acquire(className: string): Instance
 		if ok and result then
 			inst = result :: Instance
 		else
-			warn("[Pool] Failed to create instance of class:", className)
+			warn(`[Rivue] Pool couldn't create a {className}, using a Frame`)
 			inst = Instance.new("Frame")
 		end
 	end
@@ -340,7 +340,7 @@ function Pool.acquire(className: string): Instance
 
 	local onAcquire = Pool.eventHooks.onAcquire
 	if onAcquire then
-		pcall(onAcquire, inst, fromPool)
+		debugModule.safeCall("pool onAcquire", onAcquire, inst, fromPool)
 	end
 
 	if Pool._debugMode or (not fromPool and Pool.config.enableDebug) then
@@ -365,7 +365,7 @@ end
 
 function Pool.release(inst: Instance, touched: { [string]: boolean }?): ()
 	if not inst or not inst.ClassName then
-		warn("[Pool] Attempted to release invalid instance")
+		warn("[Rivue] Pool.release() expects an Instance")
 		return
 	end
 
@@ -386,7 +386,7 @@ function Pool.release(inst: Instance, touched: { [string]: boolean }?): ()
 
 		local onRelease = Pool.eventHooks.onRelease
 		if onRelease then
-			pcall(onRelease, inst, false)
+			debugModule.safeCall("pool onRelease", onRelease, inst, false)
 		end
 		return
 	end
@@ -437,7 +437,7 @@ function Pool.release(inst: Instance, touched: { [string]: boolean }?): ()
 
 		local onEvict = Pool.eventHooks.onEvict
 		if onEvict then
-			pcall(onEvict, inst, evictionReason)
+			debugModule.safeCall("pool onEvict", onEvict, inst, evictionReason)
 		end
 
 		if Pool._debugMode then
@@ -451,7 +451,7 @@ function Pool.release(inst: Instance, touched: { [string]: boolean }?): ()
 
 	local onRelease = Pool.eventHooks.onRelease
 	if onRelease then
-		pcall(onRelease, inst, shouldPool)
+		debugModule.safeCall("pool onRelease", onRelease, inst, shouldPool)
 	end
 end
 
@@ -496,7 +496,7 @@ function Pool.clear(className: string?): ()
 
 	local onClear = Pool.eventHooks.onClear
 	if onClear then
-		pcall(onClear, totalCleared)
+		debugModule.safeCall("pool onClear", onClear, totalCleared)
 	end
 
 	if Pool._debugMode or Pool.config.enableDebug then
@@ -605,7 +605,7 @@ function Pool.validateHealth(): boolean
 
 				local onEvict = Pool.eventHooks.onEvict
 				if onEvict then
-					pcall(onEvict, inst, "HEALTH_CHECK_FAILED")
+					debugModule.safeCall("pool onEvict", onEvict, inst, "HEALTH_CHECK_FAILED")
 				end
 			else
 				i += 1
@@ -691,7 +691,7 @@ function Pool.setEventHook(hookName: string, handler: (...any) -> ()): ()
 			})
 		end
 	else
-		warn("[Pool] Invalid hook name:", hookName)
+		warn(`[Rivue] Pool has no hook named '{hookName}'`)
 	end
 end
 

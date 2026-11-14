@@ -4,7 +4,7 @@
 -- Licensed under the Rivue License, based on PolyForm Noncommercial 1.0.0. See LICENSE.
 
 local Types = require("./types")
-local _reactivity = require("./reactivity")
+local reactivity = require("./reactivity")
 local RunService = game:GetService("RunService")
 local debugModule = require("./debug")
 
@@ -119,14 +119,11 @@ end
 local function createHook(hookName: string, list: HookList): (fn: () -> ()) -> ()
 	return function(fn: () -> ())
 		if type(fn) ~= "function" then
-			error(`{hookName}() expects a function`, 2)
+			error(`[Rivue] {hookName}() expects a function`, 2)
 		end
 		local inst = currentInstance
 		if not inst then
-			error(
-				`{hookName}() must be called inside a component's setup(), it registers on the component being set up`,
-				2
-			)
+			error(`[Rivue] {hookName}() must be called in setup(), it registers on the component being set up`, 2)
 		end
 
 		if debugModule.enabled then
@@ -195,9 +192,9 @@ end
 local function useTemplateRef<T>(name: string): Types.Ref<T?>
 	local inst = currentInstance
 	if not inst then
-		error("useTemplateRef() must be called in setup", 2)
+		error("[Rivue] useTemplateRef() must be called in setup()", 2)
 	end
-	local r = _reactivity.shallowRef(inst.refs[name] :: T?)
+	local r = reactivity.shallowRef(inst.refs[name] :: T?)
 	inst.templateRefs[name] = r :: any
 	return r
 end
@@ -205,7 +202,7 @@ end
 local function provide(key: unknown, value: unknown): ()
 	local inst = currentInstance
 	if not inst then
-		error("provide() must be called in setup", 2)
+		error("[Rivue] provide() must be called in setup()", 2)
 	end
 	inst.provides[key] = value
 end
@@ -229,7 +226,7 @@ local function inject<T>(key: unknown, default: T?): T?
 	elseif injectionContext then
 		provided = injectionContext.provides[key]
 	else
-		error("inject() must be called inside setup() or app:runWithContext()", 2)
+		error("[Rivue] inject() must be called in setup() or app:runWithContext()", 2)
 	end
 	return if provided ~= nil then provided :: T else default
 end
@@ -237,7 +234,7 @@ end
 local function onErrorCaptured(fn: ErrorCapturedHook): ()
 	local inst = currentInstance
 	if not inst then
-		error("onErrorCaptured must be called in setup", 2)
+		error("[Rivue] onErrorCaptured() must be called in setup()", 2)
 	end
 
 	table.insert(inst.errorCapturedCbs, fn)
@@ -393,7 +390,7 @@ end
 
 function createRenderContext(self: ComponentInstance): { [string]: any }
 	local state = self.setupState
-	local stateView: { [string]: any }? = if state then _reactivity.proxyRefs(state) else nil
+	local stateView: { [string]: any }? = if state then reactivity.proxyRefs(state) else nil
 	local props = self.props
 	local ctx = self.ctx :: any
 	return setmetatable({}, {
@@ -437,7 +434,7 @@ function ComponentInstance.setupComponent(self: ComponentInstance)
 		end
 	end
 
-	local scope = _reactivity.effectScope(true)
+	local scope = reactivity.effectScope(true)
 	self._scope = scope
 
 	local setupResult: unknown = nil
@@ -590,7 +587,7 @@ function ComponentInstance.handleError(self: ComponentInstance, err: string, inf
 	warn(`[Rivue] Error in {info} of {formatComponentTrace(self)}: {err}`)
 end
 
-_reactivity._setErrorHandling(getCurrentInstance, function(owner: any, err: string, info: string)
+reactivity._setErrorHandling(getCurrentInstance, function(owner: any, err: string, info: string)
 	(owner :: ComponentInstance):handleError(err, info)
 end)
 
@@ -603,7 +600,8 @@ local function toChildList(result: unknown): { Child }
 	return { result :: Child }
 end
 
-local devtoolsHooks: { emit: ((instance: ComponentInstance, eventName: string, args: { unknown }) -> ())? } = {}
+local devtoolsHooks: { emit: ((instance: ComponentInstance, eventName: string, args: { n: number, [number]: unknown }) -> ())? } =
+	{}
 
 local function createSetupContext(instance: ComponentInstance): SetupContext
 	return {
@@ -625,7 +623,7 @@ local function createSetupContext(instance: ComponentInstance): SetupContext
 			end
 			local emitHook = devtoolsHooks.emit
 			if emitHook and instance.appContext.config.devtools then
-				emitHook(instance, eventName, { ... })
+				emitHook(instance, eventName, table.pack(...))
 			end
 			local vnodeProps = instance.vnode.props
 			local handler = if vnodeProps then vnodeProps[handlerName] else nil
@@ -704,8 +702,8 @@ local function createComponentInstance(
 	) :: any
 
 	local declaredProps, attrs = separatePropsAndAttrs(def, vnode.props or {})
-	local props = _reactivity.shallowReactive(table.clone(declaredProps))
-	local reactiveAttrs = _reactivity.shallowReactive(attrs)
+	local props = reactivity.shallowReactive(table.clone(declaredProps))
+	local reactiveAttrs = reactivity.shallowReactive(attrs)
 
 	uidCounter += 1
 	local data: InstanceData = {
@@ -765,7 +763,7 @@ local function updateComponentProps(instance: ComponentInstance, rawProps: Props
 	local schema = instance.type.props
 	local nextProps, nextAttrs = separatePropsAndAttrs(instance.type, rawProps or {})
 	local props = instance.props
-	local current = _reactivity.toRaw(props)
+	local current = reactivity.toRaw(props)
 
 	for key in current do
 		if nextProps[key] == nil then
@@ -786,7 +784,7 @@ local function updateComponentProps(instance: ComponentInstance, rawProps: Props
 	end
 
 	local attrs = instance.attrs
-	for key in _reactivity.toRaw(attrs) do
+	for key in reactivity.toRaw(attrs) do
 		if nextAttrs[key] == nil then
 			attrs[key] = nil
 		end
@@ -821,7 +819,7 @@ end
 local function onTransition(name: string, fn: (el: Instance) -> ()): ()
 	local inst = currentInstance
 	if not inst then
-		error("onTransition must be called within setup()", 2)
+		error("[Rivue] onTransition() must be called in setup()", 2)
 	end
 
 	local hooks: { [string]: { (el: Instance) -> () } } = inst._transitionHooks or {}

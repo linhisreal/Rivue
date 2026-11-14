@@ -7,28 +7,10 @@ local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
 local Router = require(ReplicatedStorage:WaitForChild("RivueRouter"))
 local h = Rivue.h
 
-local function assertEquals(actual: any, expected: any, message: string)
-	if actual ~= expected then
-		error(`Assertion failed: {message}\nExpected: {tostring(expected)}\nActual: {tostring(actual)}`)
-	end
-	print("✓", message)
-end
-
-local function assertTrue(condition: boolean, message: string)
-	if not condition then
-		error("Assertion failed: " .. message)
-	end
-	print("✓", message)
-end
-
-local function find(root: Instance, name: string): Instance?
-	for _, child in root:GetDescendants() do
-		if child.Name == name then
-			return child
-		end
-	end
-	return nil
-end
+local TestSupport = require(game:GetService("ReplicatedStorage"):WaitForChild("TestSupport"))
+local assertEquals = TestSupport.assertEquals
+local assertTrue = TestSupport.assertTrue
+local find = TestSupport.find
 
 return function()
 	print("useAsync")

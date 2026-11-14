@@ -42,7 +42,7 @@ function utils.debounce<A...>(fn: (A...) -> (), ms: number): (A...) -> Debounced
 		cancel()
 		timer = task.delay(delayMs / 1000, function()
 			timer = nil
-			pcall(fn :: (...any) -> (), table.unpack(args, 1, args.n))
+			debugModule.safeCall("debounced function", fn :: (...any) -> (), table.unpack(args, 1, args.n))
 		end)
 		return handle
 	end
@@ -58,7 +58,7 @@ function utils.throttle<A...>(fn: (A...) -> (), ms: number): (A...) -> ()
 		local now = os.clock() * 1000
 		if now - last >= intervalMs then
 			last = now
-			pcall(fn, ...)
+			debugModule.safeCall("throttled function", fn, ...)
 			return
 		end
 		pendingArgs = pack(...)
@@ -70,7 +70,7 @@ function utils.throttle<A...>(fn: (A...) -> (), ms: number): (A...) -> ()
 				local args = pendingArgs
 				pendingArgs = nil
 				if args then
-					pcall(fn :: (...any) -> (), table.unpack(args, 1, args.n))
+					debugModule.safeCall("throttled function", fn :: (...any) -> (), table.unpack(args, 1, args.n))
 				end
 			end)
 		end
@@ -83,17 +83,17 @@ end
 
 function utils.nextFrame(fn: () -> ()): ()
 	RunService.Heartbeat:Once(function()
-		pcall(fn)
+		debugModule.safeCall("nextFrame callback", fn)
 	end)
 end
 
 function utils.useRaf(fn: (dt: number) -> ()): RafHandle
 	if debugModule.enabled then
-		debugModule.log("Utils", "Starting RenderStepped RAF")
+		debugModule.log("Utils", "Starting PreRender RAF")
 	end
-	local signal = if RunService:IsClient() then RunService.RenderStepped else RunService.Heartbeat
+	local signal = if RunService:IsClient() then RunService.PreRender else RunService.Heartbeat
 	local conn: RBXScriptConnection? = signal:Connect(function(dt: number)
-		pcall(fn, dt)
+		debugModule.safeCall("useRaf callback", fn, dt)
 	end)
 	return {
 		stop = function()

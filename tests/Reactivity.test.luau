@@ -5,33 +5,10 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
 
-local function assertEquals(actual: any, expected: any, message: string?)
-	if actual ~= expected then
-		error(
-			string.format(
-				"Assertion failed: %s\nExpected: %s\nActual: %s",
-				message or "values not equal",
-				tostring(expected),
-				tostring(actual)
-			)
-		)
-	end
-	print("✓", message or "Assertion passed")
-end
-
-local function assertTrue(condition: boolean, message: string?)
-	if not condition then
-		error("Assertion failed: " .. (message or "condition is false"))
-	end
-	print("✓", message or "Assertion passed")
-end
-
-local function assertFalse(condition: boolean, message: string?)
-	if condition then
-		error("Assertion failed: " .. (message or "condition is true"))
-	end
-	print("✓", message or "Assertion passed")
-end
+local TestSupport = require(game:GetService("ReplicatedStorage"):WaitForChild("TestSupport"))
+local assertEquals = TestSupport.assertEquals
+local assertTrue = TestSupport.assertTrue
+local assertFalse = TestSupport.assertFalse
 
 local function runTests()
 	print("\n========== REACTIVITY TEST SUITE ==========\n")
@@ -66,8 +43,8 @@ local function runTests()
 		local obj = Rivue.reactive({})
 		local refs = Rivue.toRefs(obj)
 		local count = 0
-		for _, _ in pairs(refs) do
-			count = count + 1
+		for _ in refs do
+			count += 1
 		end
 		assertEquals(count, 0, "toRefs should handle empty objects")
 	end
@@ -77,7 +54,7 @@ local function runTests()
 		local obj = Rivue.reactive({ x = 1, y = 2, z = 3 })
 		local refs = Rivue.toRefs(obj)
 		local keys = {}
-		for k in pairs(refs) do
+		for k in refs do
 			table.insert(keys, k)
 		end
 		table.sort(keys)
@@ -90,7 +67,7 @@ local function runTests()
 		local arr = Rivue.reactive({ 10, 20, 30 })
 		local sum = 0
 		for _, v in Rivue.iterArray(arr) do
-			sum = sum + v
+			sum += v
 		end
 		assertEquals(sum, 60, "Should iterate reactive array correctly")
 	end
@@ -123,7 +100,7 @@ local function runTests()
 		local arr = Rivue.reactive({})
 		local count = 0
 		for _, _ in Rivue.iterArray(arr) do
-			count = count + 1
+			count += 1
 		end
 		assertEquals(count, 0, "Should handle empty arrays")
 	end
@@ -143,7 +120,7 @@ local function runTests()
 		local count = 0
 		scope:run(function()
 			Rivue.effect(function()
-				count = count + 1
+				count += 1
 				return nil
 			end)
 			return nil
@@ -271,7 +248,7 @@ local function runTests()
 		local watchCount = 0
 		local stop = Rivue.watchEffect(function()
 			local _ = count.value
-			watchCount = watchCount + 1
+			watchCount += 1
 		end)
 		task.wait(0.05)
 		assertTrue(watchCount >= 1, "watchEffect should run immediately")

@@ -1,4 +1,5 @@
 --!nonstrict
+--!optimize 2
 -- Copyright (c) 2025-2026 linhisreal (ThisisLinh)
 -- Licensed under the Rivue License, based on PolyForm Noncommercial 1.0.0. See LICENSE.
 
@@ -156,6 +157,15 @@ local watched: { [Instance]: RBXScriptConnection } = {}
 local eventCount = 0
 local openScript: ((script: LuaSourceContainer, line: number) -> ())? = nil
 
+local function prepend(list: { value: { any } }, item: any, limit: number)
+	local next = table.clone(list.value)
+	table.insert(next, 1, item)
+	while #next > limit do
+		table.remove(next)
+	end
+	list.value = next
+end
+
 local function depthOf(instance: Instance): number
 	local depth = 0
 	local parent = instance.Parent
@@ -255,18 +265,13 @@ local function logEmit(instance: Instance)
 		return
 	end
 	eventCount += 1
-	local list = table.clone(events.value)
-	table.insert(list, 1, {
+	prepend(events, {
 		id = eventCount,
 		name = (instance:GetAttribute("RivueComponent") :: string?) or instance.Name,
 		event = event,
 		args = args,
 		instance = instance,
-	})
-	if #list > MAX_EVENTS then
-		table.remove(list)
-	end
-	events.value = list
+	}, MAX_EVENTS)
 end
 
 local function ingestPerf(added: { TimelineEntry })
@@ -539,18 +544,13 @@ local function logMessage(message: string, messageType: Enum.MessageType)
 		return
 	end
 	warningCount += 1
-	local list = table.clone(warnings.value)
-	table.insert(list, 1, {
+	prepend(warnings, {
 		id = warningCount,
 		at = math.round(os.clock() * 1000),
 		level = level,
 		message = message,
 		component = componentNameIn(message),
-	})
-	while #list > MAX_WARNINGS do
-		table.remove(list)
-	end
-	warnings.value = list
+	}, MAX_WARNINGS)
 end
 
 local function componentOf(instance: Instance?): Instance?

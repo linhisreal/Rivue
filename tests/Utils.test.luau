@@ -5,33 +5,10 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
 
-local function assertEquals(actual: any, expected: any, message: string?)
-	if actual ~= expected then
-		error(
-			string.format(
-				"Assertion failed: %s\nExpected: %s\nActual: %s",
-				message or "values not equal",
-				tostring(expected),
-				tostring(actual)
-			)
-		)
-	end
-	print("✓", message or "Assertion passed")
-end
-
-local function assertTrue(condition: boolean, message: string?)
-	if not condition then
-		error("Assertion failed: " .. (message or "condition is false"))
-	end
-	print("✓", message or "Assertion passed")
-end
-
-local function assertFalse(condition: boolean, message: string?)
-	if condition then
-		error("Assertion failed: " .. (message or "condition is true"))
-	end
-	print("✓", message or "Assertion passed")
-end
+local TestSupport = require(game:GetService("ReplicatedStorage"):WaitForChild("TestSupport"))
+local assertEquals = TestSupport.assertEquals
+local assertTrue = TestSupport.assertTrue
+local assertFalse = TestSupport.assertFalse
 
 local function runTests()
 	print("\n========== UTILS TEST SUITE ==========\n")
@@ -40,7 +17,7 @@ local function runTests()
 	do
 		local count = 0
 		local debounced = Rivue.utils.debounce(function()
-			count = count + 1
+			count += 1
 		end, 100)
 		debounced()
 		debounced()
@@ -66,7 +43,7 @@ local function runTests()
 	do
 		local count = 0
 		local debounced = Rivue.utils.debounce(function()
-			count = count + 1
+			count += 1
 		end, 0.1)
 		debounced()
 		task.wait(0.15)
@@ -77,7 +54,7 @@ local function runTests()
 	do
 		local count = 0
 		local throttled = Rivue.utils.throttle(function()
-			count = count + 1
+			count += 1
 		end, 100)
 		throttled()
 		throttled()
@@ -91,7 +68,7 @@ local function runTests()
 	do
 		local count = 0
 		local throttled = Rivue.utils.throttle(function()
-			count = count + 1
+			count += 1
 		end, 100)
 		throttled()
 		assertEquals(count, 1, "Should execute immediately on first call")
@@ -101,7 +78,7 @@ local function runTests()
 	do
 		local count = 0
 		local throttled = Rivue.utils.throttle(function()
-			count = count + 1
+			count += 1
 		end, 0.1)
 		throttled()
 		assertEquals(count, 1, "Should auto-convert 0.1 seconds to 100ms")
@@ -137,7 +114,7 @@ local function runTests()
 		local arr = Rivue.reactive({ 1, 2, 3 })
 		local sum = 0
 		for _, v in Rivue.iterArray(arr) do
-			sum = sum + v
+			sum += v
 		end
 		assertEquals(sum, 6, "Should iterate all elements and sum to 6")
 	end
@@ -147,7 +124,7 @@ local function runTests()
 		local arr = { 10, 20, 30 }
 		local sum = 0
 		for _, v in Rivue.iterArray(arr) do
-			sum = sum + v
+			sum += v
 		end
 		assertEquals(sum, 60, "Should work with non-reactive arrays")
 	end
@@ -157,7 +134,7 @@ local function runTests()
 		local arr = Rivue.reactive({})
 		local count = 0
 		for _, _ in Rivue.iterArray(arr) do
-			count = count + 1
+			count += 1
 		end
 		assertEquals(count, 0, "Should handle empty arrays")
 	end
@@ -166,7 +143,7 @@ local function runTests()
 	do
 		local frameCount = 0
 		local handle = Rivue.utils.useRaf(function(dt)
-			frameCount = frameCount + 1
+			frameCount += 1
 			assertTrue(type(dt) == "number", "Should receive delta time")
 		end)
 		task.wait(0.1)
@@ -245,6 +222,53 @@ local function runTests()
 		local result = Rivue.utils.filterForClient(Players.LocalPlayer, "unfiltered words")
 		TextService.FilterStringAsync = real
 		assertEquals(result, "", "the original text never comes back unfiltered")
+	end
+
+	print("Test 20: errors in debounced, throttled, frame and ref callbacks are reported")
+	do
+		local seen: { string } = {}
+		local conn = game:GetService("LogService").MessageOut:Connect(function(message)
+			table.insert(seen, message)
+		end)
+		local function reported(word: string): boolean
+			for _, message in seen do
+				if string.find(message, word, 1, true) then
+					return true
+				end
+			end
+			return false
+		end
+		Rivue.utils.debounce(function()
+			error("debounceTypo")
+		end, 0.01)()
+		Rivue.utils.throttle(function()
+			error("throttleTypo")
+		end, 0.01)()
+		Rivue.utils.nextFrame(function()
+			error("frameTypo")
+		end)
+		local raf = Rivue.utils.useRaf(function()
+			error("rafTypo")
+		end)
+		local Holder = Rivue.defineComponent({
+			name = "RefHolder",
+			render = function()
+				return Rivue.h("Frame", {
+					ref = function()
+						error("refTypo")
+					end,
+				})
+			end,
+		})
+		local app = Rivue.createApp(Holder)
+		app:mount(Instance.new("Folder"))
+		task.wait(0.1)
+		raf.stop()
+		app:unmount()
+		conn:Disconnect()
+		for _, word in { "debounceTypo", "throttleTypo", "frameTypo", "rafTypo", "refTypo" } do
+			assertTrue(reported(word), `{word} shows up in the output instead of being swallowed`)
+		end
 	end
 
 	print("\n========== UTILS TESTS COMPLETE ==========\n")

@@ -5,26 +5,9 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage:WaitForChild("RivueUI"))
 
-local function assertEquals(actual: any, expected: any, message: string?)
-	if actual ~= expected then
-		error(
-			string.format(
-				"Assertion failed: %s\nExpected: %s\nActual: %s",
-				message or "values not equal",
-				tostring(expected),
-				tostring(actual)
-			)
-		)
-	end
-	print("✓", message or "Assertion passed")
-end
-
-local function assertTrue(condition: boolean, message: string?)
-	if not condition then
-		error("Assertion failed: " .. (message or "condition is false"))
-	end
-	print("✓", message or "Assertion passed")
-end
+local TestSupport = require(game:GetService("ReplicatedStorage"):WaitForChild("TestSupport"))
+local assertEquals = TestSupport.assertEquals
+local assertTrue = TestSupport.assertTrue
 
 local function runTests()
 	local printHeader = "COMPONENT TEST SUITE"
@@ -203,7 +186,7 @@ local function runTests()
 		local container = Instance.new("Folder")
 		local app = Rivue.mount(Rivue.h(TestComponent, { ref = testRef }), container)
 		task.wait(0.1)
-		assertTrue(testRef.value and true or false, "Ref should be set")
+		assertTrue(testRef.value, "Ref should be set")
 		if testRef.value then
 			assertTrue(type(testRef.value.testMethod) == "function", "Should have exposed method")
 			assertEquals(testRef.value.testMethod(), "exposed", "Exposed method should work")

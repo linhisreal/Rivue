@@ -53,7 +53,7 @@ table as empty, `Rivue.inspect(value)` shows what's actually in it.
 | `pairs`/`ipairs` over reactive state finds nothing | Luau has no `__pairs` | `for k, v in state do` or `for i = 1, #list do` |
 | `model = ctx.draft` doesn't bind | `ctx` unwraps refs, so it passes the string | `model = "draft"` |
 | A copied prop never changes | `local name = props.name` copies the value | read `props.name` in render, or `Rivue.toRef(props, "name")` |
-| `onMounted must be called inside a component's setup()` | hook called in render or later | call hooks at the top of `setup` |
+| `onMounted() must be called in setup()` | hook called in render or later | call hooks at the top of `setup` |
 | Every row re-renders on each change | missing `key` | give every list item a stable key |
 | Child state resets when the parent re-renders | the child's type or `key` changes between renders | keep the same component and key for the same item |
 | Type errors on children lists in `--!strict` | the old type solver can't infer mixed lists | use `--!nonstrict` for UI files, or the new solver |

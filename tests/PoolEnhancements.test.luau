@@ -5,39 +5,10 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Pool = require(ReplicatedStorage.RivueUI.runtime.pool)
 
-local function assertEquals(actual: any, expected: any, message: string?)
-	if actual ~= expected then
-		error(
-			string.format(
-				"Assertion failed: %s\nExpected: %s\nActual: %s",
-				message or "values not equal",
-				tostring(expected),
-				tostring(actual)
-			)
-		)
-	end
-	print("✓", message or "Assertion passed")
-end
-
-local function assertTrue(condition: boolean, message: string?)
-	if not condition then
-		error("Assertion failed: " .. (message or "condition is false"))
-	end
-	print("✓", message or "Assertion passed")
-end
-
-local function assertNil(value: any, message: string?)
-	if value ~= nil then
-		error(
-			string.format(
-				"Assertion failed: %s\nExpected: nil\nActual: %s",
-				message or "value should be nil",
-				tostring(value)
-			)
-		)
-	end
-	print("✓", message or "Assertion passed")
-end
+local TestSupport = require(game:GetService("ReplicatedStorage"):WaitForChild("TestSupport"))
+local assertEquals = TestSupport.assertEquals
+local assertTrue = TestSupport.assertTrue
+local assertNil = TestSupport.assertNil
 
 local function runTests()
 	print("\n========== POOL ENHANCEMENTS TEST SUITE ==========\n")
@@ -146,7 +117,7 @@ local function runTests()
 		Pool.clear()
 
 		local newFrame = Pool.acquire("Frame")
-		assertTrue(newFrame and true or false, "Should create new instance after clear")
+		assertTrue(newFrame, "Should create new instance after clear")
 		assertEquals(newFrame.ClassName, "Frame", "Should be correct class")
 	end
 

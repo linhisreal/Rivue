@@ -144,8 +144,10 @@ local function step(dt)
 	end
 	flushDeferred()
 	renderStepped:Fire(dt)
-	if services and services.RunService.Stepped then
+	if services then
 		services.RunService.Stepped:Fire(now, dt)
+		services.RunService.PreSimulation:Fire(dt)
+		services.Workspace.DistributedGameTime = now
 	end
 	heartbeat:Fire(dt)
 	flushDeferred()
@@ -244,6 +246,7 @@ services = {
 		Heartbeat = heartbeat,
 		RenderStepped = renderStepped,
 		Stepped = makeSignal(),
+		PreSimulation = makeSignal(),
 		PreRender = renderStepped,
 		PostSimulation = heartbeat,
 	},
@@ -405,7 +408,7 @@ function __runTest(name, fn)
 		end)
 		if not ok then
 			failures += 1
-			print("FAIL " .. name .. ": " .. tostring(err))
+			print(`FAIL {name}: {err}`)
 		else
 			passes += 1
 		end
@@ -678,7 +681,7 @@ local CLASSES = {
 	UISizeConstraint = { bases = {}, props = { { MinSize = false, MaxSize = false } } },
 	UITextSizeConstraint = { bases = {}, props = { { MinTextSize = 1, MaxTextSize = 100 } } },
 	Camera = { bases = {}, props = { { ViewportSize = Vector2.new(1280, 720) } } },
-	Workspace = { bases = {}, props = { { CurrentCamera = false } } },
+	Workspace = { bases = {}, props = { { CurrentCamera = false, DistributedGameTime = 0 } } },
 }
 local COMMON_EVENTS = {
 	"Changed",
@@ -702,7 +705,7 @@ Instance = {}
 function Instance.new(className, parent)
 	local def = CLASSES[className]
 	if not def then
-		error('Unable to create an Instance of type "' .. tostring(className) .. '"')
+		error(`Unable to create an Instance of type "{className}"`)
 	end
 	instanceCount += 1
 	local props = { Name = className, ClassName = className }
@@ -883,7 +886,7 @@ function Instance.new(className, parent)
 			__index = function(_, k)
 				__instanceOps = (__instanceOps or 0) + 1
 				if __opKeys then
-					__opKeys["get " .. tostring(k)] = (__opKeys["get " .. tostring(k)] or 0) + 1
+					__opKeys[`get {k}`] = (__opKeys[`get {k}`] or 0) + 1
 				end
 				if k == "Parent" then
 					return parent_
@@ -909,7 +912,7 @@ function Instance.new(className, parent)
 			__newindex = function(_, k, v)
 				__instanceOps = (__instanceOps or 0) + 1
 				if __opKeys then
-					__opKeys["set " .. tostring(k)] = (__opKeys["set " .. tostring(k)] or 0) + 1
+					__opKeys[`set {k}`] = (__opKeys[`set {k}`] or 0) + 1
 				end
 				if k == "Parent" then
 					if destroyed then

@@ -16,6 +16,20 @@ local function loadRivue(candidate: Instance?): any
 	return nil
 end
 
+local function removeFrom<T>(list: { T }, item: T)
+	local at = table.find(list, item)
+	if at then
+		table.remove(list, at)
+	end
+end
+
+local function addWithRemover<T>(list: { T }, item: T): () -> ()
+	table.insert(list, item)
+	return function()
+		removeFrom(list, item)
+	end
+end
+
 local function findRivue(): any
 	local node: Instance? = script.Parent
 	while node do
@@ -251,7 +265,10 @@ export type Router = {
 }
 
 local function createRouter(options: RouterOptions): Router
-	assert(type(options) == "table" and type(options.routes) == "table", "createRouter expects { routes, initial }")
+	assert(
+		type(options) == "table" and type(options.routes) == "table",
+		"[RivueRouter] createRouter() expects { routes, initial }"
+	)
 
 	local records: { [string]: any } = {}
 	local aliases: { [string]: any } = {}
@@ -324,10 +341,7 @@ local function createRouter(options: RouterOptions): Router
 			aliases[alias] = nil
 		end
 		local siblings = if record.parent then record.parent.children else roots
-		local at = table.find(siblings, record)
-		if at then
-			table.remove(siblings, at)
-		end
+		removeFrom(siblings, record)
 	end
 
 	local routes = options.routes :: any
@@ -677,16 +691,6 @@ local function createRouter(options: RouterOptions): Router
 		return navigate(if location.replace then "replace" else kind, route, nil, 0)
 	end
 
-	local function guardList(list: { any }, fn: any): () -> ()
-		table.insert(list, fn)
-		return function()
-			local at = table.find(list, fn)
-			if at then
-				table.remove(list, at)
-			end
-		end
-	end
-
 	router = {
 		currentRoute = currentRoute,
 		current = currentRoute,
@@ -723,13 +727,13 @@ local function createRouter(options: RouterOptions): Router
 			return build(toLocation(to, params), nil)
 		end,
 		beforeEach = function(guard: Guard): () -> ()
-			return guardList(beforeGuards, guard)
+			return addWithRemover(beforeGuards, guard)
 		end,
 		beforeResolve = function(guard: Guard): () -> ()
-			return guardList(resolveGuards, guard)
+			return addWithRemover(resolveGuards, guard)
 		end,
 		afterEach = function(hook: AfterHook): () -> ()
-			return guardList(afterHooks, hook)
+			return addWithRemover(afterHooks, hook)
 		end,
 		addRoute = function(parentOrRecord: string | RouteRecord, record: RouteRecord?): () -> ()
 			local parent = if type(parentOrRecord) == "string" then findRecord(parentOrRecord) else nil
@@ -768,7 +772,7 @@ local function createRouter(options: RouterOptions): Router
 			return list
 		end,
 		onError = function(handler: ErrorHandler): () -> ()
-			return guardList(errorHandlers, handler)
+			return addWithRemover(errorHandlers, handler)
 		end,
 		isReady = function()
 			if not ready then
@@ -812,7 +816,10 @@ local function createRouter(options: RouterOptions): Router
 			end)
 		end,
 	}
-	assert(records[options.initial] or aliases[options.initial], `createRouter: no route named '{options.initial}'`)
+	assert(
+		records[options.initial] or aliases[options.initial],
+		`[RivueRouter] createRouter(): no route named '{options.initial}'`
+	)
 	return router
 end
 
@@ -845,13 +852,7 @@ local function addComponentGuard(kind: string, guard: Guard)
 		return
 	end
 	local list = if kind == "onBeforeRouteLeave" then record.leaveGuards else record.updateGuards
-	table.insert(list, guard)
-	Rivue.onUnmounted(function()
-		local at = table.find(list, guard)
-		if at then
-			table.remove(list, at)
-		end
-	end)
+	Rivue.onUnmounted(addWithRemover(list, guard))
 end
 
 local function onBeforeRouteLeave(guard: Guard)

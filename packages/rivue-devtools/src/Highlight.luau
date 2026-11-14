@@ -1,6 +1,9 @@
 --!nonstrict
+--!optimize 2
 -- Copyright (c) 2025-2026 linhisreal (ThisisLinh)
 -- Licensed under the Rivue License, based on PolyForm Noncommercial 1.0.0. See LICENSE.
+
+local TweenService = game:GetService("TweenService")
 
 local Highlight = {}
 
@@ -127,7 +130,7 @@ function Highlight.flash(target: Instance)
 	stroke.Thickness = 2
 	stroke.Parent = frame
 	frame.Parent = flashes
-	game:GetService("TweenService"):Create(stroke, TweenInfo.new(0.6), { Transparency = 1 }):Play()
+	TweenService:Create(stroke, TweenInfo.new(0.6), { Transparency = 1 }):Play()
 	task.delay(0.6, function()
 		frame:Destroy()
 	end)

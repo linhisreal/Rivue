@@ -95,7 +95,7 @@ local function createSuspense(): ComponentDef
 					overlay = h("TextLabel", {
 						Name = "SuspenseError",
 						Size = UDim2.fromScale(1, 1),
-						Text = "Error: " .. tostring(failed),
+						Text = `Error: {failed}`,
 						TextColor3 = Color3.fromRGB(255, 100, 100),
 						BackgroundTransparency = 1,
 						TextWrapped = true,

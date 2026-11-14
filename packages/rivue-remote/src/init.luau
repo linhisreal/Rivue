@@ -67,6 +67,7 @@ local function stopWithScope(connection: { Disconnect: (any) -> () })
 end
 
 const CLIENT_WAIT_TIMEOUT = 5
+const MAX_ACTION_LENGTH = 100
 
 local function findOrCreate(parent: Instance, className: string, name: string): Instance
 	local existing = parent:FindFirstChild(name)
@@ -260,7 +261,7 @@ local function describe(value: unknown): string
 end
 
 local function checkOutgoing(actionName: unknown, payload: unknown): string?
-	if type(actionName) ~= "string" or #actionName == 0 or #actionName > 100 then
+	if type(actionName) ~= "string" or #actionName == 0 or #actionName > MAX_ACTION_LENGTH then
 		return "invalid_action_name"
 	end
 	local valid, validErr = validatePayload(payload)
@@ -354,7 +355,7 @@ end
 function Remote.fire(actionName: string, payload: unknown): string?
 	local outgoingErr = checkOutgoing(actionName, payload)
 	if outgoingErr then
-		warn(`[RivueRemote] fire("{tostring(actionName)}") wasn't sent: {outgoingErr}`)
+		warn(`[RivueRemote] fire("{actionName}") wasn't sent: {outgoingErr}`)
 		return outgoingErr
 	end
 	getRequestEvent():FireServer({ action = actionName, payload = payload })
@@ -377,6 +378,41 @@ export type Connection = {
 	Connected: boolean,
 	Disconnect: (self: Connection) -> (),
 }
+
+local function removeFrom<T>(list: { T }, item: T)
+	local at = table.find(list, item)
+	if at then
+		table.remove(list, at)
+	end
+end
+
+local function addWithRemover<T>(list: { T }, item: T): () -> ()
+	table.insert(list, item)
+	return function()
+		removeFrom(list, item)
+	end
+end
+
+local function subscribe<T>(registry: { [string]: { T } }, name: string, fn: T): Connection
+	local list = registry[name]
+	if not list then
+		list = {}
+		registry[name] = list
+	end
+	table.insert(list, fn)
+	local connection: Connection
+	connection = {
+		Connected = true,
+		Disconnect = function(_self: Connection)
+			if connection.Connected then
+				connection.Connected = false
+				removeFrom(list, fn)
+			end
+		end,
+	}
+	stopWithScope(connection)
+	return connection
+end
 
 local listeners: { [string]: { (payload: any) -> () } } = {}
 local eventsConnected = false
@@ -416,29 +452,7 @@ end
 
 function Remote.on(name: string, fn: (payload: any) -> ()): Connection
 	connectEvents()
-	local list = listeners[name]
-	if not list then
-		list = {}
-		listeners[name] = list
-	end
-	table.insert(list, fn)
-	local connection: Connection
-	connection = {
-		Connected = true,
-		Disconnect = function(self: Connection)
-			if not connection.Connected then
-				return
-			end
-			connection.Connected = false
-			local current = listeners[name]
-			local at = if current then table.find(current, fn) else nil
-			if current and at then
-				table.remove(current, at)
-			end
-		end,
-	}
-	stopWithScope(connection)
-	return connection
+	return subscribe(listeners, name, fn)
 end
 
 export type SendOptions = {
@@ -476,8 +490,12 @@ local function enqueue(player: Player, name: string, payload: unknown)
 end
 
 local function checkSend(fnName: string, name: unknown, payload: unknown): string?
-	assert(RunService:IsServer(), `[RivueRemote] {fnName}() runs on the server`)
-	assert(type(name) == "string" and #name > 0, `[RivueRemote] {fnName}() needs an event name`)
+	if not RunService:IsServer() then
+		error(`[RivueRemote] {fnName}() runs on the server`, 3)
+	end
+	if type(name) ~= "string" or #name == 0 then
+		error(`[RivueRemote] {fnName}() needs an event name`, 3)
+	end
 	local valid, validErr = validatePayload(payload)
 	if not valid then
 		warn(`[RivueRemote] {fnName}("{name}") wasn't sent: {validErr}`)
@@ -531,7 +549,6 @@ export type HandleOptions = {
 export type Middleware = (player: Player, action: string, payload: unknown) -> boolean?
 
 const DEFAULT_MAX_PER_SECOND = 30
-const MAX_ACTION_LENGTH = 100
 const WARN_INTERVAL = 10
 
 type Bucket = { tokens: number, last: number }
@@ -777,7 +794,7 @@ local function ignore() end
 local listening = false
 
 function Remote.setupServer(): ()
-	assert(RunService:IsServer(), "Remote.setupServer() must be called on the server")
+	assert(RunService:IsServer(), "[RivueRemote] Remote.setupServer() runs on the server")
 	getRequestEvent()
 	if listening then
 		return
@@ -814,7 +831,7 @@ local function listen()
 end
 
 local function register(actionName: string, handler: RequestHandler, opts: HandleOptions?)
-	assert(RunService:IsServer(), "Remote.handle() must be called on the server")
+	assert(RunService:IsServer(), "[RivueRemote] Remote.handle() runs on the server")
 	assert(#actionName <= MAX_ACTION_LENGTH, `[RivueRemote] Action names are limited to {MAX_ACTION_LENGTH} characters`)
 	handlers[actionName] = handler
 	limits[actionName] = if opts and opts.maxPerSecond then opts.maxPerSecond else DEFAULT_MAX_PER_SECOND
@@ -829,8 +846,12 @@ local function register(actionName: string, handler: RequestHandler, opts: Handl
 	listen()
 end
 
-function Remote.handle(actionName: string, handler: RequestHandler, opts: HandleOptions?): ()
+local function assertNotReserved(actionName: string)
 	assert(string.sub(actionName, 1, 7) ~= "__rivue", `[RivueRemote] '{actionName}' is reserved for RivueRemote`)
+end
+
+function Remote.handle(actionName: string, handler: RequestHandler, opts: HandleOptions?): ()
+	assertNotReserved(actionName)
 	register(actionName, handler, opts)
 end
 
@@ -955,8 +976,8 @@ end
 
 --- A fake action the game never calls; anyone who calls it is reported as "trap"
 function Remote.trap(actionName: string)
-	assert(RunService:IsServer(), "Remote.trap() must be called on the server")
-	assert(string.sub(actionName, 1, 7) ~= "__rivue", `[RivueRemote] '{actionName}' is reserved for RivueRemote`)
+	assert(RunService:IsServer(), "[RivueRemote] Remote.trap() runs on the server")
+	assertNotReserved(actionName)
 	assert(handlers[actionName] == nil, `[RivueRemote] '{actionName}' already has a handler`)
 	traps[actionName] = true
 	listen()
@@ -964,26 +985,14 @@ end
 
 --- Called with the player, a reason and how many times it happened since the last call
 function Remote.onSuspicious(listener: (player: Player, reason: string, count: number) -> ()): () -> ()
-	assert(RunService:IsServer(), "Remote.onSuspicious() must be called on the server")
-	table.insert(suspicionListeners, listener)
-	return function()
-		local at = table.find(suspicionListeners, listener)
-		if at then
-			table.remove(suspicionListeners, at)
-		end
-	end
+	assert(RunService:IsServer(), "[RivueRemote] Remote.onSuspicious() runs on the server")
+	return addWithRemover(suspicionListeners, listener)
 end
 
 --- Runs before every handler, after the rate limit and payload checks. Returns a remover
 function Remote.use(middleware: Middleware): () -> ()
-	assert(RunService:IsServer(), "Remote.use() must be called on the server")
-	table.insert(middlewares, middleware)
-	return function()
-		local at = table.find(middlewares, middleware)
-		if at then
-			table.remove(middlewares, at)
-		end
-	end
+	assert(RunService:IsServer(), "[RivueRemote] Remote.use() runs on the server")
+	return addWithRemover(middlewares, middleware)
 end
 
 export type Action<Req, Res> = {
@@ -1057,11 +1066,18 @@ function Remote.state<T>(name: string, initial: T): State<T>
 		publish(player)
 	end
 
+	local function check(value: unknown): string?
+		local ok, err = validatePayload(value)
+		if not ok then
+			warn(`[RivueRemote] state '{name}' wasn't set: {err}`)
+		end
+		return err
+	end
+
 	return table.freeze({
 		set = function(value: T): string?
-			local ok, err = validatePayload(value)
-			if not ok then
-				warn(`[RivueRemote] state '{name}' wasn't set: {err}`)
+			local err = check(value)
+			if err then
 				return err
 			end
 			state.value = value
@@ -1074,9 +1090,8 @@ function Remote.state<T>(name: string, initial: T): State<T>
 			return nil
 		end,
 		setFor = function(player: Player, value: T?): string?
-			local ok, err = validatePayload(value)
-			if not ok then
-				warn(`[RivueRemote] state '{name}' wasn't set: {err}`)
+			local err = check(value)
+			if err then
 				return err
 			end
 			state.perPlayer[player] = value
@@ -1160,27 +1175,7 @@ function Remote.getState(name: string): any
 end
 
 function Remote.onState(name: string, fn: (value: any) -> ()): Connection
-	local list = stateListeners[name]
-	if not list then
-		list = {}
-		stateListeners[name] = list
-	end
-	table.insert(list, fn)
-	local connection: Connection
-	connection = {
-		Connected = true,
-		Disconnect = function(self: Connection)
-			if not connection.Connected then
-				return
-			end
-			connection.Connected = false
-			local at = table.find(list :: { (value: any) -> () }, fn)
-			if at then
-				table.remove(list :: { (value: any) -> () }, at)
-			end
-		end,
-	}
-	stopWithScope(connection)
+	local connection = subscribe(stateListeners, name, fn)
 	task.spawn(syncStates)
 	return connection
 end

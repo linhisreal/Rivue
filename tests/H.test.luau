@@ -9,26 +9,9 @@ local h = h_module.h
 local hIf = h_module.hIf
 local hFor = h_module.hFor
 
-local function assertEquals(actual: any, expected: any, message: string?)
-	if actual ~= expected then
-		error(
-			string.format(
-				"Assertion failed: %s\nExpected: %s\nActual: %s",
-				message or "values not equal",
-				tostring(expected),
-				tostring(actual)
-			)
-		)
-	end
-	print("✓", message or "Assertion passed")
-end
-
-local function assertTrue(condition: boolean, message: string?)
-	if not condition then
-		error("Assertion failed: " .. (message or "condition is false"))
-	end
-	print("✓", message or "Assertion passed")
-end
+local TestSupport = require(game:GetService("ReplicatedStorage"):WaitForChild("TestSupport"))
+local assertEquals = TestSupport.assertEquals
+local assertTrue = TestSupport.assertTrue
 
 local function runTests()
 	print("\n========== H (HYPERSCRIPT) TEST SUITE ==========\n")
@@ -37,7 +20,7 @@ local function runTests()
 	do
 		local vnode = h("Frame", { Name = "TestFrame" })
 		assertEquals(vnode.type, "Frame", "Should have correct type")
-		assertTrue(vnode.props and true or false, "Should have props")
+		assertTrue(vnode.props, "Should have props")
 		if vnode.props then
 			assertEquals(vnode.props.Name, "TestFrame", "Should have correct prop value")
 		end
@@ -47,7 +30,7 @@ local function runTests()
 	do
 		local vnode = h("Frame")
 		assertEquals(vnode.type, "Frame", "Should have correct type")
-		assertTrue(vnode.props and true or false, "Should create empty props table")
+		assertTrue(vnode.props, "Should create empty props table")
 	end
 
 	print("Test 3: h() normalizes string children")
@@ -76,7 +59,7 @@ local function runTests()
 	do
 		local vnode = h("Frame", { key = "unique-key", Name = "Test" })
 		assertEquals(vnode.key, "unique-key", "Should extract key")
-		assertTrue(vnode.props and vnode.props.key and true or false, "Key should still be in props")
+		assertTrue(vnode.props and vnode.props.key, "Key should still be in props")
 	end
 
 	print("Test 7: hIf() returns vnode when true")
@@ -132,8 +115,8 @@ local function runTests()
 	do
 		local vnode1 = h("Frame")
 		local vnode2 = h("Frame")
-		assertTrue(vnode1._uid and true or false, "Should have UID")
-		assertTrue(vnode2._uid and true or false, "Should have UID")
+		assertTrue(vnode1._uid, "Should have UID")
+		assertTrue(vnode2._uid, "Should have UID")
 		assertTrue(vnode1._uid ~= vnode2._uid, "UIDs should be unique")
 	end
 

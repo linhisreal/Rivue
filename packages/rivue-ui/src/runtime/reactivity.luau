@@ -24,7 +24,7 @@ type CustomRefFactory<T> = Types.CustomRefFactory<T>
 
 type RawTable = { [unknown]: unknown }
 type RefInternal = {
-	_is_ref: true,
+	_isRef: true,
 	_value: unknown,
 	_shallow: boolean?,
 	_dep: Dep | false,
@@ -97,7 +97,7 @@ local function scopeStop(self: EffectScope)
 	end
 
 	for _, cleanup in self.cleanups do
-		pcall(cleanup)
+		debugModule.safeCall("cleanup", cleanup)
 	end
 
 	table.clear(self.effects)
@@ -231,7 +231,7 @@ local function createEffect(fn: () -> (), opts: EffectOptions?, onError: ((err: 
 			return
 		end
 
-		local effectName = if utils.profiler.active then "effect_" .. tostring(effect) else nil
+		local effectName = if utils.profiler.active then `effect_{effect}` else nil
 		if effectName then
 			utils.profiler:start(effectName)
 		end
@@ -418,7 +418,7 @@ local shallowReadonlyCache: { [RawTable]: RawTable } = weakKeyed()
 
 --- Nested tables become reactive when they're read
 local function reactive<T>(target: T): T
-	assert(type(target) == "table", "reactive expects a table")
+	assert(type(target) == "table", "[Rivue] reactive() expects a table")
 	local tbl: RawTable = target :: any
 	if rawMarker[tbl] or reactiveMarker[tbl] or readonlyMarker[tbl] then
 		return target :: any
@@ -483,7 +483,7 @@ local function reactive<T>(target: T): T
 end
 
 local function shallowReactive<T>(target: T): T
-	assert(type(target) == "table", "shallowReactive expects a table")
+	assert(type(target) == "table", "[Rivue] shallowReactive() expects a table")
 	local tbl: RawTable = target :: any
 	if rawMarker[tbl] or reactiveMarker[tbl] or readonlyMarker[tbl] then
 		return target :: any
@@ -576,17 +576,17 @@ table.freeze(RefMT)
 
 local function ref<T>(initial: T): Ref<T>
 	local wrapped: unknown = if shouldWrap(initial) then reactive(initial) else initial
-	local r: RefInternal = { _is_ref = true, _value = wrapped, _dep = false }
+	local r: RefInternal = { _isRef = true, _value = wrapped, _dep = false }
 	return setmetatable(r :: any, RefMT) :: any
 end
 
 local function shallowRef<T>(initial: T): Ref<T>
-	local r: RefInternal = { _is_ref = true, _value = initial, _shallow = true, _dep = false }
+	local r: RefInternal = { _isRef = true, _value = initial, _shallow = true, _dep = false }
 	return setmetatable(r :: any, RefMT) :: any
 end
 
 local function isRef(r: unknown): boolean
-	return type(r) == "table" and (r :: any)._is_ref == true
+	return type(r) == "table" and (r :: any)._isRef == true
 end
 
 local function unref<T>(r: MaybeRef<T>): T
@@ -605,7 +605,7 @@ local function computed<T>(getterOrOptions: ((previous: T?) -> T) | WritableComp
 		getter = getterOrOptions.get
 		setter = getterOrOptions.set
 	else
-		error("computed expects a getter or { get, set }")
+		error("[Rivue] computed() expects a getter or { get, set }", 2)
 	end
 
 	local dirty = true
@@ -668,7 +668,7 @@ local function computed<T>(getterOrOptions: ((previous: T?) -> T) | WritableComp
 		return value
 	end
 
-	local obj = { _is_ref = true, get = get }
+	local obj = { _isRef = true, get = get }
 	setmetatable(obj, {
 		__index = function(_: unknown, k: unknown): unknown
 			if k == REF_VALUE_KEY then
@@ -690,7 +690,7 @@ local function computed<T>(getterOrOptions: ((previous: T?) -> T) | WritableComp
 end
 
 local function toRef<K, V>(obj: { [K]: V }, key: K): Ref<V>
-	local r = { _is_ref = true }
+	local r = { _isRef = true }
 	setmetatable(r, {
 		__index = function(_: unknown, k: unknown): unknown
 			if k == REF_VALUE_KEY then
@@ -879,7 +879,7 @@ local function watch<T>(source: WatchSource<T> | { [any]: any }, cb: WatchCallba
 
 	local function runCleanups()
 		for _, cleanup in cleanups do
-			pcall(cleanup)
+			debugModule.safeCall("cleanup", cleanup)
 		end
 		table.clear(cleanups)
 	end
@@ -1001,7 +1001,7 @@ local function watchEffect(fn: (onCleanup: OnCleanup) -> (), opts: WatchOptions?
 	end
 	local function runCleanups()
 		for _, cleanup in cleanups do
-			pcall(cleanup)
+			debugModule.safeCall("cleanup", cleanup)
 		end
 		table.clear(cleanups)
 	end
@@ -1165,7 +1165,7 @@ local function triggerRef<T>(refObj: Ref<T>)
 end
 
 local function customRef<T>(factory: CustomRefFactory<T>): Ref<T>
-	local refTable = { _is_ref = true }
+	local refTable = { _isRef = true }
 
 	local accessor = factory(function()
 		track(refTable, REF_VALUE_KEY)

@@ -5,34 +5,10 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Rivue = require(ReplicatedStorage.RivueUI)
 
-local function assertEquals(actual: any, expected: any, message: string?)
-	if actual ~= expected then
-		error(
-			string.format(
-				"Assertion failed: %s\nExpected: %s\nActual: %s",
-				message or "values not equal",
-				tostring(expected),
-				tostring(actual)
-			)
-		)
-	end
-	print("✓", message or "Assertion passed")
-end
-
-local function assertTrue(condition: boolean, message: string?)
-	if not condition then
-		error("Assertion failed: " .. (message or "condition is false"))
-	end
-	print("✓", message or "Assertion passed")
-end
-
-local function assertError(fn: () -> (), message: string?)
-	local success = pcall(fn)
-	if success then
-		error("Assertion failed: " .. (message or "expected function to throw error"))
-	end
-	print("✓", message or "Assertion passed")
-end
+local TestSupport = require(game:GetService("ReplicatedStorage"):WaitForChild("TestSupport"))
+local assertEquals = TestSupport.assertEquals
+local assertTrue = TestSupport.assertTrue
+local assertError = TestSupport.assertError
 
 local function runTests()
 	print("\n========== ATTRIBUTE REF ENHANCEMENTS TEST SUITE ==========\n")
@@ -46,7 +22,7 @@ local function runTests()
 
 		local updateCount = 0
 		Rivue.watch(attrRef, function()
-			updateCount = updateCount + 1
+			updateCount += 1
 		end)
 
 		instance:SetAttribute("testValue", 20)
@@ -69,7 +45,7 @@ local function runTests()
 
 		local attributeChangeCount = 0
 		local conn = instance:GetAttributeChangedSignal("testValue"):Connect(function()
-			attributeChangeCount = attributeChangeCount + 1
+			attributeChangeCount += 1
 		end)
 
 		attrRef.value = 20
