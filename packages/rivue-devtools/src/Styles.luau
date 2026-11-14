@@ -251,8 +251,6 @@ local function build(p: Theme.Palette, ROW: number): { [string]: any }
 			Text = "☆",
 		},
 		pinned = { TextColor3 = p.changed, Text = "★" },
-		warning = { TextColor3 = p.changed, BackgroundColor3 = p.changed },
-		error = { TextColor3 = p.slow, BackgroundColor3 = p.slow },
 		name = auto(true),
 		changedName = {},
 		slowName = {},

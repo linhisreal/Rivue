@@ -17,7 +17,6 @@ local Theme = require(script.Parent:WaitForChild("Theme"))
 local TAG = "RivueComponent"
 local CHANNEL_TAG = "RivueDevToolsChannel"
 local MAX_EVENTS = 100
-local INDENT = 14
 local KINDS = { "render", "emit", "navigation", "network", "warning" }
 local NETWORK_KINDS = { request = true, send = true, event = true, state = true }
 local MAX_NETWORK = 200

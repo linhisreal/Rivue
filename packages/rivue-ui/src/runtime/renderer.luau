@@ -9,7 +9,6 @@ local hModule = require("./h")
 local reactivity = require("./reactivity")
 local Pool = require("./pool")
 local scheduler = require("./scheduler")
-local utils = require("./utils")
 local directives = require("./directives")
 local robloxModule = require("./roblox")
 
@@ -2078,20 +2077,20 @@ local function applyDevtoolsEdit(inst: ComponentInstance, el: Instance)
 	local field: unknown = "value"
 	local current = rawget(target, "_value")
 	for i = 2, #segments do
-		local raw: any = reactivity.toRaw(current)
-		if type(raw) ~= "table" then
+		local unwrapped: any = reactivity.toRaw(current)
+		if type(unwrapped) ~= "table" then
 			return
 		end
 		local segment: unknown = segments[i]
-		if raw[segment] == nil then
+		if unwrapped[segment] == nil then
 			segment = tonumber(segments[i])
 		end
-		if segment == nil or raw[segment] == nil then
+		if segment == nil or unwrapped[segment] == nil then
 			return
 		end
 		holder = if i == 2 then (target :: any).value else holder[field]
 		field = segment
-		current = raw[segment]
+		current = unwrapped[segment]
 	end
 	local value: unknown = nil
 	if type(current) == "number" then
@@ -2222,6 +2221,7 @@ local function watchVaporDevtools(inst: ComponentInstance)
 			end,
 		})
 		watcher.run()
+		return nil
 	end)
 end
 
