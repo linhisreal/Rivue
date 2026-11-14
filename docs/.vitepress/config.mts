@@ -27,6 +27,17 @@ function githubLinks(md: any) {
 	}
 }
 
+function pageActions(md: any) {
+	md.core.ruler.push("page_actions", (state: any) => {
+		const tokens = state.tokens
+		const close = tokens.findIndex((t: any) => t.type === "heading_close" && t.tag === "h1")
+		if (close === -1) return
+		const html = new state.Token("html_block", "", 0)
+		html.content = "<PageActions />\n"
+		tokens.splice(close + 1, 0, html)
+	})
+}
+
 function githubSlug(text: string): string {
 	return text
 		.trim()
@@ -155,20 +166,41 @@ export default withMermaid(
 		cleanUrls: true,
 		rewrites: { "README.md": "index.md" },
 		srcExclude: ["assets/README.md"],
-		lastUpdated: true,
 		head: [
 			["link", { rel: "icon", href: "/Rivue/favicon.ico", sizes: "any" }],
 			["link", { rel: "icon", type: "image/png", sizes: "32x32", href: "/Rivue/favicon-32.png" }],
 			["link", { rel: "apple-touch-icon", href: "/Rivue/apple-touch-icon.png" }],
 			["meta", { name: "theme-color", content: "#1f6feb" }],
+			["link", { rel: "preconnect", href: "https://fonts.googleapis.com" }],
+			["link", { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" }],
+			[
+				"link",
+				{
+					rel: "stylesheet",
+					href: "https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400..600&display=swap",
+				},
+			],
 		],
 		vite: { publicDir: path.resolve(DOCS, "assets/web") },
 		transformPageData(pageData) {
 			if (pageData.relativePath === "index.md") {
 				pageData.frontmatter = { ...pageData.frontmatter, layout: "home" }
+				return
+			}
+			const source = pageData.filePath === "index.md" ? "README.md" : pageData.filePath
+			pageData.frontmatter = {
+				...pageData.frontmatter,
+				source,
+				markdown: fs.readFileSync(path.resolve(DOCS, source)).toString("base64"),
 			}
 		},
-		markdown: { config: githubLinks, anchor: { slugify: githubSlug } },
+		markdown: {
+			config(md) {
+				githubLinks(md)
+				pageActions(md)
+			},
+			anchor: { slugify: githubSlug },
+		},
 		themeConfig: {
 			logo: { src: "/icon-192.png", alt: "Rivue" },
 			landing,
@@ -199,7 +231,7 @@ export default withMermaid(
 			],
 			socialLinks: [{ icon: "github", link: REPO }],
 			search: { provider: "local" },
-			editLink: { pattern: `${REPO}/edit/main/docs/:path` },
+
 		},
 	}),
 )
