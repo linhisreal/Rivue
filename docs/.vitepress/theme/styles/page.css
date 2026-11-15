@@ -1193,3 +1193,8 @@
 		gap: 8px;
 	}
 }
+
+.dark .fd-only-light,
+html:not(.dark) .fd-only-dark {
+	display: none;
+}

@@ -1,6 +1,7 @@
 // Copyright (c) 2025-2026 linhisreal (ThisisLinh)
 // Licensed under the Rivue License, based on PolyForm Noncommercial 1.0.0. See LICENSE.
 
+import fs from "node:fs"
 import path from "node:path"
 import { apiEntries } from "./api.mts"
 import { DOCS, htmlToken, REPO, ROOT } from "./site.mts"
@@ -14,6 +15,7 @@ export function markdownPlugins(md: any) {
 	pageActions(md)
 	dropPagerLine(md)
 	relatedLinks(md)
+	themedImages(md)
 	apiEntries(md)
 }
 
@@ -190,4 +192,21 @@ function relatedLinks(md: any) {
 			}
 		}
 	})
+}
+
+// GitHub shows the light diagram; the site swaps in name-dark.webp next to it when one exists
+function themedImages(md: any) {
+	const image = md.renderer.rules.image
+	md.renderer.rules.image = (tokens: any, idx: number, options: any, env: any, self: any) => {
+		const token = tokens[idx]
+		const src: string = token.attrGet("src") ?? ""
+		const dark = src.replace(/\.webp$/, "-dark.webp")
+		const exists = env?.relativePath && dark !== src && fs.existsSync(path.resolve(DOCS, path.dirname(env.relativePath), dark))
+		if (!exists) return image(tokens, idx, options, env, self)
+		token.attrJoin("class", "fd-only-light")
+		const light = image(tokens, idx, options, env, self)
+		token.attrSet("src", dark)
+		token.attrSet("class", "fd-only-dark")
+		return light + image(tokens, idx, options, env, self)
+	}
 }

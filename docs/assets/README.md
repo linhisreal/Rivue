@@ -11,7 +11,7 @@ Images used by the README, the docs and the docs site.
 | `license-lockup.webp` | the header of the license files |
 | `packages/` | one icon per package |
 | `badges/` | the badges at the top of the README |
-| `diagrams/` | pictures for the guide and the API pages |
+| `diagrams/` | pictures for the guide and the API pages; `name-dark.webp` is the dark-mode version the site shows instead |
 | `web/` | favicons and the site logo; the docs site serves this folder as its public folder |
 
 Colours: blue `#1F6FEB`, mint `#7EE8C0` and `#1F2328` for dark text. The package icons use the
