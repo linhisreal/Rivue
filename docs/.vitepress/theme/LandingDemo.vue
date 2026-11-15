@@ -304,7 +304,7 @@ function show(name: "shop" | "itemRow") {
 					</div>
 				</div>
 				<p class="rv-note">
-					Buy something or add coins. The Explorer marks re-rendered components in blue, and Properties shows the values written in green.
+					Buy something or add coins. Components that re-render turn blue in the Explorer, and the properties Rivue writes turn green.
 				</p>
 			</div>
 

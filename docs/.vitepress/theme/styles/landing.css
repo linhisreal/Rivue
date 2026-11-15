@@ -132,6 +132,10 @@
 	background: var(--rivue-blue);
 }
 
+.rv-nowrap {
+	white-space: nowrap;
+}
+
 .rv-lead {
 	max-width: 600px;
 	margin: 40px auto 0;

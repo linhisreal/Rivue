@@ -29,7 +29,7 @@ const install = ref(0)
 const features = [
 	{
 		title: "Reactivity",
-		text: "ref, reactive, computed and watch. Only components that read a changed value re-render.",
+		text: "ref, reactive, computed and watch, named and used as in Vue 3.",
 		link: "/guide/02-state",
 		icon: "M13 2 4 14h7l-1 8 9-12h-7z",
 	},
@@ -157,8 +157,8 @@ onUnmounted(() => {
 				</span>
 			</h1>
 			<p class="rv-lead">
-				Write UI as components in Luau. When state changes, Rivue re-renders the components that use it and
-				updates their Instances.
+				Write your UI as Luau components. When state changes, Rivue <span class="rv-nowrap">re-renders</span> only the
+				components that read it and writes just the properties that changed.
 			</p>
 			<div class="rv-actions">
 				<a class="rv-btn rv-btn-brand" :href="withBase('/guide/01-introduction')">
