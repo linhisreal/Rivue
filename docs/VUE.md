@@ -56,7 +56,7 @@ The tables below are the cheat sheet. The differences worth knowing are at the e
 
 ## script setup to defineComponent
 
-```vue
+```vue [Vue] tab
 <script setup>
 const props = defineProps({ start: { type: Number, default: 0 } })
 const emit = defineEmits(["change"])
@@ -66,7 +66,7 @@ onMounted(() => console.log("mounted"))
 </script>
 ```
 
-```lua
+```lua [Rivue] tab
 local Counter = Rivue.defineComponent({
 	name = "Counter",
 	props = { start = { type = "number", default = 0 } },

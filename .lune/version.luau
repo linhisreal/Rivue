@@ -9,7 +9,7 @@
 	lune run version rivue-remote 0.7.0-beta.1
 
 	Updates that package's wally.toml and pesde.toml (and lockfiles, if you have them locally), the
-	version field in its source, and its install line in the README.
+	version field in its source, and its install lines in the README and docs/INSTALLATION.md.
 ]]
 
 local fs = require("@lune/fs")
@@ -74,5 +74,7 @@ end
 local wallyToml = if fs.isFile(`{dir}/wally.toml`) then fs.readFile(`{dir}/wally.toml`) else ""
 local wallyName = string.match(wallyToml, 'name = "([^"]+)"')
 if wallyName then
-	update("README.md", `({escape(wallyName)}@)[%w%.%-]+"`, `%1{version}"`, false)
+	for _, file in { "README.md", "docs/INSTALLATION.md" } do
+		update(file, `({escape(wallyName)}@)[%w%.%-]+"`, `%1{version}"`, false)
+	end
 end

@@ -21,7 +21,7 @@ Each folder in `packages/` has its own version (in `wally.toml`) and is publishe
 | `rivue-devtools` | follows RivueUI | — | — |
 
 ```sh
-lune run version rivue-router 0.1.0-beta.2   # bumps manifests, version field and README
+lune run version rivue-router 0.1.0-beta.2   # bumps manifests, version field and install lines
 wally publish --project-path packages/rivue-router
 cd packages/rivue-router && pesde publish
 ```

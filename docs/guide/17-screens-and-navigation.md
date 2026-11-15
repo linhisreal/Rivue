@@ -11,8 +11,8 @@ which is still the right call for tabs. Reach for the router once screens open o
 
 ## Setting it up
 
-RivueRouter is its own package, like Vue Router. Install it next to RivueUI (see the
-[README](../../README.md#installation)) and it finds RivueUI by itself.
+RivueRouter is its own package, like Vue Router. Install it next to RivueUI (see
+[Installation](../INSTALLATION.md)) and it finds RivueUI by itself.
 
 ![how the router, RouterView and the screens fit together](../assets/diagrams/router-setup.webp)
 

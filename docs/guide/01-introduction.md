@@ -27,10 +27,10 @@ You don't write `label.Text = ...` anywhere.
 
 ## Your first component
 
-Put Rivue in `ReplicatedStorage` (see [Installation](../../README.md#installation)), then add a
+Put Rivue in `ReplicatedStorage` (see [Installation](../INSTALLATION.md)), then add a
 LocalScript:
 
-```lua
+```lua {9,19} /ctx/
 -- StarterPlayerScripts/Hud.client.luau
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -87,6 +87,7 @@ not `ctx.count.value`). After that come the component's props, then helpers like
 `createApp(Counter):mountToPlayerGui(player)` creates a ScreenGui in the player's PlayerGui and
 renders into it. `app:mount(instance)` renders into any other Instance.
 
+> [!NOTE]
 > Tiny components can skip the table and return the render function straight from `setup`. A few
 > API examples do that. The rest of these docs stick to `setup` + `render`.
 

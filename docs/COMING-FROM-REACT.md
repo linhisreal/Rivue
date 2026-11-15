@@ -3,8 +3,9 @@
 # Coming from React-lua or Fusion
 
 React-lua, Fusion and Rivue all describe UI as a tree of Instances. Where they part ways is what
-happens when a value changes. (Still on Roact? React-lua is its maintained successor, so this page
-compares against React-lua.)
+happens when a value changes. This page compares against React-lua, Roact's maintained successor,
+and Fusion 0.3, Fusion's current release. Fusion 0.4 is in development and keeps the same
+building blocks.
 
 ![what one state change touches in React-lua, Fusion and Rivue](assets/diagrams/update-models.webp)
 
@@ -12,7 +13,8 @@ React-lua follows React. A component's render function runs again on every state
 with everything under it, and you reach for `React.memo` or bindings when that gets expensive.
 
 Fusion goes the other way. It tracks state per value and updates Instance properties directly,
-so nothing re-renders. It also has no component system: a component is just a function.
+so nothing re-renders. Components are plain functions that take a `scope`, so props, events and
+lifecycle are conventions you set up yourself.
 
 Rivue sits between the two, the way Vue does. State is tracked per value, like Fusion, but you
 still get components with props, events, slots and lifecycle hooks, like React. When a value
@@ -88,9 +90,11 @@ rules, and `render` never needs a `Computed` wrapper to stay up to date.
 | `[React.Change.Text]` | `[OnChange "Text"]` | `onTextChanged` (any `on<Property>Changed`) |
 | `useRef` + `ref` | `[Out]` / `Value` | `ref = "name"` + `Rivue.useTemplateRef("name")` |
 | `useBinding` | `Value` | `Rivue.ref`. Only readers re-render, so no binding is needed for speed |
-| `createContext` / `useContext` | pass values down | `Rivue.provide` / `Rivue.inject` |
+| `createContext` / `useContext` | `Contextual`: `:now()`, `:is(value):during(fn)` | `Rivue.provide` / `Rivue.inject` |
 | `ReactRoblox.createPortal` | parent elsewhere | `Rivue.Teleport` |
 | `React.Fragment` | a table of children | `Rivue.Fragment`, or return a list |
+| `items.map` to elements | `scope:ForValues` / `scope:ForPairs` | `Rivue.hFor(items, fn)` with a `key` |
+| an error boundary component | `Safe { try, fallback }` | `Rivue.ErrorBoundary`, `onErrorCaptured` |
 | `props.children` | `[Children]` | slots: `ctx.renderSlot("default")` |
 | `defaultProps`, `propTypes` | — | `props = { name = { type, default, required, validator } }` |
 | `ReactRoblox.createRoot(parent):render(el)` | `scope:New` with `Parent` | `Rivue.createApp(App):mount(parent)` |
@@ -137,7 +141,7 @@ Your usual Roblox tools carry over:
 | | React-lua / Fusion projects | Rivue |
 |---|---|---|
 | Syncing files | Rojo | Rojo: point `$path` at the Rivue package |
-| Packages | Wally | Wally or pesde ([Installation](../README.md#installation)), or the `.rbxm` from a release |
+| Packages | Wally | Wally or pesde ([Installation](INSTALLATION.md)), or the `.rbxm` from a release |
 | Storybook | UI Labs, Hoarcekat, Flipbook | `Rivue.story()` for UI Labs and Hoarcekat ([API](api/utilities.md#story)) |
 | Tests | TestEZ, Jest-Lua | either runner: mount, `Rivue.testing.trigger`, `Rivue.nextTick()` ([Guide 16](guide/16-testing-ui.md)) |
 | Types and formatting | luau-lsp, StyLua | luau-lsp, StyLua; Rivue is `--!strict` with exported types |

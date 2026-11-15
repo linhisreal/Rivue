@@ -63,6 +63,7 @@ local Tab = Rivue.defineComponent({
 })
 ```
 
+> [!NOTE]
 > `ctx` only unwraps refs that `setup` returns directly. `active` is nested in a table, so it
 > keeps its `.value`.
 
