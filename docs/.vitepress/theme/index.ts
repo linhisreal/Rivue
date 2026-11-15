@@ -3,6 +3,7 @@ import DefaultTheme from "vitepress/theme"
 import type { Theme } from "vitepress"
 import DocBanner from "./DocBanner.vue"
 import HomeFooter from "./HomeFooter.vue"
+import Landing from "./Landing.vue"
 import NotFound from "./NotFound.vue"
 import OutlineTree from "./OutlineTree.vue"
 import PageActions from "./PageActions.vue"
@@ -19,6 +20,7 @@ import "./styles/outline.css"
 import "./styles/diagrams.css"
 import "./styles/search.css"
 import "./styles/not-found.css"
+import "./styles/landing.css"
 
 export default {
 	extends: DefaultTheme,
@@ -41,6 +43,7 @@ export default {
 	},
 	Layout: () =>
 		h(DefaultTheme.Layout, null, {
+			"home-hero-before": () => h(Landing),
 			"not-found": () => h(NotFound),
 			"nav-bar-content-after": () => h(RepoLink),
 			"layout-bottom": () => h(HomeFooter),

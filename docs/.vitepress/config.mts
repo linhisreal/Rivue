@@ -1,5 +1,6 @@
 import fs from "node:fs"
 import path from "node:path"
+import { createHighlighter } from "shiki"
 import { defineConfig } from "vitepress"
 import { withMermaid } from "vitepress-plugin-mermaid"
 import { transformerMetaWordHighlight } from "@shikijs/transformers"
@@ -170,6 +171,142 @@ const advanced = [
 const version = (pkg: string) =>
 	/^version = "([^"]+)"/m.exec(fs.readFileSync(path.resolve(DOCS, `../packages/${pkg}/wally.toml`), "utf8"))?.[1] ?? ""
 
+const SHOP = `local ITEMS = {
+	{ name = "Sword", price = 20 },
+	{ name = "Shield", price = 30 },
+	{ name = "Potion", price = 10 },
+}
+
+local Shop = Rivue.defineComponent({
+	name = "Shop",
+	setup = function()
+		local coins = Rivue.ref(30)
+		local owned = Rivue.reactive({})
+		return {
+			coins = coins,
+			owned = owned,
+			buy = function(item)
+				coins.value -= item.price
+				owned[item.name] = true
+			end,
+		}
+	end,
+	render = function(ctx)
+		return h("Frame", { Name = "Shop", class = "shop" }, {
+			h("UIListLayout"),
+			h("TextLabel", { Name = "Coins", Text = \`{ctx.coins} coins\` }),
+			h("TextButton", {
+				Name = "Earn",
+				Text = "+10 coins",
+				onClick = function()
+					ctx.coins += 10
+				end,
+			}),
+			Rivue.hFor(ITEMS, function(item)
+				return h(ItemRow, {
+					key = item.name,
+					name = item.name,
+					price = item.price,
+					owned = ctx.owned[item.name] == true,
+					affordable = ctx.coins >= item.price,
+					onBuy = function()
+						ctx.buy(item)
+					end,
+				})
+			end),
+		})
+	end,
+})`
+
+const ITEM_ROW = `local ItemRow = Rivue.defineComponent({
+	name = "ItemRow",
+	props = {
+		name = { type = "string" },
+		price = { type = "number" },
+		owned = { type = "boolean", default = false },
+		affordable = { type = "boolean", default = true },
+	},
+	emits = { "buy" },
+	render = function(ctx)
+		return h("TextButton", {
+			Name = ctx.name,
+			class = "row",
+			Text = if ctx.owned then \`{ctx.name} · Owned\` else \`{ctx.name} · {ctx.price}\`,
+			disabled = ctx.owned or not ctx.affordable,
+			onClick = function()
+				ctx.emit("buy")
+			end,
+		})
+	end,
+})`
+
+const VUE_COUNTER = `<script setup>
+import { ref } from "vue"
+
+const count = ref(0)
+</script>
+
+<template>
+  <button @click="count++">Clicked {{ count }} times</button>
+</template>`
+
+// The React-lua, Fusion and Rivue counters come from the comparison page so the two can't drift apart.
+function counters() {
+	const page = fs.readFileSync(path.resolve(DOCS, "COMING-FROM-REACT.md"), "utf8")
+	const section = page.slice(page.indexOf("## The same counter in each"), page.indexOf("## API map"))
+	const [react, fusion, rivue] = [...section.matchAll(/```lua\n([\s\S]*?)```/g)].map((m) => m[1].trimEnd())
+	return { react, fusion, rivue }
+}
+
+const highlighter = await createHighlighter({ themes: ["github-light", "github-dark"], langs: ["luau", "vue"] })
+const highlight = (code: string, lang: string, steps: Record<string, string> = {}) => {
+	const lines = code.split("\n")
+	const stepAt = new Map(Object.entries(steps).map(([text, step]) => [lines.findIndex((l) => l.includes(text)) + 1, step]))
+	return highlighter.codeToHtml(code, {
+		lang,
+		themes: { light: "github-light", dark: "github-dark" },
+		transformers: [
+			{
+				line(node, line) {
+					const step = stepAt.get(line)
+					if (step) node.properties["data-step"] = step
+				},
+			},
+		],
+	})
+}
+
+const { react, fusion, rivue } = counters()
+
+const landing = {
+	shop: highlight(SHOP, "luau", {
+		"coins.value -= item.price": "spend",
+		"owned[item.name] = true": "own",
+		"ctx.coins += 10": "earn",
+		"Text = `{ctx.coins} coins`": "coins",
+		"owned = ctx.owned": "props",
+		"affordable = ctx.coins": "props",
+		"ctx.buy(item)": "call",
+	}),
+	itemRow: highlight(ITEM_ROW, "luau", {
+		'ctx.emit("buy")': "emit",
+		"Text = if ctx.owned": "text",
+		"disabled = ctx.owned": "disabled",
+	}),
+	compare: [
+		{ name: "Vue", lang: "vue", html: highlight(VUE_COUNTER, "vue") },
+		{ name: "Rivue", lang: "luau", html: highlight(rivue, "luau") },
+		{ name: "React-lua", lang: "luau", html: highlight(react, "luau") },
+		{ name: "Fusion", lang: "luau", html: highlight(fusion, "luau") },
+	],
+	packages: [
+		{ name: "RivueUI", version: version("rivue-ui"), text: "Components, reactivity, styling and the built-ins.", link: "/guide/01-introduction" },
+		{ name: "RivueRemote", version: version("rivue-remote"), text: "Checked client/server calls, events and replicated state.", link: "/api/remote", example: 'Remote.request("shop:buy", { id = "sword" })' },
+		{ name: "RivueRouter", version: version("rivue-router"), text: "Screens with history, guards and nested routes.", link: "/api/router", example: 'router.push("shop")' },
+		{ name: "RivueDevTools", version: "", text: "A Studio plugin for props, state, renders and network.", link: "/DEVTOOLS" },
+	],
+}
+
 const api: [string, [string, string][]][] = [
 	[
 		"Reactivity",
@@ -328,6 +465,7 @@ export default withMermaid(
 			logo: { src: "/icon-192.png", alt: "Rivue" },
 			version: version("rivue-ui"),
 			repo: { name: "linhisreal/Rivue", url: REPO, ...(await repoStats()) },
+			landing,
 			outline: { level: [2, 3] },
 			footer: {
 				message: "Released under the Rivue License, based on PolyForm Noncommercial 1.0.0.",
