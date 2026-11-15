@@ -11,8 +11,8 @@
 | | |
 |---|---|
 | [Installation](INSTALLATION.md) | Wally, pesde, Rojo or a Studio model file |
-| [Guide](GUIDE.md) | Chapters 1–11 cover the framework, 12–16 the advanced topics |
-| [Examples](../examples) | Todo list, inventory, modal, tabs, shop, HUD and a routed game menu, all tested |
+| [Guide](GUIDE.md) | Chapters 1–11 teach the framework, 12–17 cover advanced topics |
+| [Examples](../examples) | Counter, todo list, inventory, modal, tabs, shop, HUD and a routed game menu, all tested |
 | [API reference](API.md) | Every function, prop and component, with an example each |
 | [Coming from Vue](VUE.md) | Template-to-Luau cheat sheet |
 | [Coming from React-lua or Fusion](COMING-FROM-REACT.md) | API map and what works differently |

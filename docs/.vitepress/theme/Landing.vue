@@ -195,7 +195,7 @@ onUnmounted(() => {
 		<LandingDemo />
 
 		<section class="rv-section">
-			<h2>Everything a game UI needs</h2>
+			<h2>What RivueUI covers</h2>
 			<ul class="rv-features">
 				<li v-for="feature in features" :key="feature.title">
 					<svg viewBox="0 0 24 24" aria-hidden="true"><path :d="feature.icon" /></svg>
@@ -208,9 +208,9 @@ onUnmounted(() => {
 		</section>
 
 		<section class="rv-section">
-			<h2>Next to what you know</h2>
+			<h2>Compared with Vue, React-lua and Fusion</h2>
 			<p class="rv-sub">
-				The same counter in Vue, Rivue, React-lua and Fusion.
+				The same counter in all four.
 				<a :href="withBase('/COMING-FROM-REACT')">Coming from React-lua or Fusion</a> and
 				<a :href="withBase('/VUE')">the Vue cheat sheet</a> explain what differs.
 			</p>
