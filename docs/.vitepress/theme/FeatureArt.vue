@@ -5,7 +5,7 @@ defineProps<{ kind: string }>()
 <template>
 	<div :class="['rv-art', `rv-art-${kind}`]" aria-hidden="true">
 		<template v-if="kind === 'reactivity'">
-			<span class="rv-art-chip rv-art-source"><code>count</code><span class="rv-tick"><span>3</span><span>4</span><span>5</span><span>3</span></span></span>
+			<span class="rv-art-chip rv-art-source"><code>coins</code><span class="rv-tick"><span>3</span><span>4</span><span>5</span><span>3</span></span></span>
 			<svg class="rv-art-wire" viewBox="0 0 40 40"><path d="M2 20h30M26 14l6 6-6 6" /></svg>
 			<span class="rv-art-ui">
 				<span class="rv-art-label rv-art-reads">Coins: <span class="rv-tick"><span>3</span><span>4</span><span>5</span><span>3</span></span></span>
@@ -26,7 +26,7 @@ defineProps<{ kind: string }>()
 
 		<template v-else-if="kind === 'styling'">
 			<span class="rv-art-boxes"><i></i><i></i><i></i></span>
-			<code class="rv-art-caption">layout = <span class="rv-tick"><span>"row"</span><span>"column"</span><span>"row"</span></span></code>
+			<code class="rv-art-caption">padding = 8, layout = <span class="rv-tick"><span>"horizontal"</span><span>"vertical"</span><span>"horizontal"</span></span></code>
 		</template>
 
 		<template v-else-if="kind === 'animation'">
@@ -43,7 +43,10 @@ defineProps<{ kind: string }>()
 		</template>
 
 		<template v-else-if="kind === 'typed'">
-			<code class="rv-art-code">count.value = <span class="rv-tick rv-art-value"><span>5</span><span>"5"</span><span>5</span></span></code>
+			<span class="rv-art-editor">
+				<code class="rv-art-line"><i>1</i><span><span class="rv-tok-kw">local</span> hp: <span class="rv-tok-type">Ref</span>&lt;<span class="rv-tok-type">number</span>&gt; = ref(100)</span></code>
+				<code class="rv-art-line"><i>2</i><span>hp.value = <span class="rv-tick rv-art-value"><span>100</span><span>"full"</span><span>100</span></span></span></code>
+			</span>
 			<span class="rv-art-error">Type 'string' could not be converted into 'number'</span>
 		</template>
 	</div>

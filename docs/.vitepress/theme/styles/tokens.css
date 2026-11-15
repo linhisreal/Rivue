@@ -2,6 +2,7 @@
 	--rivue-blue: #1f6feb;
 	--rivue-blue-dark: #1558c4;
 	--rivue-mint: #3ecfa0;
+	--rivue-mint-ink: #0b7a57;
 
 	--vp-c-brand-1: #1a5fd0;
 	--vp-c-brand-2: var(--rivue-blue-dark);
@@ -37,6 +38,7 @@
 }
 
 .dark {
+	--rivue-mint-ink: #3ecfa0;
 	--vp-c-brand-1: #5b9bff;
 	--vp-c-brand-2: #7cb0ff;
 	--vp-c-brand-3: var(--rivue-blue);

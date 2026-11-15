@@ -32,63 +32,88 @@ const features = [
 		title: "Reactivity",
 		text: "ref, reactive, computed and watch, named and used as in Vue 3.",
 		link: "/guide/02-state",
+		chapter: "State",
 		art: "reactivity",
 	},
 	{
 		title: "Components",
 		text: "setup and render, props, emits, slots, provide/inject and every lifecycle hook.",
 		link: "/guide/04-components",
+		chapter: "Components",
 		art: "components",
 	},
 	{
 		title: "Styling and layout",
-		text: "Style classes with hover and device variants, plus layout, flex, padding and corner props.",
+		text: "Style classes with hover and device variants, plus layout, padding and corner props.",
 		link: "/guide/06-styling-and-layout",
+		chapter: "Styling and layout",
 		art: "styling",
 	},
 	{
 		title: "Animation",
 		text: "Transition, TransitionGroup, tweens and springs, with fade, slide and pop presets.",
 		link: "/guide/07-effects-and-animation",
+		chapter: "Effects and animation",
 		art: "animation",
 	},
 	{
 		title: "Long lists",
 		text: "Keyed diffing, VirtualList for thousands of rows, and bindings for values that change every frame.",
 		link: "/guide/09-performance-and-debugging",
+		chapter: "Performance and debugging",
 		art: "lists",
 	},
 	{
 		title: "Typed",
 		text: "Strict Luau throughout, with exported types and support for both type solvers.",
 		link: "/API",
+		chapter: "API reference",
 		art: "typed",
 	},
 ]
+const codeShown = ref(new Set<number>())
+const codeToggled = ref(new Set<number>())
 
-function sceneAnimations(el: HTMLElement) {
-	return el.getAnimations({ subtree: true }).filter((anim) => anim instanceof CSSAnimation)
+function toggleCode(index: number) {
+	codeToggled.value.add(index)
+	if (!codeShown.value.delete(index)) codeShown.value.add(index)
 }
 
-function playScene(event: Event) {
-	const el = event.currentTarget as HTMLElement
-	for (const anim of sceneAnimations(el)) anim.effect?.updateTiming({ iterations: Infinity })
-	el.classList.add("is-playing")
+// only the picture loops on hover; the scan line and notes must play once
+function sceneAnimations(cell: HTMLElement) {
+	const art = cell.querySelector<HTMLElement>(".rv-art")
+	return (art?.getAnimations({ subtree: true }) ?? []).filter((anim) => anim instanceof CSSAnimation)
 }
 
-function settleScene(event: Event) {
-	const el = event.currentTarget as HTMLElement
-	const anims = sceneAnimations(el)
+const playing = ref(new Set<number>())
+
+async function playScene(index: number, cell: HTMLElement) {
+	playing.value.add(index)
+	await nextTick()
+	for (const anim of sceneAnimations(cell)) anim.effect?.updateTiming({ iterations: Infinity })
+}
+
+// finish the loop that's running instead of snapping back mid-move
+function settleScene(index: number, cell: HTMLElement) {
+	const anims = sceneAnimations(cell)
 	for (const anim of anims) {
 		const done = anim.effect?.getComputedTiming().currentIteration ?? 0
 		anim.effect?.updateTiming({ iterations: done + 1 })
 	}
 	Promise.all(anims.map((anim) => anim.finished)).then(
 		() => {
-			if (!el.matches(":hover, :focus-visible")) el.classList.remove("is-playing")
+			if (!cell.matches(":hover, :focus-within")) playing.value.delete(index)
 		},
 		() => {},
 	)
+}
+
+function enterFeature(index: number, event: Event) {
+	playScene(index, event.currentTarget as HTMLElement)
+}
+
+function leaveFeature(index: number, event: Event) {
+	settleScene(index, event.currentTarget as HTMLElement)
 }
 
 let lastMessage = ""
@@ -233,20 +258,50 @@ onUnmounted(() => {
 
 		<section class="rv-section">
 			<h2>What RivueUI covers</h2>
-			<ul class="rv-features">
-				<li v-for="feature in features" :key="feature.title">
-					<a
-						class="rv-feature"
-						:href="withBase(feature.link)"
-						@pointerenter="playScene"
-						@pointerleave="settleScene"
-						@focus="playScene"
-						@blur="settleScene"
-					>
-						<FeatureArt :kind="feature.art" />
-						<strong>{{ feature.title }}</strong>
-						<span>{{ feature.text }}</span>
-					</a>
+			<ul class="rv-spec">
+				<li
+					v-for="(feature, i) in features"
+					:key="feature.title"
+					:class="[
+						'rv-spec-cell',
+						{
+							'is-code': codeShown.has(i),
+							'was-code': codeToggled.has(i) && !codeShown.has(i),
+							'is-playing': playing.has(i),
+						},
+					]"
+					@pointerenter="enterFeature(i, $event)"
+					@pointerleave="leaveFeature(i, $event)"
+					@focusin="enterFeature(i, $event)"
+					@focusout="leaveFeature(i, $event)"
+				>
+					<div class="rv-spec-stage">
+						<FeatureArt :kind="feature.art" :inert="codeShown.has(i)" />
+						<div :id="`rv-code-${feature.art}`" class="rv-spec-code" :inert="!codeShown.has(i)">
+							<div class="rv-spec-file">
+								<span class="rv-spec-file-icon" aria-hidden="true"></span>{{ landing.featureCode[feature.art].file }}
+							</div>
+							<div class="rv-spec-src" v-html="landing.featureCode[feature.art].html"></div>
+						</div>
+						<span class="rv-spec-scan" aria-hidden="true"></span>
+					</div>
+					<div class="rv-spec-text">
+						<button
+							type="button"
+							class="rv-spec-chip"
+							:aria-pressed="codeShown.has(i)"
+							:aria-controls="`rv-code-${feature.art}`"
+							@click="toggleCode(i)"
+						>
+							<span class="rv-spec-dot" aria-hidden="true"></span>
+							<span class="rv-visually-hidden">Show the code for </span>{{ feature.title }}
+						</button>
+						<p>{{ feature.text }}</p>
+						<a :href="withBase(feature.link)">
+							{{ feature.chapter }}
+							<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+						</a>
+					</div>
 				</li>
 			</ul>
 		</section>

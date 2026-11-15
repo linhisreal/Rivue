@@ -86,6 +86,79 @@ const count = ref(0)
   <button @click="count++">Clicked {{ count }} times</button>
 </template>`
 
+type FeatureCode = { file: string; code: string; focus: string; note: string; error?: boolean }
+
+const FEATURE_CODE: Record<string, FeatureCode> = {
+	reactivity: {
+		file: "Coins.luau",
+		code: `local coins = Rivue.ref(3)
+local label = Rivue.computed(function()
+	return \`Coins: {coins.value}\`
+end)
+
+coins.value += 1`,
+		focus: "coins.value += 1",
+		note: 'label = "Coins: 4"',
+	},
+	components: {
+		file: "ItemRow.luau",
+		code: `local ItemRow = Rivue.defineComponent({
+	props = { name = { type = "string" } },
+	render = function(ctx)
+		return h("TextButton", {
+			Text = ctx.name,
+		})
+	end,
+})`,
+		focus: "Text = ctx.name",
+		note: '"Sword"',
+	},
+	styling: {
+		file: "Card.luau",
+		code: `h("Frame", {
+	class = "card",
+	padding = 8,
+	cornerRadius = 8,
+	layout = "horizontal",
+})`,
+		focus: 'layout = "horizontal"',
+		note: "UIListLayout",
+	},
+	animation: {
+		file: "Panel.luau",
+		code: `local fade = Rivue.transitions.fade()
+
+h(Rivue.Transition, fade, {
+	Rivue.hIf(ctx.open, h(Panel)),
+})`,
+		focus: "Rivue.hIf",
+		note: "fades in",
+	},
+	lists: {
+		file: "Inventory.luau",
+		code: `h(Rivue.VirtualList, {
+	items = items,
+	itemSize = 24,
+	render = function(item)
+		return h(ItemRow, { item = item })
+	end,
+})`,
+		focus: "items = items",
+		note: "10,000 rows",
+	},
+	typed: {
+		file: "Health.luau",
+		code: `--!strict
+type Ref<T> = Rivue.Ref<T>
+local hp: Ref<number> = Rivue.ref(100)
+
+hp.value = "full"`,
+		focus: 'hp.value = "full"',
+		note: "string ≠ number",
+		error: true,
+	},
+}
+
 const highlighter = await createHighlighter({ themes: ["github-light", "github-dark"], langs: ["luau", "vue"] })
 
 function highlight(code: string, lang: string, steps: Record<string, string> = {}) {
@@ -103,6 +176,24 @@ function highlight(code: string, lang: string, steps: Record<string, string> = {
 			},
 		],
 	})
+}
+
+function featureCode({ file, code, focus, note, error }: FeatureCode) {
+	const focusLine = code.split("\n").findIndex((line) => line.includes(focus)) + 1
+	const html = highlighter.codeToHtml(code, {
+		lang: "luau",
+		themes: { light: "github-light", dark: "github-dark" },
+		transformers: [
+			{
+				line(node, line) {
+					if (line !== focusLine) return
+					node.properties["data-note"] = note
+					if (error) node.properties["data-error"] = ""
+				},
+			},
+		],
+	})
+	return { file, html }
 }
 
 // read from the comparison page so the landing page and the docs can't drift apart
@@ -135,6 +226,7 @@ export function landingData() {
 	const { react, fusion, rivue } = counters()
 	return {
 		lookup: lookup(),
+		featureCode: Object.fromEntries(Object.entries(FEATURE_CODE).map(([art, code]) => [art, featureCode(code)])),
 		shop: highlight(SHOP, "luau", {
 			"coins.value -= item.price": "spend",
 			"owned[item.name] = true": "own",
