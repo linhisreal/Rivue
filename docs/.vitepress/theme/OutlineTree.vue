@@ -47,6 +47,12 @@ const thumb = computed(() => {
 	return { top: first.top + INSET, bottom: last.bottom - INSET, distance: distance ?? 0 }
 })
 
+const steps = computed(() => String(frontmatter.value.pageClass ?? "").includes("fd-steps"))
+const stepOf = computed(() => {
+	let n = 0
+	return headings.value.map((h) => (h.depth === 0 ? ++n : 0))
+})
+
 const all = ref<Heading[]>([])
 const kindFilter = ref<string>()
 const kinds = computed(() => {
@@ -114,16 +120,21 @@ function measureDistances() {
 	ends.value = el ? points.value.map((p) => lengthAt(el, p.bottom - INSET)) : []
 }
 
+// every section with some of its text on screen is active, like Fumadocs, not only the last heading passed
 function track() {
-	const readingLine = window.innerHeight * 0.3
-	const atBottom = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2
-	let current = 0
-	headings.value.forEach((h, i) => {
-		const el = document.getElementById(h.id)
-		if (el && el.getBoundingClientRect().top <= readingLine) current = i
+	const navBottom = Math.max(0, document.querySelector(".VPNav")?.getBoundingClientRect().bottom ?? 0)
+	const content = document.querySelector(".vp-doc")?.getBoundingClientRect().bottom ?? Infinity
+	const tops = headings.value.map((h) => document.getElementById(h.id)?.getBoundingClientRect().top ?? Infinity)
+	const visible = tops.flatMap((top, i) => {
+		const bottom = Math.min(tops[i + 1] ?? content, content)
+		return bottom > navBottom + 8 && top < window.innerHeight ? [i] : []
 	})
-	if (atBottom) current = headings.value.length - 1
-	active.value = headings.value.length > 0 ? [current] : []
+	if (visible.length > 0) {
+		active.value = visible
+		return
+	}
+	const passed = tops.findLastIndex((top) => top <= navBottom + 8)
+	active.value = headings.value.length > 0 ? [Math.max(passed, 0)] : []
 }
 
 let frame = 0
@@ -219,6 +230,7 @@ onUnmounted(() => {
 				<li v-for="(h, i) in headings" :key="h.id" :style="{ paddingLeft: `${h.depth * INDENT + PAD + 14}px` }">
 					<span v-if="h.group" class="fd-toc-group">{{ h.group }}</span>
 					<a :href="`#${h.id}`" :class="{ active: active.includes(i) }" :aria-current="active[0] === i ? 'location' : undefined">
+						<span v-if="steps && stepOf[i]" class="fd-toc-step" aria-hidden="true">{{ stepOf[i] }}</span>
 						<span v-if="h.kind" class="fd-kind-icon" :data-kind="h.kind" aria-hidden="true"></span>{{ h.text }}
 					</a>
 				</li>

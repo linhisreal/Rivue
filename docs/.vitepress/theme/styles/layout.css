@@ -256,13 +256,14 @@ html {
 }
 
 @media (min-width: 960px) {
-	.VPSidebar {
-		transition: translate 0.25s ease;
+	:root .VPSidebar {
+		transition:
+			translate 0.25s ease,
+			box-shadow 0.25s ease;
 	}
 
 	.fd-collapsed .VPSidebar {
 		translate: -100%;
-		transition: translate 0.25s ease, box-shadow 0.25s ease;
 	}
 
 	.fd-collapsed.fd-peek .VPSidebar {
@@ -487,9 +488,15 @@ html {
 		display: none !important;
 	}
 
-	.Layout:has(.VPDoc) .VPNav {
+	:root .Layout .VPNav {
 		position: sticky;
 		top: 0;
+	}
+
+	/* the open menu locks body scrolling, which stops sticky from applying, so pin the bar while it's open */
+	:root .Layout .VPNav:has(.VPNavScreen) {
+		position: fixed;
+		width: 100%;
 	}
 
 	.Layout:has(.VPDoc) .VPLocalNav {

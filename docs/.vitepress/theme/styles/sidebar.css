@@ -23,9 +23,15 @@
 }
 
 .VPSidebarItem:is(.level-1, .level-2) > .item {
+	position: relative;
 	padding: 0;
 	border-radius: 8px;
 	transition: background-color 0.15s ease;
+}
+
+.VPSidebarItem:is(.level-1, .level-2) > .item:hover,
+.VPSidebarItem:is(.level-1, .level-2) > .item:hover .text {
+	transition-duration: 0s;
 }
 
 .VPSidebarItem:is(.level-1, .level-2) > .item > .link {
@@ -69,12 +75,43 @@
 
 .VPSidebarItem:is(.level-1, .level-2).is-active > .item .text {
 	color: var(--vp-c-brand-1);
+	font-weight: 500;
 }
 
-.VPSidebarItem.level-1 > .items {
+
+:root .VPSidebarItem.level-1 > .items {
+	--fd-tree-pad: 16px;
 	margin: 2px 0 4px 12px;
-	padding-left: 8px;
-	border-left: 1px solid var(--vp-c-divider);
+	padding-left: var(--fd-tree-pad);
+	border-left: 0;
+}
+
+/* the group animation clips .items, so the line and bar stay inside its left edge */
+.VPSidebarItem.level-1 > .items > .VPSidebarItem {
+	position: relative;
+}
+
+.VPSidebarItem.level-1 > .items > .VPSidebarItem::before,
+.VPSidebarItem.level-1 > .items > .VPSidebarItem.is-active::after {
+	content: "";
+	position: absolute;
+}
+
+.VPSidebarItem.level-1 > .items > .VPSidebarItem::before {
+	top: 0;
+	bottom: 0;
+	left: calc(1px - var(--fd-tree-pad));
+	width: 1px;
+	background: var(--vp-c-divider);
+}
+
+.VPSidebarItem.level-1 > .items > .VPSidebarItem.is-active::after {
+	left: calc(-1 * var(--fd-tree-pad));
+	width: 3px;
+	top: 6px;
+	bottom: 6px;
+	border-radius: 2px;
+	background: var(--vp-c-brand-1);
 }
 
 .VPSidebarItem .caret {
@@ -120,6 +157,33 @@
 
 .VPSidebar .link[href$="/API"] {
 	--fd-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 19.5V5a2 2 0 0 1 2-2h14v16H6a2 2 0 0 0-2 2.5zM8 7h8'/%3E%3C/svg%3E");
+}
+
+@media (prefers-reduced-motion: no-preference) {
+	.VPSidebar {
+		interpolate-size: allow-keywords;
+	}
+
+	:root .VPSidebarItem.collapsible > .items {
+		overflow: clip;
+		transition:
+			height 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+			opacity 0.2s ease,
+			display 0.25s;
+		transition-behavior: allow-discrete;
+	}
+
+	:root .VPSidebarItem.collapsible.collapsed > .items {
+		height: 0;
+		opacity: 0;
+	}
+
+	@starting-style {
+		:root .VPSidebarItem.collapsible:not(.collapsed) > .items {
+			height: 0;
+			opacity: 0;
+		}
+	}
 }
 
 @media (prefers-reduced-motion: reduce) {

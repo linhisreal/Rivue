@@ -11,7 +11,7 @@ import RepoLink from "./RepoLink.vue"
 import NavMenu from "./NavMenu.vue"
 import SidebarOpen from "./SidebarOpen.vue"
 import { applySavedTab, holdHashTarget, onCodeTabClick, onHeadingAnchorClick, onSearchToggleClick } from "./composables"
-import { onImageClick, onTypeHover } from "./enhance"
+import { animateSearchClose, onImageClick, onTypeHover } from "./enhance"
 import SidebarBottom from "./SidebarBottom.vue"
 import SidebarTop from "./SidebarTop.vue"
 import "./styles/tokens.css"
@@ -37,6 +37,7 @@ export default {
 		document.addEventListener("click", onImageClick)
 		document.addEventListener("mouseover", onTypeHover)
 		window.addEventListener("load", applySavedTab)
+		animateSearchClose()
 		window.addEventListener("load", holdHashTarget)
 		window.addEventListener("hashchange", holdHashTarget)
 		const afterRouteChange = router.onAfterRouteChange
