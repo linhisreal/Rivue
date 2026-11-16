@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { openSearch } from "./composables"
 
-// VitePress keeps the sidebar's open state private; its own "Menu" button in the local nav is the way in
 function openSidebar() {
 	document.querySelector<HTMLButtonElement>(".VPLocalNav .menu")?.click()
 }

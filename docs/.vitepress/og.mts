@@ -98,12 +98,12 @@ export function ogPages(pages: string[], examples: Example[], posts: Post[]): Og
 
 const postOf = (page: string, posts: Post[]) => posts.find((post) => post.banner && page === `blog/${post.slug}.md`)
 
-// a post's banner is its preview image; other pages get the generated card
 export function copyBanners(posts: Post[], outDir: string) {
 	fs.mkdirSync(path.join(outDir, "og"), { recursive: true })
 	for (const post of posts) {
 		if (!post.banner) continue
-		fs.copyFileSync(path.join(DOCS, "assets/blog", post.banner), path.join(outDir, "og", `${ogSlug(`blog/${post.slug}.md`)}.webp`))
+		const dark = path.join(DOCS, "assets/blog", post.banner.replace(/\.webp$/, "-dark.webp"))
+		fs.copyFileSync(fs.existsSync(dark) ? dark : path.join(DOCS, "assets/blog", post.banner), path.join(outDir, "og", `${ogSlug(`blog/${post.slug}.md`)}.webp`))
 	}
 }
 
@@ -118,8 +118,8 @@ export function ogHead(pageData: PageData, posts: Post[]): HeadConfig[] {
 		["meta", { property: "og:description", content: pageData.description || DESCRIPTION }],
 		["meta", { property: "og:url", content: pageUrl(page) }],
 		["meta", { property: "og:image", content: image }],
-		["meta", { property: "og:image:width", content: banner ? "1600" : String(WIDTH) }],
-		["meta", { property: "og:image:height", content: banner ? "840" : String(HEIGHT) }],
+		["meta", { property: "og:image:width", content: banner ? "3200" : String(WIDTH) }],
+		["meta", { property: "og:image:height", content: banner ? "1680" : String(HEIGHT) }],
 		["meta", { name: "twitter:card", content: "summary_large_image" }],
 		["meta", { name: "twitter:image", content: image }],
 	]

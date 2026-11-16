@@ -1,4 +1,3 @@
-/* the home page renders the docs README for search and GitHub; the landing shows its content itself */
 .VPHome .vp-doc {
 	display: none;
 }
@@ -2139,7 +2138,6 @@ html:not(.dark) .rv-cta-v-edge.rv-cta-mint {
 	stroke-linejoin: round;
 }
 
-/* sized by the Explorer and game view, so a long property list scrolls instead of growing the window */
 .rv-properties {
 	contain: size;
 }

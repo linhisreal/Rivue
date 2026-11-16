@@ -196,7 +196,6 @@ function featureCode({ file, code, focus, note, error }: FeatureCode) {
 	return { file, html }
 }
 
-// read from the comparison page so the landing page and the docs can't drift apart
 function counters() {
 	const page = fs.readFileSync(path.join(DOCS, "COMING-FROM-REACT.md"), "utf8")
 	const section = page.slice(page.indexOf("## The same counter in each"), page.indexOf("## API map"))
@@ -262,7 +261,6 @@ export function landingData() {
 	}
 }
 
-// the docs workflow passes its GITHUB_TOKEN; without it (or offline) the repo card just shows the name
 export async function repoStats() {
 	const headers: Record<string, string> = { "User-Agent": "rivue-docs" }
 	if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`

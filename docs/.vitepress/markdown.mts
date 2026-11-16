@@ -58,7 +58,6 @@ const titleOf = (info: string) => /\s\[([^\]]+)\]/.exec(info)?.[1]
 const langOf = (info: string) => info.trim().split(/\s/)[0] || "text"
 const isTab = (token: any) => token?.type === "fence" && /\stab(\s|$)/.test(token.info)
 
-// GitHub only reads a fence's first word, so "lua [title] tab /word/" still renders as plain Lua there
 function codeBlocks(md: any) {
 	md.core.ruler.push("code_tabs", (state: any) => {
 		const tokens = state.tokens
@@ -108,7 +107,6 @@ function codeBlocks(md: any) {
 
 type TreeNode = { name: string; note: string; folder: boolean; children: TreeNode[] }
 
-// ```tree: two spaces per level, a trailing "/" marks a folder, two or more spaces start a note
 function parseTree(content: string) {
 	const root: TreeNode[] = []
 	const stack: { depth: number; children: TreeNode[] }[] = [{ depth: -1, children: root }]
@@ -148,7 +146,6 @@ function pageActions(md: any) {
 	})
 }
 
-// the "← prev · contents · next →" line is for reading on GitHub; the site has its own prev/next footer
 function dropPagerLine(md: any) {
 	md.core.ruler.push("drop_pager_line", (state: any) => {
 		const tokens = state.tokens
@@ -201,7 +198,6 @@ function relatedLinks(md: any) {
 	})
 }
 
-// GitHub shows the light diagram; the site swaps in name-dark.webp next to it when one exists
 function themedImages(md: any) {
 	const image = md.renderer.rules.image
 	md.renderer.rules.image = (tokens: any, idx: number, options: any, env: any, self: any) => {
@@ -218,7 +214,6 @@ function themedImages(md: any) {
 	}
 }
 
-// the blog layout draws a post's title and banner itself; GitHub still shows them from the Markdown
 function blogPostHeader(md: any) {
 	md.core.ruler.push("blog_post_header", (state: any) => {
 		const page: string = state.env?.relativePath ?? ""
@@ -235,7 +230,6 @@ function blogPostHeader(md: any) {
 const readingMinutes = (file: string) => Math.max(1, Math.round(fs.readFileSync(file, "utf8").split(/\s+/).length / 220))
 const chapterOf = (page: string) => CHAPTERS.find((c) => page === `guide/${c.file}.md`)
 
-// "Chapter 2 of 17 · Basics · 6 min read" under a chapter's title
 function chapterHeader(md: any) {
 	md.core.ruler.push("chapter_header", (state: any) => {
 		const page: string = state.env?.relativePath ?? ""
@@ -249,7 +243,6 @@ function chapterHeader(md: any) {
 	})
 }
 
-// GUIDE.md's chapter tables become cards; read chapters get a check from the browser's history of visits
 function guideMap(md: any) {
 	md.core.ruler.push("guide_map", (state: any) => {
 		if (state.env?.relativePath !== "GUIDE.md") return

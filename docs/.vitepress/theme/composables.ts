@@ -45,7 +45,6 @@ export function restoreSidebar() {
 
 const DETAILED = "vitepress:local-search-detailed-list"
 
-// vitepress ignores the layout toggle until a search has results, so flip the stored value ourselves
 export function onSearchToggleClick(event: MouseEvent) {
 	const button = (event.target as Element | null)?.closest?.(".VPLocalSearchBox .toggle-layout-button")
 	if (!button || document.querySelector(".VPLocalSearchBox .result")) return
@@ -59,7 +58,6 @@ export function onSearchToggleClick(event: MouseEvent) {
 const SCROLL_PADDING = 24
 const STOP_ON = ["wheel", "touchstart", "keydown", "mousedown"]
 
-// diagrams render after the page opens and push headings down, so hold a #heading in place until they settle
 export function holdHashTarget() {
 	const id = decodeURIComponent(location.hash.slice(1))
 	const target = id && document.getElementById(id)
@@ -121,7 +119,6 @@ export function onCodeTabClick(event: MouseEvent) {
 	const top = tab.getBoundingClientRect().top
 	selectTab(group, [...group.querySelectorAll(".fd-tab-list button")].indexOf(tab))
 	selectLabel(label, group)
-	// other groups above this one can change height, so keep the clicked tab where it was on screen
 	window.scrollBy(0, tab.getBoundingClientRect().top - top)
 	try {
 		localStorage.setItem(TAB_KEY, label)

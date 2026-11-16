@@ -120,7 +120,6 @@ function measureDistances() {
 	ends.value = el ? points.value.map((p) => lengthAt(el, p.bottom - INSET)) : []
 }
 
-// every section with some of its text on screen is active, like Fumadocs, not only the last heading passed
 function track() {
 	const navBottom = Math.max(0, document.querySelector(".VPNav")?.getBoundingClientRect().bottom ?? 0)
 	const content = document.querySelector(".vp-doc")?.getBoundingClientRect().bottom ?? Infinity
@@ -166,7 +165,6 @@ async function refresh() {
 	track()
 }
 
-// item heights change when Geist arrives or a long heading wraps, and stale distances put the dot at the wrong end
 const resize = typeof ResizeObserver === "undefined" ? undefined : new ResizeObserver(() => remeasure())
 watch(list, (el, old) => {
 	if (old) resize?.unobserve(old)
