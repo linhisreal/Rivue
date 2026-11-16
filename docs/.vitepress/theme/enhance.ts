@@ -82,3 +82,29 @@ export function animateSearchClose() {
 	})
 	observer.observe(document.body, { childList: true })
 }
+
+export function fadeInPage() {
+	if (matchMedia("(prefers-reduced-motion: reduce)").matches) return
+	document
+		.querySelector(".VPContent")
+		?.animate([{ opacity: 0, translate: "0 6px" }, { opacity: 1, translate: "0 0" }], { duration: 180, easing: "ease-out" })
+}
+
+const READ_KEY = "rivue-read-chapters"
+
+// marks the chapter you're on as read, then ticks every read chapter on the Guide page
+export function trackChapters() {
+	let read: string[] = []
+	try {
+		read = JSON.parse(localStorage.getItem(READ_KEY) ?? "[]")
+	} catch {}
+	const current = /\/guide\/(\d\d-[\w-]+)/.exec(location.pathname)?.[1]
+	if (current && !read.includes(current)) {
+		read.push(current)
+		try {
+			localStorage.setItem(READ_KEY, JSON.stringify(read))
+		} catch {}
+	}
+	for (const card of document.querySelectorAll<HTMLElement>(".fd-chapter-card[data-chapter]"))
+		card.classList.toggle("is-read", read.includes(card.dataset.chapter ?? ""))
+}

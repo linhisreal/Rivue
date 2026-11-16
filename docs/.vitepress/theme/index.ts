@@ -7,11 +7,12 @@ import Landing from "./Landing.vue"
 import NotFound from "./NotFound.vue"
 import OutlineTree from "./OutlineTree.vue"
 import PageActions from "./PageActions.vue"
+import BlogLayout from "./BlogLayout.vue"
 import RepoLink from "./RepoLink.vue"
 import NavMenu from "./NavMenu.vue"
 import SidebarOpen from "./SidebarOpen.vue"
 import { applySavedTab, holdHashTarget, onCodeTabClick, onHeadingAnchorClick, onSearchToggleClick } from "./composables"
-import { animateSearchClose, onImageClick, onTypeHover } from "./enhance"
+import { animateSearchClose, fadeInPage, onImageClick, onTypeHover, trackChapters } from "./enhance"
 import SidebarBottom from "./SidebarBottom.vue"
 import SidebarTop from "./SidebarTop.vue"
 import "./styles/tokens.css"
@@ -23,11 +24,13 @@ import "./styles/diagrams.css"
 import "./styles/search.css"
 import "./styles/not-found.css"
 import "./styles/landing.css"
+import "./styles/blog.css"
 
 export default {
 	extends: DefaultTheme,
 	enhanceApp({ app, router }) {
 		app.component("PageActions", PageActions)
+		app.component("BlogLayout", BlogLayout)
 		if (typeof document === "undefined") return
 		// mermaid sizes boxes with whatever font is loaded and redraws on <html> attribute changes, so poke it once Geist is in
 		document.fonts.ready.then(() => document.documentElement.setAttribute("data-fonts", "ready"))
@@ -37,6 +40,7 @@ export default {
 		document.addEventListener("click", onImageClick)
 		document.addEventListener("mouseover", onTypeHover)
 		window.addEventListener("load", applySavedTab)
+		window.addEventListener("load", trackChapters)
 		animateSearchClose()
 		window.addEventListener("load", holdHashTarget)
 		window.addEventListener("hashchange", holdHashTarget)
@@ -44,6 +48,8 @@ export default {
 		router.onAfterRouteChange = async (to) => {
 			await afterRouteChange?.(to)
 			await nextTick()
+			fadeInPage()
+			trackChapters()
 			applySavedTab()
 			holdHashTarget()
 		}

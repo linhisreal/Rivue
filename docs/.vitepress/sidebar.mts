@@ -68,6 +68,22 @@ const API: [group: string, pages: Page[]][] = [
 	["Utilities", [["Utilities and debugging", "utilities"]]],
 ]
 
+const LEARN: [folder: string, pages: Page[]][] = [
+	["Basics", GUIDE.slice(0, 5)],
+	["Styling and motion", GUIDE.slice(5, 7)],
+	["Building a game", GUIDE.slice(7)],
+]
+const PATTERNS: [folder: string, pages: Page[]][] = [
+	["Patterns", ADVANCED.slice(0, 3)],
+	["Scaling up", ADVANCED.slice(3)],
+]
+
+export type Chapter = { file: string; title: string; number: number; folder: string }
+
+export const CHAPTERS: Chapter[] = [...LEARN, ...PATTERNS].flatMap(([folder, pages]) =>
+	pages.map(([title, file]) => ({ file, title, folder, number: Number(file.slice(0, 2)) })),
+)
+
 const links = (dir: string, pages: Page[]) => pages.map(([text, file]) => ({ text, link: `/${dir}/${file}` }))
 const folder = (text: string, items: DefaultTheme.SidebarItem[]) => ({ text, collapsed: true, items })
 
@@ -84,15 +100,11 @@ const guideSidebar: DefaultTheme.SidebarItem[] = [
 	{
 		text: "Learn",
 		link: "/GUIDE",
-		items: [
-			folder("Basics", links("guide", GUIDE.slice(0, 5))),
-			folder("Styling and motion", links("guide", GUIDE.slice(5, 7))),
-			folder("Building a game", links("guide", GUIDE.slice(7))),
-		],
+		items: LEARN.map(([text, pages]) => folder(text, links("guide", pages))),
 	},
 	{
 		text: "Advanced",
-		items: [folder("Patterns", links("guide", ADVANCED.slice(0, 3))), folder("Scaling up", links("guide", ADVANCED.slice(3)))],
+		items: PATTERNS.map(([text, pages]) => folder(text, links("guide", pages))),
 	},
 	{
 		text: "Tools",

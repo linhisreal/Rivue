@@ -15,8 +15,12 @@
 	letter-spacing: -0.01em;
 }
 
+.vp-doc :is(p, ul, ol) {
+	max-width: 70ch;
+}
+
 .vp-doc h2 {
-	margin-top: 40px;
+	margin-top: 56px;
 	padding-top: 0;
 	border-top: 0;
 	font-size: 24px;
@@ -186,13 +190,10 @@
 .vp-doc table {
 	display: table;
 	width: 100%;
-	border-collapse: separate;
-	border-spacing: 0;
-	border: 1px solid var(--vp-c-divider);
-	border-radius: var(--fd-radius);
-	overflow: hidden;
+	border-collapse: collapse;
+	border: 0;
 	font-size: 14px;
-	background: var(--vp-c-bg-soft);
+	line-height: 1.55;
 }
 
 @media (max-width: 767px) {
@@ -221,20 +222,26 @@
 .vp-doc td {
 	border: 0;
 	border-bottom: 1px solid var(--vp-c-divider);
-	border-right: 1px solid var(--vp-c-divider);
-	padding: 10px 12px;
+	padding: 10px 16px 10px 0;
+	vertical-align: top;
 }
 
 .vp-doc th:last-child,
 .vp-doc td:last-child {
-	border-right: 0;
+	padding-right: 0;
 }
 
 .vp-doc th {
 	text-align: left;
-	font-weight: 600;
-	color: var(--vp-c-text-1);
-	background: var(--fd-secondary);
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--vp-c-text-2);
+	background: none;
+	border-bottom-color: var(--vp-c-text-3);
+}
+
+.vp-doc td:first-child > code:only-child {
+	white-space: nowrap;
 }
 
 .vp-doc thead:has(th:empty) {
@@ -1197,4 +1204,140 @@
 .dark .fd-only-light,
 html:not(.dark) .fd-only-dark {
 	display: none;
+}
+
+.vp-doc .fd-chapter-meta {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px 0;
+	margin: 4px 0 4px;
+	font-size: 14px;
+	color: var(--vp-c-text-2);
+}
+
+.vp-doc .fd-chapter-meta span + span::before {
+	content: "·";
+	margin: 0 8px;
+	color: var(--vp-c-text-3);
+}
+
+.vp-doc .fd-chapters {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 12px;
+	max-width: none;
+	margin: 16px 0 32px;
+	padding: 0;
+	list-style: none;
+}
+
+.vp-doc .fd-chapters li {
+	margin: 0;
+}
+
+.vp-doc .fd-chapter-card {
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr) auto;
+	gap: 14px;
+	align-items: start;
+	height: 100%;
+	padding: 14px 16px;
+	border: 1px solid var(--vp-c-divider);
+	border-radius: var(--fd-radius);
+	color: inherit;
+	text-decoration: none;
+	transition: border-color 0.15s ease;
+}
+
+.vp-doc .fd-chapter-card:hover {
+	border-color: var(--vp-c-text-3);
+}
+
+.fd-chapter-num {
+	display: grid;
+	place-items: center;
+	width: 28px;
+	height: 28px;
+	border: 1px solid var(--vp-c-divider);
+	border-radius: 50%;
+	font-size: 13px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	color: var(--vp-c-text-2);
+	transition:
+		color 0.15s ease,
+		background-color 0.15s ease,
+		border-color 0.15s ease;
+}
+
+.fd-chapter-card:hover .fd-chapter-num {
+	border-color: var(--vp-c-brand-1);
+	color: var(--vp-c-brand-1);
+}
+
+.fd-chapter-card.is-read .fd-chapter-num {
+	border-color: var(--rivue-mint-ink);
+	color: var(--vp-c-bg);
+	background: var(--rivue-mint-ink);
+}
+
+.fd-chapter-body {
+	display: grid;
+	gap: 4px;
+	font-size: 14px;
+	line-height: 1.5;
+	color: var(--vp-c-text-2);
+}
+
+.fd-chapter-body strong {
+	font-size: 15px;
+	font-weight: 600;
+	color: var(--vp-c-text-1);
+}
+
+.fd-chapter-card:hover strong {
+	color: var(--vp-c-brand-1);
+}
+
+.fd-chapter-time {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding-top: 4px;
+	font-size: 12px;
+	white-space: nowrap;
+	color: var(--vp-c-text-3);
+}
+
+.fd-chapter-read {
+	display: none;
+	width: 14px;
+	height: 14px;
+	background: var(--rivue-mint-ink);
+	mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5 10 17 19 7'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+
+.fd-chapter-card.is-read .fd-chapter-read {
+	display: inline-block;
+}
+
+@media (max-width: 760px) {
+	.vp-doc .fd-chapters {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+.vp-doc .fd-related-example {
+	display: flex;
+	align-items: center;
+	gap: 12px;
+}
+
+.vp-doc .fd-related-thumb {
+	flex: none;
+	width: 112px;
+	aspect-ratio: 16 / 9;
+	object-fit: cover;
+	border: 1px solid var(--vp-c-divider);
+	border-radius: 6px;
 }

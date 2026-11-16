@@ -4,6 +4,7 @@
 import fs from "node:fs"
 import path from "node:path"
 import { apiEntries } from "./api.mts"
+import { CHAPTERS } from "./sidebar.mts"
 import { DOCS, htmlToken, REPO, ROOT } from "./site.mts"
 
 const EXAMPLE_FILE = /[\\/]examples[\\/]components[\\/]\w+\.luau$/
@@ -12,7 +13,10 @@ export function markdownPlugins(md: any) {
 	githubLinks(md)
 	softBreaks(md)
 	codeBlocks(md)
+	blogPostHeader(md)
 	pageActions(md)
+	chapterHeader(md)
+	guideMap(md)
 	dropPagerLine(md)
 	relatedLinks(md)
 	themedImages(md)
@@ -165,7 +169,10 @@ function relatedRow(md: any, env: any, label: string, source: string) {
 		.map((item) => {
 			const [, main, note] = /^(.*\S)\s+\(([^()]*(?:\([^()]*\)[^()]*)*)\)$/s.exec(item) ?? [, item]
 			const noteHtml = note ? `<span class="fd-related-note">${md.renderInline(note, env)}</span>` : ""
-			return `<li>${md.renderInline(main, env)}${noteHtml}</li>`
+			const example = /examples\/components\/(\w+)\.luau/.exec(main)?.[1]?.toLowerCase()
+			const preview = example && fs.existsSync(path.join(DOCS, "assets/examples", `${example}.webp`))
+			const thumb = preview ? `<img class="fd-related-thumb" src="${path.posix.relative(path.posix.dirname(env.relativePath), `assets/examples/${example}.webp`)}" alt="" loading="lazy" />` : ""
+			return `<li${thumb ? ' class="fd-related-example"' : ""}>${thumb}<span>${md.renderInline(main, env)}${noteHtml}</span></li>`
 		})
 	const kind = label === "Try it" ? "try" : "reference"
 	return `<div class="fd-related-row" data-kind="${kind}"><span class="fd-related-label">${label}</span><ul>${items.join("")}</ul></div>`
@@ -209,4 +216,65 @@ function themedImages(md: any) {
 		token.attrSet("class", "fd-only-dark")
 		return light + image(tokens, idx, options, env, self)
 	}
+}
+
+// the blog layout draws a post's title and banner itself; GitHub still shows them from the Markdown
+function blogPostHeader(md: any) {
+	md.core.ruler.push("blog_post_header", (state: any) => {
+		const page: string = state.env?.relativePath ?? ""
+		if (!page.startsWith("blog/") || page === "blog/index.md") return
+		const tokens = state.tokens
+		const h1 = tokens.findIndex((t: any) => t.type === "heading_open" && t.tag === "h1")
+		if (h1 === -1) return
+		tokens.splice(h1, 3)
+		const banner = tokens[h1 + 1]
+		if (tokens[h1]?.type === "paragraph_open" && banner?.children?.length === 1 && banner.children[0].type === "image") tokens.splice(h1, 3)
+	})
+}
+
+const readingMinutes = (file: string) => Math.max(1, Math.round(fs.readFileSync(file, "utf8").split(/\s+/).length / 220))
+const chapterOf = (page: string) => CHAPTERS.find((c) => page === `guide/${c.file}.md`)
+
+// "Chapter 2 of 17 · Basics · 6 min read" under a chapter's title
+function chapterHeader(md: any) {
+	md.core.ruler.push("chapter_header", (state: any) => {
+		const page: string = state.env?.relativePath ?? ""
+		const chapter = chapterOf(page)
+		if (!chapter) return
+		const close = state.tokens.findIndex((t: any) => t.type === "heading_close" && t.tag === "h1")
+		if (close === -1) return
+		const parts = [`Chapter ${chapter.number} of ${CHAPTERS.length}`, chapter.folder, `${readingMinutes(path.join(DOCS, page))} min read`]
+		const html = `<p class="fd-chapter-meta">${parts.map((part) => `<span>${md.utils.escapeHtml(part)}</span>`).join("")}</p>\n`
+		state.tokens.splice(close + 1, 0, htmlToken(state, html))
+	})
+}
+
+// GUIDE.md's chapter tables become cards; read chapters get a check from the browser's history of visits
+function guideMap(md: any) {
+	md.core.ruler.push("guide_map", (state: any) => {
+		if (state.env?.relativePath !== "GUIDE.md") return
+		const tokens = state.tokens
+		for (let i = 0; i < tokens.length; i++) {
+			if (tokens[i].type !== "table_open") continue
+			const close = tokens.findIndex((t: any, j: number) => j > i && t.type === "table_close")
+			const rows: string[][] = []
+			let row: string[] | undefined
+			for (let j = i; j < close; j++) {
+				if (tokens[j].type === "tr_open") row = []
+				else if (tokens[j].type === "inline" && row) row.push(tokens[j].content)
+				else if (tokens[j].type === "tr_close" && row) rows.push(row), (row = undefined)
+			}
+			const cards = rows.slice(1).map(([number, link, covers]) => {
+				const [, title, href] = /\[([^\]]+)\]\(([^)]+)\)/.exec(link) ?? []
+				const chapter = chapterOf(href ?? "")
+				const minutes = chapter ? readingMinutes(path.join(DOCS, href)) : 0
+				return `<li><a class="fd-chapter-card" href="${md.utils.escapeHtml(href.replace(/\.md$/, ""))}" data-chapter="${chapter?.file ?? ""}">
+<span class="fd-chapter-num">${md.utils.escapeHtml(number)}</span>
+<span class="fd-chapter-body"><strong>${md.utils.escapeHtml(title)}</strong><span>${md.renderInline(covers, state.env)}</span></span>
+<span class="fd-chapter-time">${minutes} min<span class="fd-chapter-read"><span class="rv-visually-hidden">Read</span></span></span>
+</a></li>`
+			})
+			tokens.splice(i, close - i + 1, htmlToken(state, `<ul class="fd-chapters">${cards.join("\n")}</ul>\n`))
+		}
+	})
 }

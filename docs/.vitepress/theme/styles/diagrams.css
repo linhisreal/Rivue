@@ -1,16 +1,18 @@
+/* same palette as the diagrams in docs/assets/diagrams, so drawn and image diagrams match */
 .vp-doc .mermaid {
-	--fd-mm-node: #ffffff;
-	--fd-mm-border: #c4c4c4;
-	--fd-mm-edge: #6e6e6e;
-	--fd-mm-group: #b8b8b8;
+	--fd-mm-card: #ffffff;
+	--fd-mm-node: #eef2f7;
+	--fd-mm-border: #d0d7de;
+	--fd-mm-edge: #59636e;
+	--fd-mm-group: #8c959f;
 	display: flex;
 	justify-content: center;
 	margin: 16px 0;
 	padding: 24px 16px;
 	overflow-x: auto;
-	border: 1px solid var(--vp-c-border);
-	border-radius: var(--fd-radius);
-	background: var(--vp-c-bg-alt);
+	border: 1px solid var(--fd-mm-border);
+	border-radius: 12px;
+	background: var(--fd-mm-card);
 }
 
 .vp-doc .mermaid svg {
@@ -32,7 +34,7 @@
 	fill: var(--fd-mm-node) !important;
 	stroke: var(--fd-mm-border) !important;
 	stroke-width: 1px !important;
-	rx: 8px;
+	rx: 6px;
 }
 
 .vp-doc .mermaid :is(.nodeLabel, .label, .edgeLabel, text.actor, text.actor > tspan, .messageText, .noteText, .loopText) {
@@ -47,8 +49,8 @@
 }
 
 .vp-doc .mermaid :is(.edgeLabel, .edgeLabel rect, .edgeLabel p, .edgeLabel span, .labelBkg) {
-	background: var(--vp-c-bg-alt) !important;
-	fill: var(--vp-c-bg-alt) !important;
+	background: var(--fd-mm-card) !important;
+	fill: var(--fd-mm-card) !important;
 }
 
 .vp-doc .mermaid :is(.flowchart-link, .edgePath path, .messageLine0, .messageLine1, .actor-line, .relation) {
@@ -84,8 +86,9 @@
 }
 
 .dark .vp-doc .mermaid {
-	--fd-mm-node: var(--vp-c-bg);
-	--fd-mm-border: #3a3a3a;
-	--fd-mm-edge: #8a8a8a;
-	--fd-mm-group: #3a3a3a;
+	--fd-mm-card: #161616;
+	--fd-mm-node: #21262d;
+	--fd-mm-border: #30363d;
+	--fd-mm-edge: #8b949e;
+	--fd-mm-group: #6e7681;
 }

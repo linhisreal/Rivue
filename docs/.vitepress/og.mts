@@ -5,8 +5,9 @@ import fs from "node:fs"
 import { createRequire } from "node:module"
 import path from "node:path"
 import type { HeadConfig, PageData } from "vitepress"
+import type { Post } from "./blog.mts"
 import type { Example } from "./examples.mts"
-import { DESCRIPTION, pageMarkdown, pageTitle, pageUrl, plainTitle, SITE } from "./site.mts"
+import { DESCRIPTION, DOCS, pageMarkdown, pageTitle, pageUrl, plainTitle, SITE } from "./site.mts"
 
 export interface OgPage {
 	slug: string
@@ -23,6 +24,7 @@ export const ogSlug = (page: string) => (page === "README.md" || page === "index
 export function ogSection(page: string) {
 	if (page.startsWith("api/") || page === "API.md") return "API reference"
 	if (page.startsWith("examples/")) return "Examples"
+	if (page.startsWith("blog/")) return "Blog"
 	if (page.startsWith("guide/") || page === "GUIDE.md") return "Guide"
 	return "Docs"
 }
@@ -87,16 +89,28 @@ export function writeOgImages(pages: OgPage[], outDir: string, iconFile: string)
 	}
 }
 
-export function ogPages(pages: string[], examples: Example[]): OgPage[] {
-	return pages.map((page) => {
+export function ogPages(pages: string[], examples: Example[], posts: Post[]): OgPage[] {
+	return pages.filter((page) => !postOf(page, posts)).map((page) => {
 		if (page === "README.md") return { slug: ogSlug(page), title: "The Vue-style framework for Roblox UI", section: "Docs" }
 		return { slug: ogSlug(page), title: plainTitle(pageTitle(pageMarkdown(page, examples), page)), section: ogSection(page) }
 	})
 }
 
-export function ogHead(pageData: PageData): HeadConfig[] {
+const postOf = (page: string, posts: Post[]) => posts.find((post) => post.banner && page === `blog/${post.slug}.md`)
+
+// a post's banner is its preview image; other pages get the generated card
+export function copyBanners(posts: Post[], outDir: string) {
+	fs.mkdirSync(path.join(outDir, "og"), { recursive: true })
+	for (const post of posts) {
+		if (!post.banner) continue
+		fs.copyFileSync(path.join(DOCS, "assets/blog", post.banner), path.join(outDir, "og", `${ogSlug(`blog/${post.slug}.md`)}.webp`))
+	}
+}
+
+export function ogHead(pageData: PageData, posts: Post[]): HeadConfig[] {
 	const page = pageData.relativePath
-	const image = `${SITE}og/${ogSlug(page)}.png`
+	const banner = postOf(page, posts)
+	const image = `${SITE}og/${ogSlug(page)}.${banner ? "webp" : "png"}`
 	return [
 		["meta", { property: "og:type", content: "website" }],
 		["meta", { property: "og:site_name", content: "Rivue" }],
@@ -104,8 +118,8 @@ export function ogHead(pageData: PageData): HeadConfig[] {
 		["meta", { property: "og:description", content: pageData.description || DESCRIPTION }],
 		["meta", { property: "og:url", content: pageUrl(page) }],
 		["meta", { property: "og:image", content: image }],
-		["meta", { property: "og:image:width", content: String(WIDTH) }],
-		["meta", { property: "og:image:height", content: String(HEIGHT) }],
+		["meta", { property: "og:image:width", content: banner ? "1600" : String(WIDTH) }],
+		["meta", { property: "og:image:height", content: banner ? "840" : String(HEIGHT) }],
 		["meta", { name: "twitter:card", content: "summary_large_image" }],
 		["meta", { name: "twitter:image", content: image }],
 	]
