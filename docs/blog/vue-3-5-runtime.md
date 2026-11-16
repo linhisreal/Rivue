@@ -8,7 +8,7 @@ tags: [runtime, reactivity]
 
 # Rivue catches up with Vue 3.5
 
-![100 renders before, one render with Vue 3.5 version counting](../assets/blog/vue-3-5-runtime.webp)
+![A poster with a huge 3.5 and the note 100 writes, 1 render: a grid of 100 squares with one filled, beside the other changes, effectScope pause and resume, getCurrentWatcher, idPrefix and Vapor mode](../assets/blog/vue-3-5-runtime.webp)
 
 Vue 3.5 reworked a lot of its reactivity under the hood, and Rivue now does the same things. Your
 code stays the same and runs less often: a component that reads a computed stops re-rendering when
@@ -38,6 +38,8 @@ local Hud = Rivue.defineComponent({
 Before, every write to `health` marked `low` as stale, and everything that read `low` ran again.
 Take a hit from 100 down to 99 and the Hud rendered again, even though `low` was `false` before
 the hit and after it.
+
+![Health changed 100 times: 100 renders before, one render with Vue 3.5 version counting](../assets/diagrams/hundred-renders.webp)
 
 Now every ref and computed carries a version number, the way Vue 3.5 does it. A write bumps the
 version. When `low` runs again and gets the same answer, it keeps its old version, so the Hud
