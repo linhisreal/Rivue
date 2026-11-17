@@ -60,7 +60,7 @@ function array.insert<T>(list: { T }, index: number, value: T)
 | `value` | `T` | | the item |
 
 > [!WARNING]
-> Any other `index` errors, instead of dropping the item without a word.
+> Any other `index` errors instead of silently dropping the item.
 
 ### Example
 

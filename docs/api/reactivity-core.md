@@ -53,8 +53,8 @@ coins.value += 50 -- the label re-renders to "50 coins"
 
 ## computed()
 
-A value worked out from other state, like a total or a filtered list. It's cached, and only worked
-out again after something it read changes.
+A value derived from other state, like a total or a filtered list. It's cached and only recomputed
+after something it read changes.
 
 ```lua signature
 function computed<T>(getter: (previous: T?) -> T): ComputedRef<T>
@@ -115,7 +115,7 @@ print(volume.value) -- 0.8
 
 ### Details
 
-- The getter only runs when `.value` is read, and keep it free of side effects.
+- The getter only runs when `.value` is read. Keep it free of side effects.
 - Returning `previous` when nothing you care about changed, as in Vue 3.4, means a `watch` on the
   computed doesn't fire and a child that gets it as a prop doesn't update. A component that reads
   it in render still re-renders, because it's told before the getter runs again.
@@ -193,8 +193,8 @@ stats.equipped.weapon = "Bow" -- nested tables are reactive too
 
 ## readonly()
 
-A view of some state that can be read but not changed. Hand it out when other code should see the
-state but only your module should change it.
+A read-only view of some state, for when other code should see it but only your module should
+change it.
 
 ```lua signature
 function readonly<T>(target: T): T
@@ -237,8 +237,8 @@ print(PlayerData.state.coins) -- 25
 
 ## watchEffect()
 
-Runs a function now, and again whenever anything it read changes. Use it for side effects that
-follow state, like saving settings.
+Runs a function now, and again whenever anything it read changes. For side effects that follow
+state, like saving settings.
 
 ```lua signature
 function watchEffect(effect: (onCleanup: OnCleanup) -> (), options: WatchEffectOptions?): WatchHandle
@@ -371,8 +371,8 @@ health.value = 0
 
 ## watch()
 
-Calls a function when a specific source changes, with the new and old values. Use it when you
-care what changed, like loading a profile when the selected user changes.
+Calls a function when a specific source changes, with the new and old values. Reach for it when
+you care what changed, like loading a profile when the selected user changes.
 
 ```lua signature
 function watch<T>(
@@ -452,8 +452,8 @@ settings.audio.volume = 0.5
 
 ## onWatcherCleanup()
 
-Registers cleanup for the watcher callback that's running. It runs before the callback runs again
-and when the watcher stops. Use it to cancel a pending request or timer.
+Registers cleanup for the watcher callback that's running, such as cancelling a pending request
+or timer. It runs before the callback runs again and when the watcher stops.
 
 ```lua signature
 function onWatcherCleanup(cleanupFn: () -> (), failSilently: boolean?)

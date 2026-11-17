@@ -60,8 +60,8 @@ local SearchBar = Rivue.defineComponent({
 
 _setup() only_
 
-Runs after the component re-rendered because its state changed. Use it to act on the updated
-Instances.
+Runs after the component re-rendered because its state changed. The Instances are already
+updated.
 
 ```lua signature
 function onUpdated(callback: () -> ())
@@ -254,8 +254,8 @@ local ChatLog = Rivue.defineComponent({
 
 _setup() only_
 
-Runs right before the component is removed, while its Instances still exist and parents before
-children. Use it to save state or start an exit animation.
+Runs right before the component is removed, parents before children, while its Instances still
+exist. Save state or start an exit animation here.
 
 ```lua signature
 function onBeforeUnmount(callback: () -> ())

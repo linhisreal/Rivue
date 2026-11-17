@@ -13,7 +13,7 @@ When updates happen, and how to run code after them. Examples assume
 
 _yields without a callback_
 
-Waits until Rivue has applied pending updates. Use it when you change state and then need to read
+Waits until Rivue has applied pending updates. Call it after changing state when you need to read
 the updated Instances.
 
 ```lua signature
