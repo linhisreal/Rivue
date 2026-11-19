@@ -51,7 +51,12 @@ crosses 30 and `low` flips to `true`.
 Watchers and `watchEffect` get the same treatment. I counted it with one script on the runtime
 from before this work and on `main`, running offline in Lune:
 
-![After 100 writes that leave the computed the same: 100 renders or runs before, 1 now, for a component, a watchEffect and a component reading count > 0](../assets/diagrams/skipped-work.webp)
+```bars [Runs after 100 writes that leave the computed's value the same]
+What reads the computed | What runs | before | now
+A component that reads low | Hud renders | 100 | 1
+A watchEffect that reads low | effect runs | 100 | 1
+A component that reads count > 0 | Badge renders, list swapped 100 times | 100 | 1
+```
 
 The one run that's left is the write that flips the result, like health going from 30 to 29.
 
