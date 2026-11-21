@@ -2,8 +2,8 @@
 
 # 3. Describing UI with h()
 
-Everything on screen in a Rivue UI comes from calls to `h()`. This chapter goes through what you
-can pass it, and how to show things only sometimes, or once per item in a list.
+Everything on screen comes from calls to `h()`. This chapter covers what you can pass it, how to
+show something only some of the time, and how to render one row per item.
 
 ## One call per Instance
 
@@ -34,12 +34,13 @@ below, and children come last.
 | `ref = "input"` | gives setup access to the Instance, see [useTemplateRef()](../api/component.md#usetemplateref) |
 
 Children can be a list, a single vnode, or a string (which sets `Text` on a label or button).
-Lists can hold other lists and `nil`, which is what makes conditions and loops work.
+Lists can hold other lists and `nil`, which is what makes conditions and loops work. A render
+function can return a list too, when a component has more than one root.
 
 ## Conditions
 
-There's no special syntax for conditions. A render function is plain Luau, so you write an `if`
-expression, or `Rivue.hIf` if you like it shorter:
+A render function is plain Luau, so a condition is an `if` expression. `Rivue.hIf` is the shorter
+form:
 
 ```lua
 render = function(ctx)
@@ -67,18 +68,18 @@ h("ScrollingFrame", { layout = "vertical" }, {
 })
 ```
 
-Give every list item a `key`, and make it something that belongs to the item, like an id. Its
-position in the list won't do. Keys are how Rivue tells which Instance is which when the list
-changes:
+Give every list item a `key` that belongs to the item, like its id. The position in the list
+won't work, because it changes when items are added or removed. Keys are how Rivue tells which
+Instance is which:
 
 ![keys let Rivue keep the right Instances](../assets/diagrams/keyed-list.webp)
 
-Leave them out and removing one row re-patches every row after it. Worse, state inside a row
-component, like a hover or a half-typed value, ends up on the wrong item.
+Without keys, removing one row re-patches every row after it, and state inside a row component
+(a hover, a half-typed value) ends up on the wrong item.
 
 ---
 
-**Try it:** [Inventory example](../../examples/components/Inventory.luau) (a long keyed list)
+**Try it:** [Inventory example](../../examples/components/Inventory.luau) (a long keyed list)\
 **Reference:** [h()](../api/render-function.md#h) · [Element props](../api/render-function.md#element-props) ·
 [hIf()](../api/render-function.md#hif) · [hFor()](../api/render-function.md#hfor)
 

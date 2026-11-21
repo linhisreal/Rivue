@@ -2,13 +2,12 @@
 
 # 9. Performance, debugging and common mistakes
 
-Most of the time you won't think about performance. This chapter is for when you do: the few
-things that make a Rivue UI slow, how to find out why something rendered, and the mistakes almost
-everyone makes once.
+Most screens never need performance work. This chapter covers the few things that do make a Rivue
+UI slow, how to find out why something rendered, and the mistakes almost everyone makes once.
 
 ## Performance
 
-Rivue is fast by default. When it isn't, it's usually one of these:
+When a screen is slow, it's usually one of these:
 
 | Situation | Do this |
 |---|---|
@@ -21,8 +20,18 @@ Rivue is fast by default. When it isn't, it's usually one of these:
 
 ## Debugging
 
-Start in the Explorer. Each component's root Instance is named after the component, so the tree
-there already reads like your component tree.
+The [DevTools plugin](../DEVTOOLS.md) is the quickest way in. Turn it on before mounting, in
+Studio only:
+
+```lua
+app.config.devtools = game:GetService("RunService"):IsStudio()
+```
+
+During a playtest it shows the component tree with each component's props and state (which you can
+edit), how often and why each one rendered, and the Remote traffic.
+
+Without the plugin, start in the Explorer. Each component's root Instance is named after the
+component, so the tree there reads like your component tree.
 
 For more detail, `app:printTree()` prints the components with their props and what they rendered:
 
@@ -38,11 +47,12 @@ If something re-renders and you can't see why, add
 `Rivue.onRenderTriggered(function(e) print(e.key) end)` to its setup. It prints the key that
 changed.
 
-Errors tell you where they came from, like
+Errors say where they came from, like
 `[Rivue] Error in render of <ItemRow> in <Inventory> in <App>`, and errors in watchers and effects
-are always reported. In Studio you also get warnings for unknown properties, wrong prop types,
-duplicate keys, list items without keys and undeclared events. And when `print` shows a reactive
-table as empty, `Rivue.inspect(value)` shows what's actually in it.
+are always reported. To send them to your own logging in live games, set
+`app.config.errorHandler`. In Studio you also get warnings for unknown properties, wrong prop
+types, duplicate keys, list items without keys and undeclared events. When `print` shows a reactive
+table as empty, `Rivue.inspect(value)` shows what's in it.
 
 ## Common mistakes
 
@@ -60,7 +70,8 @@ table as empty, `Rivue.inspect(value)` shows what's actually in it.
 
 ---
 
-**Reference:** [VirtualList](../api/builtins.md#virtuallist) · [printTree()](../api/utilities.md#printtree) ·
-[onRenderTriggered()](../api/lifecycle.md#onrendertriggered) · [Pooling options](../api/application.md#pooling-options)
+**Reference:** [DevTools](../DEVTOOLS.md) · [VirtualList](../api/builtins.md#virtuallist) · [printTree()](../api/utilities.md#printtree) ·
+[onRenderTriggered()](../api/lifecycle.md#onrendertriggered) · [Pooling options](../api/application.md#pooling-options) ·
+[app.config.errorHandler](../api/application.md#appconfigerrorhandler)
 
 [← 8. Sharing state and the server](08-state-and-server.md) · [Guide contents](../GUIDE.md) · [10. Organising a project →](10-organising-a-project.md)

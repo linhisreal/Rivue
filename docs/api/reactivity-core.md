@@ -4,547 +4,563 @@
 
 **Learn it:** [Guide 2: State](../guide/02-state.md) · [Guide 7: Effects and animation](../guide/07-effects-and-animation.md)
 
-The building blocks of state in Rivue. All examples assume:
+State, derived values and watchers. Examples assume:
 
 ```lua
 local Rivue = require(game.ReplicatedStorage.RivueUI)
 local h = Rivue.h
 ```
 
-- [ref()](#ref)
-- [computed()](#computed)
-- [reactive()](#reactive)
-- [readonly()](#readonly)
-- [watchEffect()](#watcheffect)
-- [watchPostEffect()](#watchposteffect)
-- [watchSyncEffect()](#watchsynceffect)
-- [watch()](#watch)
-- [onWatcherCleanup()](#onwatchercleanup)
-- [onEffectCleanup()](#oneffectcleanup)
-
 ---
 
 ## ref()
 
-Holds a single value that the UI can follow: a number, a string, a table. Read and write it through
-`.value`, and anything that read it updates when it changes.
+Holds one value that the UI can follow. Read and write it through `.value`; anything that read it
+updates when it changes.
 
-- **Example**
+```lua signature
+function ref<T>(value: T): Ref<T>
+```
 
-  Coins the player has, shown in a label that updates by itself:
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `value` | `T` | | the starting value |
 
-  ```lua
-  local coins = Rivue.ref(0)
+**Returns** [`Ref<T>`](#type-ref), a table with one field, `value`.
 
-  local CoinLabel = Rivue.defineComponent({
-  	name = "CoinLabel",
-  	render = function()
-  		return h("TextLabel", { Text = `{coins.value} coins` }) -- reading coins.value tracks it
-  	end,
-  })
+### Example
 
-  coins.value += 50 -- the label re-renders to "50 coins"
-  ```
+```lua
+local coins = Rivue.ref(0)
 
-- **Details**
+local CoinLabel = Rivue.defineComponent({
+	name = "CoinLabel",
+	render = function()
+		return h("TextLabel", { Text = `{coins.value} coins` }) -- reading coins.value tracks it
+	end,
+})
 
-  Reading `.value` is tracked, and writing it triggers anything that read it. If the value is a
-  table, it's made deeply reactive with [`reactive()`](#reactive). To avoid that, use
-  [`shallowRef()`](reactivity-advanced.md#shallowref).
+coins.value += 50 -- the label re-renders to "50 coins"
+```
 
-- **Type**
+### Details
 
-  ```lua
-  function ref<T>(value: T): Ref<T>
-
-  type Ref<T> = { value: T }
-  ```
-
-- **See also** [Guide 2: State](../guide/02-state.md)
+- A table value is made deeply reactive with [`reactive()`](#reactive). Use
+  [`shallowRef()`](reactivity-advanced.md#shallowref) to keep it as is.
+- Setting `.value` to the value it already holds does nothing.
 
 ---
 
 ## computed()
 
-A value worked out from other state, like a total or a filtered list. It's cached and only
-recalculated when something it used changes.
+A value derived from other state, like a total or a filtered list. It's cached and only recomputed
+after something it read changes.
 
-- **Example**
+```lua signature
+function computed<T>(getter: (previous: T?) -> T): ComputedRef<T>
+function computed<T>(options: { get: (previous: T?) -> T, set: (value: T) -> () }): ComputedRef<T>
+```
 
-  A label that's worked out from other state, and only recalculated when that state changes:
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `getter` | `(previous: T?) -> T` | | works out the value; gets the last value it returned, `nil` the first time |
+| `options.get` | `(previous: T?) -> T` | | the getter, for a writable computed |
+| `options.set` | `(value: T) -> ()` | | runs when `.value` is assigned |
 
-  ```lua
-  local inventory = Rivue.reactive({
-  	{ name = "Sword", weight = 4 },
-  	{ name = "Shield", weight = 6 },
-  })
-  local capacity = Rivue.ref(20)
+**Returns** `ComputedRef<T>`: read `.value`; assign it only when you passed `set`.
 
-  local load = Rivue.computed(function()
-  	local total = 0
-  	for i = 1, #inventory do
-  		total += inventory[i].weight
-  	end
-  	return `{total} / {capacity.value} kg`
-  end)
+> [!NOTE]
+> Assigning `.value` on a computed without `set` is ignored. It only logs when
+> `Rivue.debug.enabled` is on.
 
-  print(load.value) -- "10 / 20 kg"
-  Rivue.array.push(inventory, { name = "Potion", weight = 1 })
-  print(load.value) -- "11 / 20 kg"
-  ```
+### Example
 
-  A writable computed: a volume slider that shows 0–100 but stores 0–1:
+```lua
+local inventory = Rivue.reactive({
+	{ name = "Sword", weight = 4 },
+	{ name = "Shield", weight = 6 },
+})
+local capacity = Rivue.ref(20)
 
-  ```lua
-  local volume = Rivue.ref(0.5)
+local load = Rivue.computed(function()
+	local total = 0
+	for i = 1, #inventory do
+		total += inventory[i].weight
+	end
+	return `{total} / {capacity.value} kg`
+end)
 
-  local percent = Rivue.computed({
-  	get = function()
-  		return math.round(volume.value * 100)
-  	end,
-  	set = function(value)
-  		volume.value = math.clamp(value, 0, 100) / 100
-  	end,
-  })
+print(load.value) -- "10 / 20 kg"
+Rivue.array.push(inventory, { name = "Potion", weight = 1 })
+print(load.value) -- "11 / 20 kg"
+```
 
-  percent.value = 80
-  print(volume.value) -- 0.8
-  ```
+A volume slider that shows 0 to 100 but stores 0 to 1:
 
-- **Details**
+```lua
+local volume = Rivue.ref(0.5)
 
-  The getter runs lazily: only when `.value` is read, and only again after something it read has
-  changed. Keep getters free of side effects.
+local percent = Rivue.computed({
+	get = function()
+		return math.round(volume.value * 100)
+	end,
+	set = function(value)
+		volume.value = math.clamp(value, 0, 100) / 100
+	end,
+})
 
-  The getter gets the value it returned last time (`nil` on the first run), as in Vue 3.4.
-  Returning that same table when nothing you care about changed means a `watch` on the computed
-  doesn't fire, and a child that gets it as a prop doesn't update. Components that read
-  `.value` in their render still re-render, because they're told before the getter runs again.
+percent.value = 80
+print(volume.value) -- 0.8
+```
 
-  ```lua
-  local items = Rivue.reactive({ 1, 2, 3 })
-  local evens = Rivue.computed(function(previous)
-  	local out = {}
-  	for i = 1, #items do
-  		if items[i] % 2 == 0 then
-  			table.insert(out, items[i])
-  		end
-  	end
-  	if previous and #previous == #out then
-  		for i, v in out do
-  			if previous[i] ~= v then
-  				return out
-  			end
-  		end
-  		return previous
-  	end
-  	return out
-  end)
-  ```
+### Details
 
-- **Type**
+- The getter only runs when `.value` is read. Keep it free of side effects.
+- Returning `previous` when nothing you care about changed, as in Vue 3.4, means a `watch` on the
+  computed doesn't fire and a child that gets it as a prop doesn't update. A component that reads
+  it in render still re-renders, because it's told before the getter runs again.
 
-  ```lua
-  -- Readonly
-  function computed<T>(getter: (previous: T?) -> T): ComputedRef<T>
-
-  -- Writable
-  function computed<T>(options: { get: (previous: T?) -> T, set: (value: T) -> () }): ComputedRef<T>
-  ```
+```lua
+local items = Rivue.reactive({ 1, 2, 3 })
+local evens = Rivue.computed(function(previous)
+	local out = {}
+	for i = 1, #items do
+		if items[i] % 2 == 0 then
+			table.insert(out, items[i])
+		end
+	end
+	if previous and #previous == #out then
+		for i, v in out do
+			if previous[i] ~= v then
+				return out
+			end
+		end
+		return previous
+	end
+	return out
+end)
+```
 
 ---
 
 ## reactive()
 
-Makes a whole table reactive, nested tables included. You read and write fields directly, no
-`.value`. Use it for objects you update field by field, like a player's stats.
+Makes a table reactive, nested tables included. Read and write its fields directly, with no
+`.value`.
 
-- **Example**
+```lua signature
+function reactive<T>(target: T): T
+```
 
-  A player's stats as one reactive table: change fields directly, no `.value`:
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `target` | `T` | | the table to wrap; it stays the storage behind the proxy |
 
-  ```lua
-  local stats = Rivue.reactive({
-  	level = 1,
-  	xp = 0,
-  	equipped = { weapon = "Sword" },
-  })
+**Returns** a proxy of `target`. Passing a proxy returns that same proxy.
 
-  local StatsPanel = Rivue.defineComponent({
-  	name = "StatsPanel",
-  	render = function()
-  		return h("TextLabel", { Text = `Level {stats.level} · {stats.equipped.weapon}` })
-  	end,
-  })
+> [!WARNING]
+> Luau has no `__pairs`, so `pairs()`, `ipairs()`, `next()` and the `table.*` functions see an
+> empty table. Loop with `for k, v in proxy do` or `for i = 1, #proxy do`, and change lists with
+> [`Rivue.array`](array.md).
 
-  stats.xp += 120
-  stats.equipped.weapon = "Bow" -- nested tables are reactive too
-  ```
+### Example
 
-- **Details**
+```lua
+local stats = Rivue.reactive({
+	level = 1,
+	xp = 0,
+	equipped = { weapon = "Sword" },
+})
 
-  The conversion is deep: nested tables are made reactive when you read them. Passing a proxy
-  returns that same proxy.
+local StatsPanel = Rivue.defineComponent({
+	name = "StatsPanel",
+	render = function()
+		return h("TextLabel", { Text = `Level {stats.level} · {stats.equipped.weapon}` })
+	end,
+})
 
-  Luau has no `__pairs`/`__ipairs`, so `pairs()`, `ipairs()`, `next()` and the `table.*`
-  functions see an empty table. Iterate with `for k, v in proxy do` (or a numeric loop) and append with
-  `list[#list + 1] = value`.
+stats.xp += 120
+stats.equipped.weapon = "Bow" -- nested tables are reactive too
+```
 
-  To keep the original table out of the reactivity system, use
-  [`toRaw()`](reactivity-advanced.md#toraw) or [`markRaw()`](reactivity-advanced.md#markraw).
+### Details
 
-- **Type**
-
-  ```lua
-  function reactive<T>(target: T): T
-  ```
+- Nested tables are made reactive when you first read them.
+- To keep a table out of reactivity, use [`toRaw()`](reactivity-advanced.md#toraw) or
+  [`markRaw()`](reactivity-advanced.md#markraw).
 
 ---
 
 ## readonly()
 
-A view of some state that can be read but not changed. Hand it out when other code should see the
-state but only your module should change it.
+A read-only view of some state, for when other code should see it but only your module should
+change it.
 
-- **Example**
+```lua signature
+function readonly<T>(target: T): T
+```
 
-  A data module that lets everyone read the player's data, but only its own functions change it:
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `target` | `T` | | a plain or reactive table |
 
-  ```lua
-  local state = Rivue.reactive({ coins = 0 })
+**Returns** a read-only proxy. Reads still track, so a view of reactive state stays reactive.
 
-  local PlayerData = {
-  	state = Rivue.readonly(state), -- what components see
-  }
+> [!NOTE]
+> Writes are ignored without an error. In Studio they're logged only when `Rivue.debug.enabled`
+> is on.
 
-  function PlayerData.addCoins(amount: number)
-  	state.coins += amount -- the only place coins change
-  end
+### Example
 
-  PlayerData.addCoins(25)
-  print(PlayerData.state.coins) -- 25
-  PlayerData.state.coins = 999 -- warns in Studio and does nothing
-  print(PlayerData.state.coins) -- 25
-  ```
+```lua
+local state = Rivue.reactive({ coins = 0 })
 
-- **Details**
+local PlayerData = {
+	state = Rivue.readonly(state), -- what components see
+}
 
-  Nested tables are readonly too. Writes are ignored and logged when debugging is on. Reads still
-  track, so a readonly view of reactive state stays reactive.
+function PlayerData.addCoins(amount: number)
+	state.coins += amount -- the only place coins change
+end
 
-- **Type**
+PlayerData.addCoins(25)
+PlayerData.state.coins = 999 -- ignored
+print(PlayerData.state.coins) -- 25
+```
 
-  ```lua
-  function readonly<T>(target: T): T
-  ```
+### Details
 
-- **See also** [`shallowReadonly()`](reactivity-advanced.md#shallowreadonly)
+- Nested tables are read-only too. For the top level only, use
+  [`shallowReadonly()`](reactivity-advanced.md#shallowreadonly).
 
 ---
 
 ## watchEffect()
 
-Runs a function now, and again whenever anything it read changes. Use it for side effects that
-follow state, like saving settings or playing a sound.
+Runs a function now, and again whenever anything it read changes. For side effects that follow
+state, like saving settings.
 
-- **Example**
+```lua signature
+function watchEffect(effect: (onCleanup: OnCleanup) -> (), options: WatchEffectOptions?): WatchHandle
+```
 
-  Save settings whenever any of them changes. It runs once right away, then after every change:
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `effect` | `(onCleanup) -> ()` | | the function to run; `onCleanup(fn)` registers cleanup for this run |
+| `options.flush` | `"pre" \| "post" \| "sync"` | `"pre"` | when it runs: before re-renders, on the next Heartbeat after them, or inside the write |
 
-  ```lua
-  local settings = Rivue.reactive({ music = 0.8, sfx = 1, showFps = false })
+**Returns** a [`WatchHandle`](#type-watchhandle).
 
-  local stop = Rivue.watchEffect(function()
-  	-- Reads every field, so a change to any of them re-runs this
-  	Remote.fire("settings:save", {
-  		music = settings.music,
-  		sfx = settings.sfx,
-  		showFps = settings.showFps,
-  	})
-  end)
+> [!NOTE]
+> Watchers made in a component's `setup()` stop when it unmounts. Anywhere else, keep the handle
+> and stop it yourself, or run it inside an [`effectScope()`](reactivity-advanced.md#effectscope).
 
-  settings.music = 0.3 -- saved again
-  stop() -- stop saving
-  ```
+### Example
 
-  Clean up before the next run with `onCleanup`, here to follow whichever model is selected:
+```lua
+local settings = Rivue.reactive({ music = 0.8, sfx = 1, showFps = false })
 
-  ```lua
-  local selected = Rivue.shallowRef(workspace)
+local stop = Rivue.watchEffect(function()
+	-- reads every field, so a change to any of them runs this again
+	Remote.fire("settings:save", {
+		music = settings.music,
+		sfx = settings.sfx,
+		showFps = settings.showFps,
+	})
+end)
 
-  Rivue.watchEffect(function(onCleanup)
-  	local conn = selected.value.ChildAdded:Connect(function(child)
-  		print("added", child.Name)
-  	end)
-  	onCleanup(function()
-  		conn:Disconnect() -- runs before the next run, and when stopped
-  	end)
-  end)
-  ```
+settings.music = 0.3 -- saved again
+stop()
+```
 
-  Pause it while a menu is closed, and catch up when it opens:
+Following whichever model is selected, and disconnecting from the old one:
 
-  ```lua
-  local count = Rivue.ref(0)
-  local handle = Rivue.watchEffect(function()
-  	print("badge shows", count.value)
-  end)
+```lua
+local selected = Rivue.shallowRef(workspace)
 
-  handle.pause()
-  count.value = 5 -- nothing runs
-  handle.resume() -- runs once with 5
-  ```
+Rivue.watchEffect(function(onCleanup)
+	local conn = selected.value.ChildAdded:Connect(function(child)
+		print("added", child.Name)
+	end)
+	onCleanup(function()
+		conn:Disconnect() -- before the next run, and when stopped
+	end)
+end)
+```
 
-- **Details**
+Paused while a menu is closed:
 
-  - **Cleanup.** `effect` receives `onCleanup`. The cleanup runs before the next run and when the
-    watcher stops.
-  - **Timing (`flush`).**
-    - `"pre"` (the default) runs deferred, before component updates.
-    - `"post"` runs on the next Heartbeat, after renders.
-    - `"sync"` runs right away on every change.
-  - **Stopping.** The returned handle stops the watcher when you call it.
-    `handle.pause()` and `handle.resume()` suspend it; changes made while paused run once on
-    resume. Watchers created in a component's `setup()` stop when the component unmounts.
+```lua
+local count = Rivue.ref(0)
+local handle = Rivue.watchEffect(function()
+	print("badge shows", count.value)
+end)
 
-  An effect that writes state it also reads doesn't re-trigger itself.
+handle.pause()
+count.value = 5 -- nothing runs
+handle.resume() -- runs once with 5
+```
 
-- **Type**
+### Details
 
-  ```lua
-  function watchEffect(effect: (onCleanup: OnCleanup) -> (), options: WatchEffectOptions?): WatchHandle
-
-  type OnCleanup = (cleanupFn: () -> ()) -> ()
-
-  type WatchEffectOptions = {
-  	flush: ("pre" | "post" | "sync")?, -- default "pre"
-  }
-
-  type WatchHandle = {
-  	stop: () -> (),
-  	pause: () -> (),
-  	resume: () -> (),
-  } -- also callable: handle() stops it
-  ```
+- Changes made while paused run once on `resume()`.
+- An effect that writes state it also reads doesn't trigger itself again.
 
 ---
 
 ## watchPostEffect()
 
-`watchEffect()` that waits until after the UI has updated, on the next Heartbeat. Use it when you
-need to see the new Instances.
+[`watchEffect()`](#watcheffect) with `flush = "post"`: it runs on the next Heartbeat, after the UI
+has updated. Use it to read the new Instances.
 
-- **Example**
+```lua signature
+function watchPostEffect(effect: (onCleanup: OnCleanup) -> ()): WatchHandle
+```
 
-  ```lua
-  local open = Rivue.ref(false)
-  local panel: Frame? = nil -- set by a template ref, for example
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `effect` | `(onCleanup) -> ()` | | the function to run |
 
-  Rivue.watchPostEffect(function()
-  	if open.value and panel then
-  		print(panel.AbsoluteSize) -- read after the UI updated
-  	end
-  end)
-  ```
+**Returns** a [`WatchHandle`](#type-watchhandle).
 
-- **Type**
+### Example
 
-  ```lua
-  function watchPostEffect(effect: (onCleanup: OnCleanup) -> ()): WatchHandle
-  ```
+```lua
+local open = Rivue.ref(false)
+local panel: Frame? = nil -- set by a template ref, for example
+
+Rivue.watchPostEffect(function()
+	if open.value and panel then
+		print(panel.AbsoluteSize) -- read after the UI updated
+	end
+end)
+```
 
 ---
 
 ## watchSyncEffect()
 
-`watchEffect()` that runs immediately on every change, with no batching. Rarely needed.
+[`watchEffect()`](#watcheffect) with `flush = "sync"`: it runs inside every write, with no
+batching. Rarely needed.
 
-- **Example**
+```lua signature
+function watchSyncEffect(effect: (onCleanup: OnCleanup) -> ()): WatchHandle
+```
 
-  ```lua
-  local health = Rivue.ref(100)
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `effect` | `(onCleanup) -> ()` | | the function to run |
 
-  Rivue.watchSyncEffect(function()
-  	if health.value <= 0 then
-  		print("dead") -- runs inside the write, before the next line
-  	end
-  end)
+**Returns** a [`WatchHandle`](#type-watchhandle).
 
-  health.value = 0
-  ```
+### Example
 
-- **Type**
+```lua
+local health = Rivue.ref(100)
 
-  ```lua
-  function watchSyncEffect(effect: (onCleanup: OnCleanup) -> ()): WatchHandle
-  ```
+Rivue.watchSyncEffect(function()
+	if health.value <= 0 then
+		print("dead") -- runs inside the write, before the next line
+	end
+end)
+
+health.value = 0
+```
 
 ---
 
 ## watch()
 
-Calls your function when specific state changes, with the new and old values. Use it when you care
-exactly what changed, like loading a profile when the selected user changes.
+Calls a function when a specific source changes, with the new and old values. Reach for it when
+you care what changed, like loading a profile when the selected user changes.
 
-- **Example**
+```lua signature
+function watch<T>(
+	source: WatchSource<T> | { WatchSource<unknown> },
+	callback: (newValue: T, oldValue: T?, onCleanup: OnCleanup) -> (),
+	options: WatchOptions?
+): WatchHandle
+```
 
-  Watching a getter:
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `source` | `WatchSource<T>` | | a ref or computed, a getter, a reactive table, or a list of these |
+| `callback` | `(new, old, onCleanup) -> ()` | | runs after the source changes; gets lists of values for a list source |
+| `options.immediate` | `boolean` | `false` | also run the callback straight away, with `oldValue` as `nil` |
+| `options.deep` | `boolean \| number` | `false`, `true` for a reactive table | count changes inside nested tables; a number limits the depth |
+| `options.flush` | `"pre" \| "post" \| "sync"` | `"pre"` | as in [`watchEffect()`](#watcheffect) |
+| `options.once` | `boolean` | `false` | stop after the first callback |
 
-  ```lua
-  local state = Rivue.reactive({ count = 0 })
+**Returns** a [`WatchHandle`](#type-watchhandle).
 
-  Rivue.watch(function()
-  	return state.count
-  end, function(count, prevCount)
-  	print(prevCount, "->", count)
-  end)
-  ```
+> [!NOTE]
+> Unlike [`watchEffect()`](#watcheffect), it only tracks `source`, and the callback doesn't run
+> until the source changes unless `immediate` is set. It stops on unmount only when made in
+> `setup()`.
 
-  Watching a ref, starting immediately:
+### Example
 
-  ```lua
-  local userId = Rivue.ref(1)
+```lua
+local state = Rivue.reactive({ count = 0 })
 
-  Rivue.watch(userId, function(id)
-  	print("load profile", id)
-  end, { immediate = true })
-  ```
+Rivue.watch(function()
+	return state.count
+end, function(count, prevCount)
+	print(prevCount, "->", count)
+end)
+```
 
-  Watching several sources:
+Starting straight away:
 
-  ```lua
-  local hp = Rivue.ref(100)
-  local maxHp = Rivue.ref(100)
+```lua
+local userId = Rivue.ref(1)
 
-  Rivue.watch({ hp, maxHp }, function(values, oldValues)
-  	print(`{values[1]} / {values[2]}`)
-  end)
-  ```
+Rivue.watch(userId, function(id)
+	print("load profile", id)
+end, { immediate = true })
+```
 
-  Deep watching and cleanup:
+Several sources at once:
 
-  ```lua
-  local settings = Rivue.reactive({ audio = { volume = 1 } })
+```lua
+local hp = Rivue.ref(100)
+local maxHp = Rivue.ref(100)
 
-  Rivue.watch(settings, function(_, _, onCleanup)
-  	local saving = task.delay(1, function()
-  		print("save settings")
-  	end)
-  	onCleanup(function()
-  		task.cancel(saving) -- a newer change replaces the pending save
-  	end)
-  end)
+Rivue.watch({ hp, maxHp }, function(values, oldValues)
+	print(`{values[1]} / {values[2]}`)
+end)
+```
 
-  settings.audio.volume = 0.5
-  ```
+A reactive table, saved a second after the last change:
 
-- **Details**
+```lua
+local settings = Rivue.reactive({ audio = { volume = 1 } })
 
-  Unlike [`watchEffect()`](#watcheffect), `watch()` only tracks the source, gives you the
-  previous value, and is lazy: the callback doesn't run until the source changes (unless
-  `immediate = true`).
+Rivue.watch(settings, function(_, _, onCleanup)
+	local saving = task.delay(1, function()
+		print("save settings")
+	end)
+	onCleanup(function()
+		task.cancel(saving) -- a newer change replaces the pending save
+	end)
+end)
 
-  The source can be:
-  - a ref (including a computed),
-  - a getter function,
-  - a reactive table (watched deeply),
-  - a list of the above. The callback then receives lists of new and old values.
-
-  Options:
-  - **`immediate`**: run the callback right away. `oldValue` is `nil` the first time.
-  - **`deep`**: traverse nested tables so nested changes count. A number limits how many levels
-    deep it goes.
-  - **`flush`**: same as [`watchEffect()`](#watcheffect).
-  - **`once`**: stop after the first callback.
-
-  The returned handle works like [`watchEffect()`](#watcheffect)'s.
-
-- **Type**
-
-  ```lua
-  function watch<T>(
-  	source: WatchSource<T> | { WatchSource<unknown> },
-  	callback: (newValue: T, oldValue: T?, onCleanup: OnCleanup) -> (),
-  	options: WatchOptions?
-  ): WatchHandle
-
-  type WatchSource<T> = Ref<T> | () -> T | T -- T: a reactive table
-
-  type WatchOptions = {
-  	immediate: boolean?, -- default false
-  	deep: (boolean | number)?, -- default false (true for reactive tables)
-  	flush: ("pre" | "post" | "sync")?, -- default "pre"
-  	once: boolean?, -- default false
-  }
-  ```
+settings.audio.volume = 0.5
+```
 
 ---
 
 ## onWatcherCleanup()
 
-Registers clean-up for the watcher that's running, which runs before it runs again or stops. Use it
-to cancel the previous request or timer.
+Registers cleanup for the watcher callback that's running, such as cancelling a pending request
+or timer. It runs before the callback runs again and when the watcher stops.
 
-- **Example**
+```lua signature
+function onWatcherCleanup(cleanupFn: () -> (), failSilently: boolean?)
+```
 
-  ```lua
-  local query = Rivue.ref("")
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `cleanupFn` | `() -> ()` | | the cleanup |
+| `failSilently` | `boolean` | `false` | don't warn when there's no watcher to attach to |
 
-  Rivue.watch(query, function(text)
-  	local pending = task.delay(0.3, function()
-  		print("search", text)
-  	end)
-  	Rivue.onWatcherCleanup(function()
-  		task.cancel(pending)
-  	end)
-  end)
-  ```
+> [!WARNING]
+> Call it before any yield in the callback. After a yield there's no running watcher, so it warns
+> and the cleanup never runs.
 
-- **Details**
+### Example
 
-  The cleanup runs before the next run and when the watcher stops. It must be called
-  synchronously inside the callback, not after a yield.
+```lua
+local query = Rivue.ref("")
 
-- **Type**
-
-  ```lua
-  function onWatcherCleanup(cleanupFn: () -> (), failSilently: boolean?)
-  ```
+Rivue.watch(query, function(text)
+	local pending = task.delay(0.3, function()
+		print("search", text)
+	end)
+	Rivue.onWatcherCleanup(function()
+		task.cancel(pending)
+	end)
+end)
+```
 
 ---
 
 ## onEffectCleanup()
 
-Registers clean-up for the effect that's running, like Vue 3.5's. It runs before the effect runs
+Registers cleanup for the effect that's running, as in Vue 3.5. It runs before the effect runs
 again and when it stops.
 
-- **Example**
+```lua signature
+function onEffectCleanup(cleanupFn: () -> (), failSilently: boolean?)
+```
 
-  ```lua
-  local target = Rivue.ref(1)
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `cleanupFn` | `() -> ()` | | the cleanup |
+| `failSilently` | `boolean` | `false` | don't warn when there's no effect to attach to |
 
-  Rivue.watchEffect(function()
-  	local id = target.value
-  	local timer = task.delay(1, function()
-  		print("still showing", id)
-  	end)
-  	Rivue.onEffectCleanup(function()
-  		task.cancel(timer)
-  	end)
-  end)
-  ```
+> [!WARNING]
+> Like `onWatcherCleanup()`, it warns and does nothing when called after a yield or outside an
+> effect.
 
-- **Details**
+### Example
 
-  It works in `effect()`, `watchEffect()` and computeds. Inside a `watch()` callback it does the
-  same as `onWatcherCleanup()`. Call it synchronously, not after a yield. Outside an effect it
-  warns, unless `failSilently` is true.
+```lua
+local target = Rivue.ref(1)
 
-- **Type**
+Rivue.watchEffect(function()
+	local id = target.value
+	local timer = task.delay(1, function()
+		print("still showing", id)
+	end)
+	Rivue.onEffectCleanup(function()
+		task.cancel(timer)
+	end)
+end)
+```
 
-  ```lua
-  function onEffectCleanup(cleanupFn: () -> (), failSilently: boolean?)
-  ```
+### Details
+
+- Works in [`effect()`](reactivity-advanced.md#effect), `watchEffect()` and computeds. Inside a
+  `watch()` callback it does the same as `onWatcherCleanup()`.
+
+---
+
+## type Ref
+
+```lua signature
+type Ref<T> = { value: T }
+```
+
+---
+
+## type WatchHandle
+
+```lua signature
+type WatchHandle = {
+	stop: () -> (),
+	pause: () -> (),
+	resume: () -> (),
+}
+```
+
+Calling the handle itself, `handle()`, also stops the watcher.
+
+---
+
+## type WatchSource
+
+```lua signature
+type WatchSource<T> = Ref<T> | () -> T | T -- T: a reactive table
+```
+
+---
+
+## type OnCleanup
+
+```lua signature
+type OnCleanup = (cleanupFn: () -> ()) -> ()
+```
 
 ---
 

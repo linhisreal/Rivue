@@ -2,17 +2,17 @@
 
 # 17. Screens and navigation
 
-A lobby, a shop, an item page, settings: once a game has more than two or three screens, you
-want a back button that works, screens that pass each other data, and a way to stop the player
-leaving a form half filled in. That's what RivueRouter is for.
+Once a game has more than two or three screens (a lobby, a shop, an item page, settings), it needs
+a back button that works, screens that pass each other data, and a way to stop the player leaving
+a form half filled in. RivueRouter handles all three.
 
 [Chapter 13](13-advanced-components.md#switching-screens) switched screens with a lookup table,
-which is still the right call for tabs. Reach for the router once screens open other screens.
+which still works well for tabs. Use the router once screens open other screens.
 
 ## Setting it up
 
-RivueRouter is its own package, like Vue Router. Install it next to RivueUI (see the
-[README](../../README.md#installation)) and it finds RivueUI by itself.
+RivueRouter is its own package, like Vue Router. Install it next to RivueUI (see
+[Installation](../INSTALLATION.md)) and it finds RivueUI by itself.
 
 ![how the router, RouterView and the screens fit together](../assets/diagrams/router-setup.webp)
 
@@ -50,9 +50,19 @@ app:mountToPlayerGui(game.Players.LocalPlayer)
 `app:use(router)` has to come before mounting. Any component inside the app can then get the
 router with `Router.useRouter()`.
 
+A screen most players never open doesn't need to load at startup. Wrap it in `Router.lazy`, and
+its module is required on the first visit:
+
+```lua
+settings = Router.lazy(function()
+	return require(script.Parent.Settings)
+end),
+```
+
 ## Moving between screens
 
-Four functions move you around. The history works like a browser's:
+`push`, `back`, `forward` and `replace` move between screens, and the history works like a
+browser's:
 
 ![push, back, forward and replace on the history](../assets/diagrams/router-history.webp)
 
@@ -102,9 +112,8 @@ local Item = Rivue.defineComponent({
 router.push("item", { id = "sword" })
 ```
 
-Pass ids, and let the screen look the rest up in a store. If you pass the whole item table
-instead, going back to that screen later shows the item as it was when you pushed it, even if
-the store has changed since.
+Pass ids and let the screen look the rest up in a store. A whole item table passed as a param is a
+copy: going back to that screen later shows the item as it was when you pushed it.
 
 A component deeper inside the screen can read the params with `Router.useRoute()` instead of
 having them passed down: `route.params.id`.
@@ -139,8 +148,8 @@ local BackButton = Rivue.defineComponent({
 })
 ```
 
-Put it in `App`, next to the `RouterView`, rather than in each screen. Then there's one binding
-for the whole game.
+Put it in `App`, next to the `RouterView`, rather than in each screen, so there's one binding for
+the whole game.
 
 If you only need the keys, without a button, let the router bind them:
 
@@ -268,8 +277,8 @@ local Settings = Rivue.defineComponent({
 })
 ```
 
-It doesn't matter how the player tried to leave: Back, a tab, or a button that pushes another
-screen. The guard returns the player's answer, and the move goes ahead or doesn't.
+The guard runs however the player tries to leave (Back, a tab, or a button that pushes another
+screen), and its answer decides whether the move goes ahead.
 
 Guards that concern the whole game go on the router. `beforeEach` runs for every move, and can
 return a route to go to instead:
@@ -329,9 +338,8 @@ h(Router.RouterView, nil, {
 
 ## Keeping screens alive
 
-Normally a screen is unmounted when you leave it, and mounted fresh when you come back. For a
-shop with a search box and a long scrolling list, that loses the player's place. Turn on
-`keepAlive`:
+A screen is unmounted when you leave it and mounted fresh when you come back. For a shop with a
+search box and a long scrolling list, that loses the player's place. `keepAlive` keeps it:
 
 ```lua
 h(Router.RouterView, { keepAlive = true })
@@ -380,8 +388,8 @@ app:unmount()
 ---
 
 **Try it:** [GameMenu example](../../examples/components/GameMenu.luau) (back button, tabs, leave guard
-with a Dialog) · [tests/Router.test.luau](../../tests/Router.test.luau) covers every feature here
-**Reference:** [RivueRouter](../api/router.md) · [KeepAlive](../api/builtins.md#keepalive) ·
+with a Dialog) · [tests/Router.test.luau](../../tests/Router.test.luau) covers every feature here\
+**Reference:** [RivueRouter](../api/router.md) · [Router.lazy()](../api/router.md#routerlazy) · [KeepAlive](../api/builtins.md#keepalive) ·
 [Dialog](../api/builtins.md#dialog) · [useKeybind()](../api/roblox.md#usekeybind) ·
 [Transition](../api/builtins.md#transition)
 

@@ -2,7 +2,8 @@
 
 # Architecture
 
-For people changing Rivue itself. To use it, see the [API reference](API.md).
+> [!NOTE]
+> This page is for people changing Rivue itself. To use Rivue, see the [API reference](API.md).
 
 ## Packages
 
@@ -38,13 +39,14 @@ utils.luau          debounce, throttle, helpers
 debug.luau          logging, inspect, invariants
 ```
 
-Requires go one way. Arrows point from a module to the ones that require it; `debug`, `types` and
-implied edges are left out.
+Requires go one way. Arrows point from a module to the ones that require it (`debug`, `types` and
+implied edges are left out).
 
 ![RivueUI's modules and which ones require which](assets/diagrams/module-graph.webp)
 
-`builtins` never requires `renderer`; KeepAlive unmounts through `_keepAliveRenderer`, which the
-renderer stores on the instance.
+> [!NOTE]
+> `builtins` never requires `renderer`. KeepAlive unmounts through `_keepAliveRenderer`, which the
+> renderer stores on the instance.
 
 ## Reactivity
 
@@ -72,11 +74,14 @@ sequenceDiagram
   (`allowRecurse`), since a child can change parent state while mounting.
 - Without a scheduler an effect is queued once on the micro queue. `effect.job` skips stopped
   effects.
-- Computeds are lazy: a trigger marks them dirty and the getter runs on the next read. Getters run
-  in `pcall` only up to 16 computeds deep, because Luau's ~200 C-call limit broke long chains.
+- Computeds are lazy: a trigger marks them dirty and the getter runs on the next read.
 - `watch` flushes by `"pre"` (micro queue), `"post"` (Heartbeat) or `"sync"`. Sync callback errors
   are caught. Paused watchers replay once on resume.
 - Each component's `setup` runs in its own detached scope, stopped on unmount or if `setup` errors.
+
+> [!WARNING]
+> Computed getters run in `pcall` only up to 16 computeds deep. Luau's limit of about 200 nested C
+> calls broke long chains, so keep that guard if you touch `computed`.
 
 ## Errors
 
@@ -109,8 +114,10 @@ flowchart LR
     U -.-> H["next Heartbeat<br/>post watchers, frame jobs"]
 ```
 
-Roblox silently drops `task.defer` past 80 nested levels, which `pcall` can't catch. The
-scheduler counts its depth and moves work to the next Heartbeat past 60.
+> [!WARNING]
+> Roblox silently drops `task.defer` past 80 nested levels, and `pcall` can't catch it. The
+> scheduler counts its depth and moves work to the next Heartbeat past 60, so new deferred work
+> should go through the scheduler, not `task.defer` directly.
 
 ## Rendering
 
@@ -183,8 +190,9 @@ runs out, so single moves write one value.
 
 ![Removing B and inserting X after C writes one LayoutOrder value](assets/diagrams/layout-order.webp)
 
-Engine calls cost far more than Luau, so the renderer avoids reads, writes and `IsA` where it can.
-`tests/offline/Performance.test.luau` fails if the engine call count goes up.
+> [!IMPORTANT]
+> Engine calls cost far more than Luau, so the renderer avoids Instance reads, writes and `IsA`
+> where it can. `tests/offline/Performance.test.luau` fails if the engine call count goes up.
 
 ### Unmounting
 
@@ -219,7 +227,9 @@ Requests are `{ action, id, payload }` on one RemoteEvent, replies go to that pl
 
 ## RivueRouter
 
-Requires the game's RivueUI; a second copy would track state separately.
+> [!WARNING]
+> RivueRouter requires the game's RivueUI. A second copy would track state separately, so routes
+> and components would stop seeing each other's changes.
 
 ![The navigation guards in order, and what each return value does](assets/diagrams/router-guard.webp)
 
@@ -233,8 +243,10 @@ Requires the game's RivueUI; a second copy would track state separately.
 
 With `app.config.devtools`, `app:mount()` adds a `RivueDevTools` Configuration tagged
 `RivueDevToolsChannel`. `Rivue._devtools.event()` appends to its `RivueTimeline` attribute (last 50,
-with sequence numbers), and `route()` sets `RivueRoute`. Both return immediately when no app has
-devtools on.
+with sequence numbers), and `route()` sets `RivueRoute`.
+
+> [!NOTE]
+> Both return immediately when no app has devtools on, so call sites don't need their own check.
 
 ## Tests
 
@@ -242,9 +254,11 @@ devtools on.
 |---|---|
 | Studio | `dev/client/TestRunner.client.luau` |
 | Lune | `lune run test` |
-| Roblox server | `lune run cloud-test` ([setup](RELEASING.md#tests-in-roblox)) |
+| Roblox server | `lune run cloud-test` ([setup](RELEASING.md#run-the-tests-in-roblox)) |
 
 Lune bundles each suite with `tests/offline/prelude.luau`, a fake Roblox: stub Instances, a
 virtual clock, service stand-ins and the 80-level `task.defer` limit. Extend it when a test needs
-more. Suites share their assertions through `tests/support/TestSupport.luau`. Bug fixes start
-with a failing test.
+more. Suites share their assertions through `tests/support/TestSupport.luau`.
+
+> [!TIP]
+> Start a bug fix with a test that fails, then make it pass.

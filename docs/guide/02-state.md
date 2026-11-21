@@ -2,8 +2,8 @@
 
 # 2. State
 
-Rivue has three kinds of reactive state. Which one you pick matters less than where you read it,
-and lists need a little care of their own.
+Rivue has three kinds of reactive state. Which one you pick matters less than where you read it.
+Lists and copied-out fields each have one catch.
 
 ## ref, reactive and computed
 
@@ -58,6 +58,17 @@ render = function(ctx)
 end,
 ```
 
+The same goes for fields copied out of a `reactive` table. `local name = player.name` is a plain
+string from then on. To hand the fields around separately, turn them into linked refs first:
+
+```lua
+local player = Rivue.reactive({ name = "Ada", level = 1 })
+local fields = Rivue.toRefs(player)
+
+fields.level.value += 1
+print(player.level) -- 2
+```
+
 ## Changing lists
 
 `table.insert`, `table.remove` and `table.sort` write straight to the table behind the proxy, so
@@ -81,7 +92,7 @@ Looping has a catch too. Luau's `pairs` and `ipairs` skip proxies, so loop with
 
 ---
 
-**Try it:** [TodoList example](../../examples/components/TodoList.luau) (array helpers, computed counts)
+**Try it:** [TodoList example](../../examples/components/TodoList.luau) (array helpers, computed counts)\
 **Reference:** [Reactivity: core](../api/reactivity-core.md) ·
 [Array helpers](../api/array.md) · [Reactivity: utilities](../api/reactivity-utilities.md)
 

@@ -5,7 +5,7 @@
 <h1 align="center">Rivue</h1>
 
 <p align="center">
-  Vue 3's component model for Roblox UI, in Luau.
+  The Vue-style framework for Roblox UI.
 </p>
 
 <p align="center">
@@ -17,8 +17,8 @@
   <a href="docs/README.md"><img src="docs/assets/badges/docs.webp" height="32" alt="Read the docs"></a>
 </p>
 
-Write Roblox UI as Vue components. When state changes, Rivue re-renders the components that use it
-and updates their Instances.
+Build Roblox UI with Vue 3's components, refs and computed values. Change state and Rivue writes
+only the properties that changed.
 
 ```lua
 local Rivue = require(game.ReplicatedStorage.RivueUI)
@@ -66,47 +66,26 @@ Differences from Vue are in the [cheat sheet](docs/VUE.md).
 
 <table>
 <tr><td width="72"><img src="docs/assets/packages/rivue-ui.webp" width="56" height="56" alt="RivueUI"></td>
-<td>RivueUI: the framework.</td></tr>
+<td>RivueUI: components, reactivity, styling and the built-ins.</td></tr>
 <tr><td><img src="docs/assets/packages/rivue-remote.webp" width="56" height="56" alt="RivueRemote"></td>
-<td><a href="docs/api/remote.md">RivueRemote</a>: client/server calls, events and replicated state.</td></tr>
+<td><a href="docs/api/remote.md">RivueRemote</a>: checked client/server calls, events and replicated state.</td></tr>
 <tr><td><img src="docs/assets/packages/rivue-router.webp" width="56" height="56" alt="RivueRouter"></td>
-<td><a href="docs/api/router.md">RivueRouter</a>: screens, history and guards, after Vue Router 4.</td></tr>
+<td><a href="docs/api/router.md">RivueRouter</a>: screens with history, guards and nested routes.</td></tr>
 <tr><td><img src="docs/assets/packages/rivue-devtools.webp" width="56" height="56" alt="RivueDevTools"></td>
-<td><a href="docs/DEVTOOLS.md">RivueDevTools</a>: a Studio plugin for inspecting components.</td></tr>
+<td><a href="docs/DEVTOOLS.md">RivueDevTools</a>: props, state, renders and network, live during a playtest.</td></tr>
 </table>
 
 ## Installation
 
-RivueUI is a ModuleScript with a `runtime` folder inside. Put it in `ReplicatedStorage`, and the
-optional packages next to it.
-
-**Wally:** add the packages to `wally.toml`, then run `wally install`.
+Wally, pesde, Rojo or a Studio model file: see [Installation](docs/INSTALLATION.md). With Wally:
 
 ```toml
-[dependencies]
 RivueUI = "linhisreal/rivue-ui@0.10.0-rc.2"
-RivueRemote = "linhisreal/rivue-remote@0.8.0-beta.2" # optional, client/server calls
-RivueRouter = "linhisreal/rivue-router@0.3.0-beta.2" # optional, screens and history
 ```
-
-**pesde:** `pesde add linhisreal/rivue_ui`, plus `linhisreal/rivue_remote` or
-`linhisreal/rivue_router` if you want them.
-
-**Rojo:** add this repo as a git submodule and point your project at the package:
-
-```json
-"ReplicatedStorage": {
-  "RivueUI": { "$path": "vendor/Rivue/packages/rivue-ui" }
-}
-```
-
-**Studio:** download `RivueUI.rbxm` from the latest release and drag it into `ReplicatedStorage`.
-The release also has `RivueUI.min.rbxm` (no comments), `RivueRemote.rbxm`, `RivueRouter.rbxm`, and
-the `RivueDevTools.rbxm` plugin.
 
 ## Docs
 
-[Docs home](docs/README.md) · [Guide](docs/GUIDE.md) · [API](docs/API.md) ·
+[Docs home](docs/README.md) · [Installation](docs/INSTALLATION.md) · [Guide](docs/GUIDE.md) · [API](docs/API.md) ·
 [Coming from Vue](docs/VUE.md) · [Coming from React-lua or Fusion](docs/COMING-FROM-REACT.md) ·
 [Architecture](docs/ARCHITECTURE.md)
 

@@ -4,527 +4,543 @@
 
 **Learn it:** [Guide 4: Components](../guide/04-components.md) · [Guide 7: Effects and animation](../guide/07-effects-and-animation.md)
 
-Register these in a component's `setup()`. Calling one anywhere else errors. All examples assume:
+Functions that run your code at points in a component's life. Examples assume:
 
 ```lua
 local Rivue = require(game.ReplicatedStorage.RivueUI)
 local h = Rivue.h
 ```
 
-- [onMounted()](#onmounted)
-- [onUpdated()](#onupdated)
-- [onUnmounted()](#onunmounted)
-- [onBeforeMount()](#onbeforemount)
-- [onBeforeUpdate()](#onbeforeupdate)
-- [onBeforeUnmount()](#onbeforeunmount)
-- [onErrorCaptured()](#onerrorcaptured)
-- [onActivated()](#onactivated)
-- [onDeactivated()](#ondeactivated)
-- [onRenderTracked()](#onrendertracked)
-- [onRenderTriggered()](#onrendertriggered)
-- [onTransition()](#ontransition)
+> [!WARNING]
+> Register hooks in a component's `setup()`. Calling one anywhere else errors.
 
 ---
 
 ## onMounted()
 
-Runs once the component is on screen and its Instances are parented. The place for anything that
-needs real Instances: reading `AbsoluteSize`, focusing, starting a tween.
+_setup() only_
 
-- **Example**
+Runs once the component's Instances and all its descendants are created and parented. The place for
+anything that needs real Instances: reading `AbsoluteSize`, focusing, starting a tween.
 
-  Focus a search box as soon as the menu opens:
+```lua signature
+function onMounted(callback: () -> ())
+```
 
-  ```lua
-  local SearchBar = Rivue.defineComponent({
-  	name = "SearchBar",
-  	setup = function()
-  		local box = Rivue.useTemplateRef("box")
-  		Rivue.onMounted(function()
-  			-- The TextBox exists and is parented now, so focusing works
-  			(box.value :: TextBox):CaptureFocus()
-  		end)
-  		return {}
-  	end,
-  	render = function()
-  		return h("TextBox", { ref = "box", PlaceholderText = "Search items" })
-  	end,
-  })
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `callback` | `() -> ()` | | runs once, after the whole tree being mounted is attached |
 
-- **Details**
+### Example
 
-  "Mounted" means the component's Instances and all its descendants are created and parented.
-  The callback runs after the whole tree being mounted is attached, so `AbsoluteSize`,
-  `AbsolutePosition` and `CaptureFocus()` work here. Children's `onMounted` run before their
-  parents'.
+```lua
+local SearchBar = Rivue.defineComponent({
+	name = "SearchBar",
+	setup = function()
+		local box = Rivue.useTemplateRef("box")
+		Rivue.onMounted(function()
+			-- the TextBox exists and is parented now, so focusing works
+			(box.value :: TextBox):CaptureFocus()
+		end)
+		return {}
+	end,
+	render = function()
+		return h("TextBox", { ref = "box", PlaceholderText = "Search items" })
+	end,
+})
+```
 
-- **Type**
+### Details
 
-  ```lua
-  function onMounted(callback: () -> ())
-  ```
+- Children's `onMounted` run before their parents'.
 
 ---
 
 ## onUpdated()
 
-Runs after the component re-rendered because its state changed. Use it when you need to react to the
-updated Instances.
+_setup() only_
 
-- **Example**
+Runs after the component re-rendered because its state changed. The Instances are already
+updated.
 
-  Keep a chat scrolled to the newest message:
+```lua signature
+function onUpdated(callback: () -> ())
+```
 
-  ```lua
-  local Chat = Rivue.defineComponent({
-  	name = "Chat",
-  	props = { messages = { type = "table", required = true } },
-  	setup = function()
-  		local list = Rivue.useTemplateRef("list")
-  		Rivue.onUpdated(function()
-  			local frame = list.value :: ScrollingFrame
-  			frame.CanvasPosition = Vector2.new(0, frame.AbsoluteCanvasSize.Y)
-  		end)
-  		return {}
-  	end,
-  	render = function(ctx)
-  		return h("ScrollingFrame", { ref = "list", layout = "vertical", AutomaticCanvasSize = Enum.AutomaticSize.Y }, {
-  			Rivue.hFor(ctx.messages, function(message)
-  				return h("TextLabel", { key = message.id, Text = message.text })
-  			end),
-  		})
-  	end,
-  })
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `callback` | `() -> ()` | | runs after each re-render |
 
-- **Details**
+> [!WARNING]
+> Changing the component's state here can loop. To react to one value, use
+> [`watch()`](reactivity-core.md#watch) with `flush = "post"`.
 
-  Children's `onUpdated` run before their parents', so a parent sees its children's updated
-  Instances. Don't change component state here, or it can loop. To react to a specific value, use
-  [`watch()`](reactivity-core.md#watch) with `flush = "post"`.
+### Example
 
-- **Type**
+```lua
+local Chat = Rivue.defineComponent({
+	name = "Chat",
+	props = { messages = { type = "table", required = true } },
+	setup = function()
+		local list = Rivue.useTemplateRef("list")
+		Rivue.onUpdated(function()
+			local frame = list.value :: ScrollingFrame
+			frame.CanvasPosition = Vector2.new(0, frame.AbsoluteCanvasSize.Y)
+		end)
+		return {}
+	end,
+	render = function(ctx)
+		return h("ScrollingFrame", { ref = "list", layout = "vertical", AutomaticCanvasSize = Enum.AutomaticSize.Y }, {
+			Rivue.hFor(ctx.messages, function(message)
+				return h("TextLabel", { key = message.id, Text = message.text })
+			end),
+		})
+	end,
+})
+```
 
-  ```lua
-  function onUpdated(callback: () -> ())
-  ```
+### Details
+
+- Children's `onUpdated` run before their parents', so a parent sees its children's updated
+  Instances.
 
 ---
 
 ## onUnmounted()
 
+_setup() only_
+
 Runs after the component is removed. The place to disconnect connections and stop anything you
 started yourself.
 
-- **Example**
+```lua signature
+function onUnmounted(callback: () -> ())
+```
 
-  Disconnect a connection you made yourself:
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `callback` | `() -> ()` | | runs once, after removal |
 
-  ```lua
-  local DamageFlash = Rivue.defineComponent({
-  	name = "DamageFlash",
-  	setup = function()
-  		local flashing = Rivue.ref(false)
-  		local humanoid = game.Players.LocalPlayer.Character:WaitForChild("Humanoid") :: Humanoid
+> [!NOTE]
+> Watchers, computeds, `onHeartbeat` connections and jobs from `setup()` stop on their own.
+> Connections, threads and tags you made yourself don't.
 
-  		local conn = humanoid.HealthChanged:Connect(function()
-  			flashing.value = true
-  			task.delay(0.15, function()
-  				flashing.value = false
-  			end)
-  		end)
-  		Rivue.onUnmounted(function()
-  			conn:Disconnect() -- Rivue only cleans up what it created
-  		end)
+### Example
 
-  		return { flashing = flashing }
-  	end,
-  	render = function(ctx)
-  		return h("Frame", {
-  			Size = UDim2.fromScale(1, 1),
-  			BackgroundColor3 = Color3.fromRGB(200, 0, 0),
-  			BackgroundTransparency = if ctx.flashing then 0.6 else 1,
-  		})
-  	end,
-  })
-  ```
+```lua
+local DamageFlash = Rivue.defineComponent({
+	name = "DamageFlash",
+	setup = function()
+		local flashing = Rivue.ref(false)
+		local humanoid = game.Players.LocalPlayer.Character:WaitForChild("Humanoid") :: Humanoid
 
-- **Details**
+		local conn = humanoid.HealthChanged:Connect(function()
+			flashing.value = true
+			task.delay(0.15, function()
+				flashing.value = false
+			end)
+		end)
+		Rivue.onUnmounted(function()
+			conn:Disconnect() -- Rivue only cleans up what it created
+		end)
 
-  Watchers, computeds and `Rivue.onHeartbeat` connections from `setup()` are stopped
-  automatically. Connections, threads and tags you made yourself need cleaning up here.
+		return { flashing = flashing }
+	end,
+	render = function(ctx)
+		return h("Frame", {
+			Size = UDim2.fromScale(1, 1),
+			BackgroundColor3 = Color3.fromRGB(200, 0, 0),
+			BackgroundTransparency = if ctx.flashing then 0.6 else 1,
+		})
+	end,
+})
+```
 
-  Children run their `onUnmounted` first, then the parent, as in Vue. So a parent can safely tear
-  down something its children still clean up into. `onBeforeUnmount` goes the other way: parent
-  first, while everything is still on screen.
+### Details
 
-- **Type**
-
-  ```lua
-  function onUnmounted(callback: () -> ())
-  ```
+- Children run `onUnmounted` first, then the parent, as in Vue, so a parent can tear down
+  something its children still clean up into. `onBeforeUnmount` goes the other way.
+- In stores and composables that may run outside a component,
+  [`onScopeDispose()`](reactivity-advanced.md#onscopedispose) works in both places.
 
 ---
 
 ## onBeforeMount()
 
-Runs right before the component renders for the first time.
+_setup() only_
 
-- **Example**
+Runs right before the first render. The component has its state but no Instances yet.
 
-  Load a saved setting before the first render, so the UI doesn't render twice:
+```lua signature
+function onBeforeMount(callback: () -> ())
+```
 
-  ```lua
-  local VolumeSlider = Rivue.defineComponent({
-  	name = "VolumeSlider",
-  	setup = function()
-  		local volume = Rivue.ref(0.5)
-  		Rivue.onBeforeMount(function()
-  			volume.value = game.Players.LocalPlayer:GetAttribute("Volume") or 0.5
-  		end)
-  		return { volume = volume }
-  	end,
-  	render = function(ctx)
-  		return h("TextLabel", { Text = `Volume: {math.round(ctx.volume * 100)}%` })
-  	end,
-  })
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `callback` | `() -> ()` | | runs once, before the first render |
 
-- **Details**
+### Example
 
-  The component has its state but no Instances yet.
-
-- **Type**
-
-  ```lua
-  function onBeforeMount(callback: () -> ())
-  ```
+```lua
+local VolumeSlider = Rivue.defineComponent({
+	name = "VolumeSlider",
+	setup = function()
+		local volume = Rivue.ref(0.5)
+		Rivue.onBeforeMount(function()
+			volume.value = game.Players.LocalPlayer:GetAttribute("Volume") or 0.5
+		end)
+		return { volume = volume }
+	end,
+	render = function(ctx)
+		return h("TextLabel", { Text = `Volume: {math.round(ctx.volume * 100)}%` })
+	end,
+})
+```
 
 ---
 
 ## onBeforeUpdate()
 
-Runs right before the component re-renders, while the Instances still show the old state. State
-changed here shows up in that same render, as in Vue.
+_setup() only_
 
-- **Example**
+Runs right before a re-render, while the Instances still show the old state. State changed here
+shows up in that same render, as in Vue.
 
-  Remember whether the player had scrolled up, before new messages arrive:
+```lua signature
+function onBeforeUpdate(callback: () -> ())
+```
 
-  ```lua
-  local ChatLog = Rivue.defineComponent({
-  	name = "ChatLog",
-  	props = { messages = { type = "table", required = true } },
-  	setup = function()
-  		local list = Rivue.useTemplateRef("list")
-  		local wasAtBottom = true
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `callback` | `() -> ()` | | runs before each re-render |
 
-  		Rivue.onBeforeUpdate(function()
-  			local frame = list.value :: ScrollingFrame
-  			wasAtBottom = frame.CanvasPosition.Y + frame.AbsoluteSize.Y >= frame.AbsoluteCanvasSize.Y - 4
-  		end)
-  		Rivue.onUpdated(function()
-  			if wasAtBottom then -- don't yank the view if they were reading older messages
-  				local frame = list.value :: ScrollingFrame
-  				frame.CanvasPosition = Vector2.new(0, frame.AbsoluteCanvasSize.Y)
-  			end
-  		end)
-  		return {}
-  	end,
-  	render = function(ctx)
-  		return h("ScrollingFrame", { ref = "list", layout = "vertical", AutomaticCanvasSize = Enum.AutomaticSize.Y }, {
-  			Rivue.hFor(ctx.messages, function(message)
-  				return h("TextLabel", { key = message.id, Text = message.text })
-  			end),
-  		})
-  	end,
-  })
-  ```
+### Example
 
-- **Type**
+Remembering whether the player had scrolled up, before new messages arrive:
 
-  ```lua
-  function onBeforeUpdate(callback: () -> ())
-  ```
+```lua
+local ChatLog = Rivue.defineComponent({
+	name = "ChatLog",
+	props = { messages = { type = "table", required = true } },
+	setup = function()
+		local list = Rivue.useTemplateRef("list")
+		local wasAtBottom = true
+
+		Rivue.onBeforeUpdate(function()
+			local frame = list.value :: ScrollingFrame
+			wasAtBottom = frame.CanvasPosition.Y + frame.AbsoluteSize.Y >= frame.AbsoluteCanvasSize.Y - 4
+		end)
+		Rivue.onUpdated(function()
+			if wasAtBottom then -- don't jump if they were reading older messages
+				local frame = list.value :: ScrollingFrame
+				frame.CanvasPosition = Vector2.new(0, frame.AbsoluteCanvasSize.Y)
+			end
+		end)
+		return {}
+	end,
+	render = function(ctx)
+		return h("ScrollingFrame", { ref = "list", layout = "vertical", AutomaticCanvasSize = Enum.AutomaticSize.Y }, {
+			Rivue.hFor(ctx.messages, function(message)
+				return h("TextLabel", { key = message.id, Text = message.text })
+			end),
+		})
+	end,
+})
+```
 
 ---
 
 ## onBeforeUnmount()
 
-Runs right before the component is removed, while its Instances still exist. Use it to save state or
-start an exit animation.
+_setup() only_
 
-- **Example**
+Runs right before the component is removed, parents before children, while its Instances still
+exist. Save state or start an exit animation here.
 
-  Save what the player typed when the window closes:
+```lua signature
+function onBeforeUnmount(callback: () -> ())
+```
 
-  ```lua
-  local NoteEditor = Rivue.defineComponent({
-  	name = "NoteEditor",
-  	setup = function()
-  		local note = Rivue.ref("")
-  		Rivue.onBeforeUnmount(function()
-  			Remote.fire("notes:save", { text = note.value })
-  		end)
-  		return { note = note }
-  	end,
-  	render = function()
-  		return h("TextBox", { model = "note", MultiLine = true, PlaceholderText = "Notes" })
-  	end,
-  })
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `callback` | `() -> ()` | | runs once, before removal |
 
-- **Type**
+### Example
 
-  ```lua
-  function onBeforeUnmount(callback: () -> ())
-  ```
+```lua
+local NoteEditor = Rivue.defineComponent({
+	name = "NoteEditor",
+	setup = function()
+		local note = Rivue.ref("")
+		Rivue.onBeforeUnmount(function()
+			Remote.fire("notes:save", { text = note.value })
+		end)
+		return { note = note }
+	end,
+	render = function()
+		return h("TextBox", { model = "note", MultiLine = true, PlaceholderText = "Notes" })
+	end,
+})
+```
 
 ---
 
 ## onErrorCaptured()
 
+_setup() only_
+
 Catches errors from components below this one, so one broken widget can show a fallback instead of
-breaking the whole screen.
+breaking the whole screen. [`ErrorBoundary`](builtins.md#errorboundary) is built on it.
 
-- **Example**
+```lua signature
+function onErrorCaptured(callback: (err: string, instance: ComponentInstance, info: string) -> boolean?)
+```
 
-  An error boundary: if anything inside fails, show a message instead of a broken screen:
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `callback` | `(err, instance, info) -> boolean?` | | gets the error, the component it came from, and where it happened |
 
-  ```lua
-  local ErrorBoundary = Rivue.defineComponent({
-  	name = "ErrorBoundary",
-  	setup = function()
-  		local failed = Rivue.ref(false)
-  		Rivue.onErrorCaptured(function(err, _instance, info)
-  			warn("UI error in", info, err)
-  			failed.value = true
-  			return false -- handled, don't pass it further up
-  		end)
-  		return { failed = failed }
-  	end,
-  	render = function(ctx)
-  		if ctx.failed then
-  			return h("TextLabel", { Text = "This panel couldn't load." })
-  		end
-  		return h(Rivue.Fragment, nil, ctx.renderSlot("default"))
-  	end,
-  })
+**Returns** nothing. In the callback, return `false` to stop the error going further up, as in
+Vue; return nothing to pass it on to ancestors and then
+[`app.config.errorHandler`](application.md#appconfigerrorhandler).
 
-  -- Usage
-  h(ErrorBoundary, nil, { h(ShopPanel) })
-  ```
+### Example
 
-- **Details**
+```lua
+local Boundary = Rivue.defineComponent({
+	name = "Boundary",
+	setup = function()
+		local failed = Rivue.ref(false)
+		Rivue.onErrorCaptured(function(err, _instance, info)
+			warn("UI error in", info, err)
+			failed.value = true
+			return false -- handled
+		end)
+		return { failed = failed }
+	end,
+	render = function(ctx)
+		if ctx.failed then
+			return h("TextLabel", { Text = "This panel couldn't load." })
+		end
+		return h(Rivue.Fragment, nil, ctx.renderSlot("default"))
+	end,
+})
 
-  - **What's caught:** errors from descendants' render, patch, lifecycle hooks, emit handlers,
-    event handlers like `onActivated`, and watchers created in their `setup()`.
-  - **`info`** says where the error happened, such as `"render"`, `"mounted hook"`,
-    `"component event handler"`, `"watcher callback"` or `"watcher getter"`.
-  - **Return `false`** to stop the error from going further up, as in Vue. Return nothing to
-    let it carry on to ancestors' hooks and then `app.config.errorHandler`.
-  - **Uncaught errors** go to [`app.config.errorHandler`](application.md#appconfigerrorhandler),
-    or are reported with `warn` along with the component chain.
+h(Boundary, nil, { h(ShopPanel) })
+```
 
-- **Type**
+### Details
 
-  ```lua
-  function onErrorCaptured(callback: (err: string, instance: ComponentInstance, info: string) -> boolean?)
-  ```
+- It catches errors from descendants' render, patch, lifecycle hooks, emit handlers, event
+  handlers and watchers made in their `setup()`.
+- `info` is a short label such as `"render"`, `"mounted hook"`, `"component event handler"`,
+  `"watcher callback"` or `"watcher getter"`.
+- Errors nobody stops go to `app.config.errorHandler`, or are warned with the component chain.
 
 ---
 
 ## onActivated()
 
+_setup() only_
+
 For components inside [`KeepAlive`](builtins.md#keepalive): runs when the component is shown, the
 first time and every time it comes back. Refresh data here.
 
-- **Example**
+```lua signature
+function onActivated(callback: () -> ())
+```
 
-  Refresh a tab's data every time the player switches back to it:
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `callback` | `() -> ()` | | runs each time it's shown |
 
-  ```lua
-  local InventoryTab = Rivue.defineComponent({
-  	name = "InventoryTab",
-  	setup = function()
-  		local items = Rivue.shallowRef({})
-  		Rivue.onActivated(function()
-  			task.spawn(function()
-  				items.value = Remote.request("inventory:list", nil) or {}
-  			end)
-  		end)
-  		return { items = items }
-  	end,
-  	render = function(ctx)
-  		return h("Frame", { layout = "vertical" }, {
-  			Rivue.hFor(ctx.items, function(item)
-  				return h("TextLabel", { key = item.id, Text = item.name })
-  			end),
-  		})
-  	end,
-  })
-  ```
+### Example
 
-- **Type**
-
-  ```lua
-  function onActivated(callback: () -> ())
-  ```
+```lua
+local InventoryTab = Rivue.defineComponent({
+	name = "InventoryTab",
+	setup = function()
+		local items = Rivue.shallowRef({})
+		Rivue.onActivated(function()
+			task.spawn(function()
+				items.value = Remote.request("inventory:list", nil) or {}
+			end)
+		end)
+		return { items = items }
+	end,
+	render = function(ctx)
+		return h("Frame", { layout = "vertical" }, {
+			Rivue.hFor(ctx.items, function(item)
+				return h("TextLabel", { key = item.id, Text = item.name })
+			end),
+		})
+	end,
+})
+```
 
 ---
 
 ## onDeactivated()
 
+_setup() only_
+
 For components inside [`KeepAlive`](builtins.md#keepalive): runs when the component is hidden but
 kept alive. Pause timers and sounds here.
 
-- **Example**
+```lua signature
+function onDeactivated(callback: () -> ())
+```
 
-  Stop spinning a 3D preview while its tab is hidden:
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `callback` | `() -> ()` | | runs each time it's hidden |
 
-  ```lua
-  local ItemPreview = Rivue.defineComponent({
-  	name = "ItemPreview",
-  	setup = function()
-  		local visible = true
-  		local angle = Rivue.ref(0)
-  		Rivue.onActivated(function()
-  			visible = true
-  		end)
-  		Rivue.onDeactivated(function()
-  			visible = false -- no work while hidden
-  		end)
-  		Rivue.onHeartbeat(function(dt)
-  			if visible then
-  				angle.value += dt * 45
-  			end
-  		end)
-  		return { angle = angle }
-  	end,
-  	render = function(ctx)
-  		return h("ImageLabel", { Rotation = ctx.angle, Image = "rbxassetid://0" })
-  	end,
-  })
-  ```
+> [!NOTE]
+> A kept-alive component's watchers and `onHeartbeat` connections keep running while it's hidden.
+> Pause expensive work here yourself.
 
-- **Type**
+### Example
 
-  ```lua
-  function onDeactivated(callback: () -> ())
-  ```
+```lua
+local ItemPreview = Rivue.defineComponent({
+	name = "ItemPreview",
+	setup = function()
+		local visible = true
+		local angle = Rivue.ref(0)
+		Rivue.onActivated(function()
+			visible = true
+		end)
+		Rivue.onDeactivated(function()
+			visible = false -- no work while hidden
+		end)
+		Rivue.onHeartbeat(function(dt)
+			if visible then
+				angle.value += dt * 45
+			end
+		end)
+		return { angle = angle }
+	end,
+	render = function(ctx)
+		return h("ImageLabel", { Rotation = ctx.angle, Image = "rbxassetid://0" })
+	end,
+})
+```
 
 ---
 
 ## onRenderTracked()
 
-A debugging hook that tells you every piece of state the component's render read, so you can see
-what it depends on.
+_setup() only_
 
-- **Example**
+A debugging hook that reports every piece of state the component's render read, which is
+everything that can make it re-render.
 
-  See exactly what a render depends on:
+```lua signature
+function onRenderTracked(callback: (event: DebuggerEvent) -> ())
+```
 
-  ```lua
-  local HealthBar = Rivue.defineComponent({
-  	name = "HealthBar",
-  	props = { player = { type = "table", required = true } },
-  	setup = function()
-  		Rivue.onRenderTracked(function(event)
-  			print("render reads", event.key) -- health, maxHealth
-  		end)
-  		return {}
-  	end,
-  	render = function(ctx)
-  		return h("Frame", { Size = UDim2.fromScale(ctx.player.health / ctx.player.maxHealth, 1) })
-  	end,
-  })
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `callback` | `(event: { target, key }) -> ()` | | runs once per value read |
 
-- **Type**
+### Example
 
-  ```lua
-  function onRenderTracked(callback: (event: DebuggerEvent) -> ())
+```lua
+local HealthBar = Rivue.defineComponent({
+	name = "HealthBar",
+	props = { player = { type = "table", required = true } },
+	setup = function()
+		Rivue.onRenderTracked(function(event)
+			print("render reads", event.key) -- health, maxHealth
+		end)
+		return {}
+	end,
+	render = function(ctx)
+		return h("Frame", { Size = UDim2.fromScale(ctx.player.health / ctx.player.maxHealth, 1) })
+	end,
+})
+```
 
-  type DebuggerEvent = { target: unknown, key: unknown }
-  ```
+### Details
+
+- Add it while debugging only. When no component uses these two hooks, tracking costs nothing
+  extra.
 
 ---
 
 ## onRenderTriggered()
 
-A debugging hook that tells you which change made the component re-render.
+_setup() only_
 
-- **Example**
+A debugging hook that reports which change made the component re-render.
 
-  Find out why a component keeps re-rendering:
+```lua signature
+function onRenderTriggered(callback: (event: DebuggerEvent) -> ())
+```
 
-  ```lua
-  local Scoreboard = Rivue.defineComponent({
-  	name = "Scoreboard",
-  	props = { stats = { type = "table", required = true } },
-  	setup = function()
-  		Rivue.onRenderTriggered(function(event)
-  			print("re-rendered because", event.key, "changed") -- e.g. "ping", 10 times a second
-  		end)
-  		return {}
-  	end,
-  	render = function(ctx)
-  		return h("TextLabel", { Text = `Kills {ctx.stats.kills}  Ping {ctx.stats.ping}` })
-  	end,
-  })
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `callback` | `(event: { target, key }) -> ()` | | runs before each re-render, with the change that caused it |
 
-- **Details**
+### Example
 
-  This answers "why did this re-render?". Only add it while debugging: when no component registers
-  these hooks, tracking costs nothing extra.
-
-- **Type**
-
-  ```lua
-  function onRenderTriggered(callback: (event: DebuggerEvent) -> ())
-  ```
+```lua
+local Scoreboard = Rivue.defineComponent({
+	name = "Scoreboard",
+	props = { stats = { type = "table", required = true } },
+	setup = function()
+		Rivue.onRenderTriggered(function(event)
+			print("re-rendered because", event.key, "changed") -- e.g. "ping", 10 times a second
+		end)
+		return {}
+	end,
+	render = function(ctx)
+		return h("TextLabel", { Text = `Kills {ctx.stats.kills}  Ping {ctx.stats.ping}` })
+	end,
+})
+```
 
 ---
 
 ## onTransition()
 
-Runs your code at each step of the component's enter and leave animations, for things like playing a
-sound when a panel finishes opening.
+_setup() only_
 
-- **Example**
+Runs code at a step of the component's enter or leave animation, like playing a sound once a panel
+has opened.
 
-  Play a sound when a panel has finished sliding in:
+```lua signature
+function onTransition(
+	name: "before-enter" | "enter" | "after-enter" | "before-leave" | "leave" | "after-leave",
+	callback: (el: Instance) -> ()
+)
+```
 
-  ```lua
-  local Panel = Rivue.defineComponent({
-  	name = "Panel",
-  	setup = function()
-  		Rivue.onTransition("after-enter", function()
-  			game:GetService("SoundService").PanelOpen:Play()
-  		end)
-  		return {}
-  	end,
-  	render = function(ctx)
-  		return h("Frame", { class = "panel" }, ctx.renderSlot("default"))
-  	end,
-  })
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `name` | `"before-enter" \| "enter" \| "after-enter" \| "before-leave" \| "leave" \| "after-leave"` | | the step |
+| `callback` | `(el: Instance) -> ()` | | gets the component's root Instance |
 
-- **Details**
+> [!NOTE]
+> It only fires when the component's root is animated by a [`Transition`](builtins.md#transition)
+> or a `transition` prop.
 
-  These fire when the component's root is animated by a [`Transition`](builtins.md#transition) or
-  a `transition` prop.
+### Example
 
-- **Type**
-
-  ```lua
-  function onTransition(
-  	name: "before-enter" | "enter" | "after-enter" | "before-leave" | "leave" | "after-leave",
-  	callback: (el: Instance) -> ()
-  )
-  ```
+```lua
+local Panel = Rivue.defineComponent({
+	name = "Panel",
+	setup = function()
+		Rivue.onTransition("after-enter", function()
+			game:GetService("SoundService").PanelOpen:Play()
+		end)
+		return {}
+	end,
+	render = function(ctx)
+		return h("Frame", { class = "panel" }, ctx.renderSlot("default"))
+	end,
+})
+```
 
 ---
 

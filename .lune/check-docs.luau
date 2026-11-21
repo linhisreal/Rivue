@@ -6,8 +6,8 @@
 
 	lune run check-docs
 
-	Examples are the ```lua blocks in docs/api/*.md, except the ones under a **Type**, **Props**
-	or **Expects** heading (those are signatures). Each one runs in the offline test harness with
+	Examples are the ```lua blocks in docs/api/*.md, except ```lua signature blocks and the ones
+	under a **Type**, **Props** or **Expects** label (those are signatures too). Each one runs in the offline test harness with
 	`Rivue`, `h`, `array` and `Players` defined, the same as the docs assume. Put
 	<!-- server --> on the line before an example that should run as the server.
 ]]
@@ -41,7 +41,7 @@ local function markdownIn(dir: string): { string }
 end
 
 local docFiles = { "README.md" }
-for _, dir in { "docs", "docs/guide", "docs/api", "examples" } do
+for _, dir in { "docs", "docs/guide", "docs/api", "docs/blog", "examples" } do
 	for _, file in markdownIn(dir) do
 		table.insert(docFiles, file)
 	end
@@ -152,7 +152,12 @@ local function collectExamples(): { Example }
 			if string.match(line, "^%s*<!%-%- server %-%->%s*$") then
 				server = true
 			end
-			if string.sub(trimStart(line), 1, 6) == "```lua" then
+			if string.match(trimStart(line), "^```lua%s+signature") then
+				i += 1
+				while not isFence(text[i]) do
+					i += 1
+				end
+			elseif string.sub(trimStart(line), 1, 6) == "```lua" then
 				local indent = #line - #trimStart(line)
 				local start = i + 1
 				local body = {}

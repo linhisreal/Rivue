@@ -7,80 +7,52 @@
 Named screens with history, after [Vue Router 4](https://router.vuejs.org). Put `RivueRouter` next
 to `RivueUI`. Examples assume `local Router = require(game.ReplicatedStorage.RivueRouter)`.
 
-- [Router.createRouter()](#routercreaterouter)
-- [Route records](#route-records)
-- [router.push() and router.replace()](#routerpush-and-routerreplace)
-- [router.go(), back() and forward()](#routergo-back-and-forward)
-- [Navigation guards](#navigation-guards)
-- [onBeforeRouteLeave() and onBeforeRouteUpdate()](#onbeforerouteleave-and-onbeforerouteupdate)
-- [Dynamic routes](#dynamic-routes)
-- [scrollBehavior](#scrollbehavior)
-- [Router.RouterView](#routerrouterview)
-- [Router.RouterLink](#routerrouterlink)
-- [Router.useRouter() and Router.useRoute()](#routeruserouter-and-routeruseroute)
-- [Router.useLink()](#routeruselink)
-- [Router.lazy()](#routerlazy)
-- [router.isReady() and router.onError()](#routerisready-and-routeronerror)
-- [Navigation failures](#navigation-failures)
-- [Differences from Vue Router](#differences-from-vue-router)
-
 ---
 
 ## Router.createRouter()
 
 Creates the router. Install it with `app:use(router)` before mounting.
 
-- **Example**
+```lua signature
+function createRouter(options: RouterOptions): Router
+```
 
-  ```lua
-  local function Screen(name: string)
-  	return Rivue.defineComponent({
-  		name = name,
-  		render = function()
-  			return h("TextLabel", { Text = name })
-  		end,
-  	})
-  end
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `options.routes` | `{ [string]: ComponentDef \| RouteRecord } \| { RouteRecord }` | | names to components or [records](#route-records), or a list of named records |
+| `options.initial` | `string` | | the first screen; it goes through the guards like any navigation |
+| `options.initialParams` | `{ [string]: any }?` | | params for the first screen |
+| `options.scrollBehavior` | `ScrollBehavior?` | | see [scrollBehavior](#scrollbehavior) |
+| `options.backKeys` | `{ Enum.KeyCode }?` | | keys that call `back()` while there's history, and pass through otherwise |
 
-  local router = Router.createRouter({
-  	routes = { home = Screen("Home"), item = Screen("Item") },
-  	initial = "home",
-  	backKeys = { Enum.KeyCode.ButtonB },
-  })
+**Returns** a `Router`. `currentRoute`, `canGoBack` and `canGoForward` are refs; until the first
+navigation finishes, `currentRoute` is `Router.START_LOCATION`.
 
-  local app = Rivue.createApp(Router.RouterView)
-  app:use(router)
-  app:mount(Instance.new("Folder"))
-  ```
+> [!WARNING]
+> Two routes with the same name, or an alias that's already a route name, error here.
 
-- **Details**
+### Example
 
-  - `routes` maps names to components or [records](#route-records), or is a list of named records.
-  - `initial` (with `initialParams`) is the first screen. It goes through the guards like any
-    navigation; until then `currentRoute` is `Router.START_LOCATION`.
-  - `currentRoute`, `canGoBack` and `canGoForward` are refs.
-  - `backKeys` call `back()` while there's history and pass through otherwise.
+```lua
+local function Screen(name: string)
+	return Rivue.defineComponent({
+		name = name,
+		render = function()
+			return h("TextLabel", { Text = name })
+		end,
+	})
+end
 
-- **Type**
+local router = Router.createRouter({
+	routes = { home = Screen("Home"), item = Screen("Item") },
+	initial = "home",
+	backKeys = { Enum.KeyCode.ButtonB },
+})
 
-  ```lua
-  function createRouter(options: {
-  	routes: { [string]: ComponentDef | RouteRecord } | { RouteRecord },
-  	initial: string,
-  	initialParams: { [string]: any }?,
-  	scrollBehavior: ScrollBehavior?,
-  	backKeys: { Enum.KeyCode }?,
-  }): Router
-
-  type Route = {
-  	name: string?,
-  	params: { [string]: any },
-  	query: { [string]: any },
-  	meta: { [string]: any },
-  	matched: { RouteRecord },
-  	redirectedFrom: Route?,
-  }
-  ```
+local app = Rivue.createApp(Router.RouterView)
+app:use(router)
+app:mount(Instance.new("Folder"))
+```
 
 ---
 
@@ -88,368 +60,380 @@ Creates the router. Install it with `app:use(router)` before mounting.
 
 A route is a component or a record.
 
-- **Example**
+```lua signature
+type RouteRecord = {
+	name: string?,
+	component: ComponentDef?,
+	components: { [string]: ComponentDef }?,
+	children: { [string]: ComponentDef | RouteRecord } | { RouteRecord }?,
+	meta: { [string]: any }?,
+	redirect: string | RouteLocation | ((to: Route) -> string | RouteLocation)?,
+	alias: string | { string }?,
+	props: boolean | { [string]: any } | ((route: Route) -> { [string]: any })?,
+	beforeEnter: Guard | { Guard }?,
+}
+```
 
-  ```lua
-  local function Screen(name: string)
-  	return Rivue.defineComponent({
-  		name = name,
-  		render = function()
-  			return h("TextLabel", { Text = name })
-  		end,
-  	})
-  end
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `component` | `ComponentDef` | | the screen, or a [`Router.lazy()`](#routerlazy) loader |
+| `components` | `{ [string]: ComponentDef }` | | screens by view name, for [named views](#routerrouterview) |
+| `children` | `{ [string]: ... }` | | child routes, shown by a `RouterView` inside the screen |
+| `meta` | `{ [string]: any }` | | merged with the parents' meta into `route.meta` |
+| `redirect` | `string \| RouteLocation \| (to) -> ...` | | followed before the guards |
+| `alias` | `string \| { string }` | | other names for this route |
+| `props` | `boolean \| table \| (route) -> table` | `true` | `true` passes params as props, `false` none, a table as is; per view with `components` |
+| `beforeEnter` | `Guard \| { Guard }` | | guards run when entering from a different route |
 
-  local isStaff = false
+> [!NOTE]
+> Names, child names and aliases share one namespace. More than 10 redirects in a row errors.
 
-  local router = Router.createRouter({
-  	routes = {
-  		lobby = Screen("Lobby"),
-  		shop = {
-  			component = Screen("Shop"),
-  			alias = "store",
-  			redirect = "weapons",
-  			meta = { music = "shop" },
-  			children = { weapons = Screen("Weapons"), pets = Screen("Pets") },
-  		},
-  		admin = {
-  			component = Screen("Admin"),
-  			beforeEnter = function()
-  				return isStaff
-  			end,
-  		},
-  	},
-  	initial = "lobby",
-  })
-  ```
+### Example
 
-- **Fields**
+```lua
+local function Screen(name: string)
+	return Rivue.defineComponent({
+		name = name,
+		render = function()
+			return h("TextLabel", { Text = name })
+		end,
+	})
+end
 
-  | Field | |
-  |---|---|
-  | `component` | the screen, or a [`Router.lazy()`](#routerlazy) loader |
-  | `components` | screens by view name, for [named views](#routerrouterview) |
-  | `children` | child routes, shown by a `RouterView` inside the screen |
-  | `meta` | merged with the parents' meta into `route.meta` |
-  | `redirect` | a name, a location or `function(to)`; followed before guards |
-  | `alias` | other names for this route |
-  | `props` | `true` (default) passes params, `false` passes none, a table as is, or `function(route)` |
-  | `beforeEnter` | guards run when entering from a different route |
+local isStaff = false
 
-  Names, child names and aliases share one namespace. With `components`, `props` is per view.
-
-- **Type**
-
-  ```lua
-  type RouteRecord = {
-  	name: string?,
-  	component: ComponentDef?,
-  	components: { [string]: ComponentDef }?,
-  	children: { [string]: ComponentDef | RouteRecord } | { RouteRecord }?,
-  	meta: { [string]: any }?,
-  	redirect: string | RouteLocation | ((to: Route) -> string | RouteLocation)?,
-  	alias: string | { string }?,
-  	props: boolean | { [string]: any } | ((route: Route) -> { [string]: any })?,
-  	beforeEnter: Guard | { Guard }?,
-  }
-  ```
+local router = Router.createRouter({
+	routes = {
+		lobby = Screen("Lobby"),
+		shop = {
+			component = Screen("Shop"),
+			alias = "store",
+			redirect = "weapons",
+			meta = { music = "shop" },
+			children = { weapons = Screen("Weapons"), pets = Screen("Pets") },
+		},
+		admin = {
+			component = Screen("Admin"),
+			beforeEnter = function()
+				return isStaff
+			end,
+		},
+	},
+	initial = "lobby",
+})
+```
 
 ---
 
 ## router.push() and router.replace()
 
-`push` adds a history entry; `replace` swaps the current one. Both return `nil` or a
-[failure](#navigation-failures), and yield while a guard yields.
+`push` adds a history entry; `replace` swaps the current one.
 
-- **Example**
+```lua signature
+push: (to: string | RouteLocation, params: { [string]: any }?) -> NavigationFailure?
+replace: (to: string | RouteLocation, params: { [string]: any }?) -> NavigationFailure?
+```
 
-  ```lua
-  local function Screen(name: string)
-  	return Rivue.defineComponent({
-  		name = name,
-  		render = function()
-  			return h("TextLabel", { Text = name })
-  		end,
-  	})
-  end
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `to` | `string \| RouteLocation` | | a route name, or a location |
+| `to.params` | `{ [string]: any }?` | | passed to the screen as props |
+| `to.query` | `{ [string]: any }?` | | extra data; it doesn't affect matching or `RouterLink` active classes, and redirects keep it |
+| `to.replace` | `boolean` | `false` | replace instead of push |
+| `to.force` | `boolean` | `false` | navigate even when nothing changed |
+| `params` | `{ [string]: any }?` | | with a name as `to`: the params |
 
-  local router = Router.createRouter({
-  	routes = { loading = Screen("Loading"), lobby = Screen("Lobby"), item = Screen("Item") },
-  	initial = "loading",
-  })
-  local app = Rivue.createApp(Router.RouterView)
-  app:use(router)
-  app:mount(Instance.new("Folder"))
+**Returns** `nil` when it moved, or a [failure](#navigation-failures). The same route, params and
+query again returns `duplicated`.
 
-  router.replace("lobby")
-  router.push("item", { id = 7 })
-  router.push({ name = "item", params = { id = 8 }, query = { tab = "stats" } })
-  ```
+> [!WARNING]
+> It yields while a guard yields. An unknown route name errors.
 
-- **Details**
+### Example
 
-  - `query` doesn't affect matching or `RouterLink` active classes. Redirects keep it.
-  - The same route, params and query again returns `duplicated`; pass `force = true` to push
-    anyway.
-  - An unknown name errors.
+```lua
+local function Screen(name: string)
+	return Rivue.defineComponent({
+		name = name,
+		render = function()
+			return h("TextLabel", { Text = name })
+		end,
+	})
+end
 
-- **Type**
+local router = Router.createRouter({
+	routes = { loading = Screen("Loading"), lobby = Screen("Lobby"), item = Screen("Item") },
+	initial = "loading",
+})
+local app = Rivue.createApp(Router.RouterView)
+app:use(router)
+app:mount(Instance.new("Folder"))
 
-  ```lua
-  type RouteLocation = {
-  	name: string,
-  	params: { [string]: any }?,
-  	query: { [string]: any }?,
-  	replace: boolean?,
-  	force: boolean?,
-  }
-
-  push: (to: string | RouteLocation, params: { [string]: any }?) -> NavigationFailure?
-  replace: (to: string | RouteLocation, params: { [string]: any }?) -> NavigationFailure?
-  ```
+router.replace("lobby")
+router.push("item", { id = 7 })
+router.push({ name = "item", params = { id = 8 }, query = { tab = "stats" } })
+```
 
 ---
 
 ## router.go(), back() and forward()
 
-Moves through history. Guards run as for `push`. Going past either end returns `aborted`.
+Moves through history. Guards run as for `push`.
 
-- **Example**
+```lua signature
+go: (delta: number) -> NavigationFailure?
+back: () -> NavigationFailure?
+forward: () -> NavigationFailure?
+```
 
-  ```lua
-  local function Screen(name: string)
-  	return Rivue.defineComponent({
-  		name = name,
-  		render = function()
-  			return h("TextLabel", { Text = name })
-  		end,
-  	})
-  end
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `delta` | `number` | | entries to move; negative goes back |
 
-  local router = Router.createRouter({
-  	routes = { lobby = Screen("Lobby"), shop = Screen("Shop") },
-  	initial = "lobby",
-  })
-  local app = Rivue.createApp(Router.RouterView)
-  app:use(router)
-  app:mount(Instance.new("Folder"))
+**Returns** `nil`, or a failure. Going past either end returns `aborted`.
 
-  router.push("shop")
-  router.back()
-  ```
+### Example
 
-- **Type**
+```lua
+local function Screen(name: string)
+	return Rivue.defineComponent({
+		name = name,
+		render = function()
+			return h("TextLabel", { Text = name })
+		end,
+	})
+end
 
-  ```lua
-  go: (delta: number) -> NavigationFailure?
-  back: () -> NavigationFailure?
-  forward: () -> NavigationFailure?
-  ```
+local router = Router.createRouter({
+	routes = { lobby = Screen("Lobby"), shop = Screen("Shop") },
+	initial = "lobby",
+})
+local app = Rivue.createApp(Router.RouterView)
+app:use(router)
+app:mount(Instance.new("Folder"))
+
+router.push("shop")
+router.back()
+```
 
 ---
 
 ## Navigation guards
 
-- **Example**
+Run before every navigation, including `back` and `forward`, and can cancel it or send the player
+somewhere else.
 
-  ```lua
-  local function Screen(name: string)
-  	return Rivue.defineComponent({
-  		name = name,
-  		render = function()
-  			return h("TextLabel", { Text = name })
-  		end,
-  	})
-  end
+```lua signature
+type Guard = (to: Route, from: Route) -> boolean | string | RouteLocation | nil
 
-  local dataLoaded = false
-  local router = Router.createRouter({
-  	routes = { lobby = Screen("Lobby"), shop = Screen("Shop"), loading = Screen("Loading") },
-  	initial = "lobby",
-  })
+beforeEach: (guard: Guard) -> () -> ()
+beforeResolve: (guard: Guard) -> () -> ()
+afterEach: (hook: (to: Route, from: Route, failure: NavigationFailure?) -> ()) -> () -> ()
+```
 
-  router.beforeEach(function(to)
-  	if to.name == "shop" and not dataLoaded then
-  		return { name = "loading", replace = true }
-  	end
-  	return true
-  end)
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `guard` | `Guard` | | return `nil` or `true` to continue, `false` to abort, or a name or location to redirect |
+| `hook` | `(to, from, failure) -> ()` | | `afterEach`: runs once a navigation is done, with its failure if any |
 
-- **Details**
+**Returns** a function that removes the guard.
 
-  - Return `nil`/`true` to continue, `false` to abort, or a name or location to redirect.
-  - Guards can yield. A newer navigation cancels a waiting one with `cancelled`.
-  - An error cancels the navigation and goes to [`onError`](#routerisready-and-routeronerror).
-  - Order: `onBeforeRouteLeave` → `beforeEach` → `onBeforeRouteUpdate` → `beforeEnter` →
-    `beforeResolve` → route changes → `afterEach(to, from, failure)`.
-  - Each registration returns a remover.
+> [!NOTE]
+> Guards can yield, and a newer navigation cancels a waiting one with `cancelled`. A guard that
+> errors cancels the navigation and goes to [`onError`](#routerisready-and-routeronerror).
 
-- **Type**
+### Example
 
-  ```lua
-  type Guard = (to: Route, from: Route) -> boolean | string | RouteLocation | nil
+```lua
+local function Screen(name: string)
+	return Rivue.defineComponent({
+		name = name,
+		render = function()
+			return h("TextLabel", { Text = name })
+		end,
+	})
+end
 
-  beforeEach: (guard: Guard) -> () -> ()
-  beforeResolve: (guard: Guard) -> () -> ()
-  afterEach: (hook: (to: Route, from: Route, failure: NavigationFailure?) -> ()) -> () -> ()
-  ```
+local dataLoaded = false
+local router = Router.createRouter({
+	routes = { lobby = Screen("Lobby"), shop = Screen("Shop"), loading = Screen("Loading") },
+	initial = "lobby",
+})
+
+router.beforeEach(function(to)
+	if to.name == "shop" and not dataLoaded then
+		return { name = "loading", replace = true }
+	end
+	return true
+end)
+```
+
+### Details
+
+- Order: `onBeforeRouteLeave`, `beforeEach`, `onBeforeRouteUpdate`, `beforeEnter`, lazy
+  components load, `beforeResolve`, the route changes, `afterEach`.
 
 ---
 
 ## onBeforeRouteLeave() and onBeforeRouteUpdate()
 
-Component guards, called in `setup()` of a screen or anything inside it. Removed on unmount.
+_setup() only_
 
-- **Example**
+Guards inside a component, called in `setup()` of a screen or anything in it. They're removed on
+unmount.
 
-  ```lua
-  local Settings = Rivue.defineComponent({
-  	name = "Settings",
-  	setup = function()
-  		local dirty = Rivue.ref(false)
-  		Router.onBeforeRouteLeave(function()
-  			return not dirty.value
-  		end)
-  		return { dirty = dirty }
-  	end,
-  	render = function()
-  		return h("Frame")
-  	end,
-  })
-  ```
+```lua signature
+function onBeforeRouteLeave(guard: Guard)
+function onBeforeRouteUpdate(guard: Guard)
+```
 
-- **Details**
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `guard` | `Guard` | | `onBeforeRouteLeave`: when leaving this screen's route; `onBeforeRouteUpdate`: when the route changes but the screen stays (new params, or a child route) |
 
-  - `onBeforeRouteLeave` runs when leaving this screen's route.
-  - `onBeforeRouteUpdate` runs when the route changes but the screen stays (new params, or a child
-    route).
-  - Outside a routed screen they warn and do nothing.
+> [!WARNING]
+> Outside a screen shown by a `RouterView` they warn and do nothing.
 
-- **Type**
+### Example
 
-  ```lua
-  function onBeforeRouteLeave(guard: Guard)
-  function onBeforeRouteUpdate(guard: Guard)
-  ```
+```lua
+local Settings = Rivue.defineComponent({
+	name = "Settings",
+	setup = function()
+		local dirty = Rivue.ref(false)
+		Router.onBeforeRouteLeave(function()
+			return not dirty.value
+		end)
+		return { dirty = dirty }
+	end,
+	render = function()
+		return h("Frame")
+	end,
+})
+```
 
 ---
 
 ## Dynamic routes
 
-- **Example**
+Add and remove routes while the game runs, such as an event screen.
 
-  ```lua
-  local function Screen(name: string)
-  	return Rivue.defineComponent({
-  		name = name,
-  		render = function()
-  			return h("TextLabel", { Text = name })
-  		end,
-  	})
-  end
+```lua signature
+addRoute: (parentOrRecord: string | RouteRecord, record: RouteRecord?) -> () -> ()
+removeRoute: (name: string) -> ()
+hasRoute: (name: string) -> boolean
+getRoutes: () -> { RouteRecord }
+resolve: (to: string | RouteLocation, params: { [string]: any }?) -> Route
+```
 
-  local router = Router.createRouter({ routes = { lobby = Screen("Lobby") }, initial = "lobby" })
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `parentOrRecord` | `string \| RouteRecord` | | a record, or the parent's name to add a child |
+| `record` | `RouteRecord?` | | with a parent name: the child record |
+| `name` | `string` | | the route to remove; its children go too |
 
-  local removeEvent = router.addRoute({ name = "event", component = Screen("Event") })
-  print(router.hasRoute("event")) --> true
-  removeEvent()
-  ```
+**Returns** `addRoute` returns a remover; an existing name is replaced. `resolve` returns the route
+without navigating, and doesn't follow `redirect`.
 
-- **Details**
+### Example
 
-  - `addRoute(record)` or `addRoute(parentName, record)` returns a remover. An existing name is
-    replaced.
-  - `removeRoute(name)` removes the route and its children.
-  - `resolve(to, params)` returns the route without navigating, and doesn't follow `redirect`.
+```lua
+local function Screen(name: string)
+	return Rivue.defineComponent({
+		name = name,
+		render = function()
+			return h("TextLabel", { Text = name })
+		end,
+	})
+end
 
-- **Type**
+local router = Router.createRouter({ routes = { lobby = Screen("Lobby") }, initial = "lobby" })
 
-  ```lua
-  addRoute: (parentOrRecord: string | RouteRecord, record: RouteRecord?) -> () -> ()
-  removeRoute: (name: string) -> ()
-  hasRoute: (name: string) -> boolean
-  getRoutes: () -> { RouteRecord }
-  resolve: (to: string | RouteLocation, params: { [string]: any }?) -> Route
-  ```
+local removeEvent = router.addRoute({ name = "event", component = Screen("Event") })
+print(router.hasRoute("event")) --> true
+removeEvent()
+```
 
 ---
 
 ## scrollBehavior
 
-Where ScrollingFrames scroll after a navigation. Runs after the new screen renders.
+Where ScrollingFrames scroll after a navigation. It runs after the new screen renders.
 
-- **Example**
+```lua signature
+type ScrollBehavior = (
+	to: Route,
+	from: Route,
+	savedPosition: { [string]: Vector2 }?
+) -> { [string]: Vector2 } | { el: string?, top: number?, left: number? } | nil
+```
 
-  ```lua
-  local router = Router.createRouter({
-  	routes = {
-  		shop = Rivue.defineComponent({
-  			name = "Shop",
-  			render = function()
-  				return h("ScrollingFrame")
-  			end,
-  		}),
-  	},
-  	initial = "shop",
-  	scrollBehavior = function(_to, _from, savedPosition)
-  		return savedPosition or { top = 0 }
-  	end,
-  })
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `savedPosition` | `{ [string]: Vector2 }?` | | on `back`, `forward` and `go`: each frame's `CanvasPosition` by name |
 
-- **Details**
+**Returns** `savedPosition` to restore it, `{ top, left }` for every frame, `el = "Panel/List"` with
+those for one frame, or `nil` to leave them.
 
-  - `savedPosition` is set for `back`, `forward` and `go`: each frame's `CanvasPosition` by name.
-  - Return `{ top, left }` for every frame, add `el = "Panel/List"` for one, or `nil` to leave them.
-  - Only the top-level `RouterView` is scrolled.
+> [!NOTE]
+> Only the top-level `RouterView` is scrolled.
 
-- **Type**
+### Example
 
-  ```lua
-  type ScrollBehavior = (
-  	to: Route,
-  	from: Route,
-  	savedPosition: { [string]: Vector2 }?
-  ) -> { [string]: Vector2 } | { el: string?, top: number?, left: number? } | nil
-  ```
+```lua
+local router = Router.createRouter({
+	routes = {
+		shop = Rivue.defineComponent({
+			name = "Shop",
+			render = function()
+				return h("ScrollingFrame")
+			end,
+		}),
+	},
+	initial = "shop",
+	scrollBehavior = function(_to, _from, savedPosition)
+		return savedPosition or { top = 0 }
+	end,
+})
+```
 
 ---
 
 ## Router.RouterView
 
-Renders the current route's screen. Nested, it renders the child route.
+Renders the current route's screen. Inside a screen, it renders the child route.
 
-- **Example**
+```lua signature
+h(Router.RouterView, props: RouterViewProps, slots?)
+```
 
-  ```lua
-  local Layout = Rivue.defineComponent({
-  	name = "Layout",
-  	render = function()
-  		return h(Router.RouterView, nil, {
-  			default = function(view)
-  				return h(Rivue.Transition, Rivue.transitions.fade({ mode = "out-in" }), { view.Component })
-  			end,
-  		})
-  	end,
-  })
-  ```
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `name` | `string` | `"default"` | which named view to show |
+| `keepAlive` | `boolean` | `false` | wrap the screen in [KeepAlive](builtins.md#keepalive) |
 
-- **Details**
+| Slot | Type | Default | Description |
+|---|---|---|---|
+| `default` | `(view: { Component, route }) -> VNode` | | renders instead of the view, so you can wrap it, for example in a Transition |
 
-  - The `default` slot gets `{ Component, route }` and renders instead of the view.
-  - `keepAlive = true` wraps the screen in [KeepAlive](builtins.md#keepalive).
-  - `name` picks a named view.
-  - Each route gets its own instance; the same route with new params keeps it.
+### Example
 
-- **Props**
+```lua
+local Layout = Rivue.defineComponent({
+	name = "Layout",
+	render = function()
+		return h(Router.RouterView, nil, {
+			default = function(view)
+				return h(Rivue.Transition, Rivue.transitions.fade({ mode = "out-in" }), { view.Component })
+			end,
+		})
+	end,
+})
+```
 
-  ```lua
-  type RouterViewProps = {
-  	name: string?, -- default "default"
-  	keepAlive: boolean?,
-  }
-  ```
+### Details
+
+- Each route gets its own component; the same route with new params keeps it.
 
 ---
 
@@ -457,71 +441,79 @@ Renders the current route's screen. Nested, it renders the child route.
 
 A TextButton that navigates, with style classes while its route is active.
 
-- **Example**
+```lua signature
+h(Router.RouterLink, props: RouterLinkProps)
+```
 
-  ```lua
-  local Tabs = Rivue.defineComponent({
-  	name = "Tabs",
-  	render = function()
-  		return h(Rivue.Row, { gap = 8 }, {
-  			h(Router.RouterLink, { to = "weapons", Text = "Weapons" }),
-  			h(Router.RouterLink, { to = "pets", Text = "Pets" }),
-  		})
-  	end,
-  })
-  ```
+| Prop | Type | Default | Description |
+|---|---|---|---|
+| `to` | `string \| RouteLocation` | | where it goes |
+| `replace` | `boolean` | `false` | replace instead of push |
+| `custom` | `boolean` | `false` | render the default slot with `{ route, navigate, isActive, isExactActive }` instead of a button |
+| `activeClass` | `string` | `"router-link-active"` | applied on the route or its children |
+| `exactActiveClass` | `string` | `"router-link-exact-active"` | applied on the exact route and params |
+| others | | | go to the TextButton; your `onActivated` runs before navigating |
 
-- **Details**
+### Example
 
-  - Other props go to the TextButton. Your `onActivated` runs before navigating.
-  - `router-link-active` applies on the route or its children, `router-link-exact-active` on the
-    exact route and params. They win over the link's own `class`.
-  - `custom = true` renders the default slot with `{ route, navigate, isActive, isExactActive }`.
+```lua
+local Tabs = Rivue.defineComponent({
+	name = "Tabs",
+	render = function()
+		return h(Rivue.Row, { gap = 8 }, {
+			h(Router.RouterLink, { to = "weapons", Text = "Weapons" }),
+			h(Router.RouterLink, { to = "pets", Text = "Pets" }),
+		})
+	end,
+})
+```
 
-- **Props**
+### Details
 
-  ```lua
-  type RouterLinkProps = {
-  	to: string | RouteLocation,
-  	replace: boolean?,
-  	custom: boolean?,
-  	activeClass: string?, -- default "router-link-active"
-  	exactActiveClass: string?, -- default "router-link-exact-active"
-  }
-  ```
+- The active classes win over the link's own `class`.
 
 ---
 
 ## Router.useRouter() and Router.useRoute()
 
-Call in `setup()`. `useRoute()` is a read-only, reactive view of the current route.
-`useRouter()` errors if no router is installed.
+The router, and a reactive view of the current route. Call them in `setup()`.
 
-- **Example**
+```lua signature
+function useRouter(): Router
+function useRoute(): Route
 
-  ```lua
-  local ItemTitle = Rivue.defineComponent({
-  	name = "ItemTitle",
-  	setup = function()
-  		local route = Router.useRoute()
-  		return {
-  			title = Rivue.computed(function()
-  				return `Item {route.params.id}`
-  			end),
-  		}
-  	end,
-  	render = function(ctx)
-  		return h("TextLabel", { Text = ctx.title })
-  	end,
-  })
-  ```
+type Route = {
+	name: string?,
+	params: { [string]: any },
+	query: { [string]: any },
+	meta: { [string]: any },
+	matched: { RouteRecord },
+	redirectedFrom: Route?,
+}
+```
 
-- **Type**
+> [!WARNING]
+> `useRouter()` errors when no router is installed. The route from `useRoute()` is read-only;
+> writing to it errors, so navigate with `push()` or `replace()`.
 
-  ```lua
-  function useRouter(): Router
-  function useRoute(): Route
-  ```
+### Example
+
+```lua
+local ItemTitle = Rivue.defineComponent({
+	name = "ItemTitle",
+	setup = function()
+		local route = Router.useRoute()
+		return {
+			title = Rivue.computed(function()
+				return `Item {route.params.id}`
+			end),
+		}
+	end,
+	render = function(ctx)
+		return h("TextLabel", { Text = ctx.title })
+	end,
+})
+```
 
 ---
 
@@ -529,169 +521,173 @@ Call in `setup()`. `useRoute()` is a read-only, reactive view of the current rou
 
 `RouterLink`'s logic, for your own link components.
 
-- **Example**
+```lua signature
+function useLink(props: { to: string | RouteLocation, replace: boolean? }): {
+	route: Ref<Route>,
+	isActive: Ref<boolean>,
+	isExactActive: Ref<boolean>,
+	navigate: () -> NavigationFailure?,
+}
+```
 
-  ```lua
-  local IconLink = Rivue.defineComponent({
-  	name = "IconLink",
-  	props = { to = { required = true } },
-  	setup = function(props)
-  		local link = Router.useLink(props)
-  		return { isActive = link.isActive, navigate = link.navigate }
-  	end,
-  	render = function(ctx)
-  		return h("ImageButton", {
-  			ImageTransparency = if ctx.isActive then 0 else 0.5,
-  			onActivated = function()
-  				ctx.navigate()
-  			end,
-  		})
-  	end,
-  })
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `props.to` | `string \| RouteLocation` | | where it goes |
+| `props.replace` | `boolean` | `false` | replace instead of push |
 
-- **Type**
+### Example
 
-  ```lua
-  function useLink(props: { to: string | RouteLocation, replace: boolean? }): {
-  	route: Ref<Route>,
-  	isActive: Ref<boolean>,
-  	isExactActive: Ref<boolean>,
-  	navigate: () -> NavigationFailure?,
-  }
-  ```
+```lua
+local IconLink = Rivue.defineComponent({
+	name = "IconLink",
+	props = { to = { required = true } },
+	setup = function(props)
+		local link = Router.useLink(props)
+		return { isActive = link.isActive, navigate = link.navigate }
+	end,
+	render = function(ctx)
+		return h("ImageButton", {
+			ImageTransparency = if ctx.isActive then 0 else 0.5,
+			onActivated = function()
+				ctx.navigate()
+			end,
+		})
+	end,
+})
+```
 
 ---
 
 ## Router.lazy()
 
-Loads a route's component on first visit.
+Loads a route's component the first time it's visited, usually
+`Router.lazy(function() return require(script.Parent.Settings) end)`.
 
-- **Example**
+```lua signature
+function lazy(loader: () -> ComponentDef): LazyComponent
+```
 
-  ```lua
-  local router = Router.createRouter({
-  	routes = {
-  		lobby = Rivue.defineComponent({
-  			name = "Lobby",
-  			render = function()
-  				return h("TextLabel", { Text = "Lobby" })
-  			end,
-  		}),
-  		settings = Router.lazy(function()
-  			return Rivue.defineComponent({
-  				name = "Settings",
-  				render = function()
-  					return h("TextLabel", { Text = "Settings" })
-  				end,
-  			})
-  		end),
-  	},
-  	initial = "lobby",
-  })
-  ```
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `loader` | `() -> ComponentDef` | | runs once, after `beforeEnter` and before `beforeResolve` |
 
-- **Details**
+> [!NOTE]
+> The wrapper is needed because a plain function is a function component. A loader that errors or
+> returns something else aborts the navigation and goes to `onError`.
 
-  - Usually `Router.lazy(function() return require(script.Parent.Settings) end)`.
-  - Runs once, after `beforeEnter` and before `beforeResolve`. An error or non-component aborts
-    the navigation and goes to `onError`.
-  - The wrapper is needed because plain functions are function components.
+### Example
 
-- **Type**
-
-  ```lua
-  function lazy(loader: () -> ComponentDef): LazyComponent
-  ```
+```lua
+local router = Router.createRouter({
+	routes = {
+		lobby = Rivue.defineComponent({
+			name = "Lobby",
+			render = function()
+				return h("TextLabel", { Text = "Lobby" })
+			end,
+		}),
+		settings = Router.lazy(function()
+			return Rivue.defineComponent({
+				name = "Settings",
+				render = function()
+					return h("TextLabel", { Text = "Settings" })
+				end,
+			})
+		end),
+	},
+	initial = "lobby",
+})
+```
 
 ---
 
 ## router.isReady() and router.onError()
 
-`isReady()` yields until the first navigation finishes. `onError()` gets errors from guards,
-loaders and `scrollBehavior`, and returns a remover. Without handlers they're warned.
+`isReady()` yields until the first navigation finishes. `onError()` gets errors from guards, lazy
+loaders and `scrollBehavior`.
 
-- **Example**
+```lua signature
+isReady: () -> ()
+onError: (handler: (err: unknown, to: Route, from: Route) -> ()) -> () -> ()
+```
 
-  ```lua
-  local router = Router.createRouter({
-  	routes = {
-  		lobby = Rivue.defineComponent({
-  			name = "Lobby",
-  			render = function()
-  				return h("TextLabel", { Text = "Lobby" })
-  			end,
-  		}),
-  	},
-  	initial = "lobby",
-  })
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `handler` | `(err, to, from) -> ()` | | runs for each error |
 
-  router.onError(function(err, to)
-  	warn("navigation to", to.name, "failed:", err)
-  end)
+**Returns** `onError` returns a remover. Without handlers, errors are warned.
 
-  local app = Rivue.createApp(Router.RouterView)
-  app:use(router)
-  app:mount(Instance.new("Folder"))
-  router.isReady()
-  ```
+> [!NOTE]
+> A guard waiting on the first navigation doesn't hold up `app:mount()`. The `RouterView` stays
+> empty until it passes.
 
-- **Details**
+### Example
 
-  A guard waiting on the first navigation doesn't hold up `app:mount()`; the `RouterView` stays
-  empty until it passes.
+```lua
+local router = Router.createRouter({
+	routes = {
+		lobby = Rivue.defineComponent({
+			name = "Lobby",
+			render = function()
+				return h("TextLabel", { Text = "Lobby" })
+			end,
+		}),
+	},
+	initial = "lobby",
+})
 
-- **Type**
+router.onError(function(err, to)
+	warn("navigation to", to.name, "failed:", err)
+end)
 
-  ```lua
-  isReady: () -> ()
-  onError: (handler: (err: unknown, to: Route, from: Route) -> ()) -> () -> ()
-  ```
+local app = Rivue.createApp(Router.RouterView)
+app:use(router)
+app:mount(Instance.new("Folder"))
+router.isReady()
+```
 
 ---
 
 ## Navigation failures
 
-- **Example**
+What `push`, `replace`, `go`, `back` and `forward` return when they didn't move.
 
-  ```lua
-  local function open(router, name: string)
-  	local failure = router.push(name)
-  	if Router.isNavigationFailure(failure, Router.NavigationFailureType.aborted) then
-  		print("a guard said no")
-  	end
-  end
-  ```
+```lua signature
+type NavigationFailure = { type: number, to: Route, from: Route }
 
-- **Types**
+NavigationFailureType: { aborted: number, cancelled: number, duplicated: number }
+function isNavigationFailure(value: any, type: number?): boolean
+START_LOCATION: Route
+```
 
-  | Type | When |
-  |---|---|
-  | `aborted` | a guard returned `false` or errored, or `go` had nowhere to go |
-  | `cancelled` | a newer navigation started while a guard waited |
-  | `duplicated` | already on that route with the same params and query |
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `aborted` | `number` | | a guard returned `false` or errored, or `go` had nowhere to go |
+| `cancelled` | `number` | | a newer navigation started while a guard waited |
+| `duplicated` | `number` | | already on that route with the same params and query |
 
-  Combine types with `bit32.bor`.
+Combine types with `bit32.bor`.
 
-- **Type**
+### Example
 
-  ```lua
-  type NavigationFailure = { type: number, to: Route, from: Route }
-
-  NavigationFailureType: { aborted: number, cancelled: number, duplicated: number }
-  function isNavigationFailure(value: any, type: number?): boolean
-  START_LOCATION: Route
-  ```
+```lua
+local function open(router, name: string)
+	local failure = router.push(name)
+	if Router.isNavigationFailure(failure, Router.NavigationFailureType.aborted) then
+		print("a guard said no")
+	end
+end
+```
 
 ---
 
 ## Differences from Vue Router
 
-- Named routes only, no paths or history modes. `initial` replaces the start URL, and `query` is a
-  table.
+- Named routes only, with no paths or history modes. `initial` replaces the start URL, and `query`
+  is a table.
 - `Router.lazy()` around `require` instead of `import()`.
 - `props` defaults to `true`.
-- Guards and `push` yield instead of returning Promises. No `next()`.
+- Guards and `push` yield instead of returning Promises. There's no `next()`.
 - `back`, `forward` and `go` return a failure like `push`.
 - `scrollBehavior` works on ScrollingFrames.
 - `RouterLink` is a TextButton, and its active state is a style class.

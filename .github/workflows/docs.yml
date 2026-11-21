@@ -20,14 +20,25 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v7
         with:
           node-version: 24
 
-      - run: npm install --no-save vitepress@1.6.4 vitepress-plugin-mermaid@2.0.17 mermaid@11
+      - run: npm install --no-save vitepress@1.6.4 vitepress-plugin-mermaid@2.0.17 mermaid@11 @resvg/resvg-js@2.6.2 geist@1.3.1
+
+      - uses: CompeyDev/setup-rokit@v0.2.1
+        with:
+          cache: true
+
+      # Type hovers in code blocks come from luau-lsp, which needs the sourcemap to resolve requires.
+      - run: rojo sourcemap default.project.json -o sourcemap.json
 
       - run: npx vitepress build docs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
 
       - uses: actions/upload-pages-artifact@v5
         with:

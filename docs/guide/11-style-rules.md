@@ -2,9 +2,8 @@
 
 # 11. Style rules
 
-These are the habits the rest of the docs follow, each with the reason for it. Break a "must" and
-you'll get a real bug sooner or later. The "should" rules are about keeping a big project easy to
-read.
+These are the habits the rest of the docs follow, each with its reason. Breaking a "must" rule
+causes a bug sooner or later. The "should" rules keep a big project easy to read.
 
 ## At a glance
 
@@ -28,7 +27,7 @@ read.
 ### Key every list item
 
 Keys tell Rivue which Instance belongs to which item ([chapter 3](03-describing-ui.md#lists-and-keys)).
-An index won't do, because it changes the moment the list does. Use something the item owns.
+An index won't work, because it changes whenever the list does. Use something the item owns.
 
 ```lua
 -- ✗ No key, or the index as key
@@ -44,7 +43,7 @@ end)
 
 ### Read state in render, not setup
 
-Copy a value in `setup` and you've taken a snapshot. It won't update, ever.
+A value copied in `setup` is a snapshot and never updates.
 
 ```lua
 -- ✗ Copied once
@@ -74,8 +73,8 @@ end)
 
 ### Emit, don't change props
 
-State changes where it lives. If a child wants something changed, it asks with an event and lets
-the parent do it.
+State changes where it lives. A child that wants something changed emits an event, and the parent
+changes it.
 
 ```lua
 -- ✗ The parent's next render overwrites this anyway
@@ -93,8 +92,8 @@ end
 
 ### Keep render free of side effects
 
-Render runs whenever its state changes. During an animation that can be every frame. Change state
-in there and you get loops; call the server and you get duplicate requests.
+Render runs whenever its state changes, which during an animation can be every frame. Changing
+state in render causes loops, and calling the server from it sends duplicate requests.
 
 ```lua
 -- ✗
@@ -130,8 +129,8 @@ end)
 
 ### Name every component
 
-You'll see `name` everywhere: in errors (`Error in render of <ItemRow> in <Inventory>`), in
-warnings, in `printTree()` and in the Explorer. Without one, errors just say `<Anonymous>`.
+`name` shows up in errors (`Error in render of <ItemRow> in <Inventory>`), warnings,
+`printTree()`, DevTools and the Explorer. Without one, they all say `<Anonymous>`.
 
 ```lua
 Rivue.defineComponent({ name = "ItemRow", setup = setup, render = render })
@@ -141,7 +140,7 @@ Rivue.defineComponent({ name = "ItemRow", setup = setup, render = render })
 
 ### Put visuals in style classes
 
-Five lines of colours and fonts make it hard to see what the render function is actually building.
+Five lines of colours and fonts per element hide what the render function builds.
 
 ```lua
 -- ✗
@@ -179,14 +178,14 @@ h("Frame", { layout = { gap = 8 }, padding = 10 }, {
 
 ### Use setup + render
 
-Return state from `setup` and write markup in `render(ctx)`. You skip all the `.value`, and each
-half reads on its own. For a component of a few lines, returning a render function from `setup` is
-fine too.
+Return state from `setup` and write markup in `render(ctx)`. Refs arrive unwrapped, so there's no
+`.value` in markup, and each half reads on its own. For a component of a few lines, returning a
+render function from `setup` is fine too.
 
 ### Declare props and emits
 
-Studio validates declared props. Declared emits keep `on*` listeners out of the attributes that
-get passed to the root. Annotate setup's parameter and you get autocomplete too:
+Studio checks declared props. Declared emits keep `on*` listeners out of the props passed through
+to the root. Annotating setup's parameter adds autocomplete:
 
 ```lua
 type Props = { item: Item, selected: boolean }
@@ -233,8 +232,9 @@ for files with render functions, or switch to the new solver and use `--!strict`
 
 ---
 
-That's the core of Rivue. From here, keep the [API reference](../API.md) open while you build, and
-look at the [examples](../../examples) when you want to see a feature in a real component. Chapters
-12–16 go further, into reusable composables, bigger apps, performance and testing.
+That covers the basics. Keep the [API reference](../API.md) open while you build, and look at the
+[examples](../../examples) to see a feature in a working component. Chapters 12 to 17 each cover
+one topic in depth (composables, component patterns, state, performance, testing and navigation),
+so read them when you need them.
 
 [← 10. Organising a project](10-organising-a-project.md) · [Guide contents](../GUIDE.md) · [12. Writing composables →](12-writing-composables.md)

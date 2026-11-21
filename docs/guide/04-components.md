@@ -2,14 +2,13 @@
 
 # 4. Components, props, events and slots
 
-One big render function gets hard to read fast. This chapter splits UI into components and covers
-how they talk to each other, how to hand UI to one, and when each lifecycle hook runs.
+One big render function gets hard to read fast. This chapter splits UI into components: how they
+talk to each other, how a parent hands UI to a child, and when each lifecycle hook runs.
 
 ## Props down, events up
 
-Split UI into components the way you'd split code into functions. Data goes down as props.
-Requests come back up as events. A child never changes its own props; it asks the parent, and the
-parent decides.
+Data goes down as props and requests come back up as events. A child never changes its own
+props. It emits an event, and the parent decides what to do.
 
 ```mermaid
 flowchart TB
@@ -73,8 +72,27 @@ Anything you pass that isn't declared, like `Position`, `LayoutOrder` or `class`
 component's root element. So `h("ItemRow", { item = item, LayoutOrder = 3 })` puts the row in
 third place without `ItemRow` doing anything.
 
-Want autocomplete? Annotate setup's parameter, `setup = function(props: Props, ctx)`, and typos in
-prop names become type errors.
+For autocomplete, annotate setup's parameter (`setup = function(props: Props, ctx)`). Typos in prop
+names then become type errors.
+
+## Small pieces without state
+
+A badge or an icon with no state of its own can be a plain function from props to UI:
+
+```lua
+local function Pill(props)
+	return h("TextLabel", {
+		Text = props.text,
+		Size = UDim2.fromOffset(80, 24),
+		cornerRadius = 12,
+	})
+end
+
+h(Pill, { text = "Online" })
+```
+
+A function component re-runs whenever its parent re-renders and can't use hooks. Once it needs
+state, make it a `defineComponent`.
 
 ## Slots: passing UI into a component
 
@@ -103,8 +121,8 @@ h(Card, nil, {
 })
 ```
 
-The child can hand data back to a slot, too: `ctx.renderSlot("row", { item = item })`. That's
-called a scoped slot.
+The child can also pass data to a slot, `ctx.renderSlot("row", { item = item })`, and the slot
+function receives it as its argument. Vue calls this a scoped slot.
 
 ## Lifecycle
 
@@ -126,9 +144,9 @@ on their own, but a `:Connect()` you wrote yourself needs an `onUnmounted`
 ---
 
 **Try it:** [Modal example](../../examples/components/Modal.luau) (named slots, events) ·
-[Tabs example](../../examples/components/Tabs.luau) (a slot per tab)
+[Tabs example](../../examples/components/Tabs.luau) (a slot per tab)\
 **Reference:** [props](../api/component.md#props) · [emits](../api/component.md#emits) ·
-[components](../api/component.md#components) · [Slots](../api/component.md#slots) ·
+[components](../api/component.md#components) · [Function components](../api/render-function.md#function-components) · [Slots](../api/component.md#slots) ·
 [Lifecycle hooks](../api/lifecycle.md)
 
 [← 3. Describing UI](03-describing-ui.md) · [Guide contents](../GUIDE.md) · [5. Forms and input →](05-forms-and-input.md)

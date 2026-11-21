@@ -2,8 +2,9 @@
 
 # 16. Testing UI
 
-Most UI logic can be tested from code, button clicks included. A few things can't, and this
-chapter says which. The examples use plain `assert`, so they work with any test runner.
+Most UI logic can be tested from code, button clicks included. This chapter covers composables,
+then components, then the few things that need a playtest. The examples use plain `assert`, so
+they work with any test runner.
 
 ## Testing a composable
 
@@ -36,8 +37,8 @@ local function useStepper(options: { min: number, max: number, start: number? })
 end
 ```
 
-There's no component in a test, so run it inside an `effectScope`. Then `scope:stop()` cleans up
-its computeds and watchers afterwards:
+A test has no component to own the composable's state, so run it inside an `effectScope`.
+`scope:stop()` then cleans up its computeds and watchers:
 
 ```lua
 local scope = Rivue.effectScope()
@@ -59,8 +60,8 @@ Refs and computeds update straight away, so there's nothing to wait for.
 
 ### Watchers need nextTick()
 
-Watchers are different. They're batched, running once after a burst of changes, so a test has to
-wait with `Rivue.nextTick()`. Here's an autosave composable:
+Watchers are batched: they run once after a burst of changes, so a test waits with
+`Rivue.nextTick()`. Take an autosave composable:
 
 ```lua
 local function useAutosave(settings, save: (any) -> ())
@@ -97,31 +98,11 @@ assert(#saves == 1) -- stopping the scope stopped the watcher
 
 ## Testing a component
 
-![the steps of a component test](../assets/diagrams/test-steps.webp)
+`Rivue.testing.render` mounts a component into a Frame that isn't parented anywhere. Rivue still
+creates real Instances, so a test reads their `Text` and `Visible` directly, and finds them by the
+text the player sees, the way Testing Library does on the web.
 
-Mount into a Frame that isn't parented anywhere. Rivue still creates real Instances, so a test can
-read their `Text` and `Visible` directly. This helper mounts a component and finds elements by
-`Name`:
-
-```lua
-local h = Rivue.h
-
-local function mountForTest(component, props: { [string]: any }?)
-	local root = Instance.new("Frame")
-	local app = Rivue.mount(h(component, props), root)
-	local function find(name: string): any
-		for _, child in root:GetDescendants() do
-			if child.Name == name then
-				return child
-			end
-		end
-		error(`no element named {name}`, 2)
-	end
-	return app, find
-end
-```
-
-And here's the picker as a component that emits `change`:
+Here's the picker as a component that emits `change`:
 
 ```lua
 local QuantityPicker = Rivue.defineComponent({
@@ -160,38 +141,37 @@ local QuantityPicker = Rivue.defineComponent({
 
 ### Clicking a button
 
-Scripts can't fire `Activated`. `Rivue.testing.trigger(element, "onClick")` gets around that by
-calling the element's current `onClick` handler directly:
+Scripts can't fire `Activated`, so `Rivue.testing.click` runs the button's click handler instead,
+then waits for the re-render:
 
 ```lua
 local changes = {}
-local app, find = mountForTest(QuantityPicker, {
+local screen = Rivue.testing.render(QuantityPicker, {
 	max = 2,
 	onChange = function(amount)
 		table.insert(changes, amount)
 	end,
 })
 
-assert(find("Amount").Text == "1")
+assert(screen.getByText("1"))
 
-Rivue.testing.trigger(find("Plus"), "onClick")
-Rivue.testing.trigger(find("Plus"), "onClick") -- already at the max of 2
-Rivue.nextTick() -- wait for the re-render
+Rivue.testing.click(screen.getByText("+"))
+Rivue.testing.click(screen.getByText("+")) -- already at the max of 2
 
-assert(find("Amount").Text == "2")
-assert(find("Plus").Active == false)
+assert(screen.getByText("2"))
+assert(screen.getByName("Plus").Active == false)
 assert(changes[1] == 2 and changes[2] == 2) -- one change event per click
 
-app:unmount()
+screen.unmount()
 ```
 
-Re-renders are batched like watchers. Skip the `nextTick()` and `Amount` still reads `1`. Also,
-`trigger` errors when the element has no handler for that event, so a test that clicks the wrong
-thing fails instead of passing quietly.
+`getByText` fails the test when the text isn't there, or is there twice. `queryByText` returns nil
+instead, for checking that something is gone. `click` errors when the element has no click
+handler, so clicking the wrong thing fails instead of passing quietly.
 
 ### Typing into a text box
 
-Set `Text` and `model` picks it up. Then trigger `onFocusLost` with `true`, which is pressing
+`Rivue.testing.typeInto` sets the box's `Text` and then runs `onFocusLost` as if the player pressed
 Enter:
 
 ```lua
@@ -216,56 +196,33 @@ local NameInput = Rivue.defineComponent({
 })
 
 local submitted
-local app, find = mountForTest(NameInput, {
+local screen = Rivue.testing.render(NameInput, {
 	onSubmit = function(text)
 		submitted = text
 	end,
 })
 
-local box = find("Input")
-box.Text = "Sword"
-Rivue.testing.trigger(box, "onFocusLost", true)
-Rivue.nextTick()
+local box = screen.getByName("Input")
+Rivue.testing.typeInto(box, "Sword")
 
 assert(submitted == "Sword")
 assert(box.Text == "") -- the box clears after submitting
 
-app:unmount()
-```
-
-## Shorter tests with testing.render
-
-The helpers above show what a component test does. Rivue ships the same idea in a shorter form,
-modelled on Testing Library: find elements by the text the player sees, and act the way they
-would. This is the picker test from above, written with them:
-
-```lua
-local changes = {}
-local screen = Rivue.testing.render(QuantityPicker, {
-	max = 2,
-	onChange = function(amount)
-		table.insert(changes, amount)
-	end,
-})
-
-Rivue.testing.click(screen.getByText("+"))
-Rivue.testing.click(screen.getByText("+")) -- already at the max of 2
-
-assert(screen.getByText("2"))
-assert(changes[1] == 2 and changes[2] == 2)
-
 screen.unmount()
 ```
 
-`click` and `typeInto` wait for the re-render themselves, so there's no `nextTick()` to forget.
-`getByText` fails the test when the text isn't there, or is there twice; `queryByText` returns
-nil instead, for checking something is gone.
+For any other event, `Rivue.testing.trigger(element, "onMouseEnter")` calls that handler directly.
+It doesn't wait, so follow it with `Rivue.nextTick()` before checking the result. A test built
+from `Rivue.mount`, `trigger` and `nextTick` goes through these steps, which `testing.render` and
+`click` otherwise do for you:
+
+![the steps of a component test](../assets/diagrams/test-steps.webp)
 
 ## What a script can't test
 
-A script can't drive `UserInputService` events or the camera's `ViewportSize`. That leaves
-`vClickOutside`, `vDrag`, `useInputType()` and `useViewportSize()` to play-testing. What you can
-do is keep the decision in a plain function and test that, so only the wiring goes untested:
+A script can't drive `UserInputService` events or the camera's `ViewportSize`, so
+`vClickOutside`, `vDrag`, `useInputType()` and `useViewportSize()` need a playtest. Keep the
+decision in a plain function and test that, so only the wiring goes untested:
 
 ```lua
 local function columnsFor(width: number): number
@@ -275,7 +232,7 @@ end
 assert(columnsFor(400) == 1)
 assert(columnsFor(1280) == 3)
 
--- Play-test this part
+-- playtest this part
 local Grid = Rivue.defineComponent(function()
 	local viewport = Rivue.useViewportSize()
 	local columns = Rivue.computed(function()
@@ -302,7 +259,7 @@ return Rivue.story(ShopItem, {
 ---
 
 **Reference:** [testing.render()](../api/utilities.md#testingrender) ·
-[testing.trigger()](../api/utilities.md#testingtrigger) ·
+[testing.click()](../api/utilities.md#testingclick-and-testingtypeinto) · [testing.trigger()](../api/utilities.md#testingtrigger) ·
 [nextTick()](../api/scheduler.md#nexttick) · [effectScope()](../api/reactivity-advanced.md#effectscope) ·
 [mount()](../api/application.md#mount) · [story()](../api/utilities.md#story)
 
