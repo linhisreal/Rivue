@@ -23,10 +23,10 @@ const compare = ref(0)
 const version: string = theme.value.version
 const RELEASES = "https://github.com/linhisreal/Rivue/releases/latest"
 const installs = [
-	{ name: "Wally", where: "wally.toml", code: `RivueUI = "linhisreal/rivue-ui@${version}"` },
-	{ name: "pesde", where: "Terminal", code: "pesde add linhisreal/rivue_ui" },
-	{ name: "Rojo", where: "Terminal", code: "git submodule add https://github.com/linhisreal/Rivue vendor/Rivue" },
-	{ name: "Studio", where: "", code: "" },
+	{ name: "Wally", where: "wally.toml", icon: "file", code: `RivueUI = "linhisreal/rivue-ui@${version}"` },
+	{ name: "pesde", where: "Terminal", icon: "terminal", code: "pesde add linhisreal/rivue_ui" },
+	{ name: "Rojo", where: "Terminal", icon: "terminal", code: "git submodule add https://github.com/linhisreal/Rivue vendor/Rivue" },
+	{ name: "Studio", where: "", icon: "", code: "" },
 ]
 const INSTALL_KEY = "rivue-install-tab"
 const install = ref(0)
@@ -235,10 +235,7 @@ onUnmounted(() => {
 					</span>
 				</span>
 			</h1>
-			<p class="rv-lead">
-				Build Roblox UI with Vue 3's components, refs and computed values. Change state and Rivue writes
-				only the properties that changed.
-			</p>
+			<p class="rv-lead">{{ landing.lead }}</p>
 			<div class="rv-actions">
 				<a class="rv-btn rv-btn-brand" :href="withBase('/introduction')">
 					Get started
@@ -268,7 +265,11 @@ onUnmounted(() => {
 				<div :key="install" class="rv-install-line">
 					<template v-if="installs[install].code">
 						<code id="rv-install-text" tabindex="0" aria-label="Install line">{{ installs[install].code }}</code>
-						<span class="rv-install-where">{{ installs[install].where }}</span>
+						<span class="rv-install-where" :title="`Paste into ${installs[install].where}`">
+							<svg v-if="installs[install].icon === 'file'" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 13h6M9 17h4" /></svg>
+							<svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="m5 8 4 4-4 4M12 17h7" /></svg>
+							<span class="rv-visually-hidden">Paste into {{ installs[install].where }}</span>
+						</span>
 						<span class="rv-copy">
 							<button type="button" command="--copy" commandfor="rv-install-text" aria-label="Copy the install line">
 								<svg class="rv-icon-copy" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 9h10v11H9zM5 15V4h10" /></svg>
