@@ -12,7 +12,7 @@ import RepoLink from "./RepoLink.vue"
 import NavMenu from "./NavMenu.vue"
 import SidebarOpen from "./SidebarOpen.vue"
 import { applySavedTab, holdHashTarget, onCodeTabClick, onHeadingAnchorClick, onSearchToggleClick } from "./composables"
-import { animateSearchClose, fadeInPage, onImageClick, onTypeHover, trackChapters } from "./enhance"
+import { animateSearchClose, fadeInPage, fixSidebarGroups, onImageClick, onTypeHover, trackChapters } from "./enhance"
 import SidebarBottom from "./SidebarBottom.vue"
 import SidebarTop from "./SidebarTop.vue"
 import "./styles/tokens.css"
@@ -40,6 +40,7 @@ export default {
 		document.addEventListener("mouseover", onTypeHover)
 		window.addEventListener("load", applySavedTab)
 		window.addEventListener("load", trackChapters)
+		window.addEventListener("load", fixSidebarGroups)
 		animateSearchClose()
 		window.addEventListener("load", holdHashTarget)
 		window.addEventListener("hashchange", holdHashTarget)
@@ -51,6 +52,7 @@ export default {
 			if (hydrated) fadeInPage()
 			hydrated = true
 			trackChapters()
+			fixSidebarGroups()
 			applySavedTab()
 			holdHashTarget()
 		}
