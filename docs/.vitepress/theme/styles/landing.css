@@ -1250,7 +1250,7 @@ html:not(.dark) .rv-cta-v-edge.rv-cta-mint {
 	background: var(--vp-c-bg);
 }
 
-.rv-art::before {
+.rv-art-styling::before {
 	content: "";
 	position: absolute;
 	z-index: -1;
