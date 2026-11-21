@@ -53,7 +53,7 @@ export function onImageClick(event: MouseEvent) {
 		<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" /></svg></button>`
 	if (plainImage) {
 		const big = document.createElement("img")
-		big.src = plainImage.currentSrc || plainImage.src
+		big.src = plainImage.src
 		big.alt = plainImage.alt
 		zoom.append(big)
 	} else if (diagram) {
@@ -173,7 +173,10 @@ const SCROLL_PADDING = 24
 const STOP_ON = ["wheel", "touchstart", "keydown", "mousedown"]
 
 export function holdHashTarget() {
-	const id = decodeURIComponent(location.hash.slice(1))
+	let id = location.hash.slice(1)
+	try {
+		id = decodeURIComponent(id)
+	} catch {}
 	const target = id && document.getElementById(id)
 	const doc = document.querySelector(".VPDoc")
 	if (!target || !doc) return

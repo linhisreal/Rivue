@@ -28,12 +28,13 @@ const compare = ref(0)
 
 const { version, repo } = theme.value
 const releases = `${repo.url}/releases/latest`
+const owner = repo.name.split("/")[0]
 
 type Install = { name: string; line?: { code: string; where: string; icon: "file" | "terminal" } }
 
 const installs: Install[] = [
-	{ name: "Wally", line: { code: `RivueUI = "linhisreal/rivue-ui@${version}"`, where: "wally.toml", icon: "file" } },
-	{ name: "pesde", line: { code: "pesde add linhisreal/rivue_ui", where: "Terminal", icon: "terminal" } },
+	{ name: "Wally", line: { code: `RivueUI = "${owner}/rivue-ui@${version}"`, where: "wally.toml", icon: "file" } },
+	{ name: "pesde", line: { code: `pesde add ${owner}/rivue_ui`, where: "Terminal", icon: "terminal" } },
 	{ name: "Rojo", line: { code: `git submodule add ${repo.url} vendor/Rivue`, where: "Terminal", icon: "terminal" } },
 	{ name: "Studio" },
 ]
