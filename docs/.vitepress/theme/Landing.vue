@@ -20,10 +20,29 @@ const icons: Record<string, string> = {
 
 const compare = ref(0)
 
+const version: string = theme.value.version
+const stage = version.includes("-rc") ? "Release candidate" : version.includes("-") ? "Pre-release" : "Stable"
+const RELEASES = "https://github.com/linhisreal/Rivue/releases/latest"
 const installs = [
-	{ name: "Wally", line: `RivueUI = "linhisreal/rivue-ui@${theme.value.version}"` },
-	{ name: "pesde", line: "pesde add linhisreal/rivue_ui" },
-	{ name: "Rojo", line: "git submodule add https://github.com/linhisreal/Rivue vendor/Rivue" },
+	{
+		name: "Wally",
+		file: "wally.toml",
+		code: `[dependencies]\nRivueUI = "linhisreal/rivue-ui@${version}"`,
+		next: "Then run wally install.",
+	},
+	{ name: "pesde", file: "Terminal", code: "pesde add linhisreal/rivue_ui", next: "Installs into your pesde project." },
+	{
+		name: "Rojo",
+		file: "Terminal",
+		code: "git submodule add https://github.com/linhisreal/Rivue vendor/Rivue",
+		next: "Then map vendor/Rivue/packages/rivue-ui in default.project.json.",
+	},
+	{
+		name: "Studio",
+		file: "",
+		code: "",
+		next: "Drag RivueUI.rbxm into ReplicatedStorage. The release also has RivueRemote, RivueRouter and the DevTools plugin.",
+	},
 ]
 const install = ref(0)
 
@@ -206,28 +225,43 @@ onUnmounted(() => {
 <template>
 	<main class="rv">
 		<section class="rv-hero">
-			<h1>
-				The <span class="rv-accent">Vue-style</span> framework for
-				<span class="rv-selected">
-					Roblox UI
-					<span class="rv-selection" aria-hidden="true">
-						<i></i><i></i><i></i><i></i>
-						<b>TextLabel</b>
-					</span>
-				</span>
-			</h1>
-			<p class="rv-lead">
-				Vue 3's components, refs and computed values, in Luau. Change state and Rivue updates only
-				the properties that changed. No more wiring Instances by hand.
-			</p>
-			<div class="rv-actions">
-				<a class="rv-btn rv-btn-brand" :href="withBase('/introduction')">
-					Get started
-					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+			<div class="rv-hero-copy">
+				<a class="rv-hero-tag" :href="withBase('/INSTALLATION')">
+					<code>v{{ version }}</code>
+					{{ stage }}
+					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
 				</a>
+				<h1>
+					The <span class="rv-accent">Vue-style</span> framework for
+					<span class="rv-selected">
+						Roblox UI
+						<span class="rv-selection" aria-hidden="true">
+							<i></i><i></i><i></i><i></i>
+							<b>TextLabel</b>
+						</span>
+					</span>
+				</h1>
+				<p class="rv-lead">
+					Build Roblox UI with Vue 3's components, refs and computed values. Change state and Rivue writes
+					only the properties that changed.
+				</p>
+				<div class="rv-actions">
+					<a class="rv-btn rv-btn-brand" :href="withBase('/introduction')">
+						Get started
+						<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+					</a>
+					<a class="rv-btn" :href="withBase('/examples/counter')">Browse examples</a>
+				</div>
+				<ul class="rv-proof">
+					<li>Strict Luau types</li>
+					<li>Vue 3 API names</li>
+					<li>DevTools plugin for Studio</li>
+				</ul>
 			</div>
-			<div class="rv-install-block">
-				<div class="rv-install-tabs" role="group" aria-label="Install with">
+
+			<div class="rv-get">
+				<p class="rv-get-title">Install RivueUI</p>
+				<div class="rv-get-tabs" role="group" aria-label="Install with">
 					<button
 						v-for="(option, i) in installs"
 						:key="option.name"
@@ -237,18 +271,28 @@ onUnmounted(() => {
 					>
 						{{ option.name }}
 					</button>
-					<a :href="withBase('/INSTALLATION')">More options</a>
 				</div>
-				<div class="rv-install">
-					<code id="rv-install-text" :key="install" tabindex="0" aria-label="Install line">{{ installs[install].line }}</code>
-					<span class="rv-copy">
-						<button type="button" command="--copy" commandfor="rv-install-text" aria-label="Copy the install line">
-							<svg class="rv-icon-copy" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 9h10v11H9zM5 15V4h10" /></svg>
-							<svg class="rv-icon-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10" /></svg>
-						</button>
-						<span class="rv-tip" role="status"></span>
-					</span>
+				<div :key="install" class="rv-get-body">
+					<template v-if="installs[install].code">
+						<p class="rv-get-file">{{ installs[install].file }}</p>
+						<div class="rv-get-code">
+							<pre><code id="rv-install-text" tabindex="0" aria-label="Install code">{{ installs[install].code }}</code></pre>
+							<span class="rv-copy">
+								<button type="button" command="--copy" commandfor="rv-install-text" aria-label="Copy the install code">
+									<svg class="rv-icon-copy" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 9h10v11H9zM5 15V4h10" /></svg>
+									<svg class="rv-icon-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10" /></svg>
+								</button>
+								<span class="rv-tip" role="status"></span>
+							</span>
+						</div>
+					</template>
+					<a v-else class="rv-btn rv-get-download" :href="RELEASES">
+						<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg>
+						Download RivueUI.rbxm
+					</a>
+					<p class="rv-get-next">{{ installs[install].next }}</p>
 				</div>
+				<a class="rv-get-more" :href="withBase('/INSTALLATION')">All install options</a>
 			</div>
 		</section>
 
