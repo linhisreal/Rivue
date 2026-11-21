@@ -340,6 +340,18 @@
 	--fd-callout: #e5534b;
 }
 
+html:not(.dark) .vp-doc .custom-block.tip {
+	--fd-callout: #08664a;
+}
+
+html:not(.dark) .vp-doc .custom-block.warning {
+	--fd-callout: #7a4d00;
+}
+
+html:not(.dark) .vp-doc .custom-block:is(.caution, .danger) {
+	--fd-callout: #cf222e;
+}
+
 .vp-doc .custom-block .custom-block-title {
 	margin: 0 0 2px;
 	font-size: 14px;

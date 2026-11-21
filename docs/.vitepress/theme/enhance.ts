@@ -106,3 +106,41 @@ export function trackChapters() {
 	for (const card of document.querySelectorAll<HTMLElement>(".fd-chapter-card[data-chapter]"))
 		card.classList.toggle("is-read", read.includes(card.dataset.chapter ?? ""))
 }
+
+function patchSidebarGroups(root: ParentNode) {
+	for (const item of root.querySelectorAll<HTMLElement>(".VPSidebarItem.collapsible > .item")) {
+		const group = item.parentElement!
+		const caret = item.querySelector<HTMLElement>(":scope > .caret")
+		if (item.getAttribute("role") === "button") {
+			caret?.removeAttribute("role")
+			caret?.removeAttribute("tabindex")
+			caret?.removeAttribute("aria-label")
+			caret?.setAttribute("aria-hidden", "true")
+			item.setAttribute("aria-expanded", String(!group.classList.contains("collapsed")))
+			if (!("space" in item.dataset)) {
+				item.dataset.space = ""
+				item.addEventListener("keydown", (event) => {
+					if (event.key !== " ") return
+					event.preventDefault()
+					item.click()
+				})
+			}
+		} else {
+			item.removeAttribute("tabindex")
+			caret?.setAttribute("aria-expanded", String(!group.classList.contains("collapsed")))
+		}
+	}
+}
+
+export function fixSidebarGroups() {
+	const sidebar = document.querySelector(".VPSidebar")
+	if (!sidebar) return
+	patchSidebarGroups(sidebar)
+	if ("patched" in (sidebar as HTMLElement).dataset) return
+	;(sidebar as HTMLElement).dataset.patched = ""
+	new MutationObserver(() => patchSidebarGroups(sidebar)).observe(sidebar, {
+		subtree: true,
+		childList: true,
+		attributeFilter: ["class"],
+	})
+}
