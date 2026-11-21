@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from "vue"
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue"
 import LandingDemo from "./LandingDemo.vue"
 import FeatureArt from "./FeatureArt.vue"
 import { useData, withBase } from "vitepress"
@@ -21,15 +21,20 @@ const icons: Record<string, string> = {
 const compare = ref(0)
 
 const version: string = theme.value.version
-const stage = version.includes("-rc") ? "Release candidate" : version.includes("-") ? "Pre-release" : "Latest"
 const RELEASES = "https://github.com/linhisreal/Rivue/releases/latest"
 const installs = [
-	{ name: "Wally", code: `RivueUI = "linhisreal/rivue-ui@${version}"` },
-	{ name: "pesde", code: "pesde add linhisreal/rivue_ui" },
-	{ name: "Rojo", code: "git submodule add https://github.com/linhisreal/Rivue vendor/Rivue" },
-	{ name: "Studio", code: "" },
+	{ name: "Wally", where: "wally.toml", code: `RivueUI = "linhisreal/rivue-ui@${version}"` },
+	{ name: "pesde", where: "Terminal", code: "pesde add linhisreal/rivue_ui" },
+	{ name: "Rojo", where: "Terminal", code: "git submodule add https://github.com/linhisreal/Rivue vendor/Rivue" },
+	{ name: "Studio", where: "", code: "" },
 ]
+const INSTALL_KEY = "rivue-install-tab"
 const install = ref(0)
+watch(install, (i) => {
+	try {
+		localStorage.setItem(INSTALL_KEY, installs[i].name)
+	} catch {}
+})
 
 const features = [
 	{
@@ -198,6 +203,10 @@ async function showAll() {
 }
 
 onMounted(() => {
+	try {
+		const saved = installs.findIndex((option) => option.name === localStorage.getItem(INSTALL_KEY))
+		if (saved > 0) install.value = saved
+	} catch {}
 	if (native) document.addEventListener("command", onCommand, true)
 	else document.addEventListener("click", onClick)
 })
@@ -251,11 +260,15 @@ onUnmounted(() => {
 							{{ option.name }}
 						</button>
 					</div>
-					<a class="rv-install-guide" :href="withBase('/INSTALLATION')">{{ version }} · {{ stage.toLowerCase() }}</a>
+					<a class="rv-install-guide" :href="withBase('/INSTALLATION')">
+						Install guide
+						<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+					</a>
 				</div>
 				<div :key="install" class="rv-install-line">
 					<template v-if="installs[install].code">
 						<code id="rv-install-text" tabindex="0" aria-label="Install line">{{ installs[install].code }}</code>
+						<span class="rv-install-where">{{ installs[install].where }}</span>
 						<span class="rv-copy">
 							<button type="button" command="--copy" commandfor="rv-install-text" aria-label="Copy the install line">
 								<svg class="rv-icon-copy" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 9h10v11H9zM5 15V4h10" /></svg>
@@ -265,7 +278,8 @@ onUnmounted(() => {
 						</span>
 					</template>
 					<p v-else class="rv-install-studio">
-						<a :href="RELEASES">Download RivueUI.rbxm</a> and drag it into ReplicatedStorage.
+						<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg>
+						<span><a :href="RELEASES">Download RivueUI.rbxm</a> and drag it into ReplicatedStorage</span>
 					</p>
 				</div>
 			</div>
