@@ -204,7 +204,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-	<div class="rv">
+	<main class="rv">
 		<section class="rv-hero">
 			<h1>
 				The <span class="rv-accent">Vue-style</span> framework for
@@ -217,8 +217,8 @@ onUnmounted(() => {
 				</span>
 			</h1>
 			<p class="rv-lead">
-				Write your UI as Luau components. When state changes, Rivue <span class="rv-nowrap">re-renders</span> only the
-				components that read it and writes just the properties that changed.
+				Vue 3's components, refs and computed values, in Luau. Change state and Rivue updates only
+				the properties that changed. No more wiring Instances by hand.
 			</p>
 			<div class="rv-actions">
 				<a class="rv-btn rv-btn-brand" :href="withBase('/introduction')">
@@ -240,7 +240,7 @@ onUnmounted(() => {
 					<a :href="withBase('/INSTALLATION')">More options</a>
 				</div>
 				<div class="rv-install">
-					<code id="rv-install-text" :key="install">{{ installs[install].line }}</code>
+					<code id="rv-install-text" :key="install" tabindex="0" aria-label="Install line">{{ installs[install].line }}</code>
 					<span class="rv-copy">
 						<button type="button" command="--copy" commandfor="rv-install-text" aria-label="Copy the install line">
 							<svg class="rv-icon-copy" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 9h10v11H9zM5 15V4h10" /></svg>
@@ -413,5 +413,5 @@ onUnmounted(() => {
 				</button>
 			</div>
 		</section>
-	</div>
+	</main>
 </template>

@@ -27,7 +27,7 @@ Each row links the chapter that teaches it, the API entry and an example that do
 |---|---|---|---|
 | put a first component on screen | [Guide 1](guide/01-introduction.md) | [defineComponent()](api/component.md#definecomponent) | [Counter](../examples/components/Counter.luau) |
 | keep state and update the UI | [Guide 2](guide/02-state.md) | [ref()](api/reactivity-core.md#ref), [computed()](api/reactivity-core.md#computed) | [Counter](../examples/components/Counter.luau) |
-| add and remove items in a list | [Guide 2](guide/02-state.md#changing-lists), [3](guide/03-describing-ui.md#lists-and-keys) | [Array helpers](api/array.md), [hFor()](api/render-function.md#hfor) | [TodoList](../examples/components/TodoList.luau) |
+| add and remove items in a list | [Guide 2](guide/02-state.md#changing-lists), [Guide 3](guide/03-describing-ui.md#lists-and-keys) | [Array helpers](api/array.md), [hFor()](api/render-function.md#hfor) | [TodoList](../examples/components/TodoList.luau) |
 | split a screen into components | [Guide 4](guide/04-components.md) | [props](api/component.md#props), [emits](api/component.md#emits) | [TodoList](../examples/components/TodoList.luau) |
 | make a panel, card or modal that takes content | [Guide 4](guide/04-components.md#slots-passing-ui-into-a-component) | [Slots](api/component.md#slots) | [Modal](../examples/components/Modal.luau) |
 | read text the player types | [Guide 5](guide/05-forms-and-input.md) | [Element props: model](api/render-function.md#element-props) | [TodoList](../examples/components/TodoList.luau) |
@@ -36,9 +36,9 @@ Each row links the chapter that teaches it, the API entry and an example that do
 | support phones and controllers | [Guide 6](guide/06-styling-and-layout.md#input-type-screen-size-and-safe-area) | [Roblox composables](api/roblox.md) | [Hud](../examples/components/Hud.luau) |
 | run code when something changes | [Guide 7](guide/07-effects-and-animation.md) | [watch()](api/reactivity-core.md#watch) | [Hud](../examples/components/Hud.luau) |
 | animate things in and out | [Guide 7](guide/07-effects-and-animation.md#animation) | [Transition](api/builtins.md#transition) | [Modal](../examples/components/Modal.luau) |
-| share state across the game | [Guide 8](guide/08-state-and-server.md), [14](guide/14-state-architecture.md) | [provide()](api/component.md#provide), [readonly()](api/reactivity-core.md#readonly) | |
+| share state across the game | [Guide 8](guide/08-state-and-server.md), [Guide 14](guide/14-state-architecture.md) | [provide()](api/component.md#provide), [readonly()](api/reactivity-core.md#readonly) | |
 | load data from the server | [Guide 8](guide/08-state-and-server.md#talking-to-the-server) | [Remote](api/remote.md) | [Shop](../examples/components/Shop.luau) |
-| show a long list fast | [Guide 9](guide/09-performance-and-debugging.md), [15](guide/15-performance-in-depth.md) | [VirtualList](api/builtins.md#virtuallist) | [Inventory](../examples/components/Inventory.luau) |
+| show a long list fast | [Guide 9](guide/09-performance-and-debugging.md), [Guide 15](guide/15-performance-in-depth.md) | [VirtualList](api/builtins.md#virtuallist) | [Inventory](../examples/components/Inventory.luau) |
 | organise files once there are many screens | [Guide 10](guide/10-organising-a-project.md) | [components](api/component.md#components) | [Demo app](../dev/Demo) |
 | close a menu with Escape or the B button | [Guide 5](guide/05-forms-and-input.md#keyboard-and-gamepad-shortcuts) | [useKeybind()](api/roblox.md#usekeybind) | |
 | translate text into the player's language | [Guide 6](guide/06-styling-and-layout.md#text-in-the-players-language) | [useTranslator()](api/roblox.md#usetranslator) | |

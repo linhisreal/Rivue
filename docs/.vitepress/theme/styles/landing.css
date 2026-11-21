@@ -641,6 +641,8 @@ html:not(.dark) .rv-cta-v-edge.rv-cta-mint {
 
 .rv-sub a {
 	color: var(--vp-c-brand-1);
+	text-decoration: underline;
+	text-underline-offset: 3px;
 }
 
 .rv-spec {

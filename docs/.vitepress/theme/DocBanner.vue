@@ -7,8 +7,8 @@ const stage = version.includes("-rc") ? "a release candidate" : version.includes
 </script>
 
 <template>
-	<p v-if="stage" class="fd-banner">
+	<aside v-if="stage" class="fd-banner" aria-label="Release status">
 		RivueUI {{ version }} is {{ stage }}, so APIs can still change before the stable release.
 		<a :href="withBase('/INSTALLATION')">Install it</a>
-	</p>
+	</aside>
 </template>
