@@ -316,25 +316,23 @@ onUnmounted(() => {
 							<div class="rv-spec-src" v-html="landing.featureCode[feature.art].html"></div>
 						</div>
 						<span class="rv-spec-scan" aria-hidden="true"></span>
-					</div>
-					<div class="rv-spec-text">
 						<button
 							type="button"
 							class="rv-spec-chip"
 							:aria-pressed="codeShown.has(i)"
 							:aria-controls="`rv-code-${feature.art}`"
+							:aria-label="`Show the code for ${feature.title}`"
 							@click="toggleCode(i)"
 						>
-							<span class="rv-visually-hidden">Show the code for </span>{{ feature.title }}
-							<span class="rv-spec-dot" aria-hidden="true">
-								<svg viewBox="0 0 24 24"><path d="m8 7-5 5 5 5M16 7l5 5-5 5" /></svg>
-							</span>
+							<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 7-5 5 5 5M16 7l5 5-5 5" /></svg>
 						</button>
-						<p>{{ feature.text }}</p>
-						<a :href="withBase(feature.link)">
-							{{ feature.chapter }}
+					</div>
+					<div class="rv-spec-text">
+						<a class="rv-spec-title" :href="withBase(feature.link)">
+							{{ feature.title }}
 							<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
 						</a>
+						<p>{{ feature.text }}</p>
 					</div>
 				</li>
 			</ul>

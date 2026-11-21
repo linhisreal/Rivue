@@ -5,80 +5,76 @@ defineProps<{ kind: string }>()
 <template>
 	<div :class="['rv-art', `rv-art-${kind}`]" aria-hidden="true">
 		<template v-if="kind === 'reactivity'">
-			<span class="rv-art-tag">1 of 2 re-renders</span>
-			<span class="rv-art-tree">
-				<span class="rv-art-node rv-art-src">
-					<code>coins</code>
-					<b class="rv-tick"><span>3</span><span>4</span><span>5</span><span>3</span></b>
+			<span class="rv-tree">
+				<span class="rv-o rv-tree-root">
+					<em class="rv-lbl">coins <span class="rv-tick"><span>3</span><span>4</span><span>5</span><span>3</span></span></em>
+					<i class="rv-sk"></i>
 				</span>
-				<svg class="rv-art-links" viewBox="0 0 200 44" preserveAspectRatio="none">
-					<path class="rv-art-link-on" d="M100 0V14H44V44" />
-					<path d="M100 14H156V44" />
+				<svg class="rv-tree-links" viewBox="0 0 240 40" preserveAspectRatio="none">
+					<path d="M120 0V16H40V40" />
+					<path class="rv-tree-hot" d="M120 0V40" />
+					<path d="M120 16H200V40" />
 				</svg>
-				<span class="rv-art-kids">
-					<span class="rv-art-node rv-art-reads">Coins: <span class="rv-tick"><span>3</span><span>4</span><span>5</span><span>3</span></span></span>
-					<span class="rv-art-node rv-art-idle">Shop</span>
+				<span class="rv-tree-kids">
+					<span class="rv-o"><i class="rv-sk"></i></span>
+					<span class="rv-o rv-tree-reader"><em class="rv-lbl">re-renders</em><i class="rv-sk"></i></span>
+					<span class="rv-o"><i class="rv-sk"></i></span>
 				</span>
 			</span>
 		</template>
 
 		<template v-else-if="kind === 'components'">
-			<span class="rv-art-tag">ItemRow × 3</span>
-			<span class="rv-art-stack">
-				<span class="rv-art-sheet">
-					<span class="rv-art-sheet-title">Shop</span>
-					<span class="rv-art-bar"><i></i></span>
-					<span class="rv-art-bar"><i></i></span>
-					<span class="rv-art-bar"><i></i></span>
-					<span class="rv-art-stamp"></span>
-				</span>
-				<span class="rv-art-sheet rv-art-front">
-					<code>ItemRow</code>
-					<span class="rv-art-item">
-						<i></i>
-						<span class="rv-tick"><span>Sword</span><span>Shield</span><span>Potion</span><span>Sword</span></span>
-					</span>
+			<span class="rv-cards">
+				<span v-for="n in 3" :key="n" class="rv-o rv-sheet">
+					<em v-if="n === 3" class="rv-lbl">ItemRow</em>
+					<i class="rv-dots"></i>
+					<span class="rv-sheet-lines"><i class="rv-sk"></i><i class="rv-sk"></i></span>
 				</span>
 			</span>
 		</template>
 
 		<template v-else-if="kind === 'styling'">
-			<span class="rv-art-tag">
-				<span class="rv-tick"><span>Horizontal</span><span>Vertical</span><span>Horizontal</span></span>
+			<span class="rv-o rv-frame">
+				<em class="rv-lbl rv-lbl-left">padding 8</em>
+				<em class="rv-lbl">
+					<span class="rv-tick"><span>horizontal</span><span>vertical</span><span>horizontal</span></span>
+				</em>
+				<span class="rv-boxes"><i></i><i></i><i></i></span>
 			</span>
-			<span class="rv-art-boxes"><i></i><i></i><i></i><em>8</em></span>
 		</template>
 
 		<template v-else-if="kind === 'animation'">
-			<span class="rv-art-tag">
-				<span class="rv-tick"><span>Fade</span><span>Slide</span><span>Pop</span><span>Fade</span></span>
-			</span>
-			<span class="rv-art-slot">
-				<span class="rv-art-ghost"></span>
-				<span class="rv-art-ghost"></span>
-				<span class="rv-art-panel">
-					<b>Panel</b>
-					<i></i>
-					<i></i>
-					<span class="rv-art-panel-btn">OK</span>
+			<span class="rv-motion">
+				<span class="rv-o rv-ghost"></span>
+				<span class="rv-o rv-ghost"></span>
+				<span class="rv-o rv-panel">
+					<em class="rv-lbl">
+						<span class="rv-tick"><span>fade</span><span>slide</span><span>pop</span><span>fade</span></span>
+					</em>
+					<i class="rv-sk"></i>
+					<i class="rv-sk"></i>
+					<i class="rv-sk rv-sk-blue"></i>
 				</span>
 			</span>
 		</template>
 
 		<template v-else-if="kind === 'lists'">
-			<span class="rv-art-tag">4 of 16 rows created</span>
-			<span class="rv-art-list">
-				<span class="rv-art-list-all"><i v-for="n in 16" :key="n"></i></span>
-				<span class="rv-art-list-live"><i v-for="n in 16" :key="n"></i></span>
+			<span class="rv-list">
+				<span class="rv-list-all"><i v-for="n in 16" :key="n"></i></span>
+				<span class="rv-list-live"><i v-for="n in 16" :key="n"><b class="rv-sk"></b></i></span>
+				<span class="rv-list-window"><em class="rv-lbl">4 / 16</em></span>
 			</span>
 		</template>
 
 		<template v-else-if="kind === 'typed'">
-			<span class="rv-art-tag">Strict</span>
-			<span class="rv-art-editor">
-				<code class="rv-art-line"><i>1</i><span><span class="rv-tok-kw">local</span> hp: <span class="rv-tok-type">Ref</span>&lt;<span class="rv-tok-type">number</span>&gt; = ref(100)</span></code>
-				<code class="rv-art-line"><i>2</i><span>hp.value = <span class="rv-tick rv-art-value"><span>100</span><span>"full"</span><span>100</span></span></span></code>
-				<span class="rv-art-error">Type 'string' could not be converted into 'number'</span>
+			<span class="rv-o rv-editor">
+				<span class="rv-code-line"><i class="rv-sk" style="width: 52%"></i></span>
+				<span class="rv-code-line">
+					<i class="rv-sk" style="width: 28%"></i>
+					<code class="rv-tick rv-bad"><span>100</span><span>"full"</span><span>100</span></code>
+				</span>
+				<span class="rv-code-line"><i class="rv-sk" style="width: 40%"></i></span>
+				<em class="rv-lbl rv-lbl-error">string ≠ number</em>
 			</span>
 		</template>
 	</div>
