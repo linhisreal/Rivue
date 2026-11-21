@@ -44,10 +44,12 @@ export default {
 		window.addEventListener("load", holdHashTarget)
 		window.addEventListener("hashchange", holdHashTarget)
 		const afterRouteChange = router.onAfterRouteChange
+		let hydrated = false
 		router.onAfterRouteChange = async (to) => {
 			await afterRouteChange?.(to)
 			await nextTick()
-			fadeInPage()
+			if (hydrated) fadeInPage()
+			hydrated = true
 			trackChapters()
 			applySavedTab()
 			holdHashTarget()

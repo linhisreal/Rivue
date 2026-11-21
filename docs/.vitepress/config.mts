@@ -121,7 +121,7 @@ export default withMermaid(
 			sequence: { mirrorActors: false },
 		},
 		themeConfig: {
-			logo: { src: "/icon-192.png", alt: "Rivue" },
+			logo: { src: "/icon-192.png", alt: "" },
 			version: packageVersion("rivue-ui"),
 			repo: { name: "linhisreal/Rivue", url: REPO, ...(await repoStats()) },
 			landing: landingData(),

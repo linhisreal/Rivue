@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, onUnmounted, ref } from "vue"
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from "vue"
 import LandingDemo from "./LandingDemo.vue"
 import FeatureArt from "./FeatureArt.vue"
 import { useData, withBase } from "vitepress"
@@ -20,12 +20,21 @@ const icons: Record<string, string> = {
 
 const compare = ref(0)
 
+const version: string = theme.value.version
+const RELEASES = "https://github.com/linhisreal/Rivue/releases/latest"
 const installs = [
-	{ name: "Wally", line: `RivueUI = "linhisreal/rivue-ui@${theme.value.version}"` },
-	{ name: "pesde", line: "pesde add linhisreal/rivue_ui" },
-	{ name: "Rojo", line: "git submodule add https://github.com/linhisreal/Rivue vendor/Rivue" },
+	{ name: "Wally", where: "wally.toml", icon: "file", code: `RivueUI = "linhisreal/rivue-ui@${version}"` },
+	{ name: "pesde", where: "Terminal", icon: "terminal", code: "pesde add linhisreal/rivue_ui" },
+	{ name: "Rojo", where: "Terminal", icon: "terminal", code: "git submodule add https://github.com/linhisreal/Rivue vendor/Rivue" },
+	{ name: "Studio", where: "", icon: "", code: "" },
 ]
+const INSTALL_KEY = "rivue-install-tab"
 const install = ref(0)
+watch(install, (i) => {
+	try {
+		localStorage.setItem(INSTALL_KEY, installs[i].name)
+	} catch {}
+})
 
 const features = [
 	{
@@ -194,6 +203,10 @@ async function showAll() {
 }
 
 onMounted(() => {
+	try {
+		const saved = installs.findIndex((option) => option.name === localStorage.getItem(INSTALL_KEY))
+		if (saved > 0) install.value = saved
+	} catch {}
 	if (native) document.addEventListener("command", onCommand, true)
 	else document.addEventListener("click", onClick)
 })
@@ -204,50 +217,71 @@ onUnmounted(() => {
 </script>
 
 <template>
-	<div class="rv">
+	<main class="rv">
 		<section class="rv-hero">
 			<h1>
 				The <span class="rv-accent">Vue-style</span> framework for
 				<span class="rv-selected">
 					Roblox UI
 					<span class="rv-selection" aria-hidden="true">
-						<i></i><i></i><i></i><i></i>
+						<span class="rv-marquee-x"><span class="rv-marquee"></span></span>
+						<span class="rv-cursor-x">
+							<span class="rv-cursor-y">
+								<svg class="rv-cursor" viewBox="0 0 16 20"><path d="M1 1v15l4-4 3 7 3-1-3-7h6z" /></svg>
+							</span>
+						</span>
+						<i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
 						<b>TextLabel</b>
 					</span>
 				</span>
 			</h1>
-			<p class="rv-lead">
-				Write your UI as Luau components. When state changes, Rivue <span class="rv-nowrap">re-renders</span> only the
-				components that read it and writes just the properties that changed.
-			</p>
+			<p class="rv-lead">{{ landing.lead }}</p>
 			<div class="rv-actions">
 				<a class="rv-btn rv-btn-brand" :href="withBase('/introduction')">
 					Get started
 					<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
 				</a>
+				<a class="rv-btn" :href="withBase('/examples/counter')">Browse examples</a>
 			</div>
-			<div class="rv-install-block">
-				<div class="rv-install-tabs" role="group" aria-label="Install with">
-					<button
-						v-for="(option, i) in installs"
-						:key="option.name"
-						type="button"
-						:aria-pressed="install === i"
-						@click="install = i"
-					>
-						{{ option.name }}
-					</button>
-					<a :href="withBase('/INSTALLATION')">More options</a>
-				</div>
-				<div class="rv-install">
-					<code id="rv-install-text" :key="install">{{ installs[install].line }}</code>
-					<span class="rv-copy">
-						<button type="button" command="--copy" commandfor="rv-install-text" aria-label="Copy the install line">
-							<svg class="rv-icon-copy" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 9h10v11H9zM5 15V4h10" /></svg>
-							<svg class="rv-icon-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10" /></svg>
+
+			<div class="rv-install">
+				<div class="rv-install-bar">
+					<div class="rv-install-tabs" role="group" aria-label="Install with">
+						<button
+							v-for="(option, i) in installs"
+							:key="option.name"
+							type="button"
+							:aria-pressed="install === i"
+							@click="install = i"
+						>
+							{{ option.name }}
 						</button>
-						<span class="rv-tip" role="status"></span>
-					</span>
+					</div>
+					<a class="rv-install-guide" :href="withBase('/INSTALLATION')">
+						Install guide
+						<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+					</a>
+				</div>
+				<div :key="install" class="rv-install-line">
+					<template v-if="installs[install].code">
+						<code id="rv-install-text" tabindex="0" aria-label="Install line">{{ installs[install].code }}</code>
+						<span class="rv-install-where" :title="`Paste into ${installs[install].where}`">
+							<svg v-if="installs[install].icon === 'file'" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8zM14 3v5h5M9 13h6M9 17h4" /></svg>
+							<svg v-else viewBox="0 0 24 24" aria-hidden="true"><path d="m5 8 4 4-4 4M12 17h7" /></svg>
+							<span class="rv-visually-hidden">Paste into {{ installs[install].where }}</span>
+						</span>
+						<span class="rv-copy">
+							<button type="button" command="--copy" commandfor="rv-install-text" aria-label="Copy the install line">
+								<svg class="rv-icon-copy" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 9h10v11H9zM5 15V4h10" /></svg>
+								<svg class="rv-icon-check" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 5 5 9-10" /></svg>
+							</button>
+							<span class="rv-tip" role="status"></span>
+						</span>
+					</template>
+					<p v-else class="rv-install-studio">
+						<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14" /></svg>
+						<span><a :href="RELEASES">Download RivueUI.rbxm</a> and drag it into ReplicatedStorage</span>
+					</p>
 				</div>
 			</div>
 		</section>
@@ -413,5 +447,5 @@ onUnmounted(() => {
 				</button>
 			</div>
 		</section>
-	</div>
+	</main>
 </template>
