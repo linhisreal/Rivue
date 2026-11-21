@@ -35,7 +35,7 @@ export type EffectOptions = {
 	allowRecurse: boolean?,
 }
 
-export type Dep = { [Effect]: true }
+export type Dep = { subs: { [Effect]: true }, version: number, refresh: (() -> ())? }
 
 export type Effect = {
 	fn: () -> (),

@@ -42,8 +42,6 @@ local function weakKeyed(): any
 end
 
 local depMap: { [unknown]: { [unknown]: Dep } } = weakKeyed()
-local depVersions: { [Dep]: number } = weakKeyed()
-local computedRefreshers: { [Dep]: () -> () } = weakKeyed()
 local isDirty: (eff: Effect) -> boolean
 local effectStack: { Effect } = {}
 local activeEffect: Effect? = nil
@@ -222,12 +220,37 @@ local function shouldWrap(value: unknown): boolean
 	return type(value) == "table" and not rawMarker[value]
 end
 
-local function clearDeps(eff: Effect)
+local function newDep(): Dep
+	return { subs = {}, version = 0, refresh = nil }
+end
+
+const STALE = -1
+
+-- A rerun keeps last run's deps linked, and drops only those it didn't read again
+local function markDeps(eff: Effect)
+	local seenVersions = eff.seenVersions
 	for _, dep in eff.deps do
-		dep[eff] = nil
+		seenVersions[dep] = STALE
 	end
-	table.clear(eff.deps)
-	table.clear(eff.seenVersions)
+end
+
+local function pruneDeps(eff: Effect)
+	local deps, seenVersions = eff.deps, eff.seenVersions
+	local count = #deps
+	local kept = 0
+	for i = 1, count do
+		local dep = deps[i]
+		if seenVersions[dep] == STALE then
+			seenVersions[dep] = nil
+			dep.subs[eff] = nil
+		else
+			kept += 1
+			deps[kept] = dep
+		end
+	end
+	for i = count, kept + 1, -1 do
+		deps[i] = nil
+	end
 end
 
 local errorOwner: () -> any = function()
@@ -293,7 +316,7 @@ local function createEffect(fn: () -> (), opts: EffectOptions?, onError: ((err: 
 			effect.cleanups = nil
 			runEffectCleanups(cleanups)
 		end
-		clearDeps(typedEffect)
+		markDeps(typedEffect)
 		local depth = #effectStack
 		effectStack[depth + 1] = typedEffect
 		activeEffect = typedEffect
@@ -302,6 +325,7 @@ local function createEffect(fn: () -> (), opts: EffectOptions?, onError: ((err: 
 			effectStack[i] = nil
 		end
 		activeEffect = effectStack[depth]
+		pruneDeps(typedEffect)
 
 		if effectName then
 			utils.profiler:stop(effectName)
@@ -355,7 +379,7 @@ local function createEffect(fn: () -> (), opts: EffectOptions?, onError: ((err: 
 		self.active = false
 		self.pendingTrigger = nil
 		for _, dep in self.deps do
-			dep[self] = nil
+			dep.subs[self] = nil
 		end
 		table.clear(self.deps)
 		table.clear(self.seenVersions)
@@ -386,11 +410,15 @@ local function createEffect(fn: () -> (), opts: EffectOptions?, onError: ((err: 
 end
 
 local function trackDep(dep: Dep, current: Effect, target: unknown, key: unknown)
-	current.seenVersions[dep] = depVersions[dep] or 0
-	if not dep[current] then
-		dep[current] = true
+	local seenVersions = current.seenVersions
+	local previous = seenVersions[dep]
+	seenVersions[dep] = dep.version
+	if previous == nil then
+		dep.subs[current] = true
 		local deps = current.deps
 		deps[#deps + 1] = dep
+	end
+	if previous == nil or previous == STALE then
 		local onTrack = current.onTrack
 		if onTrack then
 			onTrack({ target = target, key = key })
@@ -410,19 +438,10 @@ local function track(target: unknown, key: unknown): Dep?
 	end
 	local dep = deps[key]
 	if not dep then
-		dep = {}
+		dep = newDep()
 		deps[key] = dep
 	end
-	current.seenVersions[dep] = depVersions[dep] or 0
-	if not dep[current] then
-		dep[current] = true
-		local effectDeps = current.deps
-		effectDeps[#effectDeps + 1] = dep
-		local onTrack = current.onTrack
-		if onTrack then
-			onTrack({ target = target, key = key })
-		end
-	end
+	trackDep(dep, current, target, key)
 	return dep
 end
 
@@ -456,7 +475,7 @@ local function dispatch(eff: Effect, target: unknown, key: unknown)
 end
 
 local function bumpDep(dep: Dep)
-	depVersions[dep] = (depVersions[dep] or 0) + 1
+	dep.version += 1
 end
 
 local function notifyDep(dep: Dep, target: unknown, key: unknown)
@@ -467,7 +486,7 @@ local function notifyDep(dep: Dep, target: unknown, key: unknown)
 		triggerScratch[triggerDepth] = effects
 	end
 	local count = 0
-	for eff in dep do
+	for eff in dep.subs do
 		count += 1
 		effects[count] = eff
 	end
@@ -636,7 +655,7 @@ function RefMT.__index(self: RefInternal, k: unknown): unknown
 		if current then
 			local dep = self._dep
 			if dep == false then
-				local created: Dep = {}
+				local created: Dep = newDep()
 				self._dep = created
 				trackDep(created, current, self, REF_VALUE_KEY)
 			else
@@ -689,12 +708,14 @@ end
 
 const PROTECTED_COMPUTED_DEPTH = 16
 local computedDepth = 0
+-- True while a computed tells its readers it may have changed
+local notifyingFromComputed = false
 
 isDirty = function(eff: Effect): boolean
 	local seenVersions = eff.seenVersions
 	for _, dep in eff.deps do
 		local seen = seenVersions[dep] or 0
-		local refresh = computedRefreshers[dep]
+		local refresh = dep.refresh
 		if refresh then
 			if computedDepth < PROTECTED_COMPUTED_DEPTH then
 				computedDepth += 1
@@ -707,7 +728,7 @@ isDirty = function(eff: Effect): boolean
 				refresh()
 			end
 		end
-		if (depVersions[dep] or 0) ~= seen then
+		if dep.version ~= seen then
 			return true
 		end
 	end
@@ -727,42 +748,33 @@ local function computed<T>(getterOrOptions: ((previous: T?) -> T) | WritableComp
 	end
 
 	local dirty = true
+	-- A ref or reactive table this computed reads changed, so skip the version check
+	local surelyDirty = false
 	local evaluatedOnce = false
 	local lastFailed = false
 	local value: T
 	local runner: Effect
+	local ownDep = newDep()
 	runner = createEffect(function()
 		value = getter(value)
 	end, {
 		lazy = true,
 		scheduler = function()
+			if not notifyingFromComputed then
+				surelyDirty = true
+			end
 			if dirty then
 				return
 			end
 			dirty = true
-			local deps = depMap[runner]
-			local dep = if deps then deps[COMPUTED_KEY] else nil
-			if dep then
-				notifyDep(dep, runner, COMPUTED_KEY)
-			end
+			local previous = notifyingFromComputed
+			notifyingFromComputed = true
+			notifyDep(ownDep, runner, COMPUTED_KEY)
+			notifyingFromComputed = previous
 		end,
 	})
 
 	runner.computed = true
-
-	local function bumpComputedDep()
-		local deps = depMap[runner]
-		if not deps then
-			deps = {}
-			depMap[runner] = deps
-		end
-		local dep = deps[COMPUTED_KEY]
-		if not dep then
-			dep = {}
-			deps[COMPUTED_KEY] = dep
-		end
-		bumpDep(dep)
-	end
 
 	local function evaluate()
 		if not runner.active then
@@ -774,7 +786,7 @@ local function computed<T>(getterOrOptions: ((previous: T?) -> T) | WritableComp
 			runner.cleanups = nil
 			runEffectCleanups(cleanups)
 		end
-		clearDeps(runner)
+		markDeps(runner)
 		local depth = #effectStack
 		effectStack[depth + 1] = runner
 		activeEffect = runner
@@ -783,6 +795,7 @@ local function computed<T>(getterOrOptions: ((previous: T?) -> T) | WritableComp
 			value = getter(value)
 			effectStack[depth + 1] = nil
 			activeEffect = effectStack[depth]
+			pruneDeps(runner)
 			return
 		end
 		computedDepth += 1
@@ -792,6 +805,7 @@ local function computed<T>(getterOrOptions: ((previous: T?) -> T) | WritableComp
 			effectStack[i] = nil
 		end
 		activeEffect = effectStack[depth]
+		pruneDeps(runner)
 		if not ok then
 			error(result, 0)
 		end
@@ -802,7 +816,9 @@ local function computed<T>(getterOrOptions: ((previous: T?) -> T) | WritableComp
 		if not dirty then
 			return
 		end
-		if evaluatedOnce and not lastFailed and not isDirty(runner) then
+		local sure = surelyDirty
+		surelyDirty = false
+		if evaluatedOnce and not lastFailed and not sure and not isDirty(runner) then
 			dirty = false
 			return
 		end
@@ -814,17 +830,17 @@ local function computed<T>(getterOrOptions: ((previous: T?) -> T) | WritableComp
 		evaluatedOnce = true
 		dirty = false
 		if first or hasChanged(value, previous) then
-			bumpComputedDep()
+			ownDep.version += 1
 		end
 	end
 
+	ownDep.refresh = refresh
+
 	local function get(): T
 		refresh()
-		if activeEffect then
-			local dep = track(runner, COMPUTED_KEY)
-			if dep then
-				computedRefreshers[dep] = refresh
-			end
+		local current = activeEffect
+		if current then
+			trackDep(ownDep, current, runner, COMPUTED_KEY)
 		end
 		return value
 	end
@@ -1397,7 +1413,7 @@ local function triggerListChange(raw: { [any]: any }, first: number, last: numbe
 		local dep = deps[key]
 		if dep then
 			bumpDep(dep)
-			for eff in dep do
+			for eff in dep.subs do
 				if firstKey[eff] == nil then
 					firstKey[eff] = key
 					table.insert(order, eff)
