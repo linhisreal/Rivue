@@ -1,84 +1,84 @@
 <script setup lang="ts">
 defineProps<{ kind: string }>()
+
+const FIELD = 120
+const TARGET = 52
+const path = "M16 118 C 70 116, 120 40, 236 22"
+const along = [0.06, 0.24, 0.44, 0.66, 0.9]
 </script>
 
 <template>
 	<div :class="['rv-art', `rv-art-${kind}`]" aria-hidden="true">
 		<template v-if="kind === 'reactivity'">
-			<span class="rv-deps">
-				<span class="rv-o rv-deps-root">
-					<em class="rv-lbl">ref</em>
-					<code>coins</code>
-					<b class="rv-tick"><span>3</span><span>4</span><span>5</span><span>3</span></b>
+			<span class="rv-field-wrap">
+				<span class="rv-field-head">
+					<code>coins = <b class="rv-tick"><span>3</span><span>4</span><span>5</span><span>3</span></b></code>
 				</span>
-				<svg class="rv-deps-links" viewBox="0 0 240 40" preserveAspectRatio="none">
-					<path d="M120 0V16H40V40" />
-					<path class="rv-deps-hot" d="M120 0V40" />
-					<path d="M120 16H200V40" />
-				</svg>
-				<span class="rv-deps-kids">
-					<span class="rv-o rv-deps-kid">Title</span>
-					<span class="rv-o rv-deps-kid rv-deps-reader">
-						<em class="rv-lbl">re-renders</em>
-						Coins: <span class="rv-tick"><span>3</span><span>4</span><span>5</span><span>3</span></span>
-					</span>
-					<span class="rv-o rv-deps-kid">Shop</span>
+				<span class="rv-field">
+					<i v-for="n in FIELD" :key="n" :class="{ 'rv-field-hit': n === TARGET }"></i>
 				</span>
+				<em class="rv-field-count">1 / {{ FIELD }} written</em>
 			</span>
 		</template>
 
 		<template v-else-if="kind === 'components'">
-			<span class="rv-cards">
-				<span class="rv-o rv-sheet">
-					<i class="rv-swatch rv-swatch-a"></i>
-					<span>Sword</span>
-					<b>20</b>
+			<span class="rv-mould">
+				<svg class="rv-mould-links" viewBox="0 0 264 132">
+					<path d="M98 66 C 124 66, 124 22, 150 22" />
+					<path d="M98 66 H 150" />
+					<path d="M98 66 C 124 66, 124 110, 150 110" />
+				</svg>
+				<span class="rv-mould-print">
+					<em class="rv-lbl rv-lbl-left">ItemRow</em>
+					<i class="rv-mould-slot"></i>
+					<i class="rv-sk"></i>
+					<i class="rv-sk"></i>
 				</span>
-				<span class="rv-o rv-sheet">
-					<i class="rv-swatch rv-swatch-b"></i>
-					<span>Shield</span>
-					<b>30</b>
-				</span>
-				<span class="rv-o rv-sheet">
-					<em class="rv-lbl">&lt;ItemRow&gt;</em>
-					<i class="rv-swatch rv-swatch-c"></i>
-					<span>Potion</span>
-					<b>10</b>
-				</span>
+				<span class="rv-copy-row"><i class="rv-swatch rv-swatch-a"></i>Sword<b>20</b></span>
+				<span class="rv-copy-row"><i class="rv-swatch rv-swatch-b"></i>Shield<b>30</b></span>
+				<span class="rv-copy-row"><i class="rv-swatch rv-swatch-c"></i>Potion<b>10</b></span>
 			</span>
 		</template>
 
 		<template v-else-if="kind === 'styling'">
-			<span class="rv-o rv-frame">
-				<em class="rv-lbl rv-lbl-left">padding 8</em>
-				<em class="rv-lbl">
-					<span class="rv-tick"><span>horizontal</span><span>vertical</span><span>horizontal</span></span>
-				</em>
-				<span class="rv-boxes"><i></i><i></i><i></i></span>
+			<span class="rv-spec-box">
+				<span class="rv-spec-frame">
+					<span class="rv-spec-inner"><i class="rv-sk"></i><i class="rv-sk"></i></span>
+					<span class="rv-spec-pad rv-spec-pad-top"><em><span class="rv-tick"><span>8</span><span>16</span><span>8</span></span></em></span>
+					<span class="rv-spec-pad rv-spec-pad-left"><em><span class="rv-tick"><span>8</span><span>16</span><span>8</span></span></em></span>
+					<span class="rv-spec-radius"><em>r 8</em></span>
+				</span>
+				<span class="rv-spec-width"><em>200</em></span>
 			</span>
 		</template>
 
 		<template v-else-if="kind === 'animation'">
-			<span class="rv-motion">
-				<span class="rv-o rv-ghost"></span>
-				<span class="rv-o rv-ghost"></span>
-				<span class="rv-o rv-pane">
-					<em class="rv-lbl">
-						<span class="rv-tick"><span>fade</span><span>slide</span><span>pop</span><span>fade</span></span>
-					</em>
-					<b>Panel</b>
+			<span class="rv-onion">
+				<svg class="rv-onion-path" viewBox="0 0 252 136"><path :d="path" /></svg>
+				<span
+					v-for="(t, i) in along"
+					:key="i"
+					class="rv-onion-frame"
+					:style="{ offsetPath: `path('${path}')`, offsetDistance: `${t * 100}%`, '--i': i }"
+				>
 					<i class="rv-sk"></i>
-					<i class="rv-sk"></i>
-					<span class="rv-pane-btn">OK</span>
+				</span>
+				<span class="rv-ease">
+					<svg viewBox="0 0 96 40"><path d="M2 38 C 30 38, 40 2, 94 2" /></svg>
+					<i></i>
+					<em>ease out</em>
 				</span>
 			</span>
 		</template>
 
 		<template v-else-if="kind === 'lists'">
-			<span class="rv-list">
-				<span class="rv-list-all"><i v-for="n in 16" :key="n"></i></span>
-				<span class="rv-list-live"><i v-for="n in 16" :key="n"><b class="rv-sk"></b><small>{{ n * 25 }}</small></i></span>
-				<span class="rv-list-window"><em class="rv-lbl">4 of 16 created</em></span>
+			<span class="rv-tilt">
+				<span class="rv-plane">
+					<span class="rv-list-all"><i v-for="n in 34" :key="n"></i></span>
+					<span class="rv-list-live"><i v-for="n in 34" :key="n"><b class="rv-sk"></b></i></span>
+					<span class="rv-list-window"></span>
+				</span>
+				<em class="rv-tilt-count">4 of 10,000 created</em>
 			</span>
 		</template>
 
