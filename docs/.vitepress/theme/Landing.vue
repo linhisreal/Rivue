@@ -325,8 +325,10 @@ onUnmounted(() => {
 							:aria-controls="`rv-code-${feature.art}`"
 							@click="toggleCode(i)"
 						>
-							<span class="rv-spec-dot" aria-hidden="true"></span>
 							<span class="rv-visually-hidden">Show the code for </span>{{ feature.title }}
+							<span class="rv-spec-dot" aria-hidden="true">
+								<svg viewBox="0 0 24 24"><path d="m8 7-5 5 5 5M16 7l5 5-5 5" /></svg>
+							</span>
 						</button>
 						<p>{{ feature.text }}</p>
 						<a :href="withBase(feature.link)">
