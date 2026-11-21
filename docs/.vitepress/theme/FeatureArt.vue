@@ -1,5 +1,7 @@
 <script setup lang="ts">
-defineProps<{ kind: string }>()
+import type { Scene } from "./types"
+
+defineProps<{ kind: Scene }>()
 
 const FIELD = 120
 const TARGET = 53
@@ -9,7 +11,7 @@ const copies = [
 	{ name: "Potion", price: 10, swatch: "c", link: "M98 66 C 124 66, 124 110, 150 110" },
 ]
 const path = "M30 112 C 80 110, 120 44, 222 26"
-const along = [0, 0.416, 0.751, 0.943, 1]
+const along = [0, 0.416, 0.751, 1]
 </script>
 
 <template>

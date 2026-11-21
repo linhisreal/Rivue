@@ -71,7 +71,7 @@ function card(page: OgPage, icon: string) {
 }
 
 export function writeOgImages(pages: OgPage[], outDir: string, iconFile: string) {
-	let Resvg: any
+	let Resvg: typeof import("@resvg/resvg-js").Resvg
 	let fontDir: string
 	try {
 		Resvg = require("@resvg/resvg-js").Resvg

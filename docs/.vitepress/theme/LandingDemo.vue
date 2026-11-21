@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, nextTick, reactive, ref } from "vue"
-import { useData } from "vitepress"
+import { useTheme } from "./types"
 
 type Item = { name: string; price: number }
 type Icon =
@@ -10,7 +10,7 @@ type Node = { id: string; name: string; icon: Icon; parent?: string; component?:
 type Section = { title: string; rows: Record<string, string> }
 type Steps = Partial<Record<"shop" | "itemRow", string[]>>
 
-const { theme } = useData()
+const { theme } = useTheme()
 const landing = theme.value.landing
 
 const ITEMS: Item[] = [

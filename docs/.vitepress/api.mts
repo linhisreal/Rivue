@@ -3,7 +3,8 @@
 
 import fs from "node:fs"
 import path from "node:path"
-import { htmlToken, REPO, ROOT, slug } from "./site.mts"
+import type { MarkdownEnv, MarkdownRenderer } from "vitepress"
+import { htmlToken, REPO, ROOT, slug, type StateCore, type Token } from "./site.mts"
 
 type Location = { file: string; line: number }
 
@@ -38,7 +39,7 @@ const PAGE_PACKAGE: Record<string, string> = { "api/remote.md": "rivue-remote", 
 
 const PARAM_HEADERS = new Set(["Parameter", "Prop", "Event", "Slot", "Field", "Option"])
 
-function cellsOf(tokens: any[], start: number, end: number) {
+function cellsOf(tokens: Token[], start: number, end: number) {
 	const rows: string[][] = []
 	let row: string[] | undefined
 	for (let i = start; i < end; i++) {
@@ -144,7 +145,7 @@ function linkTypes(html: string, page: string) {
 		.join("")
 }
 
-function paramList(md: any, env: any, header: string[], rows: string[][]) {
+function paramList(md: MarkdownRenderer, env: MarkdownEnv, header: string[], rows: string[][]) {
 	const page: string = env?.relativePath ?? ""
 	const inline = (text: string) => md.renderInline(text, env)
 	const seen = new Set(rows.map(([name]) => name.replace(/`/g, "")))
@@ -197,7 +198,7 @@ function pageEntries(file: string) {
 	return entries
 }
 
-function apiIndexCard(md: any, env: any, label: string, file: string) {
+function apiIndexCard(md: MarkdownRenderer, env: MarkdownEnv, label: string, file: string) {
 	const href = file.replace(/\.md$/, "")
 	const items = pageEntries(file)
 		.map(
@@ -208,17 +209,17 @@ function apiIndexCard(md: any, env: any, label: string, file: string) {
 	return `<section class="fd-api-card"><a class="fd-api-card-title" href="${href}">${md.utils.escapeHtml(label)}</a><ul>${items}</ul></section>\n`
 }
 
-function labelsHtml(md: any, labels: string) {
+function labelsHtml(md: MarkdownRenderer, labels: string) {
 	const items = labels.split(" · ").map((label) => `<span class="fd-label">${md.utils.escapeHtml(label)}</span>`)
 	return `<div class="fd-labels">${items.join("")}</div>\n`
 }
 
-function returnsHtml(md: any, env: any, text: string) {
+function returnsHtml(md: MarkdownRenderer, env: MarkdownEnv, text: string) {
 	const value = linkTypes(md.renderInline(text, env), env.relativePath)
 	return `<div class="fd-returns"><span class="fd-returns-label">Returns</span><span>${value}</span></div>\n`
 }
 
-function renderApiIndex(md: any, state: any) {
+function renderApiIndex(md: MarkdownRenderer, state: StateCore) {
 	const tokens = state.tokens
 	for (let i = 0; i < tokens.length; i++) {
 		if (tokens[i].type !== "paragraph_open") continue
@@ -227,9 +228,9 @@ function renderApiIndex(md: any, state: any) {
 	}
 }
 
-function renderApiPage(md: any, state: any, sources: Map<string, Location> | undefined) {
+function renderApiPage(md: MarkdownRenderer, state: StateCore, sources: Map<string, Location> | undefined) {
 	const tokens = state.tokens
-	let heading: any
+	let heading: Token | undefined
 	let entry: string | undefined
 	for (let i = 0; i < tokens.length; i++) {
 		const t = tokens[i]
@@ -246,7 +247,7 @@ function renderApiPage(md: any, state: any, sources: Map<string, Location> | und
 			if (at) t.meta.source = `${REPO}/blob/main/${at.file}#L${at.line}`
 			entry = undefined
 		} else if (t.type === "table_open") {
-			const close = tokens.findIndex((x: any, j: number) => j > i && x.type === "table_close")
+			const close = tokens.findIndex((x, j) => j > i && x.type === "table_close")
 			const [header, ...rows] = cellsOf(tokens, i, close)
 			if (header && PARAM_HEADERS.has(header[0])) tokens.splice(i, close - i + 1, htmlToken(state, paramList(md, state.env, header, rows)))
 		} else if (t.type === "paragraph_open" && /^\*\*Returns\*\*/.test(tokens[i + 1]?.content ?? "")) {
@@ -256,9 +257,9 @@ function renderApiPage(md: any, state: any, sources: Map<string, Location> | und
 	}
 }
 
-export function apiEntries(md: any) {
+export function apiEntries(md: MarkdownRenderer) {
 	const sources = sourceIndex()
-	md.core.ruler.push("api_entries", (state: any) => {
+	md.core.ruler.push("api_entries", (state: StateCore) => {
 		const page: string = state.env?.relativePath ?? ""
 		if (page === "API.md") renderApiIndex(md, state)
 		else if (page.startsWith("api/")) renderApiPage(md, state, sources.get(PAGE_PACKAGE[page] ?? "rivue-ui"))

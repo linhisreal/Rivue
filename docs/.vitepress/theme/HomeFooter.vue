@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { useData, withBase } from "vitepress"
+import { withBase } from "vitepress"
+import { useTheme } from "./types"
 
-const REPO = "https://github.com/linhisreal/Rivue"
-const { frontmatter, theme } = useData()
+const { frontmatter, theme } = useTheme()
+const repo = theme.value.repo.url
 
 const rings = [
 	{ at: 66, size: 380, radius: 84 },
@@ -33,10 +34,10 @@ const columns = [
 	{
 		title: "Project",
 		links: [
-			{ text: "GitHub", href: REPO },
-			{ text: "Releases", href: `${REPO}/releases` },
-			{ text: "Examples", href: `${REPO}/tree/main/examples` },
-			{ text: "License", href: `${REPO}/blob/main/LICENSE.md` },
+			{ text: "GitHub", href: repo },
+			{ text: "Releases", href: `${repo}/releases` },
+			{ text: "Examples", href: `${repo}/tree/main/examples` },
+			{ text: "License", href: `${repo}/blob/main/LICENSE.md` },
 		],
 	},
 ]
@@ -75,6 +76,6 @@ const columns = [
 				<a v-for="link in column.links" :key="link.text" :href="link.href">{{ link.text }}</a>
 			</nav>
 		</div>
-		<p class="rv-footer-legal">{{ theme.footer.message }} {{ theme.footer.copyright }}</p>
+		<p class="rv-footer-legal">{{ theme.footer?.message }} {{ theme.footer?.copyright }}</p>
 	</footer>
 </template>

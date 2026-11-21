@@ -5,7 +5,7 @@ import { execFileSync } from "node:child_process"
 import fs from "node:fs"
 import path from "node:path"
 import { transformerMetaWordHighlight } from "@shikijs/transformers"
-import { defineConfig, type PageData } from "vitepress"
+import { defineConfigWithTheme, type PageData } from "vitepress"
 import { withMermaid } from "vitepress-plugin-mermaid"
 import { exampleMarkdown, loadExamples } from "./examples.mts"
 import { loadHovers, luaBlocks, stripPathComment, transformerLuauHovers, typeLines } from "./hovers.mts"
@@ -16,6 +16,7 @@ import { copyBanners, ogHead, ogPages, writeOgImages } from "./og.mts"
 import { sidebar } from "./sidebar.mts"
 import { loadPosts, writeFeed } from "./blog.mts"
 import { DESCRIPTION, DOCS, packageVersion, REPO, ROOT, slug } from "./site.mts"
+import type { ThemeConfig } from "./theme/types"
 
 const PAGE_CLASSES: Record<string, string> = { "INSTALLATION.md": "fd-steps" }
 
@@ -73,7 +74,7 @@ function addPageData(pageData: PageData) {
 const base64 = (text: string) => Buffer.from(text).toString("base64")
 
 export default withMermaid(
-	defineConfig({
+	defineConfigWithTheme<ThemeConfig>({
 		title: "Rivue",
 		description: DESCRIPTION,
 		base: "/Rivue/",

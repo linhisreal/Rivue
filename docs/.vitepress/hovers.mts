@@ -5,6 +5,7 @@ import { spawn, spawnSync } from "node:child_process"
 import crypto from "node:crypto"
 import fs from "node:fs"
 import path from "node:path"
+import type { Element, ElementContent } from "hast"
 import { createHighlighter, type ShikiTransformer, type ThemedToken } from "shiki"
 import { ROOT } from "./site.mts"
 
@@ -147,7 +148,7 @@ function sourceSalt(): string {
 class LuauServer {
 	private buffer = Buffer.alloc(0)
 	private id = 0
-	private pending = new Map<number, (result: any) => void>()
+	private pending = new Map<number, (result: unknown) => void>()
 	private child
 
 	constructor(binary: string, defs: string) {
@@ -182,10 +183,10 @@ class LuauServer {
 		this.child.stdin.write(`Content-Length: ${Buffer.byteLength(body)}\r\n\r\n${body}`)
 	}
 
-	request(method: string, params?: object): Promise<any> {
+	request<T = unknown>(method: string, params?: object): Promise<T> {
 		return new Promise((resolve) => {
 			const id = ++this.id
-			this.pending.set(id, resolve)
+			this.pending.set(id, (result) => resolve(result as T))
 			this.send({ id, method, params })
 		})
 	}
@@ -206,7 +207,7 @@ class LuauServer {
 		this.send({ method: "textDocument/didOpen", params: { textDocument: { uri, languageId: "luau", version: 1, text: PREAMBLE + code } } })
 		const results = await Promise.all(
 			identifiers(code).map(async (spot) => {
-				const result = await this.request("textDocument/hover", {
+				const result = await this.request<{ contents?: { value?: string } } | null>("textDocument/hover", {
 					textDocument: { uri },
 					position: { line: spot.line + PREAMBLE_LINES, character: spot.col },
 				})
@@ -262,15 +263,17 @@ export async function loadHovers(blocks: string[]): Promise<Map<string, Hover[]>
 	return table
 }
 
-export async function typeLines(): Promise<(code: string) => any[]> {
+export async function typeLines(): Promise<(code: string) => ElementContent[]> {
 	const highlighter = await createHighlighter({ themes: ["github-light", "github-dark"], langs: ["luau"] })
 	return (code) => {
-		const root: any = highlighter.codeToHast(code, { lang: "luau", themes: { light: "github-light", dark: "github-dark" } })
-		return root.children[0].children[0].children
+		const root = highlighter.codeToHast(code, { lang: "luau", themes: { light: "github-light", dark: "github-dark" } })
+		const pre = root.children[0] as Element
+		const codeElement = pre.children[0] as Element
+		return codeElement.children
 	}
 }
 
-export function transformerLuauHovers(table: Map<string, Hover[]>, highlight: (code: string) => any[]): ShikiTransformer {
+export function transformerLuauHovers(table: Map<string, Hover[]>, highlight: (code: string) => ElementContent[]): ShikiTransformer {
 	return {
 		name: "rivue:luau-hovers",
 		tokens(lines) {
@@ -303,14 +306,15 @@ export function transformerLuauHovers(table: Map<string, Hover[]>, highlight: (c
 			if (this.options.lang !== "lua" && this.options.lang !== "luau") return
 			const hover = table.get(hoverKey(this.source))?.find((h) => h.line === line - 1 && h.col === col && h.length === token.content.length)
 			if (!hover) return
-			const pops: string[] = (this.meta.luauPops ??= [])
+			const meta = this.meta as { luauPops?: string[] }
+			const pops = (meta.luauPops ??= [])
 			let id = pops.indexOf(hover.text)
 			if (id === -1) id = pops.push(hover.text) - 1
 			node.properties.class = [node.properties.class, "fd-type"].filter(Boolean).join(" ")
 			node.properties["data-type"] = String(id)
 		},
 		root(root) {
-			const pops: string[] | undefined = this.meta.luauPops
+			const pops = (this.meta as { luauPops?: string[] }).luauPops
 			if (!pops?.length) return
 			root.children.push({
 				type: "element",

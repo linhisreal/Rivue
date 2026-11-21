@@ -5,7 +5,7 @@ import fs from "node:fs"
 import path from "node:path"
 import { createHighlighter } from "shiki"
 import { siteLink } from "./markdown.mts"
-import { DOCS, packageVersion, ROOT } from "./site.mts"
+import { DOCS, packageVersion, REPO, ROOT } from "./site.mts"
 
 const SHOP = `local ITEMS = {
 	{ name = "Sword", price = 20 },
@@ -278,7 +278,7 @@ export function landingData() {
 export async function repoStats() {
 	const headers: Record<string, string> = { "User-Agent": "rivue-docs" }
 	if (process.env.GITHUB_TOKEN) headers.Authorization = `Bearer ${process.env.GITHUB_TOKEN}`
-	const get = (url: string) => fetch(`https://api.github.com/repos/linhisreal/Rivue${url}`, { headers, signal: AbortSignal.timeout(5000) })
+	const get = (url: string) => fetch(`${REPO.replace("https://github.com/", "https://api.github.com/repos/")}${url}`, { headers, signal: AbortSignal.timeout(5000) })
 	try {
 		const [repo, releases] = await Promise.all([get(""), get("/releases?per_page=1")])
 		if (!repo.ok) return {}

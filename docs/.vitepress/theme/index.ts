@@ -11,8 +11,19 @@ import BlogLayout from "./BlogLayout.vue"
 import RepoLink from "./RepoLink.vue"
 import NavMenu from "./NavMenu.vue"
 import SidebarOpen from "./SidebarOpen.vue"
-import { applySavedTab, holdHashTarget, onCodeTabClick, onHeadingAnchorClick, onSearchToggleClick } from "./composables"
-import { animateSearchClose, fadeInPage, fixSidebarGroups, onImageClick, onTypeHover, trackChapters } from "./enhance"
+import {
+	animateSearchClose,
+	applySavedTab,
+	fadeInPage,
+	fixSidebarGroups,
+	holdHashTarget,
+	onCodeTabClick,
+	onHeadingAnchorClick,
+	onImageClick,
+	onSearchToggleClick,
+	onTypeHover,
+	trackChapters,
+} from "./enhance"
 import SidebarBottom from "./SidebarBottom.vue"
 import SidebarTop from "./SidebarTop.vue"
 import "./styles/tokens.css"
@@ -38,12 +49,9 @@ export default {
 		document.addEventListener("click", onCodeTabClick)
 		document.addEventListener("click", onImageClick)
 		document.addEventListener("mouseover", onTypeHover)
-		window.addEventListener("load", applySavedTab)
-		window.addEventListener("load", trackChapters)
-		window.addEventListener("load", fixSidebarGroups)
-		animateSearchClose()
-		window.addEventListener("load", holdHashTarget)
+		for (const onLoad of [applySavedTab, trackChapters, fixSidebarGroups, holdHashTarget]) window.addEventListener("load", onLoad)
 		window.addEventListener("hashchange", holdHashTarget)
+		animateSearchClose()
 		const afterRouteChange = router.onAfterRouteChange
 		let hydrated = false
 		router.onAfterRouteChange = async (to) => {
