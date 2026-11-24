@@ -84,7 +84,7 @@ function codeBlocks(md: MarkdownRenderer) {
 	md.renderer.rules.fence = (tokens, idx, options, env: MarkdownEnv, self) => {
 		const token = tokens[idx]
 		if (langOf(token.info) === "tree") return fileTree(md, token.content)
-		if (langOf(token.info) === "bars") return barChart(md, titleOf(token.info), token.content)
+		if (langOf(token.info) === "bars") return barChart(md, token.info, token.content)
 		let title = titleOf(token.info)
 		token.info = token.info.replace(/\s\[[^\]]+\]/, "").replace(/\stab(?=\s|$)/, "")
 		const pathComment = /^-- ([\w./-]+\.luau)\s*\n/.exec(token.content)
@@ -107,20 +107,25 @@ function codeBlocks(md: MarkdownRenderer) {
 	}
 }
 
-function barChart(md: MarkdownRenderer, title: string | undefined, content: string) {
+function barChart(md: MarkdownRenderer, info: string, content: string) {
 	const escape = md.utils.escapeHtml
+	const title = titleOf(info)
+	const units = /\sunits(\s|$)/.test(info)
 	const [head, ...rows] = content
 		.split("\n")
 		.filter((line) => line.trim())
 		.map((line) => line.split("|").map((cell) => cell.trim()))
 	const series = head.slice(2)
 	const max = Math.max(...rows.flatMap((row) => row.slice(2).map(Number)))
-	const bar = (value: string, i: number) =>
-		`<span class="fd-bar" data-series="${i}" style="--fd-bar: ${(Number(value) / max) * 100}%"><span>${escape(value)} ${escape(series[i] ?? "")}</span></span>`
+	const bar = (value: string, i: number) => {
+		const name = escape(series[i] ?? "")
+		return `<div class="fd-bar" data-series="${i}" title="${name}: ${escape(value)}" style="--fd-frac: ${Number(value) / max}; --fd-count: ${Number(value)}"><span class="fd-bar-fill"></span><span class="fd-bar-value"><span class="visually-hidden">${name} </span>${escape(value)}</span></div>`
+	}
 	const row = ([label, note, ...values]: string[]) =>
 		`<div class="fd-bars-row"><div class="fd-bars-label"><strong>${escape(label)}</strong><span>${escape(note)}</span></div><div class="fd-bars-track">${values.map(bar).join("")}</div></div>`
-	const caption = title ? `<figcaption>${escape(title)}</figcaption>` : ""
-	return `<figure class="fd-bars">${caption}${rows.map(row).join("")}</figure>\n`
+	const legend = series.map((name, i) => `<span class="fd-bars-key" data-series="${i}">${escape(name)}</span>`).join("")
+	const caption = `<figcaption><span class="fd-bars-title">${escape(title ?? "")}</span><span class="fd-bars-legend">${legend}</span></figcaption>`
+	return `<figure class="fd-bars"${units ? " data-units" : ""}>${caption}${rows.map(row).join("")}</figure>\n`
 }
 
 type TreeNode = { name: string; note: string; folder: boolean; children: TreeNode[] }

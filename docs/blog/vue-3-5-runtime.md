@@ -51,7 +51,7 @@ crosses 30 and `low` flips to `true`.
 Watchers and `watchEffect` get the same treatment. I counted it with one script on the runtime
 from before this work and on `main`, running offline in Lune:
 
-```bars [Runs after 100 writes that leave the computed's value the same]
+```bars [Runs after 100 writes that leave the computed's value the same] units
 What reads the computed | What runs | before | now
 A component that reads low | Hud renders | 100 | 1
 A watchEffect that reads low | effect runs | 100 | 1
@@ -62,7 +62,7 @@ The one run that's left is the write that flips the result, like health going fr
 
 It isn't free, though. Every read now records a version, so a long chain where every computed
 really does change on every write does a bit more bookkeeping than before. In the render
-benchmark, a chain of 100 computeds takes about 55 ms now against 33 ms before. The other
+benchmark, a chain of 100 computeds takes about 37 ms now against 28 ms before. The other
 scenarios (mounting, reordering, bindings) came out about the same. It pays off when a computed
 turns lots of writes into a few real changes, which is how most UI state behaves.
 
