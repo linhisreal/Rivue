@@ -1,7 +1,7 @@
 ---
 title: The docs, rebuilt
 description: Separate Guide and API sidebars, one format for every API entry, dark diagrams and a new landing page.
-date: 2026-11-16
+date: 2026-07-27
 author: linhisreal
 tags: [docs]
 ---
